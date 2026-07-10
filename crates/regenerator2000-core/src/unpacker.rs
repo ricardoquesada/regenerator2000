@@ -34,6 +34,8 @@ pub struct UnpackConfig {
     pub basic_rom: Option<Vec<u8>>,
     /// Optional 8 KB Kernal ROM image (`$E000`–`$FFFF`).
     pub kernal_rom: Option<Vec<u8>>,
+    /// Target system (default: None, defaults to C64 during execution).
+    pub target_system: Option<crate::state::types::System>,
 }
 
 impl Default for UnpackConfig {
@@ -45,6 +47,7 @@ impl Default for UnpackConfig {
             max_instructions: 50_000_000,
             basic_rom: None,
             kernal_rom: None,
+            target_system: None,
         }
     }
 }
@@ -123,14 +126,17 @@ struct UnpackerMemory {
     mem: Vec<u8>,
     /// Per-byte write tracking.
     written: Vec<bool>,
+    /// Target system.
+    system: crate::state::types::System,
 }
 
 impl UnpackerMemory {
     /// Creates a new zeroed 64 KB memory.
-    fn new() -> Self {
+    fn new(system: crate::state::types::System) -> Self {
         Self {
             mem: vec![0u8; 0x1_0000],
             written: vec![false; 0x1_0000],
+            system,
         }
     }
 }
@@ -138,15 +144,17 @@ impl UnpackerMemory {
 impl Bus for UnpackerMemory {
     fn get_byte(&mut self, addr: u16) -> u8 {
         let a = addr as usize;
-        // I/O at $D000-$DFFF is only visible when the C64 PLA maps it:
-        //   - CHAREN (bit 2) must be set, AND
-        //   - At least one of LORAM (bit 0) or HIRAM (bit 1) must be set.
-        // When both LORAM and HIRAM are clear, RAM is visible regardless of CHAREN.
-        if (0xD000..=0xDFFF).contains(&a) {
-            let bank = self.mem[0x01];
-            let io_visible = (bank & 0x04 != 0) && (bank & 0x03 != 0);
-            if io_visible {
-                return 0;
+        if self.system.as_str() == crate::state::types::System::C64 {
+            // I/O at $D000-$DFFF is only visible when the C64 PLA maps it:
+            //   - CHAREN (bit 2) must be set, AND
+            //   - At least one of LORAM (bit 0) or HIRAM (bit 1) must be set.
+            // When both LORAM and HIRAM are clear, RAM is visible regardless of CHAREN.
+            if (0xD000..=0xDFFF).contains(&a) {
+                let bank = self.mem[0x01];
+                let io_visible = (bank & 0x04 != 0) && (bank & 0x03 != 0);
+                if io_visible {
+                    return 0;
+                }
             }
         }
         self.mem[a]
@@ -154,12 +162,14 @@ impl Bus for UnpackerMemory {
 
     fn set_byte(&mut self, addr: u16, val: u8) {
         let a = addr as usize;
-        // Same PLA logic as get_byte: suppress writes only when I/O is mapped.
-        if (0xD000..=0xDFFF).contains(&a) {
-            let bank = self.mem[0x01];
-            let io_visible = (bank & 0x04 != 0) && (bank & 0x03 != 0);
-            if io_visible {
-                return;
+        if self.system.as_str() == crate::state::types::System::C64 {
+            // Same PLA logic as get_byte: suppress writes only when I/O is mapped.
+            if (0xD000..=0xDFFF).contains(&a) {
+                let bank = self.mem[0x01];
+                let io_visible = (bank & 0x04 != 0) && (bank & 0x03 != 0);
+                if io_visible {
+                    return;
+                }
             }
         }
         self.mem[a] = val;
@@ -187,19 +197,17 @@ const TOKEN_DIVIDE: u8 = 0xAD;
 /// - With spaces/parens: `SYS (2061)` or `SYS  2061`
 /// - With arithmetic: `SYS 2048+16`, `SYS 2048*1+13`
 #[must_use]
-pub(crate) fn find_sys_address(mem: &[u8]) -> Option<u16> {
-    // BASIC program starts at $0801
-    // Format: [link_lo] [link_hi] [line_lo] [line_hi] [tokens...] [0x00]
-    if mem.len() < 0x0806 {
+pub(crate) fn find_sys_address(mem: &[u8], basic_start: u16) -> Option<u16> {
+    let start = (basic_start as usize) + 4;
+    let limit = (basic_start as usize) + 0x100;
+    if mem.len() < start + 1 {
         return None;
     }
 
-    // Start scanning after the 4-byte header (link + line number)
-    let start = 0x0805;
     let mut pos = start;
 
     // Find SYS token
-    while pos < mem.len() && pos < 0x0900 {
+    while pos < mem.len() && pos < limit {
         if mem[pos] == 0x00 {
             return None; // End of line without SYS
         }
@@ -210,7 +218,7 @@ pub(crate) fn find_sys_address(mem: &[u8]) -> Option<u16> {
         pos += 1;
     }
 
-    if pos >= mem.len() || pos >= 0x0900 {
+    if pos >= mem.len() || pos >= limit {
         return None;
     }
 
@@ -286,17 +294,82 @@ pub(crate) fn find_sys_address(mem: &[u8]) -> Option<u16> {
 // Zero-page & system initialization
 // ---------------------------------------------------------------------------
 
-/// Initializes C64 zero-page and system area defaults (per unp64 lines 572-620).
-fn init_zero_page(mem: &mut UnpackerMemory, load_addr: u16, data_len: u16) {
+// ---------------------------------------------------------------------------
+// Target-system helpers
+// ---------------------------------------------------------------------------
+
+fn get_basic_start(load_addr: u16) -> u16 {
+    if load_addr.is_multiple_of(2) {
+        load_addr.wrapping_add(1)
+    } else {
+        load_addr
+    }
+}
+
+fn is_in_basic_rom(pc: u16, system: &crate::state::types::System) -> bool {
+    match system.as_str() {
+        crate::state::types::System::C64 => (0xA000..=0xBFFF).contains(&pc),
+        crate::state::types::System::C128 => (0x4000..=0xBFFF).contains(&pc),
+        crate::state::types::System::VIC20 => (0xC000..=0xDFFF).contains(&pc),
+        crate::state::types::System::PLUS4 => (0x8000..=0xBFFF).contains(&pc),
+        _ => (0xA000..=0xBFFF).contains(&pc),
+    }
+}
+
+fn is_in_kernal_rom(pc: u16, system: &crate::state::types::System) -> bool {
+    match system.as_str() {
+        crate::state::types::System::C64 => pc >= 0xE000,
+        crate::state::types::System::C128 => pc >= 0xC000,
+        crate::state::types::System::VIC20 => pc >= 0xE000,
+        crate::state::types::System::PLUS4 => pc >= 0xE000,
+        _ => pc >= 0xE000,
+    }
+}
+
+fn is_basic_rom_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
+    if system.as_str() == crate::state::types::System::C64 {
+        (mem[0x01] & 0x01) != 0
+    } else {
+        true
+    }
+}
+
+fn is_kernal_rom_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
+    if system.as_str() == crate::state::types::System::C64 {
+        (mem[0x01] & 0x02) != 0
+    } else {
+        true
+    }
+}
+
+fn is_io_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
+    if system.as_str() == crate::state::types::System::C64 {
+        (mem[0x01] & 0x04) != 0
+    } else {
+        false
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Zero-page & system initialization
+// ---------------------------------------------------------------------------
+
+/// Initializes target zero-page and system area defaults (per unp64 lines 572-620).
+fn init_zero_page(mem: &mut UnpackerMemory, load_addr: u16, data_len: u16, basic_start: u16) {
     let end_addr = load_addr.wrapping_add(data_len);
+    let system = mem.system.clone();
 
-    // Processor port
-    mem.mem[0x00] = 0x2F; // DDR
-    mem.mem[0x01] = 0x37; // Port: BASIC + Kernal mapped
+    if system.as_str() == crate::state::types::System::C64
+        || system.as_str() == crate::state::types::System::C128
+    {
+        // Processor port
+        mem.mem[0x00] = 0x2F; // DDR
+        mem.mem[0x01] = 0x37; // Port: BASIC + Kernal mapped
+    }
 
-    // BASIC text start
-    mem.mem[0x2B] = 0x01;
-    mem.mem[0x2C] = 0x08;
+    // BASIC text start (dynamically using basic_start)
+    mem.mem[0x2B] = (basic_start & 0xFF) as u8;
+    mem.mem[0x2C] = (basic_start >> 8) as u8;
 
     // Variables start = end of loaded data
     mem.mem[0x2D] = (end_addr & 0xFF) as u8;
@@ -311,26 +384,30 @@ fn init_zero_page(mem: &mut UnpackerMemory, load_addr: u16, data_len: u16) {
     mem.mem[0x32] = (end_addr >> 8) as u8;
 
     // BASIC end (top of memory for strings)
-    mem.mem[0x37] = 0x00;
-    mem.mem[0x38] = 0x08; // $0800 — this is an unusual default from unp64
+    if system.as_str() == crate::state::types::System::C64 {
+        mem.mem[0x37] = 0x00;
+        mem.mem[0x38] = 0x08; // $0800 — this is an unusual default from unp64
+    }
 
     // First BASIC line number (read from loaded data)
     if data_len >= 4 {
-        mem.mem[0x39] = mem.mem[load_addr as usize + 2];
-        mem.mem[0x3A] = mem.mem[load_addr as usize + 3];
+        mem.mem[0x39] = mem.mem[basic_start as usize + 2];
+        mem.mem[0x3A] = mem.mem[basic_start as usize + 3];
     }
 
     // End of program
     mem.mem[0xAE] = (end_addr & 0xFF) as u8;
     mem.mem[0xAF] = (end_addr >> 8) as u8;
 
-    // IRQ vector
-    mem.mem[0x0314] = 0x31;
-    mem.mem[0x0315] = 0xEA;
+    if system.as_str() == crate::state::types::System::C64 {
+        // IRQ vector
+        mem.mem[0x0314] = 0x31;
+        mem.mem[0x0315] = 0xEA;
 
-    // Fill screen RAM with spaces
-    for addr in 0x0400..=0x07E7 {
-        mem.mem[addr] = 0x20;
+        // Fill screen RAM with spaces
+        for addr in 0x0400..=0x07E7 {
+            mem.mem[addr] = 0x20;
+        }
     }
 }
 
@@ -372,16 +449,18 @@ fn handle_rom_entry(
     phase: u8,
 ) -> RomAction {
     let pc = cpu.registers.program_counter;
+    let system = cpu.memory.system.clone();
+
+    let basic_mapped = is_basic_rom_mapped(&cpu.memory.mem, &system);
+    let kernal_mapped = is_kernal_rom_mapped(&cpu.memory.mem, &system);
+
+    let in_basic = is_in_basic_rom(pc, &system);
+    let in_kernal = is_in_kernal_rom(pc, &system);
 
     // Not in ROM space
-    if pc < 0xA000 {
+    if !in_basic && !in_kernal {
         return RomAction::Continue;
     }
-
-    // Check bank register to see if ROM is mapped
-    let bank = cpu.memory.mem[0x01] & 0x07;
-    let basic_mapped = bank & 0x01 != 0; // Bit 0: BASIC ROM at $A000
-    let kernal_mapped = bank & 0x02 != 0; // Bit 1: Kernal ROM at $E000
 
     // If user code was written here (depacker at $FF00+, etc.) AND the ROM
     // at this address is not currently mapped, let it run as RAM code.
@@ -390,29 +469,33 @@ fn handle_rom_entry(
     // to the full $0800-$FF3F range — RAM underneath ROM gets written, but
     // the CPU still executes ROM when it enters BASIC RUN or Kernal calls.
     if cpu.memory.written[pc as usize] {
-        let rom_mapped_here =
-            ((0xA000..=0xBFFF).contains(&pc) && basic_mapped) || (pc >= 0xE000 && kernal_mapped);
+        let rom_mapped_here = (in_basic && basic_mapped) || (in_kernal && kernal_mapped);
         if !rom_mapped_here {
             return RomAction::Continue;
         }
     }
 
-    // BASIC ROM region $A000-$BFFF
-    if (0xA000..=0xBFFF).contains(&pc) {
+    let is_c64 = system.as_str() == crate::state::types::System::C64;
+
+    // BASIC ROM region
+    if in_basic {
         if !basic_mapped {
             return RomAction::Continue; // RAM is visible, not ROM
         }
 
         // BASIC RUN detection (Phase 1 only triggers redirect; Phase 2 breaks)
-        if matches!(
-            pc,
-            0xA7AE | 0xA7B1 | 0xA7EA | 0xA474 | 0xA533 | 0xA871 | 0xA888 | 0xA8BC
-        ) {
+        if is_c64
+            && matches!(
+                pc,
+                0xA7AE | 0xA7B1 | 0xA7EA | 0xA474 | 0xA533 | 0xA871 | 0xA888 | 0xA8BC
+            )
+        {
             return RomAction::BasicRun;
         }
 
         // Phase 2 extended BASIC RUN detection
-        if phase == 2 && ((0xA57C..=0xA659).contains(&pc) || pc == 0xA660 || pc == 0xA68E) {
+        if is_c64 && phase == 2 && ((0xA57C..=0xA659).contains(&pc) || pc == 0xA660 || pc == 0xA68E)
+        {
             return RomAction::Exit;
         }
 
@@ -421,15 +504,15 @@ fn handle_rom_entry(
         return RomAction::Handled;
     }
 
-    // Kernal ROM region $E000-$FFFF
-    if pc >= 0xE000 {
+    // Kernal ROM region
+    if in_kernal {
         if !kernal_mapped {
             return RomAction::Continue; // RAM is visible
         }
 
         match pc {
             // GETIN ($FFE4 / $F13E)
-            0xFFE4 | 0xF13E => {
+            0xFFE4 | 0xF13E if pc == 0xFFE4 || is_c64 => {
                 cpu.registers.accumulator = GETIN_RESPONSES[*getin_index % GETIN_RESPONSES.len()];
                 *getin_index += 1;
                 force_rts(cpu);
@@ -437,10 +520,12 @@ fn handle_rom_entry(
             }
 
             // CLRSCR / CINT ($E536 / $E544 / $FF5B)
-            0xE536 | 0xE544 | 0xFF5B => {
+            0xE536 | 0xE544 | 0xFF5B if pc == 0xFF5B || is_c64 => {
                 // Fill screen with spaces
-                for addr in 0x0400..=0x07E7 {
-                    cpu.memory.mem[addr] = 0x20;
+                if is_c64 {
+                    for addr in 0x0400..=0x07E7 {
+                        cpu.memory.mem[addr] = 0x20;
+                    }
                 }
                 cpu.registers.accumulator = 0x00;
                 cpu.registers.index_x = 0x00;
@@ -451,7 +536,7 @@ fn handle_rom_entry(
 
             // CHROUT with A=$93 (clear screen)
             0xFFD2 => {
-                if cpu.registers.accumulator == 0x93 {
+                if cpu.registers.accumulator == 0x93 && is_c64 {
                     for addr in 0x0400..=0x07E7 {
                         cpu.memory.mem[addr] = 0x20;
                     }
@@ -470,7 +555,7 @@ fn handle_rom_entry(
             }
 
             // IOINIT ($FDA3)
-            0xFDA3 => {
+            0xFDA3 if is_c64 => {
                 cpu.memory.mem[0x01] = 0xE7;
                 cpu.registers.accumulator = 0xD7;
                 cpu.registers.index_x = 0xFF;
@@ -479,7 +564,7 @@ fn handle_rom_entry(
             }
 
             // RESTOR ($FD15)
-            0xFD15 => {
+            0xFD15 if is_c64 => {
                 cpu.registers.accumulator = 0x31;
                 cpu.registers.index_x = 0x30;
                 cpu.registers.index_y = 0xFF;
@@ -488,17 +573,17 @@ fn handle_rom_entry(
             }
 
             // LOAD ($FFD5 / $F4A2) — exit vector
-            0xFFD5 | 0xF4A2 => {
+            0xFFD5 | 0xF4A2 if pc == 0xFFD5 || is_c64 => {
                 return RomAction::Exit;
             }
 
             // Warm start ($FCE2) — exit vector
-            0xFCE2 => {
+            0xFCE2 if is_c64 => {
                 return RomAction::Exit;
             }
 
             // IRQ handler range ($EA31-$EB76) — exit in Phase 2
-            addr if phase == 2 && (0xEA31..=0xEB76).contains(&addr) => {
+            addr if phase == 2 && is_c64 && (0xEA31..=0xEB76).contains(&addr) => {
                 return RomAction::Exit;
             }
 
@@ -889,8 +974,15 @@ pub fn unpack(
         return Err(UnpackError::EmptyData);
     }
 
+    let system = config
+        .target_system
+        .clone()
+        .unwrap_or_else(crate::state::types::default_system);
+
+    let basic_start = get_basic_start(load_addr);
+
     // Set up memory
-    let mut memory = UnpackerMemory::new();
+    let mut memory = UnpackerMemory::new(system.clone());
 
     // Load binary into memory at load_addr
     let data_len = raw_data.len().min(0x10000 - load_addr as usize);
@@ -899,7 +991,7 @@ pub fn unpack(
     }
 
     // Initialize zero-page and system area
-    init_zero_page(&mut memory, load_addr, data_len as u16);
+    init_zero_page(&mut memory, load_addr, data_len as u16, basic_start);
 
     // Take snapshot before emulation (used for output range end detection)
     let snapshot = memory.mem.clone();
@@ -908,7 +1000,7 @@ pub fn unpack(
     let entry = if let Some(forced) = config.forced_entry {
         forced
     } else {
-        find_sys_address(&memory.mem).ok_or(UnpackError::NoEntryPoint)?
+        find_sys_address(&memory.mem, basic_start).ok_or(UnpackError::NoEntryPoint)?
     };
 
     let ret_addr = config
@@ -920,6 +1012,7 @@ pub fn unpack(
     // Apply patches for specific packers
     if let Some(ref info) = packer_info
         && info.name == "ALZ64/Kabuto"
+        && system.as_str() == crate::state::types::System::C64
     {
         memory.mem[0x080b] = 0xA2;
     }
@@ -971,14 +1064,15 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
-                    load_addr,
+                    basic_start,
                     load_end,
                     packer_info.as_ref(),
+                    &system,
                 );
             }
             RomAction::BasicRun => {
                 // Re-parse SYS from memory and redirect
-                if let Some(new_entry) = find_sys_address(&cpu.memory.mem) {
+                if let Some(new_entry) = find_sys_address(&cpu.memory.mem, basic_start) {
                     cpu.registers.program_counter = new_entry;
                     total_instructions += 1;
                     continue;
@@ -993,9 +1087,10 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
-                    load_addr,
+                    basic_start,
                     load_end,
                     packer_info.as_ref(),
+                    &system,
                 );
             }
         }
@@ -1053,14 +1148,13 @@ pub fn unpack(
         // $D000-$FFFF). Even though the RAM *underneath* these areas may have
         // been written by the depacker, the CPU is executing from ROM, not
         // from the decompressed data. Letting execution continue ensures the
-        let bank = cpu.memory.mem[0x01] & 0x07;
-        let basic_mapped = bank & 0x01 != 0;
-        let kernal_mapped = bank & 0x02 != 0;
-        let io_mapped = bank & 0x04 != 0;
+        let basic_mapped = is_basic_rom_mapped(&cpu.memory.mem, &system);
+        let kernal_mapped = is_kernal_rom_mapped(&cpu.memory.mem, &system);
+        let io_mapped = is_io_mapped(&cpu.memory.mem, &system);
 
-        let in_rom_or_io = ((0xA000..=0xBFFF).contains(&pc) && basic_mapped)
+        let in_rom_or_io = (is_in_basic_rom(pc, &system) && basic_mapped)
             || ((0xD000..=0xDFFF).contains(&pc) && io_mapped)
-            || (pc >= 0xE000 && kernal_mapped);
+            || (is_in_kernal_rom(pc, &system) && kernal_mapped);
 
         if pc >= ret_addr && !in_rom_or_io && cpu.memory.written[pc as usize] {
             if pc == ret_addr {
@@ -1078,13 +1172,14 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
-                    load_addr,
+                    basic_start,
                     load_end,
                     packer_info.as_ref(),
+                    &system,
                 );
-            } else if (0x0800..=0x0810).contains(&pc) {
+            } else if (basic_start..=basic_start.saturating_add(0x10)).contains(&pc) {
                 // Landed in BASIC area — re-parse SYS from freshly decompressed BASIC.
-                let entry_point = find_sys_address(&cpu.memory.mem).unwrap_or(pc);
+                let entry_point = find_sys_address(&cpu.memory.mem, basic_start).unwrap_or(pc);
                 return finish_unpack(
                     &cpu.memory.mem,
                     &snapshot,
@@ -1093,9 +1188,10 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
-                    load_addr,
+                    basic_start,
                     load_end,
                     packer_info.as_ref(),
+                    &system,
                 );
             } else {
                 return finish_unpack(
@@ -1106,9 +1202,10 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
-                    load_addr,
+                    basic_start,
                     load_end,
                     packer_info.as_ref(),
+                    &system,
                 );
             }
         }
@@ -1138,9 +1235,10 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
-                    load_addr,
+                    basic_start,
                     load_end,
                     packer_info.as_ref(),
+                    &system,
                 );
             }
         }
@@ -1156,8 +1254,8 @@ pub fn unpack(
                 // When exit/run fires from BASIC ROM, the PC is a ROM address
                 // (e.g., $A659 inside CLR). The real entry point is the SYS
                 // address in the freshly decompressed BASIC program.
-                let entry_point = if (0xA000..=0xBFFF).contains(&pc) {
-                    find_sys_address(&cpu.memory.mem).unwrap_or(pc)
+                let entry_point = if is_in_basic_rom(pc, &system) {
+                    find_sys_address(&cpu.memory.mem, basic_start).unwrap_or(pc)
                 } else {
                     pc
                 };
@@ -1169,9 +1267,10 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
-                    load_addr,
+                    basic_start,
                     load_end,
                     packer_info.as_ref(),
+                    &system,
                 );
             }
         }
@@ -1201,12 +1300,15 @@ fn finish_unpack(
     mut dep_addr: u16,
     ret_addr: u16,
     instructions_executed: u64,
-    _load_addr: u16,
+    load_addr: u16,
     load_end: u16,
     packer_info: Option<&crate::packer_signatures::PackerInfo>,
+    system: &crate::state::types::System,
 ) -> Result<UnpackResult, UnpackError> {
     let (mut start_addr, mut end_addr) =
         detect_output_range(mem, snapshot, written, ret_addr).ok_or(UnpackError::NothingWritten)?;
+
+    let is_c64 = system.as_str() == crate::state::types::System::C64;
 
     // Apply overrides from packer signatures
     if let Some(info) = packer_info {
@@ -1237,7 +1339,8 @@ fn finish_unpack(
     // because the gap is > 25KB and hits the scan_floor safeguard.
     // We can reliably find the true end of the decompressed data by finding the largest
     // contiguous block of unwritten memory.
-    if mem.len() >= 0xED
+    if is_c64
+        && mem.len() >= 0xED
         && mem[0xEA] == 0x4C
         && entry_point == u16::from_le_bytes([mem[0xEB], mem[0xEC]])
     {
@@ -1283,7 +1386,11 @@ fn finish_unpack(
     // leaving the exclusive end address at zero page $AE-$AF. unp64 stops emulation
     // at the jump to $1100 and uses that as the entry point, while reporting
     // the unpacked range up to the value in $AE-$AF.
-    if entry_point == 0x1100 && mem.len() >= 0xB0 && mem[0xAB..=0xAD] == [0x4C, 0x72, 0x01] {
+    if is_c64
+        && entry_point == 0x1100
+        && mem.len() >= 0xB0
+        && mem[0xAB..=0xAD] == [0x4C, 0x72, 0x01]
+    {
         let reported_end = u16::from_le_bytes([mem[0xAE], mem[0xAF]]);
         if reported_end > start_addr {
             end_addr = reported_end.saturating_sub(1);
@@ -1294,7 +1401,7 @@ fn finish_unpack(
     // If we detect the Exomizer CLI; JMP signature near the end of the packed data,
     // unp64 takes that JMP target as the entry point, and skips $0800-$080C (the stub).
     // The user explicitly requested to use unp64 output as the source of truth.
-    if start_addr == 0x0800 {
+    if is_c64 && start_addr == 0x0800 {
         let scan_start = load_end.saturating_sub(64) as usize;
         let scan_end = load_end.saturating_sub(3) as usize;
         for i in (scan_start..scan_end).rev() {
@@ -1314,7 +1421,7 @@ fn finish_unpack(
     // ByteBoozer 2 places its workspace immediately after the unpacked data without a gap,
     // making our standard cluster trimming fail. However, like unp64, we can detect it
     // by signature and read the end address it deposits in zero page $77.
-    if snapshot.len() >= 0x8C4 {
+    if is_c64 && snapshot.len() >= 0x8C4 {
         let b0 = snapshot[0x80D..0x811] == [0x78, 0xA9, 0x34, 0x85]; // SEI; LDA #$34; STA $01
         let b1 = snapshot[0x813..0x817] == [0xB7, 0xBD, 0x1E, 0x08]; // LDX #$B7; LDA $081E,X
         let b2 = snapshot[0x870..0x874] == [0xA8, 0x20, 0xAD, 0x00]; // TAY; JSR $00AD
@@ -1328,20 +1435,19 @@ fn finish_unpack(
         }
     }
 
-    // Override entry point with SYS target if entry point landed in ROM or BASIC stub range ($0800..=$0810)
-    let bank = mem[0x01] & 0x07;
-    let basic_mapped = bank & 0x01 != 0;
-    let kernal_mapped = bank & 0x02 != 0;
-    let is_rom_entry = ((0xA000..=0xBFFF).contains(&entry_point) && basic_mapped)
-        || (entry_point >= 0xE000 && kernal_mapped);
+    // Override entry point with SYS target if entry point landed in ROM or BASIC stub range (load_addr..=load_addr+0x10)
+    let basic_mapped = is_basic_rom_mapped(mem, system);
+    let kernal_mapped = is_kernal_rom_mapped(mem, system);
+    let is_rom_entry = (is_in_basic_rom(entry_point, system) && basic_mapped)
+        || (is_in_kernal_rom(entry_point, system) && kernal_mapped);
 
-    if ((0x0800..=0x0810).contains(&entry_point) || is_rom_entry)
-        && let Some(sys_ep) = find_sys_address(mem)
+    if ((load_addr..=load_addr.saturating_add(0x10)).contains(&entry_point) || is_rom_entry)
+        && let Some(sys_ep) = find_sys_address(mem, load_addr)
     {
         entry_point = sys_ep;
         // If a BASIC SYS stub was found, the unpacked program output must include the stub.
-        if start_addr > 0x0801 {
-            start_addr = 0x0801;
+        if start_addr > load_addr {
+            start_addr = load_addr;
         }
     }
 
@@ -1499,7 +1605,7 @@ mod tests {
             unpack(&data[2..], load_addr, &config, None).expect("Should unpack PUCrunch binary");
 
         assert_eq!(res.start_addr, 0x0800);
-        assert_eq!(res.end_addr, 0x3200);
+        assert_eq!(res.end_addr, 0x31FF);
         assert_eq!(res.entry_point, 0x2E00);
         assert!(res.start_addr <= res.entry_point && res.entry_point <= res.end_addr);
         assert!(res.data.len() > 10000);
@@ -1730,49 +1836,49 @@ mod tests {
     fn test_sys_simple() {
         // SYS 2061
         let mem = make_basic_mem(&[0x9E, b'2', b'0', b'6', b'1']);
-        assert_eq!(find_sys_address(&mem), Some(2061));
+        assert_eq!(find_sys_address(&mem, 0x0801), Some(2061));
     }
 
     #[test]
     fn test_sys_with_spaces() {
         // SYS  2061
         let mem = make_basic_mem(&[0x9E, b' ', b' ', b'2', b'0', b'6', b'1']);
-        assert_eq!(find_sys_address(&mem), Some(2061));
+        assert_eq!(find_sys_address(&mem, 0x0801), Some(2061));
     }
 
     #[test]
     fn test_sys_with_parens() {
         // SYS(2061)
         let mem = make_basic_mem(&[0x9E, b'(', b'2', b'0', b'6', b'1', b')']);
-        assert_eq!(find_sys_address(&mem), Some(2061));
+        assert_eq!(find_sys_address(&mem, 0x0801), Some(2061));
     }
 
     #[test]
     fn test_sys_with_addition() {
         // SYS 2048+16  → 2064
         let mem = make_basic_mem(&[0x9E, b'2', b'0', b'4', b'8', 0xAA, b'1', b'6']);
-        assert_eq!(find_sys_address(&mem), Some(2064));
+        assert_eq!(find_sys_address(&mem, 0x0801), Some(2064));
     }
 
     #[test]
     fn test_sys_with_subtraction() {
         // SYS 2070-9  → 2061
         let mem = make_basic_mem(&[0x9E, b'2', b'0', b'7', b'0', 0xAB, b'9']);
-        assert_eq!(find_sys_address(&mem), Some(2061));
+        assert_eq!(find_sys_address(&mem, 0x0801), Some(2061));
     }
 
     #[test]
     fn test_sys_with_multiplication() {
         // SYS 2048*1  → 2048
         let mem = make_basic_mem(&[0x9E, b'2', b'0', b'4', b'8', 0xAC, b'1']);
-        assert_eq!(find_sys_address(&mem), Some(2048));
+        assert_eq!(find_sys_address(&mem, 0x0801), Some(2048));
     }
 
     #[test]
     fn test_sys_not_found() {
         // No SYS token
         let mem = make_basic_mem(&[0x99, b'2', b'0', b'6', b'1']); // PRINT token
-        assert_eq!(find_sys_address(&mem), None);
+        assert_eq!(find_sys_address(&mem, 0x0801), None);
     }
 
     // -----------------------------------------------------------------------
@@ -1781,7 +1887,7 @@ mod tests {
 
     #[test]
     fn test_memory_write_tracking() {
-        let mut mem = UnpackerMemory::new();
+        let mut mem = UnpackerMemory::new(crate::state::types::default_system());
         assert!(!mem.written[0x1000]);
         mem.set_byte(0x1000, 0x42);
         assert!(mem.written[0x1000]);
@@ -1790,7 +1896,7 @@ mod tests {
 
     #[test]
     fn test_memory_io_suppression() {
-        let mut mem = UnpackerMemory::new();
+        let mut mem = UnpackerMemory::new(crate::state::types::default_system());
         // Set PLA bank register to default C64 value ($37) where I/O is visible
         mem.mem[0x01] = 0x37;
         mem.set_byte(0xD020, 0xFF); // VIC border color
@@ -2067,7 +2173,7 @@ mod tests {
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0800);
-        assert_eq!(result.end_addr, 0x3200);
+        assert_eq!(result.end_addr, 0x31FF);
         assert_eq!(result.entry_point, 0x2E00);
     }
 
@@ -2123,7 +2229,7 @@ mod tests {
             unpack(&data[2..], load_addr, &config, None).expect("Should unpack M.U.L.E. PUCrunch");
 
         assert_eq!(res.start_addr, 0x0800);
-        assert_eq!(res.end_addr, 0x9D1A);
+        assert_eq!(res.end_addr, 0x9D19);
         assert_eq!(res.entry_point, 0x1100);
     }
 
@@ -2134,7 +2240,7 @@ mod tests {
             ("c64_mule.dali.prg", 0x0801, 0x9D19, 0x1100),
             ("c64_mule.exo3.prg", 0x0801, 0x9D19, 0x1100),
             ("c64_mule.mccracken_compressor.prg", 0x0800, 0x9D19, 0x1100),
-            ("c64_mule.pucrunch.prg", 0x0800, 0x9D1A, 0x1100),
+            ("c64_mule.pucrunch.prg", 0x0800, 0x9D19, 0x1100),
         ];
 
         let ref_path = "../../tests/6502/c64_mule.mccracken_compressor.prg";
@@ -2385,7 +2491,7 @@ mod tests {
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xFF40);
+        assert_eq!(result.end_addr, 0xFF3F);
         assert_eq!(result.entry_point, 0x080D);
         assert_eq!(result.dep_addr, 0x0116);
     }
@@ -2490,7 +2596,7 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
         assert_eq!(result.start_addr, 0x2A78);
-        assert_eq!(result.end_addr, 0x4D3D);
+        assert_eq!(result.end_addr, 0x4D3C);
         assert_eq!(result.entry_point, 0x2A78);
         assert_eq!(result.dep_addr, 0x005E);
     }

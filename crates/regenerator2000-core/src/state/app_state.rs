@@ -322,7 +322,7 @@ impl AppState {
         } else {
             let sys_ep = self
                 .entry_point
-                .or_else(|| crate::unpacker::find_sys_address(&mem).map(Addr));
+                .or_else(|| crate::unpacker::find_sys_address(&mem, start_addr.0).map(Addr));
             (false, None, sys_ep)
         };
 
