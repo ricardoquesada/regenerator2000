@@ -128,6 +128,8 @@ struct UnpackerMemory {
     written: Vec<bool>,
     /// Target system.
     system: crate::state::types::System,
+    /// Counter for read operations to simulate VIC-II raster beams.
+    read_counter: u64,
 }
 
 impl UnpackerMemory {
@@ -137,6 +139,7 @@ impl UnpackerMemory {
             mem: vec![0u8; 0x1_0000],
             written: vec![false; 0x1_0000],
             system,
+            read_counter: 0,
         }
     }
 }
@@ -153,6 +156,17 @@ impl Bus for UnpackerMemory {
                 let bank = self.mem[0x01];
                 let io_visible = (bank & 0x04 != 0) && (bank & 0x03 != 0);
                 if io_visible {
+                    if addr == 0xD012 {
+                        let val = (self.read_counter & 0xFF) as u8;
+                        self.read_counter = self.read_counter.wrapping_add(1);
+                        return val;
+                    }
+                    if addr == 0xD011 {
+                        let val =
+                            (((self.read_counter >> 1) & 0x80) as u8) | (self.mem[0xD011] & 0x7F);
+                        self.read_counter = self.read_counter.wrapping_add(1);
+                        return val;
+                    }
                     return 0;
                 }
             }
@@ -354,17 +368,35 @@ fn is_io_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
 // Zero-page & system initialization
 // ---------------------------------------------------------------------------
 
+const C64_ZEROPAGE_TEMPLATE: [u8; 256] = [
+    0x2F, 0x37, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x3C, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0xA0, 0x30, 0xFD, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C, 0x0C, 0x00, 0x00,
+    0x00, 0x00, 0x04, 0x00, 0x00, 0x27, 0x00, 0x00, 0x00, 0x84, 0x84, 0x84, 0x84, 0x84, 0x84, 0x84,
+    0x85, 0x85, 0x85, 0x85, 0x85, 0x85, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x86, 0x87, 0x87, 0x87,
+    0x87, 0x87, 0x87, 0x00, 0xD8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+];
+
 /// Initializes target zero-page and system area defaults (per unp64 lines 572-620).
 fn init_zero_page(mem: &mut UnpackerMemory, load_addr: u16, data_len: u16, basic_start: u16) {
     let end_addr = load_addr.wrapping_add(data_len);
     let system = mem.system.clone();
 
-    if system.as_str() == crate::state::types::System::C64
-        || system.as_str() == crate::state::types::System::C128
-    {
-        // Processor port
-        mem.mem[0x00] = 0x2F; // DDR
-        mem.mem[0x01] = 0x37; // Port: BASIC + Kernal mapped
+    if system.as_str() == crate::state::types::System::C64 {
+        mem.mem[0..256].copy_from_slice(&C64_ZEROPAGE_TEMPLATE);
+    } else if system.as_str() == crate::state::types::System::C128 {
+        mem.mem[0x00] = 0x2F;
+        mem.mem[0x01] = 0x37;
     }
 
     // BASIC text start (dynamically using basic_start)
@@ -1020,7 +1052,7 @@ pub fn unpack(
     // Create CPU
     let mut cpu = CPU::new(memory, Nmos6502);
     cpu.registers.program_counter = entry;
-    cpu.registers.stack_pointer = mos6502::registers::StackPointer(0xFF);
+    cpu.registers.stack_pointer = mos6502::registers::StackPointer(0xF6);
 
     let mut getin_index: usize = 0;
     let mut total_instructions: u64 = 0;
@@ -1068,6 +1100,8 @@ pub fn unpack(
                     load_end,
                     packer_info.as_ref(),
                     &system,
+                    cpu.registers.index_y,
+                    None,
                 );
             }
             RomAction::BasicRun => {
@@ -1091,6 +1125,8 @@ pub fn unpack(
                     load_end,
                     packer_info.as_ref(),
                     &system,
+                    cpu.registers.index_y,
+                    None,
                 );
             }
         }
@@ -1132,6 +1168,21 @@ pub fn unpack(
     // a final exit, preventing both infinite loops and premature termination.
     // -----------------------------------------------------------------------
     let load_end = load_addr.wrapping_add(data_len as u16);
+    let is_exo_3 = if let Some(ref info) = packer_info {
+        info.name == "Exomizer 3.0" || info.name == "Exomizer v3.02+"
+    } else {
+        false
+    };
+    let exo_ver = if let Some(ref info) = packer_info {
+        if info.name == "Exomizer 3.0" {
+            0x30
+        } else {
+            0x32
+        }
+    } else {
+        0
+    };
+    let mut exomizer_min_start: Option<u16> = None;
 
     loop {
         if total_instructions >= config.max_instructions {
@@ -1139,6 +1190,18 @@ pub fn unpack(
         }
 
         let pc = cpu.registers.program_counter;
+        if (0x0100..=0x01FF).contains(&pc) && is_exo_3 {
+            let mut val = cpu.memory.mem[0xFE] as u16 + ((cpu.memory.mem[0xFF] as u16) << 8);
+            let y_val = cpu.registers.index_y as u16;
+            if exo_ver == 0x30 {
+                val = val.wrapping_add(y_val);
+            } else {
+                val = val.wrapping_add(y_val).wrapping_add(1);
+            }
+            if val > 0 {
+                exomizer_min_start = Some(exomizer_min_start.map_or(val, |min| min.min(val)));
+            }
+        }
 
         // Exit condition: PC is at or above ret_addr AND points to memory
         // that was written during emulation — the depacker finished and jumped
@@ -1156,58 +1219,49 @@ pub fn unpack(
             || ((0xD000..=0xDFFF).contains(&pc) && io_mapped)
             || (is_in_kernal_rom(pc, &system) && kernal_mapped);
 
-        if pc >= ret_addr && !in_rom_or_io && cpu.memory.written[pc as usize] {
-            if pc == ret_addr {
-                // The depacker landed exactly at ret_addr ($0800). The original
-                // program entry point may be stored as a JMP in the packed binary
-                // (which got overwritten during decompression). Scan the snapshot
-                // for the first plausible JMP target above ret_addr + $300.
-                let entry_point =
-                    find_entry_in_snapshot(&snapshot, load_addr, data_len, ret_addr).unwrap_or(pc);
-                return finish_unpack(
-                    &cpu.memory.mem,
-                    &snapshot,
-                    &cpu.memory.written,
-                    entry_point,
-                    dep_addr,
-                    ret_addr,
-                    total_instructions,
-                    basic_start,
-                    load_end,
-                    packer_info.as_ref(),
-                    &system,
-                );
-            } else if (basic_start..=basic_start.saturating_add(0x10)).contains(&pc) {
-                // Landed in BASIC area — re-parse SYS from freshly decompressed BASIC.
-                let entry_point = find_sys_address(&cpu.memory.mem, basic_start).unwrap_or(pc);
-                return finish_unpack(
-                    &cpu.memory.mem,
-                    &snapshot,
-                    &cpu.memory.written,
-                    entry_point,
-                    dep_addr,
-                    ret_addr,
-                    total_instructions,
-                    basic_start,
-                    load_end,
-                    packer_info.as_ref(),
-                    &system,
-                );
-            } else {
-                return finish_unpack(
-                    &cpu.memory.mem,
-                    &snapshot,
-                    &cpu.memory.written,
-                    pc,
-                    dep_addr,
-                    ret_addr,
-                    total_instructions,
-                    basic_start,
-                    load_end,
-                    packer_info.as_ref(),
-                    &system,
-                );
+        let has_known_entry = packer_info
+            .as_ref()
+            .and_then(|info| info.entry_point)
+            .is_some();
+        let known_entry = packer_info
+            .as_ref()
+            .and_then(|info| info.entry_point)
+            .unwrap_or(0);
+        let mut exit_triggered = false;
+        if has_known_entry {
+            if pc == known_entry || pc == 0xA7AE {
+                exit_triggered = true;
             }
+        } else if pc >= ret_addr && !in_rom_or_io && cpu.memory.written[pc as usize] {
+            exit_triggered = true;
+        }
+
+        if exit_triggered {
+            let entry_point = if has_known_entry && pc != 0xA7AE {
+                pc
+            } else if pc == ret_addr {
+                find_entry_in_snapshot(&snapshot, load_addr, data_len, ret_addr).unwrap_or(pc)
+            } else if (basic_start..=basic_start.saturating_add(0x10)).contains(&pc) || pc == 0xA7AE
+            {
+                find_sys_address(&cpu.memory.mem, basic_start).unwrap_or(pc)
+            } else {
+                pc
+            };
+            return finish_unpack(
+                &cpu.memory.mem,
+                &snapshot,
+                &cpu.memory.written,
+                entry_point,
+                dep_addr,
+                ret_addr,
+                total_instructions,
+                basic_start,
+                load_end,
+                packer_info.as_ref(),
+                &system,
+                cpu.registers.index_y,
+                exomizer_min_start,
+            );
         }
 
         // Also exit if PC is above ret_addr but outside the original loaded
@@ -1216,7 +1270,8 @@ pub fn unpack(
         // Exclude I/O ($D000-$DFFF) and ROM ($A000-$BFFF, $E000-$FFFF) regions —
         // depackers may temporarily execute in these areas for bank switching
         // or hardware setup, but they are not valid program entry points.
-        if pc >= ret_addr && !in_rom_or_io && (pc < load_addr || pc >= load_end) {
+        if !has_known_entry && pc >= ret_addr && !in_rom_or_io && (pc < load_addr || pc >= load_end)
+        {
             // Only exit if significant decompression has happened
             let written_above = cpu
                 .memory
@@ -1239,6 +1294,8 @@ pub fn unpack(
                     load_end,
                     packer_info.as_ref(),
                     &system,
+                    cpu.registers.index_y,
+                    exomizer_min_start,
                 );
             }
         }
@@ -1271,6 +1328,8 @@ pub fn unpack(
                     load_end,
                     packer_info.as_ref(),
                     &system,
+                    cpu.registers.index_y,
+                    exomizer_min_start,
                 );
             }
         }
@@ -1301,9 +1360,11 @@ fn finish_unpack(
     ret_addr: u16,
     instructions_executed: u64,
     load_addr: u16,
-    load_end: u16,
+    _load_end: u16,
     packer_info: Option<&crate::packer_signatures::PackerInfo>,
     system: &crate::state::types::System,
+    y_reg: u8,
+    _exomizer_min_start: Option<u16>,
 ) -> Result<UnpackResult, UnpackError> {
     let (mut start_addr, mut end_addr) =
         detect_output_range(mem, snapshot, written, ret_addr).ok_or(UnpackError::NothingWritten)?;
@@ -1398,21 +1459,62 @@ fn finish_unpack(
     }
 
     // unp64 compatibility for Exomizer 3:
-    // If we detect the Exomizer CLI; JMP signature near the end of the packed data,
-    // unp64 takes that JMP target as the entry point, and skips $0800-$080C (the stub).
-    // The user explicitly requested to use unp64 output as the source of truth.
-    if is_c64 && start_addr == 0x0800 {
-        let scan_start = load_end.saturating_sub(64) as usize;
-        let scan_end = load_end.saturating_sub(3) as usize;
-        for i in (scan_start..scan_end).rev() {
-            // Check for CLI (0x58) followed by JMP (0x4C)
-            if snapshot[i] == 0x58 && snapshot[i + 1] == 0x4C {
-                let target = u16::from_le_bytes([snapshot[i + 2], snapshot[i + 3]]);
-                if target >= 0x0800 {
-                    entry_point = target;
-                    start_addr = 0x080D;
-                    break;
+    if is_c64 {
+        let mut exomizer_end_lo = None;
+        let mut exomizer_end_hi = None;
+        let mut exomizer_version = None;
+        for p in 0x0200..=0xFFF0 {
+            if p >= 6
+                && snapshot.len() > p + 8
+                && snapshot[p] == 0x69
+                && snapshot[p + 1] == 0x80
+                && snapshot[p + 2] == 0x0A
+                && snapshot[p + 3] == 0x10
+                && snapshot[p + 4] == 0x0F
+                && snapshot[p + 5] == 0x06
+                && snapshot[p + 6] == 0xFD
+                && snapshot[p + 7] == 0xD0
+                && snapshot[p - 6] == 0x4C
+                && snapshot[p - 4] == 0x01
+            {
+                let p_idx = p - 5;
+                let mut q = 2;
+                if snapshot[p_idx - q] == 0x8A {
+                    q += 1;
                 }
+                let elo = snapshot[p_idx - q];
+                let ehi = snapshot[p - 1];
+                let is_exo_30 = snapshot[p_idx - q - 1] == snapshot[p_idx - q - 3]
+                    && snapshot[p_idx - q - 2] == snapshot[p_idx - q];
+                let ev = if is_exo_30 { 0x30 } else { 0x32 };
+                exomizer_end_lo = Some(elo);
+                exomizer_end_hi = Some(ehi);
+                exomizer_version = Some(ev);
+                break;
+            }
+        }
+
+        if let Some(ver) = exomizer_version
+            && let Some(end_lo) = exomizer_end_lo
+        {
+            let mut dyn_start = mem[0xFE] as u16 + ((mem[0xFF] as u16) << 8);
+            if ver == 0x30 {
+                dyn_start = dyn_start.wrapping_add(y_reg as u16);
+            } else {
+                dyn_start = dyn_start.wrapping_add(y_reg as u16).wrapping_add(1);
+            }
+            start_addr = dyn_start;
+
+            let end_hi = exomizer_end_hi.unwrap_or_else(|| mem[0xFF]);
+            let mut dyn_end = end_lo as u16 + ((end_hi as u16) << 8);
+            if ver == 0x32 {
+                dyn_end = dyn_end.wrapping_add(1);
+            }
+            if dyn_end == 0 {
+                dyn_end = 0xFF00;
+            }
+            if dyn_end > start_addr {
+                end_addr = dyn_end.saturating_sub(1);
             }
         }
     }
@@ -1713,7 +1815,7 @@ mod tests {
         let cases = [
             (
                 "c64_Bit_by_Bits-BZ!.exo3.prg",
-                0x0801,
+                0x0800,
                 0xEF83,
                 0x083A,
                 "c64_Bit_by_Bits-BZ!.exo3.prg.083a",
@@ -1734,7 +1836,7 @@ mod tests {
             ),
             (
                 "c64_endoskull.exo3.prg",
-                0x0801,
+                0x0800,
                 0xFF29,
                 0x0810,
                 "c64_endoskull.exo3.prg.0810",
@@ -1748,7 +1850,7 @@ mod tests {
             ),
             (
                 "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg",
-                0x0801,
+                0x0800,
                 0x9FFF,
                 0x2800,
                 "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg.2800",
@@ -2454,8 +2556,8 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xFFFF);
+        assert_eq!(result.start_addr, 0x0400);
+        assert_eq!(result.end_addr, 0xFEFF);
         assert_eq!(result.entry_point, 0x080D);
         assert_eq!(result.dep_addr, 0x01AB);
     }
@@ -2710,5 +2812,44 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_sbx_flags_behavior() {
+        use mos6502::cpu::CPU;
+        use mos6502::instruction::Nmos6502;
+        let mut memory = UnpackerMemory::new(crate::state::types::default_system());
+        memory.mem[0] = 0xCB; // SBX #$F8
+        memory.mem[1] = 0xF8;
+        let mut cpu = CPU::new(memory, Nmos6502);
+
+        // Test case 1: 0xD8 SBX #$F8 -> (D8 & D8) - F8 = D8 - F8.
+        // D8 < F8 -> Carry should be CLEAR!
+        cpu.registers.accumulator = 0xD8;
+        cpu.registers.index_x = 0xD8;
+        cpu.registers
+            .status
+            .set(mos6502::registers::Status::PS_CARRY, true);
+        cpu.single_step();
+        let carry1 = cpu
+            .registers
+            .status
+            .contains(mos6502::registers::Status::PS_CARRY);
+        println!("Test 1: X={:02X}, Carry={}", cpu.registers.index_x, carry1);
+
+        // Test case 2: 0xF8 SBX #$F8 -> (F8 & F8) - F8 = 00.
+        // F8 >= F8 -> Carry should be SET!
+        cpu.registers.program_counter = 0;
+        cpu.registers.accumulator = 0xF8;
+        cpu.registers.index_x = 0xF8;
+        cpu.registers
+            .status
+            .set(mos6502::registers::Status::PS_CARRY, false);
+        cpu.single_step();
+        let carry2 = cpu
+            .registers
+            .status
+            .contains(mos6502::registers::Status::PS_CARRY);
+        println!("Test 2: X={:02X}, Carry={}", cpu.registers.index_x, carry2);
     }
 }

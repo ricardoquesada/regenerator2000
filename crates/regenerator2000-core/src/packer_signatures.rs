@@ -30,7 +30,7 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
             {
                 let mut entry_point = None;
                 for k in p..mem.len().saturating_sub(3) {
-                    if mem[k] == 0x20 && mem[k + 1] == 0x00 && mem[k + 2] == 0x01 {
+                    if mem[k] == 0x20 && mem[k + 2] == 0x01 {
                         for j in (k + 3)..mem.len().saturating_sub(2) {
                             if mem[j] == 0x4C {
                                 let target = u16::from_le_bytes([mem[j + 1], mem[j + 2]]);
@@ -67,7 +67,7 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
                 return Some(PackerInfo {
                     name,
                     dep_addr: Some(0x0100 | (mem[p - 5] as u16)),
-                    start_addr: Some(0x0801),
+                    start_addr: None,
                     end_addr: None,
                     entry_point,
                     end_addr_ptr: None,
@@ -194,7 +194,7 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
     }
 
     // ByteBoozer 2.0
-    if mem.len() > 0x817 && load_addr <= 0x0801 {
+    if mem.len() > 0x887 && load_addr <= 0x0801 {
         let q = 0x080D;
         if q >= load_addr as usize
             && mem[q] == 0x78
@@ -209,7 +209,7 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
             return Some(PackerInfo {
                 name: "ByteBoozer",
                 dep_addr: Some(0x0010),
-                start_addr: Some(0x0801),
+                start_addr: Some(u16::from_le_bytes([mem[0x886], mem[0x887]])),
                 end_addr: None,
                 entry_point: Some(u16::from_le_bytes([mem[0x8CB], mem[0x8CC]])),
                 end_addr_ptr: Some(0x0077),
