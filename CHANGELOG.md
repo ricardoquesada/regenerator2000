@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.20] - 2026-07-11
+
+### Features
+
+- **Unpacker**: Add TBC Multicompactor and ECA Compactor unpacker support.
+- **Unpacker**: Add custom unpack parameters support to TUI and MCP.
+- **UI**: Add packer info and Unpack button to Import Context dialog.
+- **UI**: Merge Unpack Binary menu entries into a single dialog item.
+- **UI**: Add options to start and stop MCP server from File menu.
+
+### Fixes
+
+- **Unpacker**: Fix Exomizer 3 address boundaries and simulate raster beam sync.
+- **Unpacker**: Remove hardcoded C64 dependencies from the unpacker.
+
+### Refactor / Internal
+
+- **Project**: Fix typo in AUTHORS.
+
+### Documentation
+
+- **Unpacker**: Update unpacker documentation for unp64 parity and MCP tool.
+
 ## [0.9.19] - 2026-07-06
 
 ### Features
