@@ -1886,11 +1886,11 @@ mod tests {
                 "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg.2800",
             ),
             (
-                "c64_sprite runners.exo3prg.prg",
+                "c64_sprite_runners.exo3.prg",
                 0x0801,
                 0x95BF,
                 0x6900,
-                "c64_sprite runners.exo3prg.prg.6900",
+                "c64_sprite_runners.exo3.prg.6900",
             ),
         ];
 

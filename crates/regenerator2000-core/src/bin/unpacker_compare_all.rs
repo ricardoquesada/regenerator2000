@@ -37,7 +37,7 @@ fn main() {
         "c64_endoskull.exo3.prg",
         "c64_leftovers-pl.exo3.prg",
         "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg",
-        "c64_sprite runners.exo3prg.prg",
+        "c64_sprite_runners.exo3.prg",
         "c64_moving_tubes_lxt.exo3.prg",
         "c64_moving_tubes_lxt.pucrunch.prg",
         "c64_mule.dali.prg",
