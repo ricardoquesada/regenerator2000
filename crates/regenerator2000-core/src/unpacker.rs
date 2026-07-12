@@ -1422,6 +1422,7 @@ mod tests {
         exp_end: u16,
         exp_entry: u16,
         exp_dep: Option<u16>,
+        exp_packer: Option<&'static str>,
         max_instructions: Option<u64>,
     }
 
@@ -1436,6 +1437,7 @@ mod tests {
                 exp_end: 0xFF9E,
                 exp_entry: 0x8100,
                 exp_dep: None,
+                exp_packer: None,
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1444,6 +1446,7 @@ mod tests {
                 exp_end: 0x31FF,
                 exp_entry: 0x2E00,
                 exp_dep: Some(0x0003),
+                exp_packer: Some("Dali v0.3.3"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1452,6 +1455,7 @@ mod tests {
                 exp_end: 0x31FF,
                 exp_entry: 0x2E00,
                 exp_dep: None,
+                exp_packer: Some("Exomizer 3.x"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1460,6 +1464,43 @@ mod tests {
                 exp_end: 0x31FF,
                 exp_entry: 0x2E00,
                 exp_dep: None,
+                exp_packer: Some("PuCrunch"),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_moving_tubes_lxt.tscrunch_x.prg",
+                exp_start: 0x0800,
+                exp_end: 0x31FF,
+                exp_entry: 0x2E00,
+                exp_dep: Some(0x0002),
+                exp_packer: Some("TSCrunch v1.3+"),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_moving_tubes_lxt.tscrunch_x2.prg",
+                exp_start: 0x0801,
+                exp_end: 0x31FF,
+                exp_entry: 0x2E00,
+                exp_dep: Some(0x0100),
+                exp_packer: Some("TSCrunch v1.3+-X2"),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_mule.tscrunch_x.prg",
+                exp_start: 0x0800,
+                exp_end: 0x9D19,
+                exp_entry: 0x1100,
+                exp_dep: Some(0x0002),
+                exp_packer: Some("TSCrunch v1.3+"),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_mule.tscrunch_x2.prg",
+                exp_start: 0x0801,
+                exp_end: 0x9D19,
+                exp_entry: 0x1100,
+                exp_dep: Some(0x0100),
+                exp_packer: Some("TSCrunch v1.3+-X2"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1468,6 +1509,7 @@ mod tests {
                 exp_end: 0x9D19,
                 exp_entry: 0x1100,
                 exp_dep: None,
+                exp_packer: Some("Dali v0.3.3"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1649,11 +1691,11 @@ mod tests {
         ];
 
         for case in cases {
-            let path = format!("../../tests/6502/{}", case.file);
-            let data = match fs::read(&path) {
-                Ok(d) => d,
-                Err(_) => continue,
-            };
+            let p1 = format!("tests/6502/{}", case.file);
+            let p2 = format!("../../tests/6502/{}", case.file);
+            let data = fs::read(&p1)
+                .or_else(|_| fs::read(&p2))
+                .unwrap_or_else(|e| panic!("Failed to read test PRG {}: {}", case.file, e));
             assert!(data.len() > 2, "File {} too small", case.file);
             let load_addr = u16::from_le_bytes([data[0], data[1]]);
             let config = UnpackConfig {
@@ -1678,6 +1720,13 @@ mod tests {
                 assert_eq!(
                     res.dep_addr, exp_dep,
                     "Depacker addr mismatch for {}",
+                    case.file
+                );
+            }
+            if let Some(exp_packer) = case.exp_packer {
+                assert_eq!(
+                    res.packer_name, exp_packer,
+                    "Packer name mismatch for {}",
                     case.file
                 );
             }

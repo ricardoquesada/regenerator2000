@@ -5,7 +5,19 @@ use std::process::Command;
 fn main() {
     let unp64_bin = std::env::var("UNP64")
         .or_else(|_| std::env::var("UNP64_PATH"))
-        .unwrap_or_else(|_| "/Users/ricardoq/bin/unp64".to_string());
+        .unwrap_or_else(|_| {
+            let candidates = [
+                "/Users/ricardoq/.local/bin/unp64",
+                "/Users/ricardoq/bin/unp64",
+                "unp64",
+            ];
+            for c in candidates {
+                if std::path::Path::new(c).exists() {
+                    return c.to_string();
+                }
+            }
+            "unp64".to_string()
+        });
     let test_dir = "tests/6502";
 
     let allowed_files = [
@@ -14,6 +26,8 @@ fn main() {
         "c64_connection-8580.pucrunch.prg",
         "c64_f600.exo.prg",
         "c64_moving_tubes_lxt.dali.prg",
+        "c64_moving_tubes_lxt.tscrunch_x.prg",
+        "c64_moving_tubes_lxt.tscrunch_x2.prg",
         "c64_thats_the_way_scoop.time_cruncher.prg",
         "c64_traveller.tiny_crunch.prg",
         "c64_CopperBooze.byte_boozer2.prg",
@@ -30,6 +44,8 @@ fn main() {
         "c64_mule.exo3.prg",
         "c64_mule.mccracken_compressor.prg",
         "c64_mule.pucrunch.prg",
+        "c64_mule.tscrunch_x.prg",
+        "c64_mule.tscrunch_x2.prg",
         "c64_roma.exe.exo3.prg",
         "c64_hw20131031.exo.prg",
         "c64_spectro.exo3.prg",

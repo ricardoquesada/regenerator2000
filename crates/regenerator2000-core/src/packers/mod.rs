@@ -19,6 +19,7 @@ pub mod tbc;
 pub mod time_cruncher;
 pub mod tiny_crunch;
 pub mod triad;
+pub mod tscrunch;
 pub mod turbo_cruncher;
 
 use mos6502::cpu::CPU;
@@ -83,9 +84,18 @@ pub trait Packer: Debug + Send + Sync {
 }
 
 /// Scans memory for known packer signatures and returns a corresponding [`Packer`] strategy if found.
+///
+/// **Note:** Detection order matters to avoid false positives between packers with overlapping
+/// signatures. The detection order here follows the scanner order established in `unp64` (`_Scanners.c`).
 #[must_use]
 pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dyn Packer>> {
-    if let Some(p) = exomizer::detect(mem, load_addr, load_end) {
+    if let Some(p) = eca::detect(mem) {
+        return Some(p);
+    }
+    if let Some(p) = action_replay::detect(mem, load_addr) {
+        return Some(p);
+    }
+    if let Some(p) = cruel_cruncher::detect(mem, load_addr) {
         return Some(p);
     }
     if let Some(p) = pucrunch::detect(mem) {
@@ -94,28 +104,37 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dy
     if let Some(p) = time_cruncher::detect(mem) {
         return Some(p);
     }
-    if let Some(p) = dali::detect(mem, load_addr) {
+    if let Some(p) = mc_cracken::detect(mem) {
+        return Some(p);
+    }
+    if let Some(p) = tbc::detect(mem) {
         return Some(p);
     }
     if let Some(p) = byteboozer::detect(mem, load_addr) {
         return Some(p);
     }
+    if let Some(p) = alz64::detect(mem, load_addr) {
+        return Some(p);
+    }
+    if let Some(p) = tscrunch::detect(mem, load_addr) {
+        return Some(p);
+    }
+    if let Some(p) = dali::detect(mem, load_addr) {
+        return Some(p);
+    }
     if let Some(p) = tiny_crunch::detect(mem, load_addr) {
         return Some(p);
     }
-    if let Some(p) = cruel_cruncher::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = ccs::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = turbo_cruncher::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = action_replay::detect(mem, load_addr) {
+    if let Some(p) = super_cruncher::detect(mem, load_addr) {
         return Some(p);
     }
     if let Some(p) = final_cartridge::detect(mem, load_addr) {
+        return Some(p);
+    }
+    if let Some(p) = exomizer::detect(mem, load_addr, load_end) {
+        return Some(p);
+    }
+    if let Some(p) = ccs::detect(mem, load_addr) {
         return Some(p);
     }
     if let Some(p) = triad::detect(mem, load_addr) {
@@ -124,22 +143,10 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dy
     if let Some(p) = eagle::detect(mem, load_addr) {
         return Some(p);
     }
-    if let Some(p) = super_cruncher::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = alz64::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = tbc::detect(mem) {
-        return Some(p);
-    }
-    if let Some(p) = eca::detect(mem) {
-        return Some(p);
-    }
     if let Some(p) = antiram::detect(mem) {
         return Some(p);
     }
-    if let Some(p) = mc_cracken::detect(mem) {
+    if let Some(p) = turbo_cruncher::detect(mem, load_addr) {
         return Some(p);
     }
 
