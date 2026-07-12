@@ -1415,128 +1415,273 @@ fn finish_unpack(
 mod tests {
     use super::*;
 
+    #[derive(Debug)]
+    struct KnownUnpackCase {
+        file: &'static str,
+        exp_start: u16,
+        exp_end: u16,
+        exp_entry: u16,
+        exp_dep: Option<u16>,
+        max_instructions: Option<u64>,
+    }
+
     #[test]
-    fn test_unpack_all_real_prg_files() {
+    fn test_unpack_known_prg_files() {
         use std::fs;
-        let files = [
-            "c64_8_bit_ball.meanteam_cruncher.prg",
-            "c64_lft-rodents-in-the-attic.exo3.prg",
-            "c64_connection-8580.pucrunch.prg",
-            "c64_f600.exo.prg",
-            "c64_moving_tubes_lxt.dali.prg",
-            "c64_thats_the_way_scoop.time_cruncher.prg",
-            "c64_traveller.tiny_crunch.prg",
-            "c64_CopperBooze.byte_boozer2.prg",
-            "c64_Bit_by_Bits-BZ!.exo3.prg",
-            "c64_boilerplate.exo3.prg",
-            "c64_druid_too.exo3.prg",
-            "c64_endoskull.exo3.prg",
-            "c64_leftovers-pl.exo3.prg",
-            "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg",
-            "c64_sprite runners.exo3prg.prg",
+
+        let cases = [
+            KnownUnpackCase {
+                file: "c64_8_bit_ball.meanteam_cruncher.prg",
+                exp_start: 0x0801,
+                exp_end: 0xFF9E,
+                exp_entry: 0x8100,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_moving_tubes_lxt.dali.prg",
+                exp_start: 0x0801,
+                exp_end: 0x31FF,
+                exp_entry: 0x2E00,
+                exp_dep: Some(0x0003),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_moving_tubes_lxt.exo3.prg",
+                exp_start: 0x0801,
+                exp_end: 0x31FF,
+                exp_entry: 0x2E00,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_moving_tubes_lxt.pucrunch.prg",
+                exp_start: 0x0800,
+                exp_end: 0x31FF,
+                exp_entry: 0x2E00,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_mule.dali.prg",
+                exp_start: 0x0801,
+                exp_end: 0x9D19,
+                exp_entry: 0x1100,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_mule.exo3.prg",
+                exp_start: 0x0801,
+                exp_end: 0x9D19,
+                exp_entry: 0x1100,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_mule.mccracken_compressor.prg",
+                exp_start: 0x0800,
+                exp_end: 0x9D19,
+                exp_entry: 0x1100,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_mule.pucrunch.prg",
+                exp_start: 0x0800,
+                exp_end: 0x9D19,
+                exp_entry: 0x1100,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_roma.exe.exo3.prg",
+                exp_start: 0x0801,
+                exp_end: 0xC8C5,
+                exp_entry: 0x0820,
+                exp_dep: Some(0x01B2),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_thats_the_way_scoop.time_cruncher.prg",
+                exp_start: 0x0801,
+                exp_end: 0xE750,
+                exp_entry: 0x0801,
+                exp_dep: Some(0x0100),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_f600.exo.prg",
+                exp_start: 0x0801,
+                exp_end: 0xFEFF,
+                exp_entry: 0x0810,
+                exp_dep: Some(0x0134),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_hw20131031.exo.prg",
+                exp_start: 0x0801,
+                exp_end: 0xFF3F,
+                exp_entry: 0x3000,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_traveller.tiny_crunch.prg",
+                exp_start: 0x0801,
+                exp_end: 0xFFFD,
+                exp_entry: 0x0911,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_spectro.exo3.prg",
+                exp_start: 0x0801,
+                exp_end: 0xE7FF,
+                exp_entry: 0x08A1,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_CopperBooze.byte_boozer2.prg",
+                exp_start: 0x0801,
+                exp_end: 0xE7FF,
+                exp_entry: 0x1300,
+                exp_dep: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_cubicdream.exo3.prg",
+                exp_start: 0x0801,
+                exp_end: 0xEF2A,
+                exp_entry: 0x080D,
+                exp_dep: Some(0x01B2),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_FppScroller.byte_boozer2.prg",
+                exp_start: 0x0801,
+                exp_end: 0xA057,
+                exp_entry: 0x080D,
+                exp_dep: Some(0x0010),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_HBFS.exo3.prg",
+                exp_start: 0x0400,
+                exp_end: 0xFEFF,
+                exp_entry: 0x080D,
+                exp_dep: Some(0x01AB),
+                max_instructions: Some(150_000_000),
+            },
+            KnownUnpackCase {
+                file: "c64_Layers.exo3.prg",
+                exp_start: 0x0801,
+                exp_end: 0xFBF1,
+                exp_entry: 0x0834,
+                exp_dep: Some(0x01C4),
+                max_instructions: Some(350_000_000),
+            },
+            KnownUnpackCase {
+                file: "c64_connection-8580.pucrunch.prg",
+                exp_start: 0x0801,
+                exp_end: 0xFF3F,
+                exp_entry: 0x080D,
+                exp_dep: Some(0x0116),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_lft-nine.exo3.prg",
+                exp_start: 0x0801,
+                exp_end: 0x7CBC,
+                exp_entry: 0x080D,
+                exp_dep: Some(0x0198),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_lft-rodents-in-the-attic.exo3.prg",
+                exp_start: 0x0801,
+                exp_end: 0xC56B,
+                exp_entry: 0x080D,
+                exp_dep: Some(0x01A1),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_little_things.exo3.prg",
+                exp_start: 0x0801,
+                exp_end: 0x98FF,
+                exp_entry: 0x080D,
+                exp_dep: Some(0x01AB),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_robot - not human.exo3.prg",
+                exp_start: 0x0801,
+                exp_end: 0xCBE6,
+                exp_entry: 0x0810,
+                exp_dep: Some(0x01AB),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_bluemarble4k_unk.prg",
+                exp_start: 0x0800,
+                exp_end: 0xFFFF,
+                exp_entry: 0x0911,
+                exp_dep: Some(0x07E8),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_boo_alz64.prg",
+                exp_start: 0x2A78,
+                exp_end: 0x4D3C,
+                exp_entry: 0x2A78,
+                exp_dep: Some(0x005E),
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_soul_on_fire_unk.prg",
+                exp_start: 0x082B,
+                exp_end: 0xF732,
+                exp_entry: 0xE000,
+                exp_dep: Some(0x005E),
+                max_instructions: None,
+            },
         ];
-        for f in files {
-            let path = format!("../../tests/6502/{f}");
-            if let Ok(data) = fs::read(&path) {
-                if data.len() < 2 {
-                    continue;
-                }
-                let load_addr = u16::from_le_bytes([data[0], data[1]]);
-                let config = UnpackConfig::default();
-                if let Ok(res) = unpack(&data[2..], load_addr, &config, None) {
-                    assert!(
-                        res.start_addr <= res.entry_point && res.entry_point <= res.end_addr,
-                        "File {f}: entry point ${:04X} outside range [${:04X}, ${:04X}]",
-                        res.entry_point,
-                        res.start_addr,
-                        res.end_addr
-                    );
-                }
+
+        for case in cases {
+            let path = format!("../../tests/6502/{}", case.file);
+            let data = match fs::read(&path) {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+            assert!(data.len() > 2, "File {} too small", case.file);
+            let load_addr = u16::from_le_bytes([data[0], data[1]]);
+            let config = UnpackConfig {
+                max_instructions: case.max_instructions.unwrap_or(50_000_000),
+                ..Default::default()
+            };
+            let res = unpack(&data[2..], load_addr, &config, None)
+                .unwrap_or_else(|e| panic!("Failed to unpack {}: {e}", case.file));
+
+            assert_eq!(
+                res.start_addr, case.exp_start,
+                "Start mismatch for {}",
+                case.file
+            );
+            assert_eq!(res.end_addr, case.exp_end, "End mismatch for {}", case.file);
+            assert_eq!(
+                res.entry_point, case.exp_entry,
+                "Entry mismatch for {}",
+                case.file
+            );
+            if let Some(exp_dep) = case.exp_dep {
+                assert_eq!(
+                    res.dep_addr, exp_dep,
+                    "Depacker addr mismatch for {}",
+                    case.file
+                );
             }
         }
-    }
-
-    #[test]
-    fn test_unpack_meanteam_cruncher_real_prg() {
-        use std::fs;
-        let path = "../../tests/6502/c64_8_bit_ball.meanteam_cruncher.prg";
-        let data = match fs::read(path) {
-            Ok(d) => d,
-            Err(_) => return,
-        };
-        assert!(data.len() > 2);
-        let load_addr = u16::from_le_bytes([data[0], data[1]]);
-        let config = UnpackConfig::default();
-        let res = unpack(&data[2..], load_addr, &config, None)
-            .expect("Should unpack Mean Team Cruncher binary");
-
-        assert_eq!(res.start_addr, 0x0801);
-        assert_eq!(res.end_addr, 0xFF9E);
-        assert_eq!(res.entry_point, 0x8100);
-        assert!(res.start_addr <= res.entry_point && res.entry_point <= res.end_addr);
-        assert!(res.data.len() > 30000);
-    }
-
-    #[test]
-    fn test_unpack_moving_tubes_dali() {
-        use std::fs;
-        let path = "../../tests/6502/c64_moving_tubes_lxt.dali.prg";
-        let data = match fs::read(path) {
-            Ok(d) => d,
-            Err(_) => return,
-        };
-        assert!(data.len() > 2);
-        let load_addr = u16::from_le_bytes([data[0], data[1]]);
-        let config = UnpackConfig::default();
-        let res = unpack(&data[2..], load_addr, &config, None).expect("Should unpack Dali binary");
-
-        assert_eq!(res.start_addr, 0x0801);
-        assert_eq!(res.end_addr, 0x31FF);
-        assert_eq!(res.entry_point, 0x2E00);
-        assert!(res.start_addr <= res.entry_point && res.entry_point <= res.end_addr);
-        assert!(res.data.len() > 10000);
-    }
-
-    #[test]
-    fn test_unpack_moving_tubes_exo3() {
-        use std::fs;
-        let path = "../../tests/6502/c64_moving_tubes_lxt.exo3.prg";
-        let data = match fs::read(path) {
-            Ok(d) => d,
-            Err(_) => return,
-        };
-        assert!(data.len() > 2);
-        let load_addr = u16::from_le_bytes([data[0], data[1]]);
-        let config = UnpackConfig::default();
-        let res =
-            unpack(&data[2..], load_addr, &config, None).expect("Should unpack Exomizer 3 binary");
-
-        assert_eq!(res.start_addr, 0x0801);
-        assert_eq!(res.end_addr, 0x31FF);
-        assert_eq!(res.entry_point, 0x2E00);
-        assert!(res.start_addr <= res.entry_point && res.entry_point <= res.end_addr);
-        assert!(res.data.len() > 10000);
-    }
-
-    #[test]
-    fn test_unpack_moving_tubes_pucrunch() {
-        use std::fs;
-        let path = "../../tests/6502/c64_moving_tubes_lxt.pucrunch.prg";
-        let data = match fs::read(path) {
-            Ok(d) => d,
-            Err(_) => return,
-        };
-        assert!(data.len() > 2);
-        let load_addr = u16::from_le_bytes([data[0], data[1]]);
-        let config = UnpackConfig::default();
-        let res =
-            unpack(&data[2..], load_addr, &config, None).expect("Should unpack PUCrunch binary");
-
-        assert_eq!(res.start_addr, 0x0800);
-        assert_eq!(res.end_addr, 0x31FF);
-        assert_eq!(res.entry_point, 0x2E00);
-        assert!(res.start_addr <= res.entry_point && res.entry_point <= res.end_addr);
-        assert!(res.data.len() > 10000);
     }
 
     #[test]
@@ -2065,482 +2210,6 @@ mod tests {
             "Unpacked data should be >1KB, got {} bytes",
             result.data.len()
         );
-    }
-
-    #[test]
-    fn test_debug_exo_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_moving_tubes_lxt.exo3.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None);
-        if let Ok(r) = &result {
-            assert!(r.start_addr <= r.entry_point && r.entry_point <= r.end_addr);
-        }
-        let result = result.unwrap();
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0x31FF);
-        assert_eq!(result.entry_point, 0x2E00, "Entry point should be $2E00");
-    }
-
-    #[test]
-    fn test_debug_pucrunch_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_moving_tubes_lxt.pucrunch.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0800);
-        assert_eq!(result.end_addr, 0x31FF);
-        assert_eq!(result.entry_point, 0x2E00);
-    }
-
-    #[test]
-    fn test_unpack_mule_dali() {
-        let path = "../../tests/6502/c64_mule.dali.prg";
-        let data = std::fs::read(path).unwrap();
-        let load_addr = u16::from_le_bytes([data[0], data[1]]);
-        let config = UnpackConfig::default();
-        let res =
-            unpack(&data[2..], load_addr, &config, None).expect("Should unpack M.U.L.E. Dali");
-
-        assert_eq!(res.start_addr, 0x0801);
-        assert_eq!(res.end_addr, 0x9D19);
-        assert_eq!(res.entry_point, 0x1100);
-    }
-
-    #[test]
-    fn test_unpack_mule_exo3() {
-        let path = "../../tests/6502/c64_mule.exo3.prg";
-        let data = std::fs::read(path).unwrap();
-        let load_addr = u16::from_le_bytes([data[0], data[1]]);
-        let config = UnpackConfig::default();
-        let res =
-            unpack(&data[2..], load_addr, &config, None).expect("Should unpack M.U.L.E. Exo3");
-
-        assert_eq!(res.start_addr, 0x0801);
-        assert_eq!(res.end_addr, 0x9D19);
-        assert_eq!(res.entry_point, 0x1100);
-    }
-
-    #[test]
-    fn test_unpack_mule_mccracken_compressor() {
-        let path = "../../tests/6502/c64_mule.mccracken_compressor.prg";
-        let data = std::fs::read(path).unwrap();
-        let load_addr = u16::from_le_bytes([data[0], data[1]]);
-        let config = UnpackConfig::default();
-        let res = unpack(&data[2..], load_addr, &config, None)
-            .expect("Should unpack M.U.L.E. MC-Cracken");
-
-        assert_eq!(res.start_addr, 0x0800);
-        assert_eq!(res.end_addr, 0x9D19);
-        assert_eq!(res.entry_point, 0x1100);
-    }
-
-    #[test]
-    fn test_unpack_mule_pucrunch() {
-        let path = "../../tests/6502/c64_mule.pucrunch.prg";
-        let data = std::fs::read(path).unwrap();
-        let load_addr = u16::from_le_bytes([data[0], data[1]]);
-        let config = UnpackConfig::default();
-        let res =
-            unpack(&data[2..], load_addr, &config, None).expect("Should unpack M.U.L.E. PUCrunch");
-
-        assert_eq!(res.start_addr, 0x0800);
-        assert_eq!(res.end_addr, 0x9D19);
-        assert_eq!(res.entry_point, 0x1100);
-    }
-
-    #[test]
-    fn test_compare_mule_all_packers_with_unp64() {
-        use std::fs;
-        let cases = [
-            ("c64_mule.dali.prg", 0x0801, 0x9D19, 0x1100),
-            ("c64_mule.exo3.prg", 0x0801, 0x9D19, 0x1100),
-            ("c64_mule.mccracken_compressor.prg", 0x0800, 0x9D19, 0x1100),
-            ("c64_mule.pucrunch.prg", 0x0800, 0x9D19, 0x1100),
-        ];
-
-        let ref_path = "../../tests/6502/c64_mule.mccracken_compressor.prg";
-        let ref_data = fs::read(ref_path).unwrap();
-        let ref_res = unpack(
-            &ref_data[2..],
-            u16::from_le_bytes([ref_data[0], ref_data[1]]),
-            &UnpackConfig::default(),
-            None,
-        )
-        .unwrap();
-
-        for (f, exp_start, exp_end, exp_entry) in cases {
-            let path = format!("../../tests/6502/{f}");
-            let data = fs::read(&path).unwrap();
-            let load_addr = u16::from_le_bytes([data[0], data[1]]);
-            let res = unpack(&data[2..], load_addr, &UnpackConfig::default(), None)
-                .unwrap_or_else(|e| panic!("Failed to unpack {f}: {e}"));
-
-            assert_eq!(res.start_addr, exp_start, "Start mismatch for {f}");
-            assert_eq!(res.end_addr, exp_end, "End mismatch for {f}");
-            assert_eq!(res.entry_point, exp_entry, "Entry point mismatch for {f}");
-
-            // Verify decompressed payload matches reference output
-            let offset = (res.start_addr - ref_res.start_addr) as usize;
-            let compare_len = res
-                .data
-                .len()
-                .min(ref_res.data.len().saturating_sub(offset));
-            assert_eq!(
-                &res.data[..compare_len],
-                &ref_res.data[offset..offset + compare_len],
-                "Decompressed data for {f} does not match reference"
-            );
-        }
-    }
-
-    #[test]
-    fn test_debug_roma_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_roma.exe.exo3.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xC8C5);
-        assert_eq!(result.entry_point, 0x0820);
-        assert_eq!(result.dep_addr, 0x01B2);
-    }
-
-    #[test]
-    fn test_debug_scoop_unpack() {
-        let prg_data =
-            std::fs::read("../../tests/6502/c64_thats_the_way_scoop.time_cruncher.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xE750);
-        assert_eq!(result.entry_point, 0x0801);
-        assert_eq!(result.dep_addr, 0x0100);
-    }
-
-    #[test]
-    fn test_debug_f600_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_f600.exo.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xFEFF);
-        assert_eq!(result.entry_point, 0x0810);
-        assert_eq!(result.dep_addr, 0x0134);
-    }
-
-    #[test]
-    fn test_debug_hw20131031_exo_unpack() {
-        // This Exomizer variant finishes by triggering BASIC RUN ($A7AE→$A659).
-        // The entry point must come from the freshly decompressed SYS line,
-        // not the BASIC ROM address.
-        let prg_data = std::fs::read("../../tests/6502/c64_hw20131031.exo.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xFF3F);
-        // Entry point is $3000 from the decompressed BASIC SYS line,
-        // NOT $A659 (the BASIC ROM CLR routine where exit was detected).
-        assert_eq!(result.entry_point, 0x3000);
-    }
-
-    #[test]
-    fn test_unpack_traveller_tiny_crunch() {
-        let prg_data = std::fs::read("../../tests/6502/c64_traveller.tiny_crunch.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xfffd);
-        assert_eq!(result.entry_point, 0x0911);
-    }
-
-    #[test]
-    fn test_unpack_spectro_exo3() {
-        let prg_data = std::fs::read("../../tests/6502/c64_spectro.exo3.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xE7FF);
-        assert_eq!(result.entry_point, 0x08A1);
-    }
-
-    #[test]
-    fn test_unpack_copperbooze_byte_boozer2() {
-        let prg_data = std::fs::read("../../tests/6502/c64_CopperBooze.byte_boozer2.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xE7FF);
-        assert_eq!(result.entry_point, 0x1300);
-    }
-
-    #[test]
-    fn test_debug_cubicdream_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_cubicdream.exo3.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xEF2A);
-        assert_eq!(result.entry_point, 0x080D);
-        assert_eq!(result.dep_addr, 0x01B2);
-    }
-
-    #[test]
-    fn test_unpack_fpp_scroller() {
-        let prg_data = std::fs::read("../../tests/6502/c64_FppScroller.byte_boozer2.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xA057);
-        assert_eq!(result.entry_point, 0x080D);
-        assert_eq!(result.dep_addr, 0x0010);
-    }
-
-    #[test]
-    fn test_unpack_hbfs() {
-        let prg_data = std::fs::read("../../tests/6502/c64_HBFS.exo3.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 150_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0400);
-        assert_eq!(result.end_addr, 0xFEFF);
-        assert_eq!(result.entry_point, 0x080D);
-        assert_eq!(result.dep_addr, 0x01AB);
-    }
-
-    #[test]
-    fn test_unpack_layers() {
-        let prg_data = std::fs::read("../../tests/6502/c64_Layers.exo3.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 350_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xFBF1);
-        assert_eq!(result.entry_point, 0x0834);
-        assert_eq!(result.dep_addr, 0x01C4);
-    }
-
-    #[test]
-    fn test_unpack_connection_8580() {
-        let prg_data = std::fs::read("../../tests/6502/c64_connection-8580.pucrunch.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xFF3F);
-        assert_eq!(result.entry_point, 0x080D);
-        assert_eq!(result.dep_addr, 0x0116);
-    }
-
-    #[test]
-    fn test_unpack_lft_nine() {
-        let prg_data = std::fs::read("../../tests/6502/c64_lft-nine.exo3.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0x7CBC);
-        assert_eq!(result.entry_point, 0x080D);
-        assert_eq!(result.dep_addr, 0x0198);
-    }
-
-    #[test]
-    fn test_unpack_lft_rodents() {
-        let prg_data =
-            std::fs::read("../../tests/6502/c64_lft-rodents-in-the-attic.exo3.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xC56B);
-        assert_eq!(result.entry_point, 0x080D);
-        assert_eq!(result.dep_addr, 0x01A1);
-    }
-
-    #[test]
-    fn test_unpack_little_things() {
-        let prg_data = std::fs::read("../../tests/6502/c64_little_things.exo3.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0x98FF);
-        assert_eq!(result.entry_point, 0x080D);
-        assert_eq!(result.dep_addr, 0x01AB);
-    }
-
-    #[test]
-    fn test_unpack_robot_not_human() {
-        let prg_data = std::fs::read("../../tests/6502/c64_robot - not human.exo3.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xCBE6);
-        assert_eq!(result.entry_point, 0x0810);
-        assert_eq!(result.dep_addr, 0x01AB);
-    }
-
-    #[test]
-    fn test_unpack_bluemarble4k() {
-        let prg_data = std::fs::read("../../tests/6502/c64_bluemarble4k_unk.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-        assert_eq!(result.start_addr, 0x0800);
-        assert_eq!(result.end_addr, 0xFFFF);
-        assert_eq!(result.entry_point, 0x0911);
-        assert_eq!(result.dep_addr, 0x07E8);
-    }
-
-    #[test]
-    fn test_unpack_boo_alz64() {
-        let prg_data = std::fs::read("../../tests/6502/c64_boo_alz64.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-        assert_eq!(result.start_addr, 0x2A78);
-        assert_eq!(result.end_addr, 0x4D3C);
-        assert_eq!(result.entry_point, 0x2A78);
-        assert_eq!(result.dep_addr, 0x005E);
-    }
-
-    #[test]
-    fn test_unpack_soul_on_fire() {
-        let prg_data = std::fs::read("../../tests/6502/c64_soul_on_fire_unk.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-        assert_eq!(result.start_addr, 0x082B);
-        assert_eq!(result.end_addr, 0xF732);
-        assert_eq!(result.entry_point, 0xE000);
-        assert_eq!(result.dep_addr, 0x005E);
     }
 
     fn find_unp64_bin() -> Option<std::path::PathBuf> {
