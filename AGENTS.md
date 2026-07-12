@@ -18,6 +18,7 @@ The project is split into two main crates to separate logic from presentation:
   - `exporter/`: Code for exporting disassembly to ASM or HTML, with roundtrip verification.
   - `mcp/`: MCP server implementation (stdio and HTTP transports).
   - `navigation.rs`: Address navigation logic.
+  - `packers/`: 6502 binary packer strategies (`Packer` trait, signature detection, pre/post emulation hooks).
   - `parser/`: File format parsers (.prg, .d64/.d71/.d81, .t64, .crt, .vsf snapshots, .dis65, VICE labels).
   - `state/`: Persistent application state and project serialization.
   - `utils.rs`: Shared utility functions.
@@ -197,6 +198,7 @@ cargo clippy -- -D warnings      # Lint (warnings are errors)
 - **New Block Type**: Add to `BlockType` enum in `types.rs`, update `analyzer.rs`, and add a shortcut in `input.rs`.
 - **New Assembler**: Add to `Assembler` enum, implement `Formatter` trait in `disassembler/formatter_*.rs`.
 - **New Command**: Add variant to `Command` in `commands.rs`, implement `apply` and `undo`.
+- **New Packer**: Create a new module file in `crates/regenerator2000-core/src/packers/<name>.rs` implementing a `detect()` function that returns `Option<Box<dyn Packer>>`. For simple signature-only packers, instantiate `SimplePacker::new(PackerInfo { ... })`. For packers requiring pre-emulation memory patches, instruction step tracking, or post-emulation boundary overrides, define a custom struct implementing the `Packer` trait (`pre_emulate`, `on_step`, `post_emulate`). Finally, declare `pub mod <name>;` and register `if let Some(p) = <name>::detect(...) { return Some(p); }` inside `detect_packer()` in `src/packers/mod.rs`, and add a signature unit test.
 
 ### Git Commit Style
 

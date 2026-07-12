@@ -235,16 +235,14 @@ Handles generation of complete, compilable source code and browsable HTML disass
   **: Export→assemble→diff roundtrip verification. Exports ASM, invokes the real assembler binary, and byte-compares the
   output against the original binary to confirm disassembly correctness. Supports all four assemblers.
 
-### 8. Binary Unpacker ([`regenerator2000-core/src/unpacker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker.rs))
+### 8. Binary Unpacker ([`regenerator2000-core/src/unpacker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker.rs) & [`regenerator2000-core/src/packers/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/packers))
 
-Provides a accurate 6502 emulation sandbox to automatically decompress packed Commodore 64 programs.
+Provides an accurate 6502 emulation sandbox to automatically decompress packed Commodore 64 programs.
 
-- **Two-Phase Emulation**: Simulates the packer's decryption stub (Phase 1) and runs the main decompression routine (
-  Phase 2), tracking memory writes to extract clean, decompressed program data.
-- **Advanced Sandboxing**: Intercepts Kernal and BASIC ROM vectors (such as `GETIN`, `CHROUT`, `CLRSCR`) to bypass I/O
-  calls, prevent infinite loops, and handle sophisticated decompression stubs natively.
-- **Background Execution**: Runs asynchronously on a separate thread with real-time instruction counters sent to the TUI
-  status bar for responsiveness during heavy unpacking jobs.
+- **Strategy Pattern Architecture**: Uses a trait-based `Packer` strategy pattern (`Box<dyn Packer>`) where each supported packer lives in its own dedicated module under `src/packers/` (e.g., `exomizer.rs`, `dali.rs`, `pucrunch.rs`). Packers encapsulate signature detection, pre-emulation memory patching (`pre_emulate`), dynamic step hooks (`on_step`), and post-emulation boundary/entry-point overrides (`post_emulate`).
+- **Two-Phase Emulation**: Simulates the packer's decryption stub (Phase 1) and runs the main decompression routine (Phase 2), tracking memory writes to extract clean, decompressed program data.
+- **Advanced Sandboxing**: Intercepts Kernal and BASIC ROM vectors (such as `GETIN`, `CHROUT`, `CLRSCR`) to bypass I/O calls, prevent infinite loops, and handle sophisticated decompression stubs natively.
+- **Background Execution**: Runs asynchronously on a separate thread with real-time instruction counters sent to the TUI status bar for responsiveness during heavy unpacking jobs.
 
 ### 9. UI Architecture
 
