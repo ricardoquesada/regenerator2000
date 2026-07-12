@@ -32,7 +32,7 @@ pub mod disassembler;
 pub mod event;
 pub mod exporter;
 pub mod navigation;
-pub mod packer_signatures;
+pub mod packers;
 pub mod parser;
 pub mod state;
 pub mod unpacker;

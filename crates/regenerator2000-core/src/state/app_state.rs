@@ -307,17 +307,18 @@ impl AppState {
             mem[load_start..load_end].copy_from_slice(&self.raw_data[..copy_len]);
         }
 
-        let packer = crate::packer_signatures::detect_packer(
+        let packer = crate::packers::detect_packer(
             &mem,
             start_addr.0,
             load_start.saturating_add(size) as u16,
         );
 
         let (is_packed, packer_name, entry_point) = if let Some(ref p) = packer {
+            let info = p.info();
             (
                 true,
-                Some(p.name),
-                p.entry_point.map(Addr).or(self.entry_point),
+                Some(info.name),
+                info.entry_point.map(Addr).or(self.entry_point),
             )
         } else {
             let sys_ep = self

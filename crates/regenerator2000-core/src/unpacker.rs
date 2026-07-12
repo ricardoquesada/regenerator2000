@@ -121,9 +121,9 @@ impl std::error::Error for UnpackError {}
 ///
 /// Provides flat 64 KB RAM with per-byte write tracking and I/O suppression.
 #[derive(Clone)]
-struct UnpackerMemory {
+pub struct UnpackerMemory {
     /// Flat 64 KB memory.
-    mem: Vec<u8>,
+    pub(crate) mem: Vec<u8>,
     /// Per-byte write tracking.
     written: Vec<bool>,
     /// Target system.
@@ -1039,32 +1039,11 @@ pub fn unpack(
         .forced_ret_addr
         .unwrap_or_else(|| load_addr.min(0x0800));
     let load_end = (load_addr as usize + data_len).min(0x10000) as u16;
-    let packer_info = crate::packer_signatures::detect_packer(&memory.mem, load_addr, load_end);
+    let mut packer = crate::packers::detect_packer(&memory.mem, load_addr, load_end);
 
     // Apply patches for specific packers to bypass hardware/ROM checks during emulation
-    if let Some(ref info) = packer_info
-        && system.as_str() == crate::state::types::System::C64
-    {
-        if info.name == "ALZ64/Kabuto" {
-            // ALZ64/Kabuto bootstrap stub checks memory/state; overwrite the check
-            // with LDX #imm (0xA2) to skip check logic and flow into the depacker cleanly.
-            memory.mem[0x080b] = 0xA2;
-        } else if info.name == "Antiram Packer v1.0" {
-            // Antiram Packer v1.0 invokes JSR $A659 (BASIC tokenizer/ROM call).
-            // Since ROM functions are un-emulated, we replace JSR (0x20) with BIT absolute (0x2C)
-            // as done in unp64 (scanners/Antiram.c), which NOPs the subroutine call and lets PC flow.
-            let p = 0x904;
-            if memory.mem[p] == 0x20 {
-                memory.mem[p] = 0x2c;
-            }
-        } else if info.name == "Antiram Packer v2.0" {
-            // Antiram Packer v2.0 invokes JSR $A659 (BASIC tokenizer/ROM call).
-            // Replaces JSR (0x20) with BIT absolute (0x2C) to NOP the ROM call (unp64 parity).
-            let p = 0x911;
-            if memory.mem[p] == 0x20 {
-                memory.mem[p] = 0x2c;
-            }
-        }
+    if let Some(ref p) = packer {
+        p.pre_emulate(&mut memory.mem, &system);
     }
 
     // Create CPU
@@ -1090,8 +1069,8 @@ pub fn unpack(
 
         let pc = cpu.registers.program_counter;
 
-        let is_dep_addr = if let Some(ref info) = packer_info
-            && let Some(known_dep) = info.dep_addr
+        let is_dep_addr = if let Some(ref p) = packer
+            && let Some(known_dep) = p.info().dep_addr
             && known_dep >= ret_addr
         {
             pc == known_dep
@@ -1126,10 +1105,9 @@ pub fn unpack(
                     total_instructions,
                     basic_start,
                     load_end,
-                    packer_info.as_ref(),
+                    packer.as_deref(),
                     &system,
                     cpu.registers.index_y,
-                    None,
                 );
             }
             RomAction::BasicRun => {
@@ -1151,10 +1129,9 @@ pub fn unpack(
                     total_instructions,
                     basic_start,
                     load_end,
-                    packer_info.as_ref(),
+                    packer.as_deref(),
                     &system,
                     cpu.registers.index_y,
-                    None,
                 );
             }
         }
@@ -1197,51 +1174,17 @@ pub fn unpack(
     // a final exit, preventing both infinite loops and premature termination.
     // -----------------------------------------------------------------------
     let load_end = load_addr.wrapping_add(data_len as u16);
-    let is_exo_3 = if let Some(ref info) = packer_info {
-        info.name == "Exomizer 3.0" || info.name == "Exomizer v3.02+"
-    } else {
-        false
-    };
-    let exo_ver = if let Some(ref info) = packer_info {
-        if info.name == "Exomizer 3.0" {
-            0x30
-        } else {
-            0x32
-        }
-    } else {
-        0
-    };
-    let mut exomizer_min_start: Option<u16> = None;
 
     loop {
         if total_instructions >= config.max_instructions {
             return Err(UnpackError::Phase2Timeout);
         }
 
-        let pc = cpu.registers.program_counter;
-        if (0x0100..=0x01FF).contains(&pc) && is_exo_3 {
-            let mut val = cpu.memory.mem[0xFE] as u16 + ((cpu.memory.mem[0xFF] as u16) << 8);
-            let y_val = cpu.registers.index_y as u16;
-            if exo_ver == 0x30 {
-                val = val.wrapping_add(y_val);
-            } else {
-                val = val.wrapping_add(y_val).wrapping_add(1);
-            }
-            if val > 0 {
-                exomizer_min_start = Some(exomizer_min_start.map_or(val, |min| min.min(val)));
-            }
+        if let Some(ref mut p) = packer {
+            p.on_step(&mut cpu, 2);
         }
 
-        // Exit condition: If the packer has a known entry point, we exit when PC
-        // matches it or BASIC RUN ($A7AE). Otherwise, we exit when PC is at or
-        // above ret_addr AND points to memory that was written during emulation
-        // (indicating the depacker finished and jumped to freshly decompressed code).
-        //
-        // Skip this check when PC is in a ROM/IO region ($A000-$BFFF,
-        // $D000-$FFFF). Even though the RAM *underneath* these areas may have
-        // been written by the depacker, the CPU is executing from ROM, not
-        // from the decompressed data. Letting execution continue ensures the
-        // depacker finishes decompression completely.
+        let pc = cpu.registers.program_counter;
         let basic_mapped = is_basic_rom_mapped(&cpu.memory.mem, &system);
         let kernal_mapped = is_kernal_rom_mapped(&cpu.memory.mem, &system);
         let io_mapped = is_io_mapped(&cpu.memory.mem, &system);
@@ -1250,14 +1193,9 @@ pub fn unpack(
             || ((0xD000..=0xDFFF).contains(&pc) && io_mapped)
             || (is_in_kernal_rom(pc, &system) && kernal_mapped);
 
-        let has_known_entry = packer_info
-            .as_ref()
-            .and_then(|info| info.entry_point)
-            .is_some();
-        let known_entry = packer_info
-            .as_ref()
-            .and_then(|info| info.entry_point)
-            .unwrap_or(0);
+        let info = packer.as_ref().map(|p| p.info());
+        let has_known_entry = info.as_ref().and_then(|i| i.entry_point).is_some();
+        let known_entry = info.as_ref().and_then(|i| i.entry_point).unwrap_or(0);
         let mut exit_triggered = false;
         if has_known_entry {
             if pc == known_entry || pc == 0xA7AE {
@@ -1288,22 +1226,16 @@ pub fn unpack(
                 total_instructions,
                 basic_start,
                 load_end,
-                packer_info.as_ref(),
+                packer.as_deref(),
                 &system,
                 cpu.registers.index_y,
-                exomizer_min_start,
             );
         }
 
         // If the packer doesn't have a known entry point, also exit if PC is above
-        // ret_addr but outside the original loaded data region. This catches cases
-        // where the depacker decompresses to memory that was empty/zero before loading.
-        // Exclude I/O ($D000-$DFFF) and ROM ($A000-$BFFF, $E000-$FFFF) regions —
-        // depackers may temporarily execute in these areas for bank switching
-        // or hardware setup, but they are not valid program entry points.
+        // ret_addr but outside the original loaded data region.
         if !has_known_entry && pc >= ret_addr && !in_rom_or_io && (pc < load_addr || pc >= load_end)
         {
-            // Only exit if significant decompression has happened
             let written_above = cpu
                 .memory
                 .written
@@ -1323,10 +1255,9 @@ pub fn unpack(
                     total_instructions,
                     basic_start,
                     load_end,
-                    packer_info.as_ref(),
+                    packer.as_deref(),
                     &system,
                     cpu.registers.index_y,
-                    exomizer_min_start,
                 );
             }
         }
@@ -1339,9 +1270,6 @@ pub fn unpack(
                 continue;
             }
             RomAction::Exit | RomAction::BasicRun => {
-                // When exit/run fires from BASIC ROM, the PC is a ROM address
-                // (e.g., $A659 inside CLR). The real entry point is the SYS
-                // address in the freshly decompressed BASIC program.
                 let entry_point = if is_in_basic_rom(pc, &system) {
                     find_sys_address(&cpu.memory.mem, basic_start).unwrap_or(pc)
                 } else {
@@ -1357,10 +1285,9 @@ pub fn unpack(
                     total_instructions,
                     basic_start,
                     load_end,
-                    packer_info.as_ref(),
+                    packer.as_deref(),
                     &system,
                     cpu.registers.index_y,
-                    exomizer_min_start,
                 );
             }
         }
@@ -1392,18 +1319,16 @@ fn finish_unpack(
     instructions_executed: u64,
     load_addr: u16,
     _load_end: u16,
-    packer_info: Option<&crate::packer_signatures::PackerInfo>,
+    packer: Option<&dyn crate::packers::Packer>,
     system: &crate::state::types::System,
     y_reg: u8,
-    _exomizer_min_start: Option<u16>,
 ) -> Result<UnpackResult, UnpackError> {
     let (mut start_addr, mut end_addr) =
         detect_output_range(mem, snapshot, written, ret_addr).ok_or(UnpackError::NothingWritten)?;
 
-    let is_c64 = system.as_str() == crate::state::types::System::C64;
-
-    // Apply overrides from packer signatures
-    if let Some(info) = packer_info {
+    // Apply metadata overrides and post-emulation hooks from packer strategy
+    if let Some(p) = packer {
+        let info = p.info();
         if let Some(sa) = info.start_addr {
             start_addr = sa;
         }
@@ -1423,159 +1348,19 @@ fn finish_unpack(
         if let Some(da) = info.dep_addr {
             dep_addr = da;
         }
-    }
 
-    // unp64 compatibility for Dali v0.3.3 / fast:
-    // Dali copies its depacker to zero page and jumps to the entry point stored at $EB-$EC when done.
-    // It leaves the compressed payload at the top of memory, which defeats our standard gap trim
-    // because the gap is > 25KB and hits the scan_floor safeguard.
-    // We can reliably find the true end of the decompressed data by finding the largest
-    // contiguous block of unwritten memory.
-    if is_c64
-        && mem.len() >= 0xED
-        && mem[0xEA] == 0x4C
-        && entry_point == u16::from_le_bytes([mem[0xEB], mem[0xEC]])
-    {
-        let mut max_gap_len = 0;
-        let mut max_gap_start = 0;
-        let mut current_gap_len = 0;
-        let mut current_gap_start = 0;
-
-        for (i, &is_written) in written
-            .iter()
-            .enumerate()
-            .take(0x10000)
-            .skip(start_addr as usize)
-        {
-            if !is_written {
-                if current_gap_len == 0 {
-                    current_gap_start = i;
-                }
-                current_gap_len += 1;
-            } else {
-                if current_gap_len > max_gap_len {
-                    max_gap_len = current_gap_len;
-                    max_gap_start = current_gap_start;
-                }
-                current_gap_len = 0;
-            }
-        }
-        if current_gap_len > max_gap_len {
-            max_gap_len = current_gap_len;
-            max_gap_start = current_gap_start;
-        }
-
-        if max_gap_len > 256 {
-            let e = max_gap_start.saturating_sub(1);
-            if e >= start_addr as usize {
-                end_addr = e as u16;
-            }
-        }
-    }
-
-    // unp64 compatibility for MC-Cracken Compressor:
-    // MC-Cracken's first pass depacker jumps to the stack page ($0172) for the second pass,
-    // leaving a JMP $0172 instruction at $AB-$AD and the exclusive end address at zero page $AE-$AF.
-    // unp64 stops emulation when it jumps to the final entry point (e.g., $1100) and uses that
-    // as the entry point, while reporting the unpacked range up to the value in $AE-$AF.
-    if is_c64
-        && entry_point == 0x1100
-        && mem.len() >= 0xB0
-        && mem[0xAB..=0xAD] == [0x4C, 0x72, 0x01]
-    {
-        let reported_end = u16::from_le_bytes([mem[0xAE], mem[0xAF]]);
-        if reported_end > start_addr {
-            end_addr = reported_end.saturating_sub(1);
-        }
-    }
-
-    // unp64 compatibility for Exomizer 3:
-    if is_c64 {
-        let mut exomizer_end_lo = None;
-        let mut exomizer_end_hi = None;
-        let mut exomizer_version = None;
-        // Scan memory for the Exomizer 3 decruncher routine sequence:
-        //   p - 6: 0x4C (JMP)
-        //   p - 4: 0x01 (high byte of stack jump, e.g. $01xx)
-        //   p    : 0x69 0x80 (ADC #$80)
-        //   p + 2: 0x0A (ASL A)
-        //   p + 3: 0x10 0x0F (BPL +15)
-        //   p + 5: 0x06 0xFD (ASL $FD)
-        //   p + 7: 0xD0 (BNE)
-        // This signature check matches unp64 (scanners/Exomizer.c lines 22-25) to locate
-        // variables inside relocated decruncher code dynamically.
-        for p in 0x0200..=0xFFF0 {
-            if p >= 6
-                && snapshot.len() > p + 8
-                && snapshot[p] == 0x69
-                && snapshot[p + 1] == 0x80
-                && snapshot[p + 2] == 0x0A
-                && snapshot[p + 3] == 0x10
-                && snapshot[p + 4] == 0x0F
-                && snapshot[p + 5] == 0x06
-                && snapshot[p + 6] == 0xFD
-                && snapshot[p + 7] == 0xD0
-                && snapshot[p - 6] == 0x4C
-                && snapshot[p - 4] == 0x01
-            {
-                let p_idx = p - 5;
-                let mut q = 2;
-                if snapshot[p_idx - q] == 0x8A {
-                    q += 1;
-                }
-                let elo = snapshot[p_idx - q];
-                let ehi = snapshot[p - 1];
-                let is_exo_30 = snapshot[p_idx - q - 1] == snapshot[p_idx - q - 3]
-                    && snapshot[p_idx - q - 2] == snapshot[p_idx - q];
-                let ev = if is_exo_30 { 0x30 } else { 0x32 };
-                exomizer_end_lo = Some(elo);
-                exomizer_end_hi = Some(ehi);
-                exomizer_version = Some(ev);
-                break;
-            }
-        }
-
-        if let Some(ver) = exomizer_version
-            && let Some(end_lo) = exomizer_end_lo
-        {
-            let mut dyn_start = mem[0xFE] as u16 + ((mem[0xFF] as u16) << 8);
-            if ver == 0x30 {
-                dyn_start = dyn_start.wrapping_add(y_reg as u16);
-            } else {
-                dyn_start = dyn_start.wrapping_add(y_reg as u16).wrapping_add(1);
-            }
-            start_addr = dyn_start;
-
-            let end_hi = exomizer_end_hi.unwrap_or_else(|| mem[0xFF]);
-            let mut dyn_end = end_lo as u16 + ((end_hi as u16) << 8);
-            if ver == 0x32 {
-                dyn_end = dyn_end.wrapping_add(1);
-            }
-            if dyn_end == 0 {
-                dyn_end = 0xFF00;
-            }
-            if dyn_end > start_addr {
-                end_addr = dyn_end.saturating_sub(1);
-            }
-        }
-    }
-
-    // unp64 compatibility for ByteBoozer 2:
-    // ByteBoozer 2 places its workspace immediately after the unpacked data without a gap,
-    // making our standard cluster trimming fail. However, like unp64, we can detect it
-    // by signature and read the end address it deposits in zero page $77.
-    if is_c64 && snapshot.len() >= 0x8C4 {
-        let b0 = snapshot[0x80D..0x811] == [0x78, 0xA9, 0x34, 0x85]; // SEI; LDA #$34; STA $01
-        let b1 = snapshot[0x813..0x817] == [0xB7, 0xBD, 0x1E, 0x08]; // LDX #$B7; LDA $081E,X
-        let b2 = snapshot[0x870..0x874] == [0xA8, 0x20, 0xAD, 0x00]; // TAY; JSR $00AD
-        let b3 = snapshot[0x8C0..0x8C4] == [0xAE, 0xD0, 0x02, 0xE6]; // LDX abs; BNE +2; INC
-        if b0 && b1 && b2 && b3 {
-            let reported_end = u16::from_le_bytes([mem[0x77], mem[0x78]]);
-            if reported_end > start_addr {
-                // reported_end is the byte immediately following the unpacked data
-                end_addr = reported_end.saturating_sub(1);
-            }
-        }
+        let mut range = (start_addr, end_addr);
+        p.post_emulate(
+            mem,
+            snapshot,
+            written,
+            &mut range,
+            &mut entry_point,
+            system,
+            y_reg,
+        );
+        start_addr = range.0;
+        end_addr = range.1;
     }
 
     // Override entry point with SYS target if entry point landed in ROM or BASIC stub range (load_addr..=load_addr+0x10)
