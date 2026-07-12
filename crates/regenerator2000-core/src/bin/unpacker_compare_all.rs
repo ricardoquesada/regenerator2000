@@ -8,20 +8,80 @@ fn main() {
         .unwrap_or_else(|_| "/Users/ricardoq/bin/unp64".to_string());
     let test_dir = "tests/6502";
 
-    println!("============================================================");
-    println!("   Regenerator 2000 Unpacker vs unp64 Comparison Report");
-    println!("============================================================");
-    println!(
-        "{:<45} {:<10} {:<10} {:<10} {:<10}",
-        "File", "unp64", "R2000", "Payload", "Status"
-    );
-    println!("------------------------------------------------------------");
+    let allowed_files = [
+        "c64_8_bit_ball.meanteam_cruncher.prg",
+        "c64_lft-rodents-in-the-attic.exo3.prg",
+        "c64_connection-8580.pucrunch.prg",
+        "c64_f600.exo.prg",
+        "c64_moving_tubes_lxt.dali.prg",
+        "c64_thats_the_way_scoop.time_cruncher.prg",
+        "c64_traveller.tiny_crunch.prg",
+        "c64_CopperBooze.byte_boozer2.prg",
+        "c64_Bit_by_Bits-BZ!.exo3.prg",
+        "c64_boilerplate.exo3.prg",
+        "c64_druid_too.exo3.prg",
+        "c64_endoskull.exo3.prg",
+        "c64_leftovers-pl.exo3.prg",
+        "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg",
+        "c64_sprite runners.exo3prg.prg",
+        "c64_moving_tubes_lxt.exo3.prg",
+        "c64_moving_tubes_lxt.pucrunch.prg",
+        "c64_mule.dali.prg",
+        "c64_mule.exo3.prg",
+        "c64_mule.mccracken_compressor.prg",
+        "c64_mule.pucrunch.prg",
+        "c64_roma.exe.exo3.prg",
+        "c64_hw20131031.exo.prg",
+        "c64_spectro.exo3.prg",
+        "c64_cubicdream.exo3.prg",
+        "c64_boo_alz64.prg",
+        "c64_lft-nine.exo3.prg",
+        "c64_HBFS.exo3.prg",
+        "c64_Layers.exo3.prg",
+        "c64_fantasy_intro.eca_compactor.prg",
+        "c64_FppScroller.byte_boozer2.prg",
+        "c64_little_things.exo3.prg",
+        "c64_robot - not human.exo3.prg",
+        "c64_soul_on_fire_unk.prg",
+        "c64_gianna_sister_remix_badboy.tbc_multicompactor.prg",
+        "c64_chiller.antiram_packer.prg",
+    ];
 
-    let entries = fs::read_dir(test_dir).unwrap();
+    println!(
+        "============================================================================================="
+    );
+    println!("   Regenerator 2000 Unpacker vs unp64 Comparison Report (Tests from unpacker.rs)");
+    println!(
+        "============================================================================================="
+    );
+    println!(
+        "{:<45} {:<24} | {:<24} | Status",
+        "File", "unp64 (range / entry)", "R2000 (range / entry)"
+    );
+    println!(
+        "---------------------------------------------------------------------------------------------"
+    );
+
+    let entries = match fs::read_dir(test_dir) {
+        Ok(e) => e,
+        Err(err) => {
+            eprintln!("Failed to read test dir {}: {}", test_dir, err);
+            return;
+        }
+    };
     let mut files: Vec<_> = entries
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| p.is_file())
+        .filter(|p| {
+            if !p.is_file() {
+                return false;
+            }
+            if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                allowed_files.contains(&name)
+            } else {
+                false
+            }
+        })
         .collect();
 
     // Sort files alphabetically
@@ -29,37 +89,26 @@ fn main() {
 
     let mut total = 0;
     let mut passed = 0;
-    let mut skipped = 0;
     let mut failed = 0;
 
     for file_path in files {
-        let file_name = file_path.file_name().unwrap().to_str().unwrap();
-
-        // Skip reference files (e.g. ones ending in .prg.XXXX or _2e00.prg)
-        if file_name.ends_with("_2e00.prg")
-            || file_name.contains(".prg.08")
-            || file_name.contains(".prg.10")
-            || file_name.contains(".prg.28")
-            || file_name.contains(".prg.48")
-            || file_name.contains(".prg.69")
-        {
-            continue;
-        }
-
+        let file_name = match file_path.file_name().and_then(|n| n.to_str()) {
+            Some(name) => name,
+            None => continue,
+        };
         total += 1;
 
-        let prg_data = fs::read(&file_path).unwrap();
-        if prg_data.len() <= 2 {
-            println!("{:<45} Skipped (too short)", file_name);
-            skipped += 1;
+        let prg_data = match fs::read(&file_path) {
+            Ok(data) => data,
+            Err(_) => continue,
+        };
+        if prg_data.len() < 2 {
             continue;
         }
-
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
         // Run our unpacker
-        // Some files might need higher instruction limit
         let config = UnpackConfig {
             max_instructions: 350_000_000,
             ..Default::default()
@@ -74,19 +123,37 @@ fn main() {
             .arg(&tmp_out)
             .output();
 
-        match (r2000_res, unp64_status) {
-            (Ok(r2000), Ok(unp_out)) if unp_out.status.success() => {
-                // unp64 succeeded and saved to tmp_out
-                let unp_bytes = fs::read(&tmp_out).unwrap();
-                let unp_load = u16::from_le_bytes([unp_bytes[0], unp_bytes[1]]);
-                let unp_payload = &unp_bytes[2..];
+        let unp64_ok = match &unp64_status {
+            Ok(unp_out) => unp_out.status.success(),
+            _ => false,
+        };
 
-                // unp64 output format matches load address
-                // Compare start address
+        // Extract unp64 details if successful
+        let mut unp_info = None;
+        if unp64_ok
+            && tmp_out.exists()
+            && let Ok(unp_bytes) = fs::read(&tmp_out)
+            && unp_bytes.len() >= 2
+        {
+            let unp_load = u16::from_le_bytes([unp_bytes[0], unp_bytes[1]]);
+            let unp_payload = &unp_bytes[2..];
+            let unp_end = unp_load
+                .saturating_add(unp_payload.len() as u16)
+                .saturating_sub(1);
+            if let Ok(unp_out) = &unp64_status {
+                let stdout_str = String::from_utf8_lossy(&unp_out.stdout);
+                let unp_entry = parse_unp64_entry(&stdout_str).unwrap_or(0);
+                unp_info = Some((unp_load, unp_end, unp_entry, unp_bytes));
+            }
+        }
+
+        match (&r2000_res, &unp_info) {
+            (Ok(r2000), Some((unp_load, unp_end, unp_entry, unp_bytes))) => {
+                let unp_payload = &unp_bytes[2..];
                 let mut matches = true;
                 let mut reason = Vec::new();
 
-                if r2000.start_addr != unp_load {
+                if r2000.start_addr != *unp_load {
                     matches = false;
                     reason.push(format!(
                         "Start mismatch: R2000=${:04X} vs unp64=${:04X}",
@@ -94,10 +161,7 @@ fn main() {
                     ));
                 }
 
-                let unp_end = unp_load
-                    .saturating_add(unp_payload.len() as u16)
-                    .saturating_sub(1);
-                if r2000.end_addr != unp_end {
+                if r2000.end_addr != *unp_end {
                     matches = false;
                     reason.push(format!(
                         "End mismatch: R2000=${:04X} vs unp64=${:04X}",
@@ -105,12 +169,7 @@ fn main() {
                     ));
                 }
 
-                // Parse entry point from stdout if possible
-                // e.g. "Entry point: $080d" or "pass2, return to mem: $0834"
-                let stdout_str = String::from_utf8_lossy(&unp_out.stdout);
-                let unp_entry = parse_unp64_entry(&stdout_str).unwrap_or(0);
-
-                if unp_entry != 0 && r2000.entry_point != unp_entry {
+                if *unp_entry != 0 && r2000.entry_point != *unp_entry {
                     matches = false;
                     reason.push(format!(
                         "Entry mismatch: R2000=${:04X} vs unp64=${:04X}",
@@ -118,8 +177,7 @@ fn main() {
                     ));
                 }
 
-                // Compare payload
-                let offset = r2000.start_addr as i32 - unp_load as i32;
+                let offset = r2000.start_addr as i32 - *unp_load as i32;
                 if offset == 0 {
                     let min_len = r2000.data.len().min(unp_payload.len());
                     if r2000.data[..min_len] != unp_payload[..min_len] {
@@ -131,66 +189,76 @@ fn main() {
                     reason.push(format!("Load address offset mismatch: {}", offset));
                 }
 
+                let unp64_range =
+                    format!("${:04X}-${:04X} (${:04X})", unp_load, unp_end, unp_entry);
+                let r2000_range = format!(
+                    "${:04X}-${:04X} (${:04X})",
+                    r2000.start_addr, r2000.end_addr, r2000.entry_point
+                );
+
                 if matches {
-                    println!("{:<45} OK         OK         MATCH      PASS", file_name);
+                    println!(
+                        "{:<45} {:<24} | {:<24} | PASS",
+                        file_name, unp64_range, r2000_range
+                    );
                     passed += 1;
                 } else {
-                    println!("{:<45} OK         OK         MISMATCH   FAIL", file_name);
+                    println!(
+                        "{:<45} {:<24} | {:<24} | FAIL (MISMATCH)",
+                        file_name, unp64_range, r2000_range
+                    );
                     for r in reason {
                         println!("  -> {}", r);
                     }
                     failed += 1;
                 }
-
-                let _ = fs::remove_file(tmp_out);
             }
-            (Err(_e), Ok(unp_out)) if !unp_out.status.success() => {
-                // Both failed (not a packed file or packer not supported by both)
+            (Err(e), Some((unp_load, unp_end, unp_entry, _))) => {
+                let unp64_range =
+                    format!("${:04X}-${:04X} (${:04X})", unp_load, unp_end, unp_entry);
                 println!(
-                    "{:<45} FAIL       FAIL       -          SKIP (Not packed)",
-                    file_name
-                );
-                skipped += 1;
-            }
-            (Ok(r2000), Ok(unp_out)) if !unp_out.status.success() => {
-                // R2000 succeeded, unp64 failed
-                println!(
-                    "{:<45} FAIL       OK (${:04X})  -          FAIL (unp64 failed)",
-                    file_name, r2000.entry_point
+                    "{:<45} {:<24} | {:<24} | FAIL (R2000 failed: {:?})",
+                    file_name, unp64_range, "-", e
                 );
                 failed += 1;
             }
-            (Err(e), Ok(unp_out)) if unp_out.status.success() => {
-                // R2000 failed, unp64 succeeded
+            (Ok(r2000), None) => {
+                let r2000_range = format!(
+                    "${:04X}-${:04X} (${:04X})",
+                    r2000.start_addr, r2000.end_addr, r2000.entry_point
+                );
                 println!(
-                    "{:<45} OK         FAIL       -          FAIL (R2000 failed: {:?})",
-                    file_name, e
+                    "{:<45} {:<24} | {:<24} | FAIL (unp64 failed)",
+                    file_name, "-", r2000_range
                 );
                 failed += 1;
-                let _ = fs::remove_file(tmp_out);
             }
-            _ => {
+            (Err(e), None) => {
                 println!(
-                    "{:<45} ERROR      ERROR      -          FAIL (Execution error)",
-                    file_name
+                    "{:<45} {:<24} | {:<24} | FAIL (Both failed: {:?})",
+                    file_name, "-", "-", e
                 );
                 failed += 1;
             }
         }
+
+        if tmp_out.exists() {
+            let _ = fs::remove_file(tmp_out);
+        }
     }
 
-    println!("------------------------------------------------------------");
+    println!(
+        "---------------------------------------------------------------------------------------------"
+    );
     println!("Total PRG files analyzed: {}", total);
     println!("Passed (100% Match):      {}", passed);
     println!("Failed / Mismatched:      {}", failed);
-    println!("Skipped (Not packed):     {}", skipped);
-    println!("============================================================");
+    println!(
+        "================================================---------------------------------------------"
+    );
 }
 
 fn parse_unp64_entry(stdout: &str) -> Option<u16> {
-    // Look for: "pass2, return to mem: \n$0834" or "pass2, return to mem: $0834"
-    // Also "Entry point: $080d"
-    // Let's try "pass2, return to mem: "
     if let Some(idx) = stdout.find("pass2, return to mem:") {
         let sub = &stdout[idx + "pass2, return to mem:".len()..];
         let target_sub = if let Some(arrow_idx) = sub.find("->") {
@@ -198,7 +266,6 @@ fn parse_unp64_entry(stdout: &str) -> Option<u16> {
         } else {
             sub
         };
-        // Find the first hex number starting with $
         if let Some(dollar_idx) = target_sub.find('$') {
             let hex_str: String = target_sub[dollar_idx + 1..]
                 .chars()

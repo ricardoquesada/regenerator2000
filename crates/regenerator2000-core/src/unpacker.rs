@@ -1041,12 +1041,30 @@ pub fn unpack(
     let load_end = (load_addr as usize + data_len).min(0x10000) as u16;
     let packer_info = crate::packer_signatures::detect_packer(&memory.mem, load_addr, load_end);
 
-    // Apply patches for specific packers
+    // Apply patches for specific packers to bypass hardware/ROM checks during emulation
     if let Some(ref info) = packer_info
-        && info.name == "ALZ64/Kabuto"
         && system.as_str() == crate::state::types::System::C64
     {
-        memory.mem[0x080b] = 0xA2;
+        if info.name == "ALZ64/Kabuto" {
+            // ALZ64/Kabuto bootstrap stub checks memory/state; overwrite the check
+            // with LDX #imm (0xA2) to skip check logic and flow into the depacker cleanly.
+            memory.mem[0x080b] = 0xA2;
+        } else if info.name == "Antiram Packer v1.0" {
+            // Antiram Packer v1.0 invokes JSR $A659 (BASIC tokenizer/ROM call).
+            // Since ROM functions are un-emulated, we replace JSR (0x20) with BIT absolute (0x2C)
+            // as done in unp64 (scanners/Antiram.c), which NOPs the subroutine call and lets PC flow.
+            let p = 0x904;
+            if memory.mem[p] == 0x20 {
+                memory.mem[p] = 0x2c;
+            }
+        } else if info.name == "Antiram Packer v2.0" {
+            // Antiram Packer v2.0 invokes JSR $A659 (BASIC tokenizer/ROM call).
+            // Replaces JSR (0x20) with BIT absolute (0x2C) to NOP the ROM call (unp64 parity).
+            let p = 0x911;
+            if memory.mem[p] == 0x20 {
+                memory.mem[p] = 0x2c;
+            }
+        }
     }
 
     // Create CPU
@@ -1059,8 +1077,9 @@ pub fn unpack(
 
     // -----------------------------------------------------------------------
     // Phase 1: Find the depacker
-    // Run from entry point. Loop while PC >= ret_addr.
-    // Exit when PC < ret_addr (depacker found) or exit vector hit.
+    // Run from entry point. Loop until the depacker is reached.
+    // Exit when PC matches a known depacker address, PC drops below ret_addr
+    // (depacker found), or an exit vector is hit.
     // -----------------------------------------------------------------------
     let dep_addr;
     let load_end = load_addr.wrapping_add(data_len as u16);
@@ -1071,7 +1090,16 @@ pub fn unpack(
 
         let pc = cpu.registers.program_counter;
 
-        if pc < ret_addr && pc != 0x0000 {
+        let is_dep_addr = if let Some(ref info) = packer_info
+            && let Some(known_dep) = info.dep_addr
+            && known_dep >= ret_addr
+        {
+            pc == known_dep
+        } else {
+            pc < ret_addr && pc != 0x0000
+        };
+
+        if is_dep_addr {
             dep_addr = config.forced_dep_addr.unwrap_or(pc);
             break;
         }
@@ -1150,13 +1178,14 @@ pub fn unpack(
     // Continues from where Phase 1 left off.
     //
     // Exit conditions:
-    //  1. PC >= ret_addr AND mem[PC] was written during emulation — the
-    //     depacker finished and jumped to freshly unpacked code.
-    //  2. PC >= ret_addr AND PC is outside the original loaded data range —
-    //     the depacker jumped to an area that wasn't part of the original
-    //     packed binary (e.g., it decompressed to a different region).
-    //  3. ROM exit vector or BASIC RUN detection.
-    //  4. Timeout.
+    //  1. PC matches a known entry point (packer_info.entry_point) or BASIC RUN ($A7AE).
+    //  2. Without a known entry point: PC >= ret_addr AND mem[PC] was written
+    //     during emulation — the depacker finished and jumped to freshly unpacked code.
+    //  3. Without a known entry point: PC >= ret_addr AND PC is outside the original
+    //     loaded data range — the depacker jumped to an area that wasn't part of the
+    //     original packed binary (e.g., it decompressed to a different region).
+    //  4. ROM exit vector or BASIC RUN detection.
+    //  5. Timeout.
     //
     // This handles inline packers (like Exomizer) that bounce between
     // depacker code below ret_addr (e.g., stack page) and depacker code
@@ -1203,14 +1232,16 @@ pub fn unpack(
             }
         }
 
-        // Exit condition: PC is at or above ret_addr AND points to memory
-        // that was written during emulation — the depacker finished and jumped
-        // to freshly decompressed code.
+        // Exit condition: If the packer has a known entry point, we exit when PC
+        // matches it or BASIC RUN ($A7AE). Otherwise, we exit when PC is at or
+        // above ret_addr AND points to memory that was written during emulation
+        // (indicating the depacker finished and jumped to freshly decompressed code).
         //
         // Skip this check when PC is in a ROM/IO region ($A000-$BFFF,
         // $D000-$FFFF). Even though the RAM *underneath* these areas may have
         // been written by the depacker, the CPU is executing from ROM, not
         // from the decompressed data. Letting execution continue ensures the
+        // depacker finishes decompression completely.
         let basic_mapped = is_basic_rom_mapped(&cpu.memory.mem, &system);
         let kernal_mapped = is_kernal_rom_mapped(&cpu.memory.mem, &system);
         let io_mapped = is_io_mapped(&cpu.memory.mem, &system);
@@ -1264,9 +1295,9 @@ pub fn unpack(
             );
         }
 
-        // Also exit if PC is above ret_addr but outside the original loaded
-        // data region. This catches cases where the depacker decompresses
-        // to memory that was empty/zero before loading.
+        // If the packer doesn't have a known entry point, also exit if PC is above
+        // ret_addr but outside the original loaded data region. This catches cases
+        // where the depacker decompresses to memory that was empty/zero before loading.
         // Exclude I/O ($D000-$DFFF) and ROM ($A000-$BFFF, $E000-$FFFF) regions —
         // depackers may temporarily execute in these areas for bank switching
         // or hardware setup, but they are not valid program entry points.
@@ -1395,7 +1426,7 @@ fn finish_unpack(
     }
 
     // unp64 compatibility for Dali v0.3.3 / fast:
-    // Dali copies its depacker to zero page and jumps to $1100 when done.
+    // Dali copies its depacker to zero page and jumps to the entry point stored at $EB-$EC when done.
     // It leaves the compressed payload at the top of memory, which defeats our standard gap trim
     // because the gap is > 25KB and hits the scan_floor safeguard.
     // We can reliably find the true end of the decompressed data by finding the largest
@@ -1443,10 +1474,10 @@ fn finish_unpack(
     }
 
     // unp64 compatibility for MC-Cracken Compressor:
-    // MC-Cracken's first pass depacker jumps to $1100 for the second pass,
-    // leaving the exclusive end address at zero page $AE-$AF. unp64 stops emulation
-    // at the jump to $1100 and uses that as the entry point, while reporting
-    // the unpacked range up to the value in $AE-$AF.
+    // MC-Cracken's first pass depacker jumps to the stack page ($0172) for the second pass,
+    // leaving a JMP $0172 instruction at $AB-$AD and the exclusive end address at zero page $AE-$AF.
+    // unp64 stops emulation when it jumps to the final entry point (e.g., $1100) and uses that
+    // as the entry point, while reporting the unpacked range up to the value in $AE-$AF.
     if is_c64
         && entry_point == 0x1100
         && mem.len() >= 0xB0
@@ -1463,6 +1494,16 @@ fn finish_unpack(
         let mut exomizer_end_lo = None;
         let mut exomizer_end_hi = None;
         let mut exomizer_version = None;
+        // Scan memory for the Exomizer 3 decruncher routine sequence:
+        //   p - 6: 0x4C (JMP)
+        //   p - 4: 0x01 (high byte of stack jump, e.g. $01xx)
+        //   p    : 0x69 0x80 (ADC #$80)
+        //   p + 2: 0x0A (ASL A)
+        //   p + 3: 0x10 0x0F (BPL +15)
+        //   p + 5: 0x06 0xFD (ASL $FD)
+        //   p + 7: 0xD0 (BNE)
+        // This signature check matches unp64 (scanners/Exomizer.c lines 22-25) to locate
+        // variables inside relocated decruncher code dynamically.
         for p in 0x0200..=0xFFF0 {
             if p >= 6
                 && snapshot.len() > p + 8
@@ -1730,17 +1771,15 @@ mod tests {
 
         let mut unpacked_count = 0;
         for entry in &prg_entries {
-            if let Ok(prg_bytes) = crate::parser::d64::extract_file(&data, entry) {
-                if prg_bytes.len() > 2 {
-                    let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
-                    let config = UnpackConfig::default();
-                    if let Ok(res) = unpack(&prg_bytes[2..], load_addr, &config, None) {
-                        assert!(
-                            res.start_addr <= res.entry_point && res.entry_point <= res.end_addr
-                        );
-                        assert!(!res.data.is_empty());
-                        unpacked_count += 1;
-                    }
+            if let Ok(prg_bytes) = crate::parser::d64::extract_file(&data, entry)
+                && prg_bytes.len() > 2
+            {
+                let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
+                let config = UnpackConfig::default();
+                if let Ok(res) = unpack(&prg_bytes[2..], load_addr, &config, None) {
+                    assert!(res.start_addr <= res.entry_point && res.entry_point <= res.end_addr);
+                    assert!(!res.data.is_empty());
+                    unpacked_count += 1;
                 }
             }
         }
@@ -2726,10 +2765,10 @@ mod tests {
                 return Some(p);
             }
         }
-        if let Ok(out) = std::process::Command::new("unp64").arg("-h").output() {
-            if out.status.success() || !out.stdout.is_empty() || !out.stderr.is_empty() {
-                return Some(std::path::PathBuf::from("unp64"));
-            }
+        if let Ok(out) = std::process::Command::new("unp64").arg("-h").output()
+            && (out.status.success() || !out.stdout.is_empty() || !out.stderr.is_empty())
+        {
+            return Some(std::path::PathBuf::from("unp64"));
         }
         None
     }
@@ -2794,6 +2833,7 @@ mod tests {
             let tmp_out = std::env::temp_dir().join("fantasy_intro_unp64.prg");
             let status = std::process::Command::new(&unp64_bin)
                 .arg(prg_path)
+                .arg("-o")
                 .arg(&tmp_out)
                 .status()
                 .unwrap();
@@ -2802,6 +2842,47 @@ mod tests {
                     tmp_out.clone()
                 } else {
                     std::path::PathBuf::from(format!("{}.3000", tmp_out.display()))
+                };
+                if actual_out.exists() {
+                    let unp64_bytes = std::fs::read(&actual_out).unwrap();
+                    let unp64_load_addr = u16::from_le_bytes([unp64_bytes[0], unp64_bytes[1]]);
+                    assert_eq!(result.start_addr, unp64_load_addr);
+                    assert_eq!(result.data, &unp64_bytes[2..]);
+                    let _ = std::fs::remove_file(actual_out);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_unpack_c64_chiller_antiram() {
+        let prg_path = "../../tests/6502/c64_chiller.antiram_packer.prg";
+        let prg_data = std::fs::read(prg_path).unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0xCE00);
+        assert_eq!(result.entry_point, 0x0818);
+        assert_eq!(result.dep_addr, 0xFF00);
+
+        if let Some(unp64_bin) = find_unp64_bin() {
+            let tmp_out = std::env::temp_dir().join("chiller_unp64.prg");
+            let status = std::process::Command::new(&unp64_bin)
+                .arg(prg_path)
+                .arg("-o")
+                .arg(&tmp_out)
+                .status()
+                .unwrap();
+            if status.success() {
+                let actual_out = if tmp_out.exists() {
+                    tmp_out.clone()
+                } else {
+                    std::path::PathBuf::from(format!("{}.0818", tmp_out.display()))
                 };
                 if actual_out.exists() {
                     let unp64_bytes = std::fs::read(&actual_out).unwrap();
