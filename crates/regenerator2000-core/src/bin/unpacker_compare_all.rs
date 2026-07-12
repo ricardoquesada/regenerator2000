@@ -61,6 +61,7 @@ fn main() {
         "c64_soul_on_fire_unk.prg",
         "c64_gianna_sister_remix_badboy.tbc_multicompactor.prg",
         "c64_chiller.antiram_packer.prg",
+        "c64_323_ice_psm.1001_card_cruncher.prg",
     ];
 
     println!(

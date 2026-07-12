@@ -4,6 +4,7 @@ pub mod action_replay;
 pub mod alz64;
 pub mod antiram;
 pub mod byteboozer;
+pub mod card_cruncher;
 pub mod ccs;
 pub mod cruel_cruncher;
 pub mod dali;
@@ -102,6 +103,9 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dy
         return Some(p);
     }
     if let Some(p) = time_cruncher::detect(mem) {
+        return Some(p);
+    }
+    if let Some(p) = card_cruncher::detect(mem, load_addr) {
         return Some(p);
     }
     if let Some(p) = mc_cracken::detect(mem) {

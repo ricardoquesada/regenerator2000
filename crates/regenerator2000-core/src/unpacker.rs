@@ -1032,7 +1032,9 @@ pub fn unpack(
     let entry = if let Some(forced) = config.forced_entry {
         forced
     } else {
-        find_sys_address(&memory.mem, basic_start).ok_or(UnpackError::NoEntryPoint)?
+        find_sys_address(&memory.mem, basic_start)
+            .or_else(|| find_sys_address(&memory.mem, 0x0801))
+            .ok_or(UnpackError::NoEntryPoint)?
     };
 
     let ret_addr = config
@@ -1686,6 +1688,16 @@ mod tests {
                 exp_end: 0xF732,
                 exp_entry: 0xE000,
                 exp_dep: Some(0x005E),
+                exp_packer: None,
+                max_instructions: None,
+            },
+            KnownUnpackCase {
+                file: "c64_323_ice_psm.1001_card_cruncher.prg",
+                exp_start: 0x0801,
+                exp_end: 0x319C,
+                exp_entry: 0x3197,
+                exp_dep: Some(0x0100),
+                exp_packer: Some("1001 CardCruncher ACM"),
                 max_instructions: None,
             },
         ];
