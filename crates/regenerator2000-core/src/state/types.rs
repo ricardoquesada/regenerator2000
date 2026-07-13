@@ -99,6 +99,55 @@ impl System {
         }
     }
 
+    /// Returns the hardware I/O memory range for this system, if defined.
+    #[must_use]
+    pub fn io_range(&self) -> Option<std::ops::RangeInclusive<u16>> {
+        match self.0.as_str() {
+            Self::C64 | Self::C128 => Some(0xD000..=0xDFFF),
+            Self::VIC20 => Some(0x9000..=0x97FF),
+            Self::PLUS4 => Some(0xFF00..=0xFF3F),
+            Self::PET | Self::PET20 => Some(0xE800..=0xE8FF),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if `addr` falls within the hardware I/O memory space for this system.
+    #[must_use]
+    pub fn is_in_io(&self, addr: u16) -> bool {
+        self.io_range().is_some_and(|r| r.contains(&addr))
+    }
+
+    /// Returns `true` if `addr` falls within the BASIC ROM memory space for this system.
+    #[must_use]
+    pub fn is_in_basic_rom(&self, addr: u16) -> bool {
+        match self.0.as_str() {
+            Self::C64 => (0xA000..=0xBFFF).contains(&addr),
+            Self::C128 => (0x4000..=0x7FFF).contains(&addr),
+            Self::VIC20 => (0xC000..=0xDFFF).contains(&addr),
+            Self::PLUS4 => (0x8000..=0xBFFF).contains(&addr),
+            _ => (0xA000..=0xBFFF).contains(&addr),
+        }
+    }
+
+    /// Returns `true` if `addr` falls within the Kernal ROM memory space for this system.
+    #[must_use]
+    pub fn is_in_kernal_rom(&self, addr: u16) -> bool {
+        match self.0.as_str() {
+            Self::C64 | Self::VIC20 | Self::PLUS4 => addr >= 0xE000,
+            Self::C128 => addr >= 0xC000,
+            _ => addr >= 0xE000,
+        }
+    }
+
+    /// Returns `true` if `addr` is the main BASIC interpreter execution entry point (e.g. `$A7AE` on C64).
+    #[must_use]
+    pub fn is_basic_exec_entry(&self, addr: u16) -> bool {
+        match self.0.as_str() {
+            Self::C64 | Self::C128 => addr == 0xA7AE,
+            _ => false,
+        }
+    }
+
     /// Returns the upper RAM boundary ceiling before hardware vectors ($FFF8..$FFFF).
     #[must_use]
     pub fn ram_ceiling(&self) -> u16 {

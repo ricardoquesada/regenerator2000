@@ -160,7 +160,7 @@ impl Bus for UnpackerMemory {
             //   - CHAREN (bit 2) must be set, AND
             //   - At least one of LORAM (bit 0) or HIRAM (bit 1) must be set.
             // When both LORAM and HIRAM are clear, RAM is visible regardless of CHAREN.
-            if (0xD000..=0xDFFF).contains(&a) {
+            if self.system.is_in_io(addr) {
                 let bank = self.mem[0x01];
                 let io_visible = (bank & 0x04 != 0) && (bank & 0x03 != 0);
                 if io_visible {
@@ -186,7 +186,7 @@ impl Bus for UnpackerMemory {
         let a = addr as usize;
         if self.system.is_c64() {
             // Same PLA logic as get_byte: suppress writes only when I/O is mapped.
-            if (0xD000..=0xDFFF).contains(&a) {
+            if self.system.is_in_io(addr) {
                 let bank = self.mem[0x01];
                 let io_visible = (bank & 0x04 != 0) && (bank & 0x03 != 0);
                 if io_visible {
@@ -332,23 +332,11 @@ fn get_basic_start(load_addr: u16) -> u16 {
 }
 
 fn is_in_basic_rom(pc: u16, system: &crate::state::types::System) -> bool {
-    match system.as_str() {
-        crate::state::types::System::C64 => (0xA000..=0xBFFF).contains(&pc),
-        crate::state::types::System::C128 => (0x4000..=0xBFFF).contains(&pc),
-        crate::state::types::System::VIC20 => (0xC000..=0xDFFF).contains(&pc),
-        crate::state::types::System::PLUS4 => (0x8000..=0xBFFF).contains(&pc),
-        _ => (0xA000..=0xBFFF).contains(&pc),
-    }
+    system.is_in_basic_rom(pc)
 }
 
 fn is_in_kernal_rom(pc: u16, system: &crate::state::types::System) -> bool {
-    match system.as_str() {
-        crate::state::types::System::C64 => pc >= 0xE000,
-        crate::state::types::System::C128 => pc >= 0xC000,
-        crate::state::types::System::VIC20 => pc >= 0xE000,
-        crate::state::types::System::PLUS4 => pc >= 0xE000,
-        _ => pc >= 0xE000,
-    }
+    system.is_in_kernal_rom(pc)
 }
 
 fn is_basic_rom_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
@@ -763,7 +751,7 @@ fn detect_output_range(
                 && (trimmed_end as usize) >= boundary.saturating_sub(0x2000)
                 && (boundary + 1..=next_upper)
                     .filter(|&addr| {
-                        let is_io = (0xD000..=0xDFFF).contains(&addr) && io_mapped;
+                        let is_io = system.is_in_io(addr as u16) && io_mapped;
                         let diff = written.get(addr).copied().unwrap_or(false)
                             || mem.get(addr).copied().unwrap_or(0)
                                 != snapshot.get(addr).copied().unwrap_or(0);
@@ -1242,7 +1230,7 @@ pub fn unpack(
         let io_mapped = is_io_mapped(&cpu.memory.mem, &system);
 
         let in_rom_or_io = (is_in_basic_rom(pc, &system) && basic_mapped)
-            || ((0xD000..=0xDFFF).contains(&pc) && io_mapped)
+            || (system.is_in_io(pc) && io_mapped)
             || (is_in_kernal_rom(pc, &system) && kernal_mapped);
 
         let is_written_code = pc >= ret_addr
@@ -1260,14 +1248,15 @@ pub fn unpack(
         }
 
         if exit_triggered {
-            let entry_point =
-                if (basic_start..=basic_start.saturating_add(0x10)).contains(&pc) || pc == 0xA7AE {
-                    find_sys_address(&cpu.memory.mem, basic_start).unwrap_or(pc)
-                } else if pc == ret_addr {
-                    find_entry_in_snapshot(&snapshot, load_addr, data_len, ret_addr).unwrap_or(pc)
-                } else {
-                    pc
-                };
+            let entry_point = if (basic_start..=basic_start.saturating_add(0x10)).contains(&pc)
+                || system.is_basic_exec_entry(pc)
+            {
+                find_sys_address(&cpu.memory.mem, basic_start).unwrap_or(pc)
+            } else if pc == ret_addr {
+                find_entry_in_snapshot(&snapshot, load_addr, data_len, ret_addr).unwrap_or(pc)
+            } else {
+                pc
+            };
             return finish_unpack(
                 &cpu.memory.mem,
                 &snapshot,
