@@ -81,7 +81,6 @@ fn detect_at(mem: &[u8], q: usize) -> Option<Box<dyn Packer>> {
         let mut max_end = None;
         if mem.len() >= 0x0843 {
             let str_mem = u16::from_le_bytes([mem[0x0841], mem[0x0842]]);
-            eprintln!("tscrunch v1 str_mem: 0x{:04X}", str_mem);
             if str_mem > 0x0800 {
                 max_end = Some(str_mem.saturating_sub(1));
             }

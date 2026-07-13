@@ -251,8 +251,15 @@ pub fn handle_menu_action(
                 let tx = event_tx.clone();
                 std::thread::spawn(move || {
                     let progress_tx = tx.clone();
+                    let last_update = std::sync::Mutex::new(std::time::Instant::now());
                     let progress_cb = move |count: u64| {
-                        let _ = progress_tx.send(crate::events::AppEvent::UnpackProgress(count));
+                        if let Ok(mut last) = last_update.lock()
+                            && last.elapsed() >= std::time::Duration::from_millis(50)
+                        {
+                            *last = std::time::Instant::now();
+                            let _ =
+                                progress_tx.send(crate::events::AppEvent::UnpackProgress(count));
+                        }
                     };
                     let result = regenerator2000_core::unpacker::unpack(
                         &raw_data,

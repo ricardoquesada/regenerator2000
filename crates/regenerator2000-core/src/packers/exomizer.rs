@@ -58,7 +58,9 @@ impl Packer for ExomizerPacker {
                 } else {
                     val = val.wrapping_add(y_val).wrapping_add(1);
                 }
-                if val > 0 {
+                // Ignore Zero Page ($0000..$00FF) and Stack Page ($0100..$01FF) writes
+                // so min_start tracks user RAM payload instead of depacker temporary variables.
+                if val >= 0x0200 {
                     self.min_start = Some(self.min_start.map_or(val, |min| min.min(val)));
                 }
             }
@@ -160,7 +162,9 @@ impl Packer for ExomizerPacker {
             } else {
                 dyn_start = dyn_start.wrapping_add(u16::from(y_reg)).wrapping_add(1);
             }
-            range.0 = dyn_start;
+            if dyn_start >= system.ram_start() {
+                range.0 = dyn_start;
+            }
 
             let end_hi = exomizer_end_hi.unwrap_or_else(|| mem[0xFF]);
             let mut dyn_end = u16::from(end_lo) + (u16::from(end_hi) << 8);
@@ -170,7 +174,7 @@ impl Packer for ExomizerPacker {
             if dyn_end == 0 {
                 dyn_end = 0xFF00;
             }
-            if dyn_end > range.0 {
+            if dyn_end > range.0 && dyn_end <= range.1.saturating_add(256) {
                 range.1 = dyn_end.saturating_sub(1);
             }
         }
@@ -208,37 +212,7 @@ pub fn detect(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dyn Packe
                 ("Exomizer v3.02+", 0x32)
             };
 
-            let mut entry_point = None;
-            for idx in p..(mem.len().saturating_sub(4)).min(p + 0x200) {
-                if mem[idx] == 0x20 && mem[idx + 2] == 0x01 {
-                    for jmp_idx in (idx + 3)..(mem.len().saturating_sub(3)).min(idx + 0x60) {
-                        if mem[jmp_idx] == 0x4C {
-                            let ep = u16::from_le_bytes([mem[jmp_idx + 1], mem[jmp_idx + 2]]);
-                            if ep >= 0x0200 && !(0x0100..=0x01FF).contains(&ep) {
-                                entry_point = Some(ep);
-                                break;
-                            }
-                        }
-                    }
-                    break;
-                }
-            }
-
-            if entry_point.is_none() {
-                for jmp_idx in p..(mem.len().saturating_sub(3)).min(p + 0x200) {
-                    if mem[jmp_idx] == 0x4C {
-                        let ep = u16::from_le_bytes([mem[jmp_idx + 1], mem[jmp_idx + 2]]);
-                        if ep >= 0x0200 && ep <= load_end && !(0x0100..=0x01FF).contains(&ep) {
-                            entry_point = Some(ep);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if entry_point.is_none() && mem[p - 5] == 0xAB {
-                entry_point = Some(0x080D);
-            }
+            let entry_point = None;
 
             return Some(Box::new(ExomizerPacker::new(
                 PackerInfo {

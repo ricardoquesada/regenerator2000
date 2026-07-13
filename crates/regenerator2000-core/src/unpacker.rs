@@ -126,12 +126,16 @@ impl std::error::Error for UnpackError {}
 pub struct UnpackerMemory {
     /// Flat 64 KB memory.
     pub(crate) mem: Vec<u8>,
-    /// Per-byte write tracking.
+    /// Per-byte write tracking across all phases.
     written: Vec<bool>,
+    /// Per-byte write tracking during Phase 2.
+    written_phase2: Vec<bool>,
     /// Target system.
     system: crate::state::types::System,
     /// Counter for read operations to simulate VIC-II raster beams.
     read_counter: u64,
+    /// Whether emulation is in Phase 2.
+    pub(crate) in_phase2: bool,
 }
 
 impl UnpackerMemory {
@@ -140,8 +144,10 @@ impl UnpackerMemory {
         Self {
             mem: vec![0u8; 0x1_0000],
             written: vec![false; 0x1_0000],
+            written_phase2: vec![false; 0x1_0000],
             system,
             read_counter: 0,
+            in_phase2: false,
         }
     }
 }
@@ -149,7 +155,7 @@ impl UnpackerMemory {
 impl Bus for UnpackerMemory {
     fn get_byte(&mut self, addr: u16) -> u8 {
         let a = addr as usize;
-        if self.system.as_str() == crate::state::types::System::C64 {
+        if self.system.is_c64() {
             // I/O at $D000-$DFFF is only visible when the C64 PLA maps it:
             //   - CHAREN (bit 2) must be set, AND
             //   - At least one of LORAM (bit 0) or HIRAM (bit 1) must be set.
@@ -178,7 +184,7 @@ impl Bus for UnpackerMemory {
 
     fn set_byte(&mut self, addr: u16, val: u8) {
         let a = addr as usize;
-        if self.system.as_str() == crate::state::types::System::C64 {
+        if self.system.is_c64() {
             // Same PLA logic as get_byte: suppress writes only when I/O is mapped.
             if (0xD000..=0xDFFF).contains(&a) {
                 let bank = self.mem[0x01];
@@ -190,6 +196,9 @@ impl Bus for UnpackerMemory {
         }
         self.mem[a] = val;
         self.written[a] = true;
+        if self.in_phase2 {
+            self.written_phase2[a] = true;
+        }
     }
 }
 
@@ -343,7 +352,7 @@ fn is_in_kernal_rom(pc: u16, system: &crate::state::types::System) -> bool {
 }
 
 fn is_basic_rom_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
-    if system.as_str() == crate::state::types::System::C64 {
+    if system.is_c64() {
         (mem[0x01] & 0x01) != 0
     } else {
         true
@@ -351,7 +360,7 @@ fn is_basic_rom_mapped(mem: &[u8], system: &crate::state::types::System) -> bool
 }
 
 fn is_kernal_rom_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
-    if system.as_str() == crate::state::types::System::C64 {
+    if system.is_c64() {
         (mem[0x01] & 0x02) != 0
     } else {
         true
@@ -359,7 +368,7 @@ fn is_kernal_rom_mapped(mem: &[u8], system: &crate::state::types::System) -> boo
 }
 
 fn is_io_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
-    if system.as_str() == crate::state::types::System::C64 {
+    if system.is_c64() {
         (mem[0x01] & 0x04) != 0
     } else {
         false
@@ -484,18 +493,18 @@ fn handle_rom_entry(
     phase: u8,
 ) -> RomAction {
     let pc = cpu.registers.program_counter;
-    let system = cpu.memory.system.clone();
+    let system = &cpu.memory.system;
 
-    let basic_mapped = is_basic_rom_mapped(&cpu.memory.mem, &system);
-    let kernal_mapped = is_kernal_rom_mapped(&cpu.memory.mem, &system);
+    let in_basic = is_in_basic_rom(pc, system);
+    let in_kernal = is_in_kernal_rom(pc, system);
 
-    let in_basic = is_in_basic_rom(pc, &system);
-    let in_kernal = is_in_kernal_rom(pc, &system);
-
-    // Not in ROM space
+    // Not in ROM space — fast path for standard RAM code execution
     if !in_basic && !in_kernal {
         return RomAction::Continue;
     }
+
+    let basic_mapped = is_basic_rom_mapped(&cpu.memory.mem, system);
+    let kernal_mapped = is_kernal_rom_mapped(&cpu.memory.mem, system);
 
     // If user code was written here (depacker at $FF00+, etc.) AND the ROM
     // at this address is not currently mapped, let it run as RAM code.
@@ -510,7 +519,7 @@ fn handle_rom_entry(
         }
     }
 
-    let is_c64 = system.as_str() == crate::state::types::System::C64;
+    let is_c64 = system.is_c64();
 
     // BASIC ROM region
     if in_basic {
@@ -732,29 +741,36 @@ fn detect_output_range(
     // `untrimmed_end` stops early and `near_ceiling` is false.  To handle
     // this we also escalate when written+diffed bytes exist above the current
     // boundary.
-    let boundaries: &[usize] = &[0x9FFF, 0xCFFF, 0xFFFF];
+    let boundaries = system.memory_boundaries();
 
     for (i, &boundary) in boundaries.iter().enumerate() {
-        if let Some((start, end, untrimmed_end, has_diff)) =
+        if let Some((start, end, trimmed_end, has_diff)) =
             scan_hybrid_range(mem, snapshot, written, scan_start, boundary, false, system)
         {
             let is_last = i == boundaries.len() - 1;
-            let near_ceiling = has_diff && (untrimmed_end as usize) + 256 >= boundary;
+            let near_ceiling = has_diff && (trimmed_end as usize) + 256 >= boundary;
 
             // Also escalate when there are written+diffed bytes above the
             // current boundary — in-place depackers write to a disjoint high
             // region while leaving unchanged data in between.
+            let io_mapped = is_io_mapped(mem, system);
+            let next_upper = if !is_last {
+                boundaries[i + 1]
+            } else {
+                boundary
+            };
             let has_output_above = !is_last
-                && near_ceiling
-                && boundary < 0xCFFF
-                && (boundary + 1..=0xCFFF)
+                && (trimmed_end as usize) >= boundary.saturating_sub(0x2000)
+                && (boundary + 1..=next_upper)
                     .filter(|&addr| {
-                        written.get(addr).copied().unwrap_or(false)
-                            && mem.get(addr).copied().unwrap_or(0)
-                                != snapshot.get(addr).copied().unwrap_or(0)
+                        let is_io = (0xD000..=0xDFFF).contains(&addr) && io_mapped;
+                        let diff = written.get(addr).copied().unwrap_or(false)
+                            || mem.get(addr).copied().unwrap_or(0)
+                                != snapshot.get(addr).copied().unwrap_or(0);
+                        !is_io && diff
                     })
                     .count()
-                    > 64;
+                    >= 4;
 
             if is_last || (!near_ceiling && !has_output_above) {
                 return Some((start, end));
@@ -762,11 +778,26 @@ fn detect_output_range(
         }
     }
 
-    let ram_start = system.ram_start() as usize;
-    if (ram_start..=0xCFFF).any(|a| written.get(a).copied().unwrap_or(false))
-        && let Some((s, e, _, _)) =
-            scan_hybrid_range(mem, snapshot, written, scan_start, 0xCFFF, true, system)
-    {
+    let mid_boundary = if boundaries.len() > 1 {
+        boundaries[1]
+    } else {
+        boundaries[0]
+    };
+    let basic_mapped = is_basic_rom_mapped(mem, system);
+    if (boundaries[0] + 1..=mid_boundary).any(|a| {
+        let in_rom = is_in_basic_rom(a as u16, system) && basic_mapped;
+        !in_rom
+            && written.get(a).copied().unwrap_or(false)
+            && mem.get(a).copied().unwrap_or(0) != snapshot.get(a).copied().unwrap_or(0)
+    }) && let Some((s, e, _, _)) = scan_hybrid_range(
+        mem,
+        snapshot,
+        written,
+        scan_start,
+        mid_boundary,
+        false,
+        system,
+    ) {
         return Some((s, e));
     }
 
@@ -835,7 +866,7 @@ fn scan_hybrid_range(
     // by trimming small trailing clusters separated by non-diff gaps.
     let mut last_diff = None;
     for addr in start..=upper {
-        if mem[addr] != snapshot[addr] {
+        if written.get(addr).copied().unwrap_or(false) || mem[addr] != snapshot[addr] {
             last_diff = Some(addr);
         }
     }
@@ -849,7 +880,7 @@ fn scan_hybrid_range(
     // would only produce false positives on natural gaps in program data.
     // Skip trimming entirely when the caller signals an in-place depacker gap.
     let trimmed_end = if !skip_trim {
-        trim_trailing_clusters(mem, snapshot, first, diff_end)
+        trim_trailing_clusters(mem, snapshot, written, first, diff_end)
     } else {
         diff_end
     };
@@ -857,15 +888,16 @@ fn scan_hybrid_range(
     // Extend past the trimmed end through written bytes that match the snapshot
     // (trailing zero-fills that are part of the real output).
     let mut extended_end = trimmed_end;
-    for addr in (trimmed_end + 1)..=(upper.min(trimmed_end + 2048)) {
-        if written[addr] || (addr <= diff_end && mem[addr] == snapshot[addr]) {
+    let max_extend = upper.min(trimmed_end + 512);
+    for addr in (trimmed_end + 1)..=max_extend {
+        if written[addr] && mem[addr] == snapshot[addr] {
             extended_end = addr;
         } else {
             break;
         }
     }
 
-    Some((first as u16, extended_end as u16, diff_end as u16, true))
+    Some((first as u16, extended_end as u16, trimmed_end as u16, true))
 }
 
 /// After the depacker transfers control to `ret_addr`, some packers execute
@@ -935,15 +967,20 @@ fn find_entry_in_snapshot(
 /// Stops scanning at 95% of the range to avoid false positives deep inside
 /// the real output data.
 #[must_use]
-fn trim_trailing_clusters(mem: &[u8], snapshot: &[u8], start: usize, end: usize) -> usize {
+fn trim_trailing_clusters(
+    mem: &[u8],
+    snapshot: &[u8],
+    written: &[bool],
+    start: usize,
+    end: usize,
+) -> usize {
     if end <= start {
         return end;
     }
 
     let scan_floor = start;
-
     let mut pos = end;
-    let mut is_first_gap = true;
+    let mut curr_cluster_end = end;
     let mut best_trim_pos: Option<usize> = None;
 
     while pos > scan_floor {
@@ -962,29 +999,29 @@ fn trim_trailing_clusters(mem: &[u8], snapshot: &[u8], start: usize, end: usize)
             pos -= 1;
         }
 
-        // Count trailing diff bytes after the gap
-        let tail_diffs: usize = ((gap_end + 1)..=end)
-            .filter(|&a| mem[a] != snapshot[a])
+        // Count diff bytes in the cluster immediately following the gap
+        let cluster_diffs: usize = ((gap_end + 1)..=curr_cluster_end)
+            .filter(|&a| {
+                written.get(a).copied().unwrap_or(false) || mem[a] != snapshot[a] || mem[a] != 0
+            })
             .count();
 
-        // gap length
         let gap_len = gap_end - (pos + 1) + 1;
 
-        // Check 1: tiny trailing cluster (< 16 diff bytes) with a
-        // significant gap (>= 4 bytes). Only apply to the very first
-        // (rightmost) gap — deeper gaps in the depacker workspace also
-        // have small tails but shouldn't trigger.
-        if is_first_gap && gap_len >= 4 && tail_diffs < 16 {
+        // Check 1: tiny trailing cluster (< 16 diff bytes) with a gap (>= 4 bytes).
+        if gap_len >= 4 && cluster_diffs < 16 {
             return pos;
         }
-        is_first_gap = false;
 
-        // Check 2: large gap (>= 128 bytes) separating high workspace/stream
-        // from main decompressed payload.
-        let tail_range = end - gap_end;
+        // Check 2: gap (>= 2 bytes) separating high workspace cluster from main decompressed payload.
         let main_len = (pos + 1).saturating_sub(start);
-        if gap_len >= 2 && main_len > 0 && tail_range > 128 && tail_range * 50 < main_len {
+        if gap_end < 0xF000
+            && (128..4096).contains(&gap_len)
+            && main_len > 0
+            && (cluster_diffs == 0 || cluster_diffs <= 512)
+        {
             best_trim_pos = Some(pos);
+            curr_cluster_end = pos;
         }
     }
 
@@ -1155,7 +1192,7 @@ pub fn unpack(
 
         cpu.single_step();
         total_instructions += 1;
-        if total_instructions.is_multiple_of(10_000)
+        if total_instructions.is_multiple_of(30_000)
             && let Some(cb) = progress_callback
         {
             cb(total_instructions);
@@ -1187,6 +1224,7 @@ pub fn unpack(
     // -----------------------------------------------------------------------
     let info = packer.as_ref().map(|p| p.info());
     let known_entry = info.as_ref().and_then(|i| i.entry_point);
+    cpu.memory.in_phase2 = true;
 
     loop {
         if total_instructions >= config.max_instructions {
@@ -1199,35 +1237,37 @@ pub fn unpack(
 
         let pc = cpu.registers.program_counter;
         let mut exit_triggered = false;
+        let basic_mapped = is_basic_rom_mapped(&cpu.memory.mem, &system);
+        let kernal_mapped = is_kernal_rom_mapped(&cpu.memory.mem, &system);
+        let io_mapped = is_io_mapped(&cpu.memory.mem, &system);
+
+        let in_rom_or_io = (is_in_basic_rom(pc, &system) && basic_mapped)
+            || ((0xD000..=0xDFFF).contains(&pc) && io_mapped)
+            || (is_in_kernal_rom(pc, &system) && kernal_mapped);
+
+        let is_written_code = pc >= ret_addr
+            && (pc as usize) < system.memory_boundaries()[0]
+            && !in_rom_or_io
+            && cpu.memory.written_phase2[pc as usize];
+
         if let Some(ke) = known_entry {
-            if (pc == ke || pc == 0xA7AE) && total_instructions > 10 {
+            let ke_hit = pc == ke;
+            if (ke_hit && total_instructions > 10) || is_written_code {
                 exit_triggered = true;
             }
-        } else {
-            let basic_mapped = is_basic_rom_mapped(&cpu.memory.mem, &system);
-            let kernal_mapped = is_kernal_rom_mapped(&cpu.memory.mem, &system);
-            let io_mapped = is_io_mapped(&cpu.memory.mem, &system);
-
-            let in_rom_or_io = (is_in_basic_rom(pc, &system) && basic_mapped)
-                || ((0xD000..=0xDFFF).contains(&pc) && io_mapped)
-                || (is_in_kernal_rom(pc, &system) && kernal_mapped);
-
-            if pc >= ret_addr && !in_rom_or_io && cpu.memory.written[pc as usize] {
-                exit_triggered = true;
-            }
+        } else if is_written_code {
+            exit_triggered = true;
         }
 
         if exit_triggered {
-            let entry_point = if known_entry.is_some() && pc != 0xA7AE {
-                pc
-            } else if pc == ret_addr {
-                find_entry_in_snapshot(&snapshot, load_addr, data_len, ret_addr).unwrap_or(pc)
-            } else if (basic_start..=basic_start.saturating_add(0x10)).contains(&pc) || pc == 0xA7AE
-            {
-                find_sys_address(&cpu.memory.mem, basic_start).unwrap_or(pc)
-            } else {
-                pc
-            };
+            let entry_point =
+                if (basic_start..=basic_start.saturating_add(0x10)).contains(&pc) || pc == 0xA7AE {
+                    find_sys_address(&cpu.memory.mem, basic_start).unwrap_or(pc)
+                } else if pc == ret_addr {
+                    find_entry_in_snapshot(&snapshot, load_addr, data_len, ret_addr).unwrap_or(pc)
+                } else {
+                    pc
+                };
             return finish_unpack(
                 &cpu.memory.mem,
                 &snapshot,
@@ -1310,7 +1350,7 @@ pub fn unpack(
 
         cpu.single_step();
         total_instructions += 1;
-        if total_instructions.is_multiple_of(10_000)
+        if total_instructions.is_multiple_of(30_000)
             && let Some(cb) = progress_callback
         {
             cb(total_instructions);
@@ -1350,8 +1390,8 @@ fn finish_unpack(
         if let Some(ea_ptr) = info.end_addr_ptr {
             let reported_end =
                 u16::from_le_bytes([mem[ea_ptr as usize], mem[(ea_ptr + 1) as usize]]);
-            if reported_end > start_addr {
-                end_addr = reported_end.saturating_sub(1);
+            if reported_end > start_addr && reported_end.saturating_sub(1) <= end_addr + 512 {
+                end_addr = end_addr.max(reported_end.saturating_sub(1));
             }
         }
         if let Some(ep) = info.entry_point {
@@ -1503,16 +1543,16 @@ mod tests {
             KnownUnpackCase {
                 file: "c64_mule.tscrunch_x.prg",
                 exp_start: 0x0800,
-                exp_end: 0x9D19,
+                exp_end: 0x9C1D,
                 exp_entry: 0x1100,
                 exp_dep: Some(0x0002),
                 exp_packer: Some("TSCrunch v1.3+"),
-                max_instructions: Some(350_000_000),
+                max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_mule.tscrunch_x2.prg",
                 exp_start: 0x0801,
-                exp_end: 0x9D19,
+                exp_end: 0x9C1D,
                 exp_entry: 0x1100,
                 exp_dep: Some(0x0100),
                 exp_packer: Some("TSCrunch v1.3+-X2"),

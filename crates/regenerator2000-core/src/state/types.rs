@@ -88,6 +88,22 @@ impl System {
             _ => None,
         }
     }
+
+    /// Returns the scan boundary ceilings for output range detection on this system.
+    #[must_use]
+    pub fn memory_boundaries(&self) -> &'static [usize] {
+        match self.0.as_str() {
+            Self::C128 => &[0x3FFF, 0xBFFF, 0xFFEF],
+            Self::VIC20 => &[0x1FFF, 0x7FFF, 0xFFEF],
+            _ => &[0x9FFF, 0xCFFF, 0xFFEF],
+        }
+    }
+
+    /// Returns the upper RAM boundary ceiling before hardware vectors ($FFF8..$FFFF).
+    #[must_use]
+    pub fn ram_ceiling(&self) -> u16 {
+        0xFFEF
+    }
 }
 
 impl Default for System {
