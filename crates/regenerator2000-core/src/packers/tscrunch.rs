@@ -2,21 +2,30 @@
 
 use super::{Packer, PackerInfo};
 use crate::state::types::System;
+use crate::unpacker::UnpackerMemory;
+use mos6502::cpu::CPU;
+use mos6502::instruction::Nmos6502;
 
-/// TSCrunch packer strategy with high-stream ceiling clamping.
+/// TSCrunch packer strategy with high-stream relocation clearing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TScrunchPacker {
     /// Information describing the packer.
     pub info: PackerInfo,
-    /// Maximum allowable end address (start of compressed stream data - 1).
-    pub max_end: Option<u16>,
+    /// Start address of high-memory compressed stream relocation.
+    pub reloc_start: Option<u16>,
+    /// Whether the initial stream relocation write flags have been cleared.
+    pub reloc_cleared: bool,
 }
 
 impl TScrunchPacker {
     /// Creates a new [`TScrunchPacker`].
     #[must_use]
-    pub fn new(info: PackerInfo, max_end: Option<u16>) -> Self {
-        Self { info, max_end }
+    pub fn new(info: PackerInfo, reloc_start: Option<u16>) -> Self {
+        Self {
+            info,
+            reloc_start,
+            reloc_cleared: false,
+        }
     }
 }
 
@@ -25,20 +34,43 @@ impl Packer for TScrunchPacker {
         self.info.clone()
     }
 
+    fn on_step(&mut self, cpu: &mut CPU<UnpackerMemory, Nmos6502>, phase: u8) {
+        if phase != 2 || self.reloc_cleared {
+            return;
+        }
+        let pc = cpu.registers.program_counter as usize;
+        if (0x0021..=0x0090).contains(&pc) || (0x0121..=0x0190).contains(&pc) {
+            if let Some(reloc) = self.reloc_start {
+                let reloc_idx = reloc as usize;
+                if reloc_idx < cpu.memory.mem.len() {
+                    for a in reloc_idx..cpu.memory.mem.len() {
+                        cpu.memory.written[a] = false;
+                    }
+                }
+            }
+            self.reloc_cleared = true;
+        }
+    }
+
     fn post_emulate(
         &self,
         _mem: &[u8],
         _snapshot: &[u8],
-        _written: &[bool],
+        written: &[bool],
         range: &mut (u16, u16),
         _entry_point: &mut u16,
         _system: &System,
         _y_reg: u8,
     ) {
-        if let Some(max_e) = self.max_end
-            && range.1 > max_e
-        {
-            range.1 = max_e;
+        let mut last_written = range.0;
+        for a in (range.0 as usize..=range.1 as usize).rev() {
+            if written.get(a).copied().unwrap_or(false) {
+                last_written = a as u16;
+                break;
+            }
+        }
+        if last_written < range.1 {
+            range.1 = last_written;
         }
     }
 }
@@ -78,16 +110,11 @@ fn detect_at(mem: &[u8], q: usize) -> Option<Box<dyn Packer>> {
             }
         }
 
-        let mut max_end = None;
-        if mem.len() >= 0x0843 {
-            let str_mem = u16::from_le_bytes([mem[0x0841], mem[0x0842]]);
-            if str_mem > 0x0800 {
-                max_end = Some(str_mem.saturating_sub(1));
-            }
-        } else if mem.len() >= q + 0x36 {
-            let str_mem = u16::from_le_bytes([mem[q + 0x34], mem[q + 0x35]]);
-            if str_mem > 0x0800 {
-                max_end = Some(str_mem.saturating_sub(1));
+        let mut reloc_start = None;
+        if mem.len() > q + 0x11 {
+            let addr = u16::from_le_bytes([mem[q + 0x10], mem[q + 0x11]]);
+            if addr > 0x0800 {
+                reloc_start = Some(addr);
             }
         }
 
@@ -100,7 +127,7 @@ fn detect_at(mem: &[u8], q: usize) -> Option<Box<dyn Packer>> {
                 entry_point,
                 end_addr_ptr: None,
             },
-            max_end,
+            reloc_start,
         )));
     }
 
@@ -137,16 +164,11 @@ fn detect_at(mem: &[u8], q: usize) -> Option<Box<dyn Packer>> {
             }
         }
 
-        let mut max_end = None;
-        if mem.len() >= q + 0x36 {
-            let str_mem = u16::from_le_bytes([mem[q + 0x34], mem[q + 0x35]]);
-            if str_mem > 0x0800 {
-                max_end = Some(str_mem.saturating_sub(1));
-            }
-        } else if mem.len() >= q + 0x3C {
-            let str_mem = u16::from_le_bytes([mem[q + 0x3A], mem[q + 0x3B]]);
-            if str_mem > 0x0800 {
-                max_end = Some(str_mem.saturating_sub(1));
+        let mut reloc_start = None;
+        if mem.len() > q + 0x19 {
+            let addr = u16::from_le_bytes([mem[q + 0x18], mem[q + 0x19]]);
+            if addr > 0x0800 {
+                reloc_start = Some(addr);
             }
         }
 
@@ -154,12 +176,12 @@ fn detect_at(mem: &[u8], q: usize) -> Option<Box<dyn Packer>> {
             PackerInfo {
                 name: "TSCrunch v1.3+-X2",
                 dep_addr: Some(0x0100),
-                start_addr: Some(0x0801),
+                start_addr: Some(0x0800),
                 end_addr: None,
                 entry_point,
                 end_addr_ptr: None,
             },
-            max_end,
+            reloc_start,
         )));
     }
 
@@ -180,4 +202,42 @@ pub fn detect(mem: &[u8], load_addr: u16, _load_end: u16) -> Option<Box<dyn Pack
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mule_tscrunch_x() {
+        let path = std::path::Path::new("tests/6502/c64_mule.tscrunch_x.prg");
+        let path = if path.exists() {
+            path.to_path_buf()
+        } else {
+            std::path::PathBuf::from("../../tests/6502/c64_mule.tscrunch_x.prg")
+        };
+        if !path.exists() {
+            return;
+        }
+        let prg = std::fs::read(path).unwrap();
+        let load_addr = u16::from_le_bytes([prg[0], prg[1]]);
+        let raw = &prg[2..];
+        let mut mem = vec![0u8; 65536];
+        mem[load_addr as usize..load_addr as usize + raw.len()].copy_from_slice(raw);
+        let packer =
+            detect(&mem, load_addr, load_addr + raw.len() as u16).expect("packer detected");
+        println!("Packer info: {:?}", packer.info());
+        let config = crate::unpacker::UnpackConfig {
+            max_instructions: 350_000_000,
+            ..Default::default()
+        };
+        let res = crate::unpacker::unpack(raw, load_addr, &config, None).unwrap();
+        println!(
+            "Unpacked range: ${:04X}-${:04X} (${:04X})",
+            res.start_addr, res.end_addr, res.entry_point
+        );
+        assert_eq!(res.start_addr, 0x0800);
+        assert_eq!(res.end_addr, 0x9D19);
+        assert_eq!(res.entry_point, 0x1100);
+    }
 }

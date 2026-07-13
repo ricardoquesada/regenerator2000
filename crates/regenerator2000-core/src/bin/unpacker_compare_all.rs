@@ -6,14 +6,18 @@ fn main() {
     let unp64_bin = std::env::var("UNP64")
         .or_else(|_| std::env::var("UNP64_PATH"))
         .unwrap_or_else(|_| {
-            let candidates = [
-                "/Users/ricardoq/.local/bin/unp64",
-                "/Users/ricardoq/bin/unp64",
-                "unp64",
+            let mut candidates = vec![
+                "/Users/ricardoq/.local/bin/unp64".to_string(),
+                "/Users/ricardoq/bin/unp64".to_string(),
             ];
+            if let Ok(home) = std::env::var("HOME") {
+                candidates.insert(0, format!("{}/.local/bin/unp64", home));
+                candidates.insert(1, format!("{}/bin/unp64", home));
+            }
+            candidates.push("unp64".to_string());
             for c in candidates {
-                if std::path::Path::new(c).exists() {
-                    return c.to_string();
+                if std::path::Path::new(&c).exists() {
+                    return c;
                 }
             }
             "unp64".to_string()
@@ -244,9 +248,17 @@ fn main() {
                     "${:04X}-${:04X} (${:04X})",
                     r2000.start_addr, r2000.end_addr, r2000.entry_point
                 );
+                let err_msg = match &unp64_status {
+                    Ok(out) => format!(
+                        "code {:?}, stderr: {}",
+                        out.status.code(),
+                        String::from_utf8_lossy(&out.stderr).trim()
+                    ),
+                    Err(err) => format!("exec: {}", err),
+                };
                 println!(
-                    "{:<45} {:<24} | {:<24} | FAIL (unp64 failed)",
-                    file_name, "-", r2000_range
+                    "{:<45} {:<24} | {:<24} | FAIL (unp64: {})",
+                    file_name, "-", r2000_range, err_msg
                 );
                 failed += 1;
             }

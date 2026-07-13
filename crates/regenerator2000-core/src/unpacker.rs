@@ -127,7 +127,7 @@ pub struct UnpackerMemory {
     /// Flat 64 KB memory.
     pub(crate) mem: Vec<u8>,
     /// Per-byte write tracking across all phases.
-    written: Vec<bool>,
+    pub(crate) written: Vec<bool>,
     /// Per-byte write tracking during Phase 2.
     written_phase2: Vec<bool>,
     /// Target system.
@@ -1390,7 +1390,9 @@ fn finish_unpack(
         if let Some(ea_ptr) = info.end_addr_ptr {
             let reported_end =
                 u16::from_le_bytes([mem[ea_ptr as usize], mem[(ea_ptr + 1) as usize]]);
-            if reported_end > start_addr && reported_end.saturating_sub(1) <= end_addr + 512 {
+            if reported_end > start_addr
+                && reported_end.saturating_sub(1) <= end_addr.saturating_add(512)
+            {
                 end_addr = end_addr.max(reported_end.saturating_sub(1));
             }
         }
