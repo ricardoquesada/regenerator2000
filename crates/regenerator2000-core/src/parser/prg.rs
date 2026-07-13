@@ -29,62 +29,8 @@ pub fn parse_prg(data: &[u8]) -> Result<PrgData> {
         _ => None,
     };
 
-    let mut suggested_entry_point = None;
-
-    // Try to find SYS address if it looks like a BASIC program
-    if suggested_system.is_some() && data.len() >= 7 {
-        let mut offset = 2;
-        while offset + 4 < data.len() {
-            let next_ptr = u16::from(data[offset]) | (u16::from(data[offset + 1]) << 8);
-            if next_ptr == 0 {
-                break;
-            }
-
-            // Calculate the offset of the next line in the file.
-            // We assume the pointers in the file are relative to the origin.
-            let next_offset = if let Some(off) = (next_ptr as usize).checked_sub(origin as usize) {
-                off.saturating_add(2)
-            } else {
-                break; // Invalid pointer
-            };
-
-            if next_offset <= offset + 4 || next_offset > data.len() {
-                // Pointer doesn't make sense or goes out of bounds
-                break;
-            }
-
-            // The line content is from offset + 4 to next_offset - 1 (terminator is at next_offset - 1)
-            let line_end = next_offset - 1;
-
-            // Search for SYS token (0x9E)
-            for i in offset + 4..line_end {
-                if data[i] == 0x9E {
-                    let mut addr_str = String::new();
-                    let mut parsing_digits = false;
-                    for &b in &data[i + 1..line_end] {
-                        if b.is_ascii_digit() {
-                            addr_str.push(b as char);
-                            parsing_digits = true;
-                        } else if b == b' ' && !parsing_digits {
-                            continue; // skip spaces before digits
-                        } else {
-                            break;
-                        }
-                    }
-                    if let Ok(sys_addr) = addr_str.parse::<u16>() {
-                        suggested_entry_point = Some(sys_addr);
-                        break;
-                    }
-                }
-            }
-
-            if suggested_entry_point.is_some() {
-                break;
-            }
-
-            offset = next_offset;
-        }
-    }
+    let suggested_entry_point =
+        crate::parser::basic::find_sys_address(data, 2, Some(origin), suggested_system.as_ref());
 
     Ok(PrgData {
         origin,

@@ -1,3 +1,4 @@
+pub mod basic;
 pub mod crt;
 pub mod d64;
 pub mod dis65;

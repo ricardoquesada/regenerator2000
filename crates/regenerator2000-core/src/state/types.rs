@@ -148,6 +148,15 @@ impl System {
         }
     }
 
+    /// Returns `true` if this system uses Commodore BASIC V2 tokenized structure (C64, C128, VIC-20, PET, Plus/4).
+    #[must_use]
+    pub fn is_commodore_basic(&self) -> bool {
+        matches!(
+            self.0.as_str(),
+            Self::C64 | Self::C128 | Self::VIC20 | Self::PET | Self::PET20 | Self::PLUS4
+        )
+    }
+
     /// Returns the upper RAM boundary ceiling before hardware vectors ($FFF8..$FFFF).
     #[must_use]
     pub fn ram_ceiling(&self) -> u16 {
