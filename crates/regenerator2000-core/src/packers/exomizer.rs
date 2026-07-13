@@ -71,6 +71,12 @@ impl Packer for ExomizerPacker {
             return;
         }
 
+        if let Some(min_s) = self.min_start
+            && min_s < range.0
+        {
+            range.0 = min_s;
+        }
+
         let mut exomizer_end_lo = None;
         let mut exomizer_end_hi = None;
         let mut exomizer_version = None;
@@ -158,27 +164,6 @@ pub fn detect(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dyn Packe
             && mem[p - 6] == 0x4C
             && mem[p - 4] == 0x01
         {
-            let mut entry_point = None;
-            for k in p..mem.len().saturating_sub(3) {
-                if mem[k] == 0x20 && mem[k + 2] == 0x01 {
-                    for j in (k + 3)..mem.len().saturating_sub(2) {
-                        if mem[j] == 0x4C {
-                            let target = u16::from_le_bytes([mem[j + 1], mem[j + 2]]);
-                            if target >= 0x0200
-                                && !(0xA000..=0xBFFF).contains(&target)
-                                && !(0xE000..=0xFFFF).contains(&target)
-                            {
-                                entry_point = Some(target);
-                                break;
-                            }
-                        }
-                    }
-                    if entry_point.is_some() {
-                        break;
-                    }
-                }
-            }
-
             let is_exo_30 = p + 12 < mem.len()
                 && mem[p + 8] == 0x08
                 && mem[p + 9] == 0x48
@@ -198,7 +183,7 @@ pub fn detect(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dyn Packe
                     dep_addr: Some(0x0100 | u16::from(mem[p - 5])),
                     start_addr: None,
                     end_addr: None,
-                    entry_point,
+                    entry_point: None,
                     end_addr_ptr: None,
                 },
                 3,

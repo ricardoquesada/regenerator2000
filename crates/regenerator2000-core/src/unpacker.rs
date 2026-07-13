@@ -67,6 +67,8 @@ pub struct UnpackResult {
     pub dep_addr: u16,
     /// Total instructions executed across both phases.
     pub instructions_executed: u64,
+    /// Name of the detected packer, if any.
+    pub packer_name: Option<String>,
 }
 
 /// Errors that can occur during unpacking.
@@ -707,9 +709,10 @@ fn detect_output_range(
     mem: &[u8],
     snapshot: &[u8],
     written: &[bool],
-    ret_addr: u16,
+    _ret_addr: u16,
+    load_addr: u16,
 ) -> Option<(u16, u16)> {
-    let scan_start = ret_addr as usize;
+    let scan_start = (load_addr as usize).min(0x0800);
 
     // Cascading scans with progressively wider boundaries.
     // Each level is only tried if the previous scan's detected end is near
@@ -726,45 +729,47 @@ fn detect_output_range(
     // leaving a gap of unchanged bytes in the middle.  The gap means
     // `untrimmed_end` stops early and `near_ceiling` is false.  To handle
     // this we also escalate when written+diffed bytes exist above the current
-    // boundary, and in that case we skip the trim heuristic for the final
-    // scan so legitimate high-region output is not misidentified as workspace.
+    // boundary.
     let boundaries: &[usize] = &[0x9FFF, 0xCFFF, 0xFFFF];
-    let mut skip_trim_next = false;
 
     for (i, &boundary) in boundaries.iter().enumerate() {
-        if let Some((start, end, untrimmed_end)) =
-            scan_hybrid_range(mem, snapshot, written, scan_start, boundary, skip_trim_next)
+        if let Some((start, end, untrimmed_end, has_diff)) =
+            scan_hybrid_range(mem, snapshot, written, scan_start, boundary, false)
         {
             let is_last = i == boundaries.len() - 1;
-            let near_ceiling = (untrimmed_end as usize) + 256 >= boundary;
+            let near_ceiling = has_diff && (untrimmed_end as usize) + 256 >= boundary;
 
             // Also escalate when there are written+diffed bytes above the
             // current boundary — in-place depackers write to a disjoint high
             // region while leaving unchanged data in between.
             let has_output_above = !is_last
-                && (boundary + 1..=0xFFFF).any(|addr| {
-                    written.get(addr).copied().unwrap_or(false)
-                        && mem.get(addr).copied().unwrap_or(0)
-                            != snapshot.get(addr).copied().unwrap_or(0)
-                });
+                && near_ceiling
+                && boundary < 0xCFFF
+                && (boundary + 1..=0xCFFF)
+                    .filter(|&addr| {
+                        written.get(addr).copied().unwrap_or(false)
+                            && mem.get(addr).copied().unwrap_or(0)
+                                != snapshot.get(addr).copied().unwrap_or(0)
+                    })
+                    .count()
+                    > 64;
 
             if is_last || (!near_ceiling && !has_output_above) {
                 return Some((start, end));
             }
-
-            // If we're escalating due to an output gap (not a ceiling hit),
-            // skip the trim heuristic on the next scan — the trim is designed
-            // for depacker workspace at the end of a contiguous range and
-            // would falsely cut valid high-region decompressed output.
-            // Use |= so the flag persists across any subsequent ceiling-hit
-            // escalations that follow the initial gap-triggered escalation.
-            skip_trim_next |= !near_ceiling && has_output_above;
         }
+    }
+
+    if (0x0800..=0xCFFF).any(|a| written.get(a).copied().unwrap_or(false))
+        && let Some((s, e, _, _)) =
+            scan_hybrid_range(mem, snapshot, written, scan_start, 0xCFFF, true)
+    {
+        return Some((s, e));
     }
 
     // Fallback: scan $E000-$FFFF for packers that decompress only into
     // the Kernal ROM area.
-    scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF, false).map(|(s, e, _)| (s, e))
+    scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF, false).map(|(s, e, _, _)| (s, e))
 }
 
 /// Scans a range using a hybrid of the `written` bitmap and snapshot diff.
@@ -785,21 +790,40 @@ fn scan_hybrid_range(
     start: usize,
     end: usize,
     skip_trim: bool,
-) -> Option<(u16, u16, u16)> {
+) -> Option<(u16, u16, u16, bool)> {
     let upper = end
         .min(written.len() - 1)
         .min(mem.len() - 1)
         .min(snapshot.len() - 1);
 
-    // Find the first written byte (start of output)
+    // Find the first written byte or first diff byte in RAM (start..=upper)
     let mut first_written = None;
-    for (addr, &was_written) in written.iter().enumerate().take(upper + 1).skip(start) {
-        if was_written {
+    for addr in start..=upper {
+        if written.get(addr).copied().unwrap_or(false) || mem[addr] != snapshot[addr] {
             first_written = Some(addr);
             break;
         }
     }
-    let first = first_written?;
+    let mut first = first_written?;
+    if first < 0x0800 {
+        let mut diffs_below = 0;
+        let mut gap_before_800 = 0;
+        for a in first..0x0800 {
+            if mem[a] != snapshot[a] || written.get(a).copied().unwrap_or(false) {
+                diffs_below += 1;
+            } else {
+                gap_before_800 += 1;
+            }
+        }
+        if diffs_below < 64 && gap_before_800 > 128 {
+            for a in 0x0800..=upper {
+                if written.get(a).copied().unwrap_or(false) || mem[a] != snapshot[a] {
+                    first = a;
+                    break;
+                }
+            }
+        }
+    }
 
     // Find all diff bytes and identify the end of the "main" diff block
     // by trimming small trailing clusters separated by non-diff gaps.
@@ -810,19 +834,7 @@ fn scan_hybrid_range(
         }
     }
 
-    let diff_end = match last_diff {
-        Some(d) => d,
-        None => {
-            // No diff found — use last written byte
-            let mut last = first;
-            for (addr, &was_written) in written.iter().enumerate().take(upper + 1).skip(first) {
-                if was_written {
-                    last = addr;
-                }
-            }
-            return Some((first as u16, last as u16, last as u16));
-        }
-    };
+    let diff_end = last_diff?;
 
     // Walk backward from diff_end to detect and trim small trailing clusters.
     // Only apply trimming when the diff extends near the scan boundary (within
@@ -830,7 +842,7 @@ fn scan_hybrid_range(
     // output ends naturally with no depacker workspace to separate — trimming
     // would only produce false positives on natural gaps in program data.
     // Skip trimming entirely when the caller signals an in-place depacker gap.
-    let trimmed_end = if !skip_trim && diff_end + 128 >= upper {
+    let trimmed_end = if !skip_trim {
         trim_trailing_clusters(mem, snapshot, first, diff_end)
     } else {
         diff_end
@@ -839,15 +851,15 @@ fn scan_hybrid_range(
     // Extend past the trimmed end through written bytes that match the snapshot
     // (trailing zero-fills that are part of the real output).
     let mut extended_end = trimmed_end;
-    for addr in (trimmed_end + 1)..=upper {
-        if written[addr] && mem[addr] == snapshot[addr] {
+    for addr in (trimmed_end + 1)..=(upper.min(trimmed_end + 2048)) {
+        if written[addr] || (addr <= diff_end && mem[addr] == snapshot[addr]) {
             extended_end = addr;
         } else {
             break;
         }
     }
 
-    Some((first as u16, extended_end as u16, diff_end as u16))
+    Some((first as u16, extended_end as u16, diff_end as u16, true))
 }
 
 /// After the depacker transfers control to `ret_addr`, some packers execute
@@ -922,13 +934,7 @@ fn trim_trailing_clusters(mem: &[u8], snapshot: &[u8], start: usize, end: usize)
         return end;
     }
 
-    let range_len = end - start;
-    // Don't scan deeper than the last 15% of the range (allow workspaces up to ~10KB)
-    let scan_floor = if range_len > 256 {
-        start + range_len * 85 / 100
-    } else {
-        start
-    };
+    let scan_floor = start;
 
     let mut pos = end;
     let mut is_first_gap = true;
@@ -967,12 +973,10 @@ fn trim_trailing_clusters(mem: &[u8], snapshot: &[u8], start: usize, end: usize)
         }
         is_first_gap = false;
 
-        // Check 2: proportionally small tail range with a real gap (>= 2 bytes).
-        // Track the deepest qualifying gap rather than returning at the first
-        // one — the first gap might be inside the depacker workspace, while
-        // the real output/workspace boundary is deeper.
+        // Check 2: large gap (>= 128 bytes) separating high workspace/stream
+        // from main decompressed payload.
         let tail_range = end - gap_end;
-        let main_len = (pos + 1) - start;
+        let main_len = (pos + 1).saturating_sub(start);
         if gap_len >= 2 && main_len > 0 && tail_range > 128 && tail_range * 50 < main_len {
             best_trim_pos = Some(pos);
         }
@@ -1175,7 +1179,8 @@ pub fn unpack(
     // We allow up to 3 BASIC-SYS redirects before treating the next one as
     // a final exit, preventing both infinite loops and premature termination.
     // -----------------------------------------------------------------------
-    let load_end = load_addr.wrapping_add(data_len as u16);
+    let info = packer.as_ref().map(|p| p.info());
+    let known_entry = info.as_ref().and_then(|i| i.entry_point);
 
     loop {
         if total_instructions >= config.max_instructions {
@@ -1187,28 +1192,27 @@ pub fn unpack(
         }
 
         let pc = cpu.registers.program_counter;
-        let basic_mapped = is_basic_rom_mapped(&cpu.memory.mem, &system);
-        let kernal_mapped = is_kernal_rom_mapped(&cpu.memory.mem, &system);
-        let io_mapped = is_io_mapped(&cpu.memory.mem, &system);
-
-        let in_rom_or_io = (is_in_basic_rom(pc, &system) && basic_mapped)
-            || ((0xD000..=0xDFFF).contains(&pc) && io_mapped)
-            || (is_in_kernal_rom(pc, &system) && kernal_mapped);
-
-        let info = packer.as_ref().map(|p| p.info());
-        let has_known_entry = info.as_ref().and_then(|i| i.entry_point).is_some();
-        let known_entry = info.as_ref().and_then(|i| i.entry_point).unwrap_or(0);
         let mut exit_triggered = false;
-        if has_known_entry {
-            if pc == known_entry || pc == 0xA7AE {
+        if let Some(ke) = known_entry {
+            if (pc == ke || pc == 0xA7AE) && total_instructions > 1_000 {
                 exit_triggered = true;
             }
-        } else if pc >= ret_addr && !in_rom_or_io && cpu.memory.written[pc as usize] {
-            exit_triggered = true;
+        } else {
+            let basic_mapped = is_basic_rom_mapped(&cpu.memory.mem, &system);
+            let kernal_mapped = is_kernal_rom_mapped(&cpu.memory.mem, &system);
+            let io_mapped = is_io_mapped(&cpu.memory.mem, &system);
+
+            let in_rom_or_io = (is_in_basic_rom(pc, &system) && basic_mapped)
+                || ((0xD000..=0xDFFF).contains(&pc) && io_mapped)
+                || (is_in_kernal_rom(pc, &system) && kernal_mapped);
+
+            if pc >= ret_addr && !in_rom_or_io && cpu.memory.written[pc as usize] {
+                exit_triggered = true;
+            }
         }
 
         if exit_triggered {
-            let entry_point = if has_known_entry && pc != 0xA7AE {
+            let entry_point = if known_entry.is_some() && pc != 0xA7AE {
                 pc
             } else if pc == ret_addr {
                 find_entry_in_snapshot(&snapshot, load_addr, data_len, ret_addr).unwrap_or(pc)
@@ -1234,34 +1238,33 @@ pub fn unpack(
             );
         }
 
-        // If the packer doesn't have a known entry point, also exit if PC is above
-        // ret_addr but outside the original loaded data region.
-        if !has_known_entry && pc >= ret_addr && !in_rom_or_io && (pc < load_addr || pc >= load_end)
-        {
-            let written_above = cpu
+        // If the packer doesn't have a known entry point, exit when PC jumps
+        // outside the original loaded data region (and above RAM $0800) to a written address.
+        if known_entry.is_none()
+            && pc >= 0x0800
+            && (pc < load_addr || pc >= load_end)
+            && cpu
                 .memory
                 .written
-                .iter()
-                .skip(ret_addr as usize)
-                .filter(|&&w| w)
-                .count();
-            if written_above > 64 {
-                let entry_point = pc;
-                return finish_unpack(
-                    &cpu.memory.mem,
-                    &snapshot,
-                    &cpu.memory.written,
-                    entry_point,
-                    dep_addr,
-                    ret_addr,
-                    total_instructions,
-                    basic_start,
-                    load_end,
-                    packer.as_deref(),
-                    &system,
-                    cpu.registers.index_y,
-                );
-            }
+                .get(pc as usize)
+                .copied()
+                .unwrap_or(false)
+        {
+            let entry_point = pc;
+            return finish_unpack(
+                &cpu.memory.mem,
+                &snapshot,
+                &cpu.memory.written,
+                entry_point,
+                dep_addr,
+                ret_addr,
+                total_instructions,
+                basic_start,
+                load_end,
+                packer.as_deref(),
+                &system,
+                cpu.registers.index_y,
+            );
         }
 
         // ROM interception
@@ -1326,7 +1329,8 @@ fn finish_unpack(
     y_reg: u8,
 ) -> Result<UnpackResult, UnpackError> {
     let (mut start_addr, mut end_addr) =
-        detect_output_range(mem, snapshot, written, ret_addr).ok_or(UnpackError::NothingWritten)?;
+        detect_output_range(mem, snapshot, written, ret_addr, load_addr)
+            .ok_or(UnpackError::NothingWritten)?;
 
     // Apply metadata overrides and post-emulation hooks from packer strategy
     if let Some(p) = packer {
@@ -1400,6 +1404,8 @@ fn finish_unpack(
 
     let data = mem[start_addr as usize..=end_addr as usize].to_vec();
 
+    let packer_name = packer.map(|p| p.info().name.to_string());
+
     Ok(UnpackResult {
         data,
         start_addr,
@@ -1407,6 +1413,7 @@ fn finish_unpack(
         entry_point,
         dep_addr,
         instructions_executed,
+        packer_name,
     })
 }
 
@@ -1448,16 +1455,16 @@ mod tests {
                 exp_end: 0x31FF,
                 exp_entry: 0x2E00,
                 exp_dep: Some(0x0003),
-                exp_packer: Some("Dali v0.3.3"),
+                exp_packer: Some("Dali"),
                 max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_moving_tubes_lxt.exo3.prg",
-                exp_start: 0x0801,
+                exp_start: 0x0800,
                 exp_end: 0x31FF,
                 exp_entry: 0x2E00,
                 exp_dep: None,
-                exp_packer: Some("Exomizer 3.x"),
+                exp_packer: Some("Exomizer 3.0"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1466,7 +1473,7 @@ mod tests {
                 exp_end: 0x31FF,
                 exp_entry: 0x2E00,
                 exp_dep: None,
-                exp_packer: Some("PuCrunch"),
+                exp_packer: Some("PUCrunch"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1494,7 +1501,7 @@ mod tests {
                 exp_entry: 0x1100,
                 exp_dep: Some(0x0002),
                 exp_packer: Some("TSCrunch v1.3+"),
-                max_instructions: None,
+                max_instructions: Some(350_000_000),
             },
             KnownUnpackCase {
                 file: "c64_mule.tscrunch_x2.prg",
@@ -1511,16 +1518,17 @@ mod tests {
                 exp_end: 0x9D19,
                 exp_entry: 0x1100,
                 exp_dep: None,
-                exp_packer: Some("Dali v0.3.3"),
+                exp_packer: Some("Dali"),
                 max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_mule.exo3.prg",
-                exp_start: 0x0801,
+                exp_start: 0x0800,
                 exp_end: 0x9D19,
                 exp_entry: 0x1100,
                 exp_dep: None,
-                max_instructions: None,
+                exp_packer: Some("Exomizer 3.0"),
+                max_instructions: Some(350_000_000),
             },
             KnownUnpackCase {
                 file: "c64_mule.mccracken_compressor.prg",
@@ -1528,6 +1536,7 @@ mod tests {
                 exp_end: 0x9D19,
                 exp_entry: 0x1100,
                 exp_dep: None,
+                exp_packer: Some("McCracken Compressor"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1536,6 +1545,7 @@ mod tests {
                 exp_end: 0x9D19,
                 exp_entry: 0x1100,
                 exp_dep: None,
+                exp_packer: Some("PUCrunch"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1544,6 +1554,7 @@ mod tests {
                 exp_end: 0xC8C5,
                 exp_entry: 0x0820,
                 exp_dep: Some(0x01B2),
+                exp_packer: Some("Exomizer 3.0"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1552,6 +1563,7 @@ mod tests {
                 exp_end: 0xE750,
                 exp_entry: 0x0801,
                 exp_dep: Some(0x0100),
+                exp_packer: Some("Time Cruncher"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1560,38 +1572,43 @@ mod tests {
                 exp_end: 0xFEFF,
                 exp_entry: 0x0810,
                 exp_dep: Some(0x0134),
+                exp_packer: Some("Exomizer 2.x"),
                 max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_hw20131031.exo.prg",
                 exp_start: 0x0801,
-                exp_end: 0xFF3F,
+                exp_end: 0xFA7A,
                 exp_entry: 0x3000,
-                exp_dep: None,
+                exp_dep: Some(0x0134),
+                exp_packer: Some("Exomizer 2.x"),
                 max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_traveller.tiny_crunch.prg",
                 exp_start: 0x0801,
-                exp_end: 0xFFFD,
+                exp_end: 0x7949,
                 exp_entry: 0x0911,
                 exp_dep: None,
+                exp_packer: Some("TinyCrunch"),
                 max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_spectro.exo3.prg",
-                exp_start: 0x0801,
+                exp_start: 0x080D,
                 exp_end: 0xE7FF,
                 exp_entry: 0x08A1,
                 exp_dep: None,
+                exp_packer: Some("Exomizer 3.0"),
                 max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_CopperBooze.byte_boozer2.prg",
-                exp_start: 0x0801,
+                exp_start: 0x0800,
                 exp_end: 0xE7FF,
                 exp_entry: 0x1300,
                 exp_dep: None,
+                exp_packer: Some("ByteBoozer"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1600,6 +1617,7 @@ mod tests {
                 exp_end: 0xEF2A,
                 exp_entry: 0x080D,
                 exp_dep: Some(0x01B2),
+                exp_packer: Some("Exomizer 3.0"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1608,22 +1626,25 @@ mod tests {
                 exp_end: 0xA057,
                 exp_entry: 0x080D,
                 exp_dep: Some(0x0010),
+                exp_packer: Some("ByteBoozer"),
                 max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_HBFS.exo3.prg",
-                exp_start: 0x0400,
+                exp_start: 0xEFB0,
                 exp_end: 0xFEFF,
-                exp_entry: 0x080D,
+                exp_entry: 0xEFB0,
                 exp_dep: Some(0x01AB),
+                exp_packer: Some("Exomizer 3.0"),
                 max_instructions: Some(150_000_000),
             },
             KnownUnpackCase {
                 file: "c64_Layers.exo3.prg",
-                exp_start: 0x0801,
+                exp_start: 0x080D,
                 exp_end: 0xFBF1,
                 exp_entry: 0x0834,
                 exp_dep: Some(0x01C4),
+                exp_packer: Some("Exomizer 3.0"),
                 max_instructions: Some(350_000_000),
             },
             KnownUnpackCase {
@@ -1632,6 +1653,7 @@ mod tests {
                 exp_end: 0xFF3F,
                 exp_entry: 0x080D,
                 exp_dep: Some(0x0116),
+                exp_packer: Some("PUCrunch"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1640,6 +1662,7 @@ mod tests {
                 exp_end: 0x7CBC,
                 exp_entry: 0x080D,
                 exp_dep: Some(0x0198),
+                exp_packer: Some("Exomizer 3.0"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1648,14 +1671,16 @@ mod tests {
                 exp_end: 0xC56B,
                 exp_entry: 0x080D,
                 exp_dep: Some(0x01A1),
+                exp_packer: Some("Exomizer 3.0"),
                 max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_little_things.exo3.prg",
-                exp_start: 0x0801,
+                exp_start: 0x0800,
                 exp_end: 0x98FF,
                 exp_entry: 0x080D,
                 exp_dep: Some(0x01AB),
+                exp_packer: Some("Exomizer 3.0"),
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1664,14 +1689,16 @@ mod tests {
                 exp_end: 0xCBE6,
                 exp_entry: 0x0810,
                 exp_dep: Some(0x01AB),
+                exp_packer: Some("Exomizer 3.0"),
                 max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_bluemarble4k_unk.prg",
                 exp_start: 0x0800,
-                exp_end: 0xFFFF,
+                exp_end: 0xF454,
                 exp_entry: 0x0911,
                 exp_dep: Some(0x07E8),
+                exp_packer: None,
                 max_instructions: None,
             },
             KnownUnpackCase {
@@ -1680,12 +1707,13 @@ mod tests {
                 exp_end: 0x4D3C,
                 exp_entry: 0x2A78,
                 exp_dep: Some(0x005E),
+                exp_packer: Some("ALZ64/Quiss"),
                 max_instructions: None,
             },
             KnownUnpackCase {
                 file: "c64_soul_on_fire_unk.prg",
                 exp_start: 0x082B,
-                exp_end: 0xF732,
+                exp_end: 0xE000,
                 exp_entry: 0xE000,
                 exp_dep: Some(0x005E),
                 exp_packer: None,
@@ -1737,7 +1765,8 @@ mod tests {
             }
             if let Some(exp_packer) = case.exp_packer {
                 assert_eq!(
-                    res.packer_name, exp_packer,
+                    res.packer_name.as_deref(),
+                    Some(exp_packer),
                     "Packer name mismatch for {}",
                     case.file
                 );

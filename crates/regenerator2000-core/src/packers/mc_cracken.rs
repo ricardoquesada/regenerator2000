@@ -29,7 +29,7 @@ impl Packer for McCrackenPacker {
         _snapshot: &[u8],
         _written: &[bool],
         range: &mut (u16, u16),
-        entry_point: &mut u16,
+        _entry_point: &mut u16,
         system: &System,
         _y_reg: u8,
     ) {
@@ -38,11 +38,9 @@ impl Packer for McCrackenPacker {
         }
 
         // unp64 compatibility for MC-Cracken Compressor:
-        // MC-Cracken's first pass depacker jumps to stack page ($0172) for second pass,
-        // leaving JMP $0172 at $AB-$AD and exclusive end address at $AE-$AF.
-        if *entry_point == 0x1100 && mem.len() >= 0xB0 && mem[0xAB..=0xAD] == [0x4C, 0x72, 0x01] {
+        if mem.len() >= 0xB0 {
             let reported_end = u16::from_le_bytes([mem[0xAE], mem[0xAF]]);
-            if reported_end > range.0 {
+            if reported_end > range.0 && reported_end < 0xFFFF {
                 range.1 = reported_end.saturating_sub(1);
             }
         }
@@ -51,8 +49,31 @@ impl Packer for McCrackenPacker {
 
 /// Detects MC-Cracken signature.
 #[must_use]
-pub fn detect(_mem: &[u8]) -> Option<Box<dyn Packer>> {
-    // Note: MC-Cracken signature is dynamically checked post-emulate,
-    // but if detected initially, returns strategy instance.
+pub fn detect(mem: &[u8]) -> Option<Box<dyn Packer>> {
+    for p in 0x0810..=0x0840 {
+        if mem.len() > p + 0x40
+            && mem[p] == 0xA9
+            && mem[p + 2] == 0x85
+            && mem[p + 4] == 0xA0
+            && mem[p + 5] == 0x00
+            && mem[p + 6] == 0xC6
+            && mem[p + 7] == 0xAF
+        {
+            let entry_point = if mem.len() > p + 0x64 && mem[p + 0x61] == 0x4C {
+                Some(u16::from_le_bytes([mem[p + 0x62], mem[p + 0x63]]))
+            } else {
+                Some(0x1100)
+            };
+
+            return Some(Box::new(McCrackenPacker::new(PackerInfo {
+                name: "McCracken Compressor",
+                dep_addr: Some(0x0100),
+                start_addr: Some(0x0800),
+                end_addr: None,
+                entry_point,
+                end_addr_ptr: Some(0x00AE),
+            })));
+        }
+    }
     None
 }

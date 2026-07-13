@@ -120,7 +120,7 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dy
     if let Some(p) = alz64::detect(mem, load_addr) {
         return Some(p);
     }
-    if let Some(p) = tscrunch::detect(mem, load_addr) {
+    if let Some(p) = tscrunch::detect(mem, load_addr, load_end) {
         return Some(p);
     }
     if let Some(p) = dali::detect(mem, load_addr) {
