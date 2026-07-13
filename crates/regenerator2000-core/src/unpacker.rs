@@ -394,7 +394,7 @@ fn init_zero_page(mem: &mut UnpackerMemory, load_addr: u16, data_len: u16, basic
     let end_addr = load_addr.wrapping_add(data_len);
     let system = mem.system.clone();
 
-    if system.as_str() == crate::state::types::System::C64 {
+    if system.is_c64() {
         mem.mem[0..256].copy_from_slice(&C64_ZEROPAGE_TEMPLATE);
     } else if system.as_str() == crate::state::types::System::C128 {
         mem.mem[0x00] = 0x2F;
@@ -418,9 +418,10 @@ fn init_zero_page(mem: &mut UnpackerMemory, load_addr: u16, data_len: u16, basic
     mem.mem[0x32] = (end_addr >> 8) as u8;
 
     // BASIC end (top of memory for strings)
-    if system.as_str() == crate::state::types::System::C64 {
-        mem.mem[0x37] = 0x00;
-        mem.mem[0x38] = 0x08; // $0800 — this is an unusual default from unp64
+    if system.is_c64() {
+        let ram_start = system.ram_start();
+        mem.mem[0x37] = (ram_start & 0xFF) as u8;
+        mem.mem[0x38] = (ram_start >> 8) as u8;
     }
 
     // First BASIC line number (read from loaded data)
@@ -433,14 +434,14 @@ fn init_zero_page(mem: &mut UnpackerMemory, load_addr: u16, data_len: u16, basic
     mem.mem[0xAE] = (end_addr & 0xFF) as u8;
     mem.mem[0xAF] = (end_addr >> 8) as u8;
 
-    if system.as_str() == crate::state::types::System::C64 {
-        // IRQ vector
-        mem.mem[0x0314] = 0x31;
-        mem.mem[0x0315] = 0xEA;
+    if let Some((vector_addr, handler_addr)) = system.default_irq() {
+        mem.mem[vector_addr as usize] = (handler_addr & 0xFF) as u8;
+        mem.mem[vector_addr as usize + 1] = (handler_addr >> 8) as u8;
+    }
 
-        // Fill screen RAM with spaces
-        for addr in 0x0400..=0x07E7 {
-            mem.mem[addr] = 0x20;
+    if let Some(screen_range) = system.screen_ram() {
+        for addr in screen_range {
+            mem.mem[addr as usize] = 0x20;
         }
     }
 }
@@ -711,8 +712,9 @@ fn detect_output_range(
     written: &[bool],
     _ret_addr: u16,
     load_addr: u16,
+    system: &crate::state::types::System,
 ) -> Option<(u16, u16)> {
-    let scan_start = (load_addr as usize).min(0x0800);
+    let scan_start = (load_addr as usize).min(system.ram_start() as usize);
 
     // Cascading scans with progressively wider boundaries.
     // Each level is only tried if the previous scan's detected end is near
@@ -734,7 +736,7 @@ fn detect_output_range(
 
     for (i, &boundary) in boundaries.iter().enumerate() {
         if let Some((start, end, untrimmed_end, has_diff)) =
-            scan_hybrid_range(mem, snapshot, written, scan_start, boundary, false)
+            scan_hybrid_range(mem, snapshot, written, scan_start, boundary, false, system)
         {
             let is_last = i == boundaries.len() - 1;
             let near_ceiling = has_diff && (untrimmed_end as usize) + 256 >= boundary;
@@ -760,16 +762,18 @@ fn detect_output_range(
         }
     }
 
-    if (0x0800..=0xCFFF).any(|a| written.get(a).copied().unwrap_or(false))
+    let ram_start = system.ram_start() as usize;
+    if (ram_start..=0xCFFF).any(|a| written.get(a).copied().unwrap_or(false))
         && let Some((s, e, _, _)) =
-            scan_hybrid_range(mem, snapshot, written, scan_start, 0xCFFF, true)
+            scan_hybrid_range(mem, snapshot, written, scan_start, 0xCFFF, true, system)
     {
         return Some((s, e));
     }
 
     // Fallback: scan $E000-$FFFF for packers that decompress only into
     // the Kernal ROM area.
-    scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF, false).map(|(s, e, _, _)| (s, e))
+    scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF, false, system)
+        .map(|(s, e, _, _)| (s, e))
 }
 
 /// Scans a range using a hybrid of the `written` bitmap and snapshot diff.
@@ -790,6 +794,7 @@ fn scan_hybrid_range(
     start: usize,
     end: usize,
     skip_trim: bool,
+    system: &crate::state::types::System,
 ) -> Option<(u16, u16, u16, bool)> {
     let upper = end
         .min(written.len() - 1)
@@ -805,18 +810,19 @@ fn scan_hybrid_range(
         }
     }
     let mut first = first_written?;
-    if first < 0x0800 {
+    let ram_start = system.ram_start() as usize;
+    if first < ram_start {
         let mut diffs_below = 0;
-        let mut gap_before_800 = 0;
-        for a in first..0x0800 {
+        let mut gap_before_ram = 0;
+        for a in first..ram_start {
             if mem[a] != snapshot[a] || written.get(a).copied().unwrap_or(false) {
                 diffs_below += 1;
             } else {
-                gap_before_800 += 1;
+                gap_before_ram += 1;
             }
         }
-        if diffs_below < 64 && gap_before_800 > 128 {
-            for a in 0x0800..=upper {
+        if diffs_below < 64 && gap_before_ram > 128 {
+            for a in ram_start..=upper {
                 if written.get(a).copied().unwrap_or(false) || mem[a] != snapshot[a] {
                     first = a;
                     break;
@@ -1037,13 +1043,13 @@ pub fn unpack(
         forced
     } else {
         find_sys_address(&memory.mem, basic_start)
-            .or_else(|| find_sys_address(&memory.mem, 0x0801))
+            .or_else(|| find_sys_address(&memory.mem, system.default_basic_start()))
             .ok_or(UnpackError::NoEntryPoint)?
     };
 
     let ret_addr = config
         .forced_ret_addr
-        .unwrap_or_else(|| load_addr.min(0x0800));
+        .unwrap_or_else(|| load_addr.min(system.ram_start()));
     let load_end = (load_addr as usize + data_len).min(0x10000) as u16;
     let mut packer = crate::packers::detect_packer(&memory.mem, load_addr, load_end);
 
@@ -1241,7 +1247,7 @@ pub fn unpack(
         // If the packer doesn't have a known entry point, exit when PC jumps
         // outside the original loaded data region (and above RAM $0800) to a written address.
         if known_entry.is_none()
-            && pc >= 0x0800
+            && pc >= system.ram_start()
             && (pc < load_addr || pc >= load_end)
             && cpu
                 .memory
@@ -1329,7 +1335,7 @@ fn finish_unpack(
     y_reg: u8,
 ) -> Result<UnpackResult, UnpackError> {
     let (mut start_addr, mut end_addr) =
-        detect_output_range(mem, snapshot, written, ret_addr, load_addr)
+        detect_output_range(mem, snapshot, written, ret_addr, load_addr, system)
             .ok_or(UnpackError::NothingWritten)?;
 
     // Apply metadata overrides and post-emulation hooks from packer strategy

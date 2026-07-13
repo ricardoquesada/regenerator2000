@@ -38,6 +38,56 @@ impl System {
     pub fn into_inner(self) -> String {
         self.0
     }
+
+    /// Returns `true` if this system is Commodore 64.
+    #[must_use]
+    pub fn is_c64(&self) -> bool {
+        self.0 == Self::C64
+    }
+
+    /// Returns the start address of default RAM for this system.
+    #[must_use]
+    pub fn ram_start(&self) -> u16 {
+        match self.0.as_str() {
+            Self::C128 => 0x1C00,
+            Self::VIC20 => 0x1000,
+            Self::PET | Self::PET20 => 0x0400,
+            Self::PLUS4 => 0x1000,
+            _ => 0x0800,
+        }
+    }
+
+    /// Returns the default BASIC start address for this system.
+    #[must_use]
+    pub fn default_basic_start(&self) -> u16 {
+        match self.0.as_str() {
+            Self::C128 => 0x1C01,
+            Self::VIC20 => 0x1001,
+            Self::PET | Self::PET20 => 0x0401,
+            Self::PLUS4 => 0x1001,
+            _ => 0x0801,
+        }
+    }
+
+    /// Returns the default screen RAM memory range if defined for this system.
+    #[must_use]
+    pub fn screen_ram(&self) -> Option<std::ops::RangeInclusive<u16>> {
+        match self.0.as_str() {
+            Self::C64 | Self::C128 => Some(0x0400..=0x07E7),
+            Self::VIC20 => Some(0x1E00..=0x1FFF),
+            Self::PLUS4 => Some(0x0C00..=0x0FDF),
+            _ => None,
+        }
+    }
+
+    /// Returns the default hardware IRQ vector address and handler value `(vector_addr, handler_addr)`.
+    #[must_use]
+    pub fn default_irq(&self) -> Option<(u16, u16)> {
+        match self.0.as_str() {
+            Self::C64 => Some((0x0314, 0xEA31)),
+            _ => None,
+        }
+    }
 }
 
 impl Default for System {

@@ -66,6 +66,14 @@ For example, if label creation needs to reject duplicate names, that validation 
 
 When adding or modifying a feature, ask: *"Would this logic need to be duplicated if a third client (e.g., a GUI, a CLI) were added?"* If yes, it belongs in `regenerator2000-core`.
 
+### System-Agnostic Design & Unpacker Rules
+
+The core disassembler and binary unpacker (`crates/regenerator2000-core/src/unpacker.rs`) target Commodore 8-bit machines (C64, C128, VIC-20, PET, Plus/4).
+
+- **Never hardcode platform constants**: Do not hardcode machine-specific memory addresses (such as `$0800` RAM start, `$0801` BASIC start, `$0400` screen RAM, or `$0314` IRQ vector) directly in `unpacker.rs` or documentation. Always query system properties via `System` platform methods (`system.ram_start()`, `system.default_basic_start()`, `system.screen_ram()`, `system.default_irq()`, `system.is_c64()`).
+- **Guard platform-specific features**: System-specific behavior (such as C64 PLA processor port `$01` banking or zero-page template copying) must be explicitly guarded (e.g. `if system.is_c64()`).
+- **Keep Documentation System-Agnostic**: When updating `docs/unpacker.md` or adding unpacker documentation, describe memory boundaries and zero-page setups in a system-agnostic way (referencing system RAM start `$0800` on C64, `$1C00` on C128, `$1000` on VIC-20, `$0400` on PET) rather than assuming C64 defaults globally.
+
 ## AI Agent Skills (`.agent/skills/`)
 
 Specialized tools are available for common tasks. Invoke them via `activate_skill`:

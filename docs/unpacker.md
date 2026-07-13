@@ -24,7 +24,7 @@ algorithm:
   │ Phase 1: Find the Depacker                             │
   │ - Starts at BASIC SYS entry point (e.g., SYS 2061)     │
   │ - Emulates instructions                                │
-  │ - Stops when PC drops below return boundary ($0800)    │
+  │ - Stops when PC drops below RAM start ($0800 on C64)   │
   └──────────────────────────┬─────────────────────────────┘
                              │ (depacker loop located)
                              ▼
@@ -32,7 +32,7 @@ algorithm:
   │ Phase 2: Decompress Binary                             │
   │ - Continues emulation from the located loop            │
   │ - Tracks every byte written to RAM                     │
-  │ - Stops when PC jumps back above $0800 (exit stub)     │
+  │ - Stops when PC jumps back above RAM start (exit stub) │
   └──────────────────────────┬─────────────────────────────┘
                              │ (decompression completed)
                              ▼
@@ -41,7 +41,7 @@ algorithm:
   │ - Scans write-tracking bitmap to locate boundaries     │
   │ - Extracts modified RAM range as clean binary          │
   │ - Identifies the new decompressed entry point          │
-  └────────────────────────────────────────────────────────┘
+  └──────────────────────────┘
 ```
 
 ### Phase 1: Find the Depacker
@@ -51,8 +51,8 @@ Many packers start with a BASIC bootstrap stub (`10 SYS 2061`) which jumps into 
 - The emulator begins executing instructions starting at the parsed `SYS` address.
 - It emulates instructions sequentially, looking for where the decompressed unpacking loop is located.
 - The emulator detects this because the depacker typically runs in high memory or inside a zero-page workspace, and once
-  the bootstrap finishes setting up, the program counter (`PC`) drops below the return address boundary (default:
-  `$0800`).
+  the bootstrap finishes setting up, the program counter (`PC`) drops below the target system's RAM start boundary (e.g.,
+  `$0800` on C64, `$1C00` on C128, `$1000` on VIC-20, `$0400` on PET).
 
 ### Phase 2: Decompress Binary
 
@@ -61,8 +61,8 @@ Once the decompression routine begins:
 - The emulator continues execution, but it now turns on a **write-tracking bitmap** covering the entire 64 KB RAM
   address space.
 - Every time the emulated CPU writes a byte to memory, the corresponding bit is set to `true`.
-- Decompression continues until the `PC` jumps back above the return address boundary (returning to normal RAM space,
-  usually around `$0800` or the game's start address), signaling that the packer has completed decompression and is
+- Decompression continues until the `PC` jumps back above the system's RAM start boundary (returning to normal RAM space,
+  such as `$0800` on C64 or the game's start address), signaling that the packer has completed decompression and is
   about to jump to the main game loop.
 
 ### Extraction & Range Reconstruction
