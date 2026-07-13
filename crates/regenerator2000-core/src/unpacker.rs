@@ -1194,7 +1194,7 @@ pub fn unpack(
         let pc = cpu.registers.program_counter;
         let mut exit_triggered = false;
         if let Some(ke) = known_entry {
-            if (pc == ke || pc == 0xA7AE) && total_instructions > 1_000 {
+            if (pc == ke || pc == 0xA7AE) && total_instructions > 10 {
                 exit_triggered = true;
             }
         } else {

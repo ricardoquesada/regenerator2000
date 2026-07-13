@@ -42,17 +42,48 @@ impl Packer for ExomizerPacker {
         if phase != 2 || self.version != 3 {
             return;
         }
-        let pc = cpu.registers.program_counter;
-        if (0x0100..=0x01FF).contains(&pc) {
-            let mut val = u16::from(cpu.memory.mem[0xFE]) + (u16::from(cpu.memory.mem[0xFF]) << 8);
-            let y_val = u16::from(cpu.registers.index_y);
-            if self.exo_ver == 0x30 {
-                val = val.wrapping_add(y_val);
-            } else {
-                val = val.wrapping_add(y_val).wrapping_add(1);
+        let dep_zp = self.info.dep_addr.map_or(0xFE, |d| (d & 0xFF) as u8);
+        let pc = cpu.registers.program_counter as usize;
+        if pc + 1 < cpu.memory.mem.len() {
+            let op = cpu.memory.mem[pc];
+            let arg = cpu.memory.mem[pc + 1];
+            if (op == 0xB1 || op == 0x91) && (arg == dep_zp || arg == 0xFE) {
+                let lo_addr = arg as usize;
+                let hi_addr = (arg.wrapping_add(1)) as usize;
+                let mut val =
+                    u16::from(cpu.memory.mem[lo_addr]) + (u16::from(cpu.memory.mem[hi_addr]) << 8);
+                let y_val = u16::from(cpu.registers.index_y);
+                if self.exo_ver == 0x30 {
+                    val = val.wrapping_add(y_val);
+                } else {
+                    val = val.wrapping_add(y_val).wrapping_add(1);
+                }
+                if val > 0 {
+                    self.min_start = Some(self.min_start.map_or(val, |min| min.min(val)));
+                }
             }
-            if val > 0 {
-                self.min_start = Some(self.min_start.map_or(val, |min| min.min(val)));
+        }
+    }
+
+    fn pre_emulate(&self, mem: &mut [u8], system: &System) {
+        if system.as_str() != System::C64 {
+            return;
+        }
+
+        // G*P Intro hack (Galleon/Pride intro exomizer 3.02+ stubs)
+        if mem.len() >= 0x0818 {
+            if (mem[0x080D] == 0xA9 || mem[0x080D] == 0xA0)
+                && mem[0x0811..=0x0814] == [0x20, 0x1E, 0xAB, 0x78]
+            {
+                mem[0x0810] = 3;
+            } else if mem[0x080D..=0x080F] == [0xA0, 0x08, 0xA9]
+                && mem[0x0811..=0x0814] == [0x20, 0x1E, 0xAB, 0x78]
+            {
+                mem[0x080E] = 3;
+            } else if (mem[0x0810] == 0xA0 || mem[0x0810] == 0xA9)
+                && mem[0x0814..=0x0817] == [0x20, 0x1E, 0xAB, 0x78]
+            {
+                mem[0x0811] = 3;
             }
         }
     }
@@ -177,13 +208,45 @@ pub fn detect(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dyn Packe
                 ("Exomizer v3.02+", 0x32)
             };
 
+            let mut entry_point = None;
+            for idx in p..(mem.len().saturating_sub(4)).min(p + 0x200) {
+                if mem[idx] == 0x20 && mem[idx + 2] == 0x01 {
+                    for jmp_idx in (idx + 3)..(mem.len().saturating_sub(3)).min(idx + 0x60) {
+                        if mem[jmp_idx] == 0x4C {
+                            let ep = u16::from_le_bytes([mem[jmp_idx + 1], mem[jmp_idx + 2]]);
+                            if ep >= 0x0200 && !(0x0100..=0x01FF).contains(&ep) {
+                                entry_point = Some(ep);
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+
+            if entry_point.is_none() {
+                for jmp_idx in p..(mem.len().saturating_sub(3)).min(p + 0x200) {
+                    if mem[jmp_idx] == 0x4C {
+                        let ep = u16::from_le_bytes([mem[jmp_idx + 1], mem[jmp_idx + 2]]);
+                        if ep >= 0x0200 && ep <= load_end && !(0x0100..=0x01FF).contains(&ep) {
+                            entry_point = Some(ep);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if entry_point.is_none() && mem[p - 5] == 0xAB {
+                entry_point = Some(0x080D);
+            }
+
             return Some(Box::new(ExomizerPacker::new(
                 PackerInfo {
                     name,
                     dep_addr: Some(0x0100 | u16::from(mem[p - 5])),
                     start_addr: None,
                     end_addr: None,
-                    entry_point: None,
+                    entry_point,
                     end_addr_ptr: None,
                 },
                 3,
