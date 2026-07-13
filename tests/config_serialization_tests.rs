@@ -17,7 +17,9 @@ fn default_config_values() {
     assert!(!config.sync_charset_view);
     assert!(!config.sync_sprites_view);
     assert!(!config.sync_bitmap_view);
-    assert!((config.entropy_threshold - 7.5).abs() < f32::EPSILON);
+    assert!(
+        (config.entropy_threshold - SystemConfig::DEFAULT_ENTROPY_THRESHOLD).abs() < f32::EPSILON
+    );
     assert!(config.recent_projects.is_empty());
     assert!(config.check_for_updates);
 }
@@ -67,7 +69,9 @@ fn missing_fields_use_defaults() {
     assert!(!config.sync_charset_view);
     assert!(!config.sync_sprites_view);
     assert!(!config.sync_bitmap_view);
-    assert!((config.entropy_threshold - 7.5).abs() < f32::EPSILON);
+    assert!(
+        (config.entropy_threshold - SystemConfig::DEFAULT_ENTROPY_THRESHOLD).abs() < f32::EPSILON
+    );
     assert!(config.recent_projects.is_empty());
     assert!(config.check_for_updates);
 }

@@ -114,7 +114,7 @@ advanced system-level sandboxing features:
 ### 1. Automatic Entropy Detection
 
 When you load a binary file into Regenerator 2000, it calculates the **Shannon Entropy** of the data. Compressed or
-encrypted binaries have extremely high entropy (>= 7.5).
+encrypted binaries have extremely high entropy (>= 7.4).
 
 If a newly imported file matches this signature (or a known packer is detected):
 

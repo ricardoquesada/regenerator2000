@@ -42,8 +42,13 @@ fn default_theme() -> String {
     "Dracula".to_string()
 }
 
+impl SystemConfig {
+    /// Default Shannon entropy threshold above which binaries are flagged as potentially packed or compressed.
+    pub const DEFAULT_ENTROPY_THRESHOLD: f32 = 7.4;
+}
+
 fn default_entropy_threshold() -> f32 {
-    7.5
+    SystemConfig::DEFAULT_ENTROPY_THRESHOLD
 }
 
 impl Default for SystemConfig {
@@ -57,7 +62,7 @@ impl Default for SystemConfig {
             sync_charset_view: false,
             sync_sprites_view: false,
             sync_bitmap_view: false,
-            entropy_threshold: 7.5,
+            entropy_threshold: Self::DEFAULT_ENTROPY_THRESHOLD,
             config_path_override: None,
             recent_projects: Vec::new(),
             check_for_updates: true,

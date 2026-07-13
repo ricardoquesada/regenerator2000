@@ -208,7 +208,7 @@ impl Widget for UnpackDialog {
         let file_info = app_state.file_info();
         let status_str = if let Some(name) = file_info.packer_name {
             format!("Packed with {name}")
-        } else if file_info.entropy >= 7.5 {
+        } else if file_info.entropy >= app_state.system_config.entropy_threshold {
             "High Entropy (likely compressed)".to_string()
         } else {
             "Normal Entropy".to_string()
@@ -217,7 +217,7 @@ impl Widget for UnpackDialog {
             Span::raw("Entropy: "),
             Span::styled(
                 format!("{:.2} / 8.00", file_info.entropy),
-                if file_info.entropy >= 7.5 {
+                if file_info.entropy >= app_state.system_config.entropy_threshold {
                     Style::default().fg(theme.error_fg)
                 } else {
                     Style::default().fg(theme.dialog_fg)
