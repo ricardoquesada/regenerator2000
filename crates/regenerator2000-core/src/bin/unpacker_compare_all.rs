@@ -24,49 +24,37 @@ fn main() {
         });
     let test_dir = "tests/6502";
 
-    let allowed_files = [
-        "c64_8_bit_ball.meanteam_cruncher.prg",
-        "c64_lft-rodents-in-the-attic.exo3.prg",
-        "c64_connection-8580.pucrunch.prg",
-        "c64_f600.exo.prg",
-        "c64_moving_tubes_lxt.dali.prg",
-        "c64_moving_tubes_lxt.tscrunch_x.prg",
-        "c64_moving_tubes_lxt.tscrunch_x2.prg",
-        "c64_thats_the_way_scoop.time_cruncher.prg",
-        "c64_traveller.tiny_crunch.prg",
-        "c64_CopperBooze.byte_boozer2.prg",
-        "c64_Bit_by_Bits-BZ!.exo3.prg",
-        "c64_boilerplate.exo3.prg",
-        "c64_druid_too.exo3.prg",
-        "c64_endoskull.exo3.prg",
-        "c64_leftovers-pl.exo3.prg",
-        "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg",
-        "c64_sprite_runners.exo3.prg",
-        "c64_moving_tubes_lxt.exo3.prg",
-        "c64_moving_tubes_lxt.pucrunch.prg",
-        "c64_mule.dali.prg",
-        "c64_mule.exo3.prg",
-        "c64_mule.mccracken_compressor.prg",
-        "c64_mule.pucrunch.prg",
-        "c64_mule.tscrunch_x.prg",
-        "c64_mule.tscrunch_x2.prg",
-        "c64_roma.exe.exo3.prg",
-        "c64_hw20131031.exo.prg",
-        "c64_spectro.exo3.prg",
-        "c64_cubicdream.exo3.prg",
-        "c64_boo_alz64.prg",
-        "c64_lft-nine.exo3.prg",
-        "c64_HBFS.exo3.prg",
-        "c64_Layers.exo3.prg",
-        "c64_fantasy_intro.eca_compactor.prg",
-        "c64_FppScroller.byte_boozer2.prg",
-        "c64_little_things.exo3.prg",
-        "c64_robot - not human.exo3.prg",
-        "c64_soul_on_fire_unk.prg",
-        "c64_gianna_sister_remix_badboy.tbc_multicompactor.prg",
-        "c64_chiller.antiram_packer.prg",
-        "c64_323_ice_psm.1001_card_cruncher.prg",
+    // Dynamically parse allowed test files from test_unpack_known_prg_files in unpacker.rs
+    let unpacker_rs_paths = [
+        "crates/regenerator2000-core/src/unpacker.rs",
+        "src/unpacker.rs",
+        "../../crates/regenerator2000-core/src/unpacker.rs",
     ];
+    let mut allowed_files = Vec::new();
+    for path in unpacker_rs_paths {
+        if let Ok(content) = fs::read_to_string(path) {
+            let mut in_known_test = false;
+            for line in content.lines() {
+                if line.contains("fn test_unpack_known_prg_files") {
+                    in_known_test = true;
+                }
+                if in_known_test {
+                    if let Some(start) = line.find("file: \"") {
+                        let rest = &line[start + 7..];
+                        if let Some(end) = rest.find('"') {
+                            let filename = &rest[..end];
+                            if !allowed_files.contains(&filename.to_string()) {
+                                allowed_files.push(filename.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+            if !allowed_files.is_empty() {
+                break;
+            }
+        }
+    }
 
     println!(
         "============================================================================================="
@@ -98,7 +86,7 @@ fn main() {
                 return false;
             }
             if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
-                allowed_files.contains(&name)
+                allowed_files.iter().any(|f| f == name)
             } else {
                 false
             }

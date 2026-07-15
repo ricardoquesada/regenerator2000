@@ -83,6 +83,7 @@ Specialized tools are available for common tasks. Invoke them via `activate_skil
 - `r2000-analyze-program`: Orchestrate full-program analysis using subagents for blocks, routines, and symbols.
 - `r2000-analyze-routine`: Trace a subroutine and mark code paths.
 - `r2000-analyze-symbol`: Find and label all references to a specific address.
+- `compare-unpacker`: Benchmark Regenerator 2000 unpacker against unp64 and generate comparison reports.
 - `add-mcp-tool`: Templates for adding new programmatic tools to the MCP server.
 - `bump-version`: Automate version bumping and changelog updates.
 - `coding`: General Rust coding assistance with project context.
