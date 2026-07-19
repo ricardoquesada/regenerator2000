@@ -70,7 +70,7 @@ pub fn find_sys_address(
         }
 
         // Search for SYS token in current line
-        let line_end = next_offset - 1;
+        let line_end = next_offset.min(mem.len());
         let mut pos = offset + 4;
 
         while pos < line_end && pos < mem.len() {

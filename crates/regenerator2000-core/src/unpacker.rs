@@ -119,6 +119,198 @@ impl fmt::Display for UnpackError {
 impl std::error::Error for UnpackError {}
 
 // ---------------------------------------------------------------------------
+// MOS 6526 CIA Timer Emulation
+// ---------------------------------------------------------------------------
+
+/// MOS 6526 Complex Interface Adapter (CIA) timer state emulation.
+///
+/// Emulates interval Timer A, Timer B, control registers (CRA/CRB), and Interrupt
+/// Control Register (ICR) flags/masks for CIA 1 (`$DC00`–`$DC0F`) and CIA 2 (`$DD00`–`$DD0F`).
+/// Many Commodore 8-bit depackers rely on CIA timers to pace decompression or poll
+/// `$DC0D` for underflow flags.
+#[derive(Debug, Clone)]
+pub(crate) struct CiaState {
+    ta_latch: u16,
+    ta_counter: u16,
+    ta_control: u8,
+    ta_read_latch: u8,
+
+    tb_latch: u16,
+    tb_counter: u16,
+    tb_control: u8,
+    tb_read_latch: u8,
+
+    icr_mask: u8,
+    icr_data: u8,
+}
+
+impl Default for CiaState {
+    fn default() -> Self {
+        Self {
+            ta_latch: 0,
+            ta_counter: 0xFFFF,
+            ta_control: 0,
+            ta_read_latch: 0,
+            tb_latch: 0,
+            tb_counter: 0xFFFF,
+            tb_control: 0,
+            tb_read_latch: 0,
+            icr_mask: 0,
+            icr_data: 0,
+        }
+    }
+}
+
+impl CiaState {
+    /// Returns `true` if Timer A is running (CRA bit 0 is set).
+    #[must_use]
+    #[inline]
+    pub fn is_ta_running(&self) -> bool {
+        (self.ta_control & 0x01) != 0
+    }
+
+    /// Returns `true` if Timer B is running (CRB bit 0 is set).
+    #[must_use]
+    #[inline]
+    pub fn is_tb_running(&self) -> bool {
+        (self.tb_control & 0x01) != 0
+    }
+
+    /// Steps active CIA timers by the specified number of CPU clock cycles.
+    ///
+    /// Decrements active counters, reloads latches on underflow, sets ICR underflow flags
+    /// (bit 0 for Timer A, bit 1 for Timer B), clears the `START` bit in one-shot mode,
+    /// and steps Timer B when chained (`INMODE` = `%10` or `%11`).
+    pub fn step(&mut self, cycles: u32) {
+        if self.is_ta_running() {
+            for _ in 0..cycles {
+                if !self.is_ta_running() {
+                    break;
+                }
+                if self.ta_counter == 0 {
+                    self.ta_counter = self.ta_latch;
+                    self.icr_data |= 0x01; // Timer A underflow flag
+                    if (self.ta_control & 0x08) != 0 {
+                        self.ta_control &= !0x01; // Hardware clears START bit in CRA for one-shot mode
+                    }
+                    // Check Timer B chaining mode (INMODE %10 or %11)
+                    if self.is_tb_running() && (self.tb_control & 0x40) != 0 {
+                        self.step_tb_underflow();
+                    }
+                } else {
+                    self.ta_counter = self.ta_counter.saturating_sub(1);
+                }
+            }
+        }
+        if self.is_tb_running() && (self.tb_control & 0x60) == 0x00 {
+            for _ in 0..cycles {
+                if !self.is_tb_running() {
+                    break;
+                }
+                if self.tb_counter == 0 {
+                    self.tb_counter = self.tb_latch;
+                    self.icr_data |= 0x02; // Timer B underflow flag
+                    if (self.tb_control & 0x08) != 0 {
+                        self.tb_control &= !0x01; // Hardware clears START bit in CRB for one-shot mode
+                    }
+                } else {
+                    self.tb_counter = self.tb_counter.saturating_sub(1);
+                }
+            }
+        }
+    }
+
+    fn step_tb_underflow(&mut self) {
+        if self.tb_counter == 0 {
+            self.tb_counter = self.tb_latch;
+            self.icr_data |= 0x02;
+            if (self.tb_control & 0x08) != 0 {
+                self.tb_control &= !0x01;
+            }
+        } else {
+            self.tb_counter = self.tb_counter.saturating_sub(1);
+        }
+    }
+
+    /// Reads a CIA register offset (`$00`–`$0F`).
+    ///
+    /// - `$04` / `$05`: Reads Timer A Counter low/high bytes (reading low byte latches high byte).
+    /// - `$06` / `$07`: Reads Timer B Counter low/high bytes (reading low byte latches high byte).
+    /// - `$0D`: Reads Interrupt Control Register (ICR) with clear-on-read semantics and IR summary bit 7.
+    /// - `$0E` / `$0F`: Reads CRA / CRB control register bytes.
+    pub fn read_reg(&mut self, reg: u8) -> u8 {
+        match reg & 0x0F {
+            0x04 => {
+                self.ta_read_latch = ((self.ta_counter >> 8) & 0xFF) as u8;
+                (self.ta_counter & 0xFF) as u8
+            }
+            0x05 => self.ta_read_latch,
+            0x06 => {
+                self.tb_read_latch = ((self.tb_counter >> 8) & 0xFF) as u8;
+                (self.tb_counter & 0xFF) as u8
+            }
+            0x07 => self.tb_read_latch,
+            0x0D => {
+                let mut val = self.icr_data;
+                if (self.icr_data & self.icr_mask & 0x1F) != 0 {
+                    val |= 0x80; // IR summary flag
+                }
+                self.icr_data = 0; // Clear-on-read
+                val
+            }
+            0x0E => self.ta_control,
+            0x0F => self.tb_control,
+            _ => 0x00,
+        }
+    }
+
+    /// Writes a CIA register offset (`$00`–`$0F`).
+    ///
+    /// - `$04` / `$05`: Updates Timer A latch low/high bytes (high byte write reloads counter if stopped).
+    /// - `$06` / `$07`: Updates Timer B latch low/high bytes (high byte write reloads counter if stopped).
+    /// - `$0D`: Configures ICR interrupt enable mask (bit 7 sets or clears mask bits 0–4).
+    /// - `$0E` / `$0F`: Updates CRA / CRB control registers (bit 4 force-load strobe reloads counter).
+    pub fn write_reg(&mut self, reg: u8, val: u8) {
+        match reg & 0x0F {
+            0x04 => self.ta_latch = (self.ta_latch & 0xFF00) | u16::from(val),
+            0x05 => {
+                self.ta_latch = (self.ta_latch & 0x00FF) | (u16::from(val) << 8);
+                if !self.is_ta_running() {
+                    self.ta_counter = self.ta_latch;
+                }
+            }
+            0x06 => self.tb_latch = (self.tb_latch & 0xFF00) | u16::from(val),
+            0x07 => {
+                self.tb_latch = (self.tb_latch & 0x00FF) | (u16::from(val) << 8);
+                if !self.is_tb_running() {
+                    self.tb_counter = self.tb_latch;
+                }
+            }
+            0x0D => {
+                if (val & 0x80) != 0 {
+                    self.icr_mask |= val & 0x1F;
+                } else {
+                    self.icr_mask &= !(val & 0x1F);
+                }
+            }
+            0x0E => {
+                self.ta_control = val & !0x10; // Mask out force-load strobe bit 4
+                if (val & 0x10) != 0 {
+                    self.ta_counter = self.ta_latch; // Force load
+                }
+            }
+            0x0F => {
+                self.tb_control = val & !0x10; // Mask out force-load strobe bit 4
+                if (val & 0x10) != 0 {
+                    self.tb_counter = self.tb_latch; // Force load
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Memory bus
 // ---------------------------------------------------------------------------
 
@@ -149,6 +341,10 @@ pub struct UnpackerMemory {
     pub(crate) char_rom: Option<Vec<u8>>,
     /// Current program counter for Phase 2 write-tracking trigger.
     pub(crate) current_pc: u16,
+    /// CIA 1 chip state ($DC00–$DC0F).
+    pub(crate) cia1: CiaState,
+    /// CIA 2 chip state ($DD00–$DD0F).
+    pub(crate) cia2: CiaState,
 }
 
 impl UnpackerMemory {
@@ -171,6 +367,8 @@ impl UnpackerMemory {
             kernal_rom,
             char_rom,
             current_pc: 0,
+            cia1: CiaState::default(),
+            cia2: CiaState::default(),
         }
     }
 }
@@ -178,6 +376,8 @@ impl UnpackerMemory {
 impl Bus for UnpackerMemory {
     fn get_byte(&mut self, addr: u16) -> u8 {
         self.total_cycles = self.total_cycles.wrapping_add(1);
+        self.cia1.step(1);
+        self.cia2.step(1);
         let a = addr as usize;
         if self.system.is_c64() {
             // Compute active MOS 6510 processor port bits [2:0] (CHAREN, HIRAM, LORAM).
@@ -212,6 +412,12 @@ impl Bus for UnpackerMemory {
 
             if (0xD000..=0xDFFF).contains(&addr) {
                 if charen && (loram || hiram) {
+                    if (0xDC00..=0xDC0F).contains(&addr) {
+                        return self.cia1.read_reg((addr & 0x0F) as u8);
+                    }
+                    if (0xDD00..=0xDD0F).contains(&addr) {
+                        return self.cia2.read_reg((addr & 0x0F) as u8);
+                    }
                     // PAL C64 VIC-II timing: 63 CPU cycles per raster line, 312 lines per frame.
                     // $D012 provides lower 8 bits of current raster line.
                     // $D011 bit 7 provides the 9th bit (MSB, set when line >= 256) while
@@ -242,6 +448,8 @@ impl Bus for UnpackerMemory {
     }
 
     fn set_byte(&mut self, addr: u16, val: u8) {
+        self.cia1.step(1);
+        self.cia2.step(1);
         let a = addr as usize;
         if self.system.is_c64() {
             let bank = (self.mem[0x01] & self.mem[0x00]) | (!self.mem[0x00] & 0x07);
@@ -250,7 +458,11 @@ impl Bus for UnpackerMemory {
             let charen = (bank & 0x04) != 0;
 
             if (0xD000..=0xDFFF).contains(&addr) && charen && (loram || hiram) {
-                if addr == 0xD011 {
+                if (0xDC00..=0xDC0F).contains(&addr) {
+                    self.cia1.write_reg((addr & 0x0F) as u8, val);
+                } else if (0xDD00..=0xDD0F).contains(&addr) {
+                    self.cia2.write_reg((addr & 0x0F) as u8, val);
+                } else if addr == 0xD011 {
                     self.shadow_d011 = val;
                 }
                 self.mem[a] = val;
@@ -2409,6 +2621,43 @@ mod tests {
     }
 
     #[test]
+    fn test_unpack_time_cruncher_debug() {
+        let prg_path = "../../tests/6502/c64_thats_the_way_scoop.time_cruncher.prg";
+        let prg_data = std::fs::read(prg_path).unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let res = unpack(raw_data, load_addr, &config, None).unwrap();
+        assert_eq!(res.start_addr, 0x0801);
+        assert_eq!(res.end_addr, 0xE750);
+        assert_eq!(res.entry_point, 0x0801);
+        assert_eq!(res.dep_addr, 0x0100);
+
+        if let Some(unp64_bin) = find_unp64_bin() {
+            let tmp_out = std::env::temp_dir().join("time_cruncher_unp64_diff.prg");
+            let status = std::process::Command::new(&unp64_bin)
+                .arg(prg_path)
+                .arg("-o")
+                .arg(&tmp_out)
+                .status()
+                .unwrap();
+            if status.success() && tmp_out.exists() {
+                let unp64_bytes = std::fs::read(&tmp_out).unwrap();
+                let unp64_payload = &unp64_bytes[2..];
+                assert_eq!(
+                    res.start_addr,
+                    u16::from_le_bytes([unp64_bytes[0], unp64_bytes[1]])
+                );
+                assert_eq!(res.data.len(), unp64_payload.len());
+                let _ = std::fs::remove_file(tmp_out);
+            }
+        }
+    }
+
+    #[test]
     fn test_unpack_c64_chiller_antiram() {
         let prg_path = "../../tests/6502/c64_chiller.antiram_packer.prg";
         let prg_data = std::fs::read(prg_path).unwrap();
@@ -2487,5 +2736,93 @@ mod tests {
             .status
             .contains(mos6502::registers::Status::PS_CARRY);
         println!("Test 2: X={:02X}, Carry={}", cpu.registers.index_x, carry2);
+    }
+
+    #[test]
+    fn test_cia_timer_a_countdown_and_icr_flag() {
+        let mut cia = CiaState::default();
+        // Set Timer A latch to 5 ($0005)
+        cia.write_reg(0x04, 0x05);
+        cia.write_reg(0x05, 0x00);
+        // Start Timer A (CRA bit 0 = 1)
+        cia.write_reg(0x0E, 0x01);
+        assert!(cia.is_ta_running());
+
+        // Step 6 cycles (counter starts at 5, decrements 5, 4, 3, 2, 1, 0, underflows on 6th step)
+        cia.step(6);
+        // After underflow triggers
+        let icr = cia.read_reg(0x0D);
+        assert_eq!(
+            icr & 0x01,
+            0x01,
+            "Timer A underflow bit 0 should be set in ICR"
+        );
+    }
+
+    #[test]
+    fn test_cia_icr_clear_on_read() {
+        let mut cia = CiaState::default();
+        cia.write_reg(0x04, 0x02);
+        cia.write_reg(0x05, 0x00);
+        cia.write_reg(0x0E, 0x01); // Start Timer A
+        cia.step(3); // Underflow occurs on 3rd step (2, 1, 0->underflow)
+
+        let first_read = cia.read_reg(0x0D);
+        assert_eq!(first_read & 0x01, 0x01, "First read returns underflow flag");
+
+        let second_read = cia.read_reg(0x0D);
+        assert_eq!(second_read, 0x00, "Second read should be cleared to 0");
+    }
+
+    #[test]
+    fn test_cia_timer_oneshot_clears_start_bit() {
+        let mut cia = CiaState::default();
+        cia.write_reg(0x04, 0x02);
+        cia.write_reg(0x05, 0x00);
+        // Start Timer A in one-shot mode (CRA bit 0 = 1, bit 3 = 1 -> 0x09)
+        cia.write_reg(0x0E, 0x09);
+        assert!(cia.is_ta_running());
+
+        cia.step(3); // Step past underflow (2, 1, 0->underflow)
+        assert!(
+            !cia.is_ta_running(),
+            "START bit should be cleared after one-shot underflow"
+        );
+        assert_eq!(cia.read_reg(0x0E) & 0x01, 0);
+    }
+
+    #[test]
+    fn test_cia_timer_b_chaining_mode() {
+        let mut cia = CiaState::default();
+        // Timer A latch = 2
+        cia.write_reg(0x04, 0x02);
+        cia.write_reg(0x05, 0x00);
+
+        // Timer B latch = 1
+        cia.write_reg(0x06, 0x01);
+        cia.write_reg(0x07, 0x00);
+
+        // Timer B: Start bit = 1, INMODE = %10 (count Timer A underflows) -> CRB = 0x41
+        cia.write_reg(0x0F, 0x41);
+        // Timer A: Start bit = 1 -> CRA = 0x01
+        cia.write_reg(0x0E, 0x01);
+
+        assert!(cia.is_ta_running());
+        assert!(cia.is_tb_running());
+
+        // Step Timer A underflow 1: 3 cycles
+        cia.step(3);
+        let icr1 = cia.read_reg(0x0D);
+        assert_eq!(icr1 & 0x01, 0x01, "Timer A underflow flag");
+        assert_eq!(icr1 & 0x02, 0x00, "Timer B should not have underflowed yet");
+
+        // Step Timer A underflow 2: 3 cycles
+        cia.step(3);
+        let icr2 = cia.read_reg(0x0D);
+        assert_eq!(
+            icr2 & 0x02,
+            0x02,
+            "Timer B should underflow on second Timer A underflow pulse"
+        );
     }
 }
