@@ -84,7 +84,7 @@ impl Packer for DaliPacker {
 /// Detects Dali 0.3.3 signature.
 #[must_use]
 pub fn detect(mem: &[u8], load_addr: u16) -> Option<Box<dyn Packer>> {
-    if mem.len() > 0x822 && load_addr <= 0x0801 {
+    if mem.len() > 0x090C && load_addr <= 0x0801 {
         let base = 0x080D;
         if base >= load_addr as usize {
             let q = base;

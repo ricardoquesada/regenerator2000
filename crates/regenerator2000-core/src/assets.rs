@@ -1,3 +1,5 @@
+//! Embedded and disk asset manager for system ROMs, predefined labels, comments, and enums.
+
 use crate::state::{EnumDefinition, Label, LabelKind, LabelType, RawEnumDefinition};
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
@@ -8,6 +10,43 @@ use std::path::{Path, PathBuf};
 
 static SYSTEMS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/assets/systems");
 static ENUMS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/assets/enums");
+
+/// Default 8 KB Commodore 64 BASIC V2 ROM image (`$A000`–`$BFFF`).
+pub static C64_BASIC_ROM: &[u8] = include_bytes!("../assets/roms/c64/basic-901226-01.bin");
+/// Default 8 KB Commodore 64 KERNAL ROM image (`$E000`–`$FFFF`).
+pub static C64_KERNAL_ROM: &[u8] = include_bytes!("../assets/roms/c64/kernal-901227-03.bin");
+/// Default 4 KB Commodore 64 Character Generator ROM image (`$D000`–`$DFFF`).
+pub static C64_CHAR_ROM: &[u8] = include_bytes!("../assets/roms/c64/characters-901225-01.bin");
+
+/// Returns default BASIC ROM for the given target system, if available.
+#[must_use]
+pub fn default_basic_rom(system: &crate::state::types::System) -> Option<Vec<u8>> {
+    if system.is_c64() {
+        Some(C64_BASIC_ROM.to_vec())
+    } else {
+        None
+    }
+}
+
+/// Returns default KERNAL ROM for the given target system, if available.
+#[must_use]
+pub fn default_kernal_rom(system: &crate::state::types::System) -> Option<Vec<u8>> {
+    if system.is_c64() {
+        Some(C64_KERNAL_ROM.to_vec())
+    } else {
+        None
+    }
+}
+
+/// Returns default Character ROM for the given target system, if available.
+#[must_use]
+pub fn default_char_rom(system: &crate::state::types::System) -> Option<Vec<u8>> {
+    if system.is_c64() {
+        Some(C64_CHAR_ROM.to_vec())
+    } else {
+        None
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LabelOption {

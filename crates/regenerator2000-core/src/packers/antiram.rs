@@ -1,7 +1,6 @@
 //! Antiram Packer v1.0 and v2.0 strategy implementation.
 
 use super::{Packer, PackerInfo};
-use crate::state::types::System;
 
 /// Strategy implementation for Antiram Packers.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,15 +22,6 @@ impl AntiramPacker {
 impl Packer for AntiramPacker {
     fn info(&self) -> PackerInfo {
         self.info.clone()
-    }
-
-    fn pre_emulate(&self, mem: &mut [u8], system: &System) {
-        if system.as_str() == System::C64 && mem.len() > self.patch_offset {
-            // Replaces JSR (0x20) with BIT absolute (0x2C) to NOP the BASIC ROM call
-            if mem[self.patch_offset] == 0x20 {
-                mem[self.patch_offset] = 0x2C;
-            }
-        }
     }
 }
 

@@ -6,7 +6,7 @@ use super::{Packer, PackerInfo};
 /// Detects PUCrunch signature.
 #[must_use]
 pub fn detect(mem: &[u8]) -> Option<Box<dyn Packer>> {
-    if mem.len() >= 0x0938
+    if mem.len() >= 0x0944
         && mem[0x813] == 0x85
         && mem[0x814] == 0x01
         && mem[0x815] == 0xA2

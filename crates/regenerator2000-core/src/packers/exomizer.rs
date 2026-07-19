@@ -67,29 +67,6 @@ impl Packer for ExomizerPacker {
         }
     }
 
-    fn pre_emulate(&self, mem: &mut [u8], system: &System) {
-        if system.as_str() != System::C64 {
-            return;
-        }
-
-        // G*P Intro hack (Galleon/Pride intro exomizer 3.02+ stubs)
-        if mem.len() >= 0x0818 {
-            if (mem[0x080D] == 0xA9 || mem[0x080D] == 0xA0)
-                && mem[0x0811..=0x0814] == [0x20, 0x1E, 0xAB, 0x78]
-            {
-                mem[0x0810] = 3;
-            } else if mem[0x080D..=0x080F] == [0xA0, 0x08, 0xA9]
-                && mem[0x0811..=0x0814] == [0x20, 0x1E, 0xAB, 0x78]
-            {
-                mem[0x080E] = 3;
-            } else if (mem[0x0810] == 0xA0 || mem[0x0810] == 0xA9)
-                && mem[0x0814..=0x0817] == [0x20, 0x1E, 0xAB, 0x78]
-            {
-                mem[0x0811] = 3;
-            }
-        }
-    }
-
     fn post_emulate(
         &self,
         mem: &[u8],
@@ -154,7 +131,7 @@ impl Packer for ExomizerPacker {
         }
 
         if let Some(ver) = exomizer_version
-            && let Some(end_lo) = exomizer_end_lo
+            && exomizer_end_lo.is_some()
         {
             let mut dyn_start = u16::from(mem[0xFE]) + (u16::from(mem[0xFF]) << 8);
             if ver == 0x30 {
@@ -162,20 +139,22 @@ impl Packer for ExomizerPacker {
             } else {
                 dyn_start = dyn_start.wrapping_add(u16::from(y_reg)).wrapping_add(1);
             }
-            if dyn_start >= system.ram_start() {
-                range.0 = dyn_start;
+            if dyn_start >= 0x0400 {
+                range.0 = range.0.min(dyn_start);
             }
 
-            let end_hi = exomizer_end_hi.unwrap_or_else(|| mem[0xFF]);
-            let mut dyn_end = u16::from(end_lo) + (u16::from(end_hi) << 8);
-            if ver == 0x32 {
-                dyn_end = dyn_end.wrapping_add(1);
-            }
-            if dyn_end == 0 {
-                dyn_end = 0xFF00;
-            }
-            if dyn_end > range.0 && dyn_end <= range.1.saturating_add(256) {
-                range.1 = dyn_end.saturating_sub(1);
+            if let Some(end_lo) = exomizer_end_lo {
+                let end_hi = exomizer_end_hi.unwrap_or_else(|| snapshot[0xFF]);
+                let mut dyn_end = u16::from(end_lo) + (u16::from(end_hi) << 8);
+                if ver == 0x32 {
+                    dyn_end = dyn_end.wrapping_add(1);
+                }
+                if dyn_end == 0 {
+                    dyn_end = 0xFF00;
+                }
+                if dyn_end > range.0 {
+                    range.1 = dyn_end.saturating_sub(1);
+                }
             }
         }
     }
@@ -212,7 +191,12 @@ pub fn detect(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dyn Packe
                 ("Exomizer v3.02+", 0x32)
             };
 
-            let entry_point = None;
+            let entry_point =
+                if p + 0x17 < mem.len() && mem[p + 0x10] == 0x20 && mem[p + 0x15] == 0x4C {
+                    Some(u16::from_le_bytes([mem[p + 0x16], mem[p + 0x17]]))
+                } else {
+                    None
+                };
 
             return Some(Box::new(ExomizerPacker::new(
                 PackerInfo {

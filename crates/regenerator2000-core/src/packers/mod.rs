@@ -351,6 +351,9 @@ mod tests {
         mem[q + 8] = 0x1E;
         mem[q + 9] = 0x08;
 
+        mem[0x886] = 0x01;
+        mem[0x887] = 0x08;
+
         mem[0x8CB] = 0x00;
         mem[0x8CC] = 0x20;
 

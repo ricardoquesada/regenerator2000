@@ -1,7 +1,6 @@
 //! ALZ64 (Quiss / Kabuto) strategy implementation.
 
 use super::{Packer, PackerInfo};
-use crate::state::types::System;
 
 /// Strategy implementation for ALZ64 packers.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,13 +22,6 @@ impl Alz64Packer {
 impl Packer for Alz64Packer {
     fn info(&self) -> PackerInfo {
         self.info.clone()
-    }
-
-    fn pre_emulate(&self, mem: &mut [u8], system: &System) {
-        if self.needs_patch && system.as_str() == System::C64 && mem.len() > 0x080B {
-            // ALZ64/Kabuto bootstrap stub check: overwrite with LDX #imm (0xA2)
-            mem[0x080B] = 0xA2;
-        }
     }
 }
 
