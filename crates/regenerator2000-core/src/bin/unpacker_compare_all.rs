@@ -38,14 +38,12 @@ fn main() {
                 if line.contains("fn test_unpack_known_prg_files") {
                     in_known_test = true;
                 }
-                if in_known_test {
-                    if let Some(start) = line.find("file: \"") {
-                        let rest = &line[start + 7..];
-                        if let Some(end) = rest.find('"') {
-                            let filename = &rest[..end];
-                            if !allowed_files.contains(&filename.to_string()) {
-                                allowed_files.push(filename.to_string());
-                            }
+                if in_known_test && let Some(start) = line.find("file: \"") {
+                    let rest = &line[start + 7..];
+                    if let Some(end) = rest.find('"') {
+                        let filename = &rest[..end];
+                        if !allowed_files.contains(&filename.to_string()) {
+                            allowed_files.push(filename.to_string());
                         }
                     }
                 }

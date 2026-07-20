@@ -2014,7 +2014,7 @@ mod tests {
             AppAction::LineComment,
         ];
 
-        for (c, expected_action) in keys.into_iter().zip(actions.into_iter()) {
+        for (c, expected_action) in keys.into_iter().zip(actions) {
             // Test without SHIFT
             let key_no_shift = KeyEvent {
                 code: KeyCode::Char(c),

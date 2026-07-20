@@ -393,8 +393,10 @@ mod tests {
             &mut ui_state,
         );
 
-        let mut expected = UnpackConfig::default();
-        expected.forced_entry = Some(0x0810);
+        let expected = UnpackConfig {
+            forced_entry: Some(0x0810),
+            ..Default::default()
+        };
 
         assert_eq!(
             res,

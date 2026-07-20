@@ -831,10 +831,12 @@ mod tests_regex {
         // via hex bytes — only via mnemonic/operand/comment/label.
         let line = make_line("LDA", "#$09", "", None); // mnemonic won't match "a."
         let re = compile_regex("^a.$").unwrap(); // matches "a9" if hex scan were active
-        let mut filters = SearchFilters::default();
-        filters.instructions = false;
-        filters.comments = false;
-        filters.labels = false;
+        let filters = SearchFilters {
+            instructions: false,
+            comments: false,
+            labels: false,
+            ..Default::default()
+        };
         assert!(!match_instruction_content(&line, "", Some(&re), &filters));
     }
 

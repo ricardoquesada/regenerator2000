@@ -1894,8 +1894,10 @@ mod tests {
         static EMPTY_ENUM_USAGES: LazyLock<BTreeMap<crate::state::Addr, String>> =
             LazyLock::new(BTreeMap::new);
 
-        let mut settings = crate::state::DocumentSettings::default();
-        settings.fill_run_threshold = threshold;
+        let settings = crate::state::DocumentSettings {
+            fill_run_threshold: threshold,
+            ..Default::default()
+        };
 
         // We need a 'static-ish settings – leak it for test purposes.
         let settings_box: &'static crate::state::DocumentSettings = Box::leak(Box::new(settings));
@@ -2179,9 +2181,11 @@ mod tests {
 
         let mut ctx = make_side_comment_ctx(&data, &block_types, &side_comments);
         // Raise bytes_per_line to 8 so all 6 bytes fit on one line.
-        let mut settings = crate::state::DocumentSettings::default();
-        settings.bytes_per_line = 8;
-        settings.fill_run_threshold = 0;
+        let settings = crate::state::DocumentSettings {
+            bytes_per_line: 8,
+            fill_run_threshold: 0,
+            ..Default::default()
+        };
         let settings_box: &'static crate::state::DocumentSettings = Box::leak(Box::new(settings));
         ctx.settings = settings_box;
 

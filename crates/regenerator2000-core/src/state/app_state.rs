@@ -579,7 +579,7 @@ mod tests {
         assert_eq!(info.end_addr, Addr(0x0801));
         assert_eq!(info.size, 0);
         assert_eq!(info.entry_point, None);
-        assert_eq!(info.is_packed, false);
+        assert!(!info.is_packed);
         assert_eq!(info.packer_name, None);
     }
 
@@ -592,7 +592,7 @@ mod tests {
         let info = app_state.file_info();
         assert_eq!(info.start_addr, Addr(0x0801));
         assert_eq!(info.entry_point, Some(Addr(0x8100)));
-        assert_eq!(info.is_packed, false);
+        assert!(!info.is_packed);
         assert_eq!(info.packer_name, None);
     }
 
@@ -609,6 +609,6 @@ mod tests {
         assert_eq!(info.end_addr, Addr(0x080D));
         assert_eq!(info.size, 13);
         assert_eq!(info.entry_point, Some(Addr(2061)));
-        assert_eq!(info.is_packed, false);
+        assert!(!info.is_packed);
     }
 }

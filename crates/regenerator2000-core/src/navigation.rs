@@ -194,8 +194,10 @@ mod tests {
             .get_line_index_for_address(Addr(0xD020))
             .expect("External label should be in disassembly");
 
-        let mut view_state = CoreViewState::default();
-        view_state.cursor_index = ext_label_idx;
+        let mut view_state = CoreViewState {
+            cursor_index: ext_label_idx,
+            ..Default::default()
+        };
 
         // Verify that jumping from an external label pushes the label's address, not 0
         perform_jump_to_address(&app_state, &mut view_state, Addr(0x0801));
@@ -235,8 +237,10 @@ mod tests {
 
         let ext_label_idx = app_state.get_line_index_for_address(Addr(0xD020)).unwrap();
 
-        let mut view_state = CoreViewState::default();
-        view_state.cursor_index = ext_label_idx;
+        let mut view_state = CoreViewState {
+            cursor_index: ext_label_idx,
+            ..Default::default()
+        };
 
         // 1. Jump away
         perform_jump_to_address(&app_state, &mut view_state, Addr(0x0801));
