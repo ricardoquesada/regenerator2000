@@ -100,11 +100,11 @@ impl AppState {
                 self.raw_data = vsf_data.memory;
                 cursor_start = vsf_data.start_address;
                 suggested_system = match vsf_data.machine_name.as_str() {
-                    "C64" => Some(System::new(System::C64)),
-                    "C128" => Some(System::new(System::C128)),
-                    "VIC20" => Some(System::new(System::VIC20)),
-                    "PET" => Some(System::new(System::PET)),
-                    "PLUS4" => Some(System::new(System::PLUS4)),
+                    "C64" => Some(System::C64),
+                    "C128" => Some(System::C128),
+                    "VIC20" => Some(System::Vic20),
+                    "PET" => Some(System::Pet40),
+                    "PLUS4" => Some(System::Plus4),
                     _ => None,
                 };
             } else if ext.eq_ignore_ascii_case("bin") || ext.eq_ignore_ascii_case("raw") {
@@ -353,13 +353,13 @@ impl AppState {
 
         // Migration for legacy system names
         match self.settings.system.as_str() {
-            "Commodore64" => self.settings.system = System::new(System::C64),
-            "Commodore128" => self.settings.system = System::new(System::C128),
-            "Commodore1541" => self.settings.system = System::new(System::C1541),
-            "CommodorePET20" => self.settings.system = System::new(System::PET20),
-            "CommodorePET40" => self.settings.system = System::new(System::PET),
-            "CommodorePlus4" => self.settings.system = System::new(System::PLUS4),
-            "CommodoreVIC20" => self.settings.system = System::new(System::VIC20),
+            "Commodore64" => self.settings.system = System::C64,
+            "Commodore128" => self.settings.system = System::C128,
+            "Commodore1541" => self.settings.system = System::C1541,
+            "CommodorePET20" => self.settings.system = System::Pet20,
+            "CommodorePET40" => self.settings.system = System::Pet40,
+            "CommodorePlus4" => self.settings.system = System::Plus4,
+            "CommodoreVIC20" => self.settings.system = System::Vic20,
             _ => {}
         }
 

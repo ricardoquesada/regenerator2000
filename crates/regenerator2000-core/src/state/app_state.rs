@@ -166,7 +166,7 @@ impl AppState {
         self.labels.retain(|_, v| !v.is_empty());
 
         // Load excludes
-        let excludes = crate::assets::load_excludes(&self.settings.system);
+        let excludes = crate::assets::load_excludes(self.settings.system.as_str());
 
         if self.settings.exclude_well_known_labels {
             self.excluded_addresses = excludes.iter().map(|&a| Addr(a)).collect();
@@ -181,7 +181,7 @@ impl AppState {
 
         // Load comments (conditionally)
         if self.settings.show_system_comments {
-            let comments = crate::assets::load_comments(&self.settings.system);
+            let comments = crate::assets::load_comments(self.settings.system.as_str());
             self.system_comments = comments.into_iter().map(|(k, v)| (Addr(k), v)).collect();
         } else {
             self.system_comments.clear();
@@ -189,7 +189,7 @@ impl AppState {
 
         // Load labels
         let mut platform_labels = crate::assets::load_labels(
-            &self.settings.system,
+            self.settings.system.as_str(),
             Some(&self.settings.enabled_features),
         );
 

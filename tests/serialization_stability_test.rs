@@ -10,7 +10,10 @@ mod tests {
     fn test_serialization_stability() {
         let mut app_state = AppState::new();
         let mut temp_path = std::env::temp_dir();
-        temp_path.push("stability_test.regen2000proj");
+        temp_path.push(format!(
+            "stability_test_{}.regen2000proj",
+            std::process::id()
+        ));
         app_state.project_path = Some(temp_path.clone());
 
         // 1. Setup a complex state with multiple labels at same addresses and comments

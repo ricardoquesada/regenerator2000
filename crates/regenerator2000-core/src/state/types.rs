@@ -1,58 +1,86 @@
 use serde::{Deserialize, Serialize};
 
 // =============================================================================
-// System newtype
+// TargetSystem Enum
 // =============================================================================
 
-/// A target system identifier (e.g. "Commodore 64", "NES").
-///
-/// Wraps a `String` to prevent accidentally passing an arbitrary string where
-/// a system name is expected. Serialises transparently as a plain JSON string
-/// so existing project files keep working.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct System(String);
+/// Strongly typed target machine architecture identifier.
+#[derive(Debug, Clone, Eq)]
+pub enum TargetSystem {
+    C64,
+    C128,
+    Vic20,
+    Pet20,
+    Pet40,
+    Plus4,
+    C16,
+    C1541,
+    C1571,
+    C1581,
+    Custom(Box<str>),
+}
 
-impl System {
-    pub const C64: &'static str = "Commodore 64";
-    pub const C128: &'static str = "Commodore 128";
-    pub const VIC20: &'static str = "Commodore VIC-20";
-    pub const PET: &'static str = "Commodore PET 4.0";
-    pub const PLUS4: &'static str = "Commodore Plus4";
-    pub const C1541: &'static str = "Commodore 1541";
-    pub const PET20: &'static str = "Commodore PET 2.0";
+pub type System = TargetSystem;
 
+impl TargetSystem {
+    pub const C64_NAME: &'static str = "Commodore 64";
+    pub const C128_NAME: &'static str = "Commodore 128";
+    pub const VIC20_NAME: &'static str = "Commodore VIC-20";
+    pub const PET20_NAME: &'static str = "Commodore PET 2001";
+    pub const PET40_NAME: &'static str = "Commodore PET 4000";
+    pub const PLUS4_NAME: &'static str = "Commodore Plus4";
+    pub const C16_NAME: &'static str = "Commodore 16";
+    pub const C1541_NAME: &'static str = "Commodore 1541";
+    pub const C1571_NAME: &'static str = "Commodore 1571";
+    pub const C1581_NAME: &'static str = "Commodore 1581";
+
+    /// Constructs a `TargetSystem` from any string-like reference using string parsing.
     #[must_use]
-    pub fn new(name: impl Into<String>) -> Self {
-        Self(name.into())
+    pub fn new(s: impl AsRef<str>) -> Self {
+        match s.as_ref().parse() {
+            Ok(sys) => sys,
+            Err(infallible) => match infallible {},
+        }
     }
 
-    /// Returns the inner string slice, just like `String::as_str`.
+    /// Returns the canonical string representation of this system.
     #[must_use]
     pub fn as_str(&self) -> &str {
-        &self.0
+        match self {
+            TargetSystem::C64 => Self::C64_NAME,
+            TargetSystem::C128 => Self::C128_NAME,
+            TargetSystem::Vic20 => Self::VIC20_NAME,
+            TargetSystem::Pet20 => Self::PET20_NAME,
+            TargetSystem::Pet40 => Self::PET40_NAME,
+            TargetSystem::Plus4 => Self::PLUS4_NAME,
+            TargetSystem::C16 => Self::C16_NAME,
+            TargetSystem::C1541 => Self::C1541_NAME,
+            TargetSystem::C1571 => Self::C1571_NAME,
+            TargetSystem::C1581 => Self::C1581_NAME,
+            TargetSystem::Custom(s) => s,
+        }
     }
 
-    /// Consumes the wrapper and returns the inner `String`.
+    /// Consumes the enum and returns the string representation.
     #[must_use]
     pub fn into_inner(self) -> String {
-        self.0
+        self.as_str().to_string()
     }
 
     /// Returns `true` if this system is Commodore 64.
     #[must_use]
     pub fn is_c64(&self) -> bool {
-        self.0 == Self::C64
+        matches!(self, TargetSystem::C64)
     }
 
     /// Returns the start address of default RAM for this system.
     #[must_use]
     pub fn ram_start(&self) -> u16 {
-        match self.0.as_str() {
-            Self::C128 => 0x1C00,
-            Self::VIC20 => 0x1000,
-            Self::PET | Self::PET20 => 0x0400,
-            Self::PLUS4 => 0x1000,
+        match self {
+            TargetSystem::C1541 | TargetSystem::C1571 | TargetSystem::C1581 => 0x0000,
+            TargetSystem::C128 => 0x1C00,
+            TargetSystem::Vic20 | TargetSystem::Plus4 | TargetSystem::C16 => 0x1000,
+            TargetSystem::Pet20 | TargetSystem::Pet40 => 0x0400,
             _ => 0x0800,
         }
     }
@@ -60,11 +88,11 @@ impl System {
     /// Returns the default BASIC start address for this system.
     #[must_use]
     pub fn default_basic_start(&self) -> u16 {
-        match self.0.as_str() {
-            Self::C128 => 0x1C01,
-            Self::VIC20 => 0x1001,
-            Self::PET | Self::PET20 => 0x0401,
-            Self::PLUS4 => 0x1001,
+        match self {
+            TargetSystem::C1541 | TargetSystem::C1571 | TargetSystem::C1581 => 0x0000,
+            TargetSystem::C128 => 0x1C01,
+            TargetSystem::Vic20 | TargetSystem::Plus4 | TargetSystem::C16 => 0x1001,
+            TargetSystem::Pet20 | TargetSystem::Pet40 => 0x0401,
             _ => 0x0801,
         }
     }
@@ -72,10 +100,11 @@ impl System {
     /// Returns the default screen RAM memory range if defined for this system.
     #[must_use]
     pub fn screen_ram(&self) -> Option<std::ops::RangeInclusive<u16>> {
-        match self.0.as_str() {
-            Self::C64 | Self::C128 => Some(0x0400..=0x07E7),
-            Self::VIC20 => Some(0x1E00..=0x1FFF),
-            Self::PLUS4 => Some(0x0C00..=0x0FDF),
+        match self {
+            TargetSystem::C64 | TargetSystem::C128 => Some(0x0400..=0x07E7),
+            TargetSystem::Vic20 => Some(0x1E00..=0x1FFF),
+            TargetSystem::Plus4 | TargetSystem::C16 => Some(0x0C00..=0x0FE7),
+            TargetSystem::Pet20 | TargetSystem::Pet40 => Some(0x8000..=0x87CF),
             _ => None,
         }
     }
@@ -83,8 +112,8 @@ impl System {
     /// Returns the default hardware IRQ vector address and handler value `(vector_addr, handler_addr)`.
     #[must_use]
     pub fn default_irq(&self) -> Option<(u16, u16)> {
-        match self.0.as_str() {
-            Self::C64 => Some((0x0314, 0xEA31)),
+        match self {
+            TargetSystem::C64 => Some((0x0314, 0xEA31)),
             _ => None,
         }
     }
@@ -92,9 +121,9 @@ impl System {
     /// Returns the scan boundary ceilings for output range detection on this system.
     #[must_use]
     pub fn memory_boundaries(&self) -> &'static [usize] {
-        match self.0.as_str() {
-            Self::C128 => &[0x3FFF, 0xBFFF, 0xFFEF],
-            Self::VIC20 => &[0x1FFF, 0x7FFF, 0xFFEF],
+        match self {
+            TargetSystem::C128 => &[0x3FFF, 0xBFFF, 0xFFEF],
+            TargetSystem::Vic20 => &[0x1FFF, 0x7FFF, 0xFFEF],
             _ => &[0x9FFF, 0xCFFF, 0xFFEF],
         }
     }
@@ -102,11 +131,11 @@ impl System {
     /// Returns the hardware I/O memory range for this system, if defined.
     #[must_use]
     pub fn io_range(&self) -> Option<std::ops::RangeInclusive<u16>> {
-        match self.0.as_str() {
-            Self::C64 | Self::C128 => Some(0xD000..=0xDFFF),
-            Self::VIC20 => Some(0x9000..=0x97FF),
-            Self::PLUS4 => Some(0xFF00..=0xFF3F),
-            Self::PET | Self::PET20 => Some(0xE800..=0xE8FF),
+        match self {
+            TargetSystem::C64 | TargetSystem::C128 => Some(0xD000..=0xDFFF),
+            TargetSystem::Vic20 => Some(0x9000..=0x97FF),
+            TargetSystem::Plus4 | TargetSystem::C16 => Some(0xFF00..=0xFF3F),
+            TargetSystem::Pet20 | TargetSystem::Pet40 => Some(0xE800..=0xE8FF),
             _ => None,
         }
     }
@@ -120,21 +149,28 @@ impl System {
     /// Returns `true` if `addr` falls within the BASIC ROM memory space for this system.
     #[must_use]
     pub fn is_in_basic_rom(&self, addr: u16) -> bool {
-        match self.0.as_str() {
-            Self::C64 => (0xA000..=0xBFFF).contains(&addr),
-            Self::C128 => (0x4000..=0x7FFF).contains(&addr),
-            Self::VIC20 => (0xC000..=0xDFFF).contains(&addr),
-            Self::PLUS4 => (0x8000..=0xBFFF).contains(&addr),
-            _ => (0xA000..=0xBFFF).contains(&addr),
+        match self {
+            TargetSystem::C64 => (0xA000..=0xBFFF).contains(&addr),
+            TargetSystem::C128 => (0x4000..=0x7FFF).contains(&addr),
+            TargetSystem::Vic20 => (0xC000..=0xDFFF).contains(&addr),
+            TargetSystem::Plus4 | TargetSystem::C16 => (0x8000..=0xBFFF).contains(&addr),
+            TargetSystem::Pet20 | TargetSystem::Pet40 => (0xC000..=0xDFFF).contains(&addr),
+            TargetSystem::C1541 | TargetSystem::C1571 | TargetSystem::C1581 => false,
+            _ => false,
         }
     }
 
     /// Returns `true` if `addr` falls within the Kernal ROM memory space for this system.
     #[must_use]
     pub fn is_in_kernal_rom(&self, addr: u16) -> bool {
-        match self.0.as_str() {
-            Self::C64 | Self::VIC20 | Self::PLUS4 => addr >= 0xE000,
-            Self::C128 => addr >= 0xC000,
+        match self {
+            TargetSystem::C64 | TargetSystem::Vic20 | TargetSystem::Plus4 | TargetSystem::C16 => {
+                addr >= 0xE000
+            }
+            TargetSystem::C128
+            | TargetSystem::C1541
+            | TargetSystem::C1571
+            | TargetSystem::C1581 => addr >= 0xC000,
             _ => addr >= 0xE000,
         }
     }
@@ -142,8 +178,8 @@ impl System {
     /// Returns `true` if `addr` is the main BASIC interpreter execution entry point (e.g. `$A7AE` on C64).
     #[must_use]
     pub fn is_basic_exec_entry(&self, addr: u16) -> bool {
-        match self.0.as_str() {
-            Self::C64 | Self::C128 => addr == 0xA7AE,
+        match self {
+            TargetSystem::C64 => addr == 0xA7AE,
             _ => false,
         }
     }
@@ -152,8 +188,14 @@ impl System {
     #[must_use]
     pub fn is_commodore_basic(&self) -> bool {
         matches!(
-            self.0.as_str(),
-            Self::C64 | Self::C128 | Self::VIC20 | Self::PET | Self::PET20 | Self::PLUS4
+            self,
+            TargetSystem::C64
+                | TargetSystem::C128
+                | TargetSystem::Vic20
+                | TargetSystem::Pet20
+                | TargetSystem::Pet40
+                | TargetSystem::Plus4
+                | TargetSystem::C16
         )
     }
 
@@ -162,60 +204,286 @@ impl System {
     pub fn ram_ceiling(&self) -> u16 {
         0xFFEF
     }
+
+    /// Parses a string slice into a standard `TargetSystem` variant without heap allocation.
+    /// Returns `None` if `s` is not a standard machine architecture alias.
+    #[must_use]
+    pub fn parse_standard(s: &str) -> Option<Self> {
+        let trimmed = s.trim();
+        if trimmed.eq_ignore_ascii_case("c64")
+            || trimmed.eq_ignore_ascii_case("commodore 64")
+            || trimmed.eq_ignore_ascii_case("commodore_64")
+            || trimmed.eq_ignore_ascii_case("c-64")
+        {
+            return Some(TargetSystem::C64);
+        }
+        if trimmed.eq_ignore_ascii_case("c128")
+            || trimmed.eq_ignore_ascii_case("commodore 128")
+            || trimmed.eq_ignore_ascii_case("commodore_128")
+            || trimmed.eq_ignore_ascii_case("c-128")
+        {
+            return Some(TargetSystem::C128);
+        }
+        if trimmed.eq_ignore_ascii_case("vic20")
+            || trimmed.eq_ignore_ascii_case("vic 20")
+            || trimmed.eq_ignore_ascii_case("vic-20")
+            || trimmed.eq_ignore_ascii_case("commodore vic-20")
+            || trimmed.eq_ignore_ascii_case("vc20")
+        {
+            return Some(TargetSystem::Vic20);
+        }
+        if trimmed.eq_ignore_ascii_case("pet20")
+            || trimmed.eq_ignore_ascii_case("pet2001")
+            || trimmed.eq_ignore_ascii_case("pet 2001")
+            || trimmed.eq_ignore_ascii_case("commodore pet 2001")
+            || trimmed.eq_ignore_ascii_case("pet 2.0")
+            || trimmed.eq_ignore_ascii_case("commodore pet 2.0")
+        {
+            return Some(TargetSystem::Pet20);
+        }
+        if trimmed.eq_ignore_ascii_case("pet40")
+            || trimmed.eq_ignore_ascii_case("pet4000")
+            || trimmed.eq_ignore_ascii_case("pet 4000")
+            || trimmed.eq_ignore_ascii_case("commodore pet 4000")
+            || trimmed.eq_ignore_ascii_case("pet 4.0")
+            || trimmed.eq_ignore_ascii_case("commodore pet 4.0")
+            || trimmed.eq_ignore_ascii_case("pet")
+            || trimmed.eq_ignore_ascii_case("commodore pet")
+            || trimmed.eq_ignore_ascii_case("pet80")
+            || trimmed.eq_ignore_ascii_case("pet8000")
+            || trimmed.eq_ignore_ascii_case("pet 8000")
+            || trimmed.eq_ignore_ascii_case("commodore pet 8000")
+            || trimmed.eq_ignore_ascii_case("pet 8.0")
+            || trimmed.eq_ignore_ascii_case("commodore pet 8.0")
+        {
+            return Some(TargetSystem::Pet40);
+        }
+        if trimmed.eq_ignore_ascii_case("plus4")
+            || trimmed.eq_ignore_ascii_case("plus 4")
+            || trimmed.eq_ignore_ascii_case("plus-4")
+            || trimmed.eq_ignore_ascii_case("plus/4")
+            || trimmed.eq_ignore_ascii_case("commodore plus4")
+        {
+            return Some(TargetSystem::Plus4);
+        }
+        if trimmed.eq_ignore_ascii_case("c16")
+            || trimmed.eq_ignore_ascii_case("c-16")
+            || trimmed.eq_ignore_ascii_case("c 16")
+            || trimmed.eq_ignore_ascii_case("commodore 16")
+        {
+            return Some(TargetSystem::C16);
+        }
+        if trimmed.eq_ignore_ascii_case("c1541")
+            || trimmed.eq_ignore_ascii_case("1541")
+            || trimmed.eq_ignore_ascii_case("commodore 1541")
+        {
+            return Some(TargetSystem::C1541);
+        }
+        if trimmed.eq_ignore_ascii_case("c1571")
+            || trimmed.eq_ignore_ascii_case("1571")
+            || trimmed.eq_ignore_ascii_case("commodore 1571")
+        {
+            return Some(TargetSystem::C1571);
+        }
+        if trimmed.eq_ignore_ascii_case("c1581")
+            || trimmed.eq_ignore_ascii_case("1581")
+            || trimmed.eq_ignore_ascii_case("commodore 1581")
+        {
+            return Some(TargetSystem::C1581);
+        }
+        None
+    }
 }
 
-impl Default for System {
+impl Default for TargetSystem {
     fn default() -> Self {
         default_system()
     }
 }
 
-impl std::fmt::Display for System {
+impl std::fmt::Display for TargetSystem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(self.as_str())
     }
 }
 
-impl std::ops::Deref for System {
-    type Target = str;
-    fn deref(&self) -> &str {
-        &self.0
+impl AsRef<str> for TargetSystem {
+    fn as_ref(&self) -> &str {
+        self.as_str()
     }
 }
 
-impl PartialEq<str> for System {
+impl std::str::FromStr for TargetSystem {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let trimmed = s.trim();
+        if let Some(sys) = TargetSystem::parse_standard(trimmed) {
+            Ok(sys)
+        } else {
+            Ok(TargetSystem::Custom(trimmed.into()))
+        }
+    }
+}
+
+impl serde::Serialize for TargetSystem {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for TargetSystem {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct TargetSystemVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for TargetSystemVisitor {
+            type Value = TargetSystem;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a valid target system identifier string")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                v.parse().map_err(serde::de::Error::custom)
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                let trimmed = v.trim();
+                if let Some(sys) = TargetSystem::parse_standard(trimmed) {
+                    Ok(sys)
+                } else if trimmed.len() == v.len() {
+                    Ok(TargetSystem::Custom(v.into_boxed_str()))
+                } else {
+                    Ok(TargetSystem::Custom(trimmed.into()))
+                }
+            }
+        }
+
+        deserializer.deserialize_str(TargetSystemVisitor)
+    }
+}
+
+impl PartialEq for TargetSystem {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (TargetSystem::Custom(a), TargetSystem::Custom(b)) => {
+                if let (Some(sys_a), Some(sys_b)) =
+                    (Self::parse_standard(a), Self::parse_standard(b))
+                {
+                    sys_a == sys_b
+                } else if Self::parse_standard(a).is_some() || Self::parse_standard(b).is_some() {
+                    false
+                } else {
+                    a.eq_ignore_ascii_case(b)
+                }
+            }
+            (TargetSystem::Custom(a), std_sys) | (std_sys, TargetSystem::Custom(a)) => {
+                if let Some(parsed) = Self::parse_standard(a) {
+                    &parsed == std_sys
+                } else {
+                    false
+                }
+            }
+            (a, b) => core::mem::discriminant(a) == core::mem::discriminant(b),
+        }
+    }
+}
+
+impl std::hash::Hash for TargetSystem {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            TargetSystem::Custom(s) => {
+                if let Some(std_sys) = Self::parse_standard(s) {
+                    std_sys.hash(state);
+                } else {
+                    for byte in s.bytes() {
+                        byte.to_ascii_lowercase().hash(state);
+                    }
+                }
+            }
+            std_sys => {
+                core::mem::discriminant(std_sys).hash(state);
+            }
+        }
+    }
+}
+
+impl PartialEq<str> for TargetSystem {
     fn eq(&self, other: &str) -> bool {
-        self.0 == other
+        let trimmed = other.trim();
+        if let Some(other_sys) = TargetSystem::parse_standard(trimmed) {
+            self == &other_sys
+        } else if let TargetSystem::Custom(s) = self {
+            s.as_ref().eq_ignore_ascii_case(trimmed)
+        } else {
+            false
+        }
     }
 }
 
-impl PartialEq<&str> for System {
+impl PartialEq<TargetSystem> for str {
+    fn eq(&self, other: &TargetSystem) -> bool {
+        other == self
+    }
+}
+
+impl PartialEq<TargetSystem> for &str {
+    fn eq(&self, other: &TargetSystem) -> bool {
+        other == *self
+    }
+}
+
+impl PartialEq<TargetSystem> for String {
+    fn eq(&self, other: &TargetSystem) -> bool {
+        other == self.as_str()
+    }
+}
+
+impl PartialEq<&str> for TargetSystem {
     fn eq(&self, other: &&str) -> bool {
-        self.0 == *other
+        self == *other
     }
 }
 
-impl PartialEq<String> for System {
+impl PartialEq<String> for TargetSystem {
     fn eq(&self, other: &String) -> bool {
-        self.0 == *other
+        self == other.as_str()
     }
 }
 
-impl From<&str> for System {
+impl From<&str> for TargetSystem {
     fn from(s: &str) -> Self {
-        Self(s.to_string())
+        TargetSystem::new(s)
     }
 }
 
-impl From<String> for System {
+impl From<String> for TargetSystem {
     fn from(s: String) -> Self {
-        Self(s)
+        TargetSystem::new(&s)
+    }
+}
+
+impl From<&String> for TargetSystem {
+    fn from(s: &String) -> Self {
+        TargetSystem::new(s)
     }
 }
 
 #[must_use]
-pub fn default_system() -> System {
-    System::new(System::C64)
+pub fn default_system() -> TargetSystem {
+    TargetSystem::C64
 }
 
 // =============================================================================
@@ -676,5 +944,161 @@ impl From<EnumDefinition> for RawEnumDefinition {
             description: def.description,
             variants,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_target_system_serde_roundtrip() {
+        let systems = vec![
+            TargetSystem::C64,
+            TargetSystem::C128,
+            TargetSystem::Vic20,
+            TargetSystem::Pet20,
+            TargetSystem::Pet40,
+            TargetSystem::Plus4,
+            TargetSystem::C16,
+            TargetSystem::C1541,
+            TargetSystem::C1571,
+            TargetSystem::C1581,
+            TargetSystem::Custom("Atari 800".into()),
+        ];
+
+        for sys in systems {
+            let json = serde_json::to_string(&sys).expect("serialize target system");
+            let deserialized: TargetSystem =
+                serde_json::from_str(&json).expect("deserialize target system");
+            assert_eq!(sys, deserialized, "Serde roundtrip failed for {sys}");
+        }
+    }
+
+    #[test]
+    fn test_target_system_alias_resolution() {
+        use std::str::FromStr;
+
+        assert_eq!(TargetSystem::from_str("c64").ok(), Some(TargetSystem::C64));
+        assert_eq!(
+            TargetSystem::from_str("Commodore 64").ok(),
+            Some(TargetSystem::C64)
+        );
+        assert_eq!(TargetSystem::from_str("c-64").ok(), Some(TargetSystem::C64));
+        assert_eq!(
+            TargetSystem::from_str("commodore_64").ok(),
+            Some(TargetSystem::C64)
+        );
+
+        assert_eq!(
+            TargetSystem::from_str("c128").ok(),
+            Some(TargetSystem::C128)
+        );
+        assert_eq!(
+            TargetSystem::from_str("vic20").ok(),
+            Some(TargetSystem::Vic20)
+        );
+        assert_eq!(
+            TargetSystem::from_str("pet40").ok(),
+            Some(TargetSystem::Pet40)
+        );
+        assert_eq!(
+            TargetSystem::from_str("plus4").ok(),
+            Some(TargetSystem::Plus4)
+        );
+        assert_eq!(
+            TargetSystem::from_str("c1541").ok(),
+            Some(TargetSystem::C1541)
+        );
+
+        let custom = TargetSystem::from_str("Unknown Machine").ok();
+        assert_eq!(custom, Some(TargetSystem::Custom("Unknown Machine".into())));
+    }
+
+    #[test]
+    fn test_target_system_partial_eq_consistency() {
+        let sys = TargetSystem::C64;
+        // TargetSystem == str / &str / String
+        assert_eq!(sys, "Commodore 64");
+        assert_eq!(sys, "commodore 64");
+        assert_eq!(sys, String::from("Commodore 64"));
+
+        // Symmetric: str / &str / String == TargetSystem
+        assert_eq!("Commodore 64", sys);
+        assert_eq!("commodore 64", sys);
+        assert_eq!(&"Commodore 64", &sys);
+        assert_eq!(String::from("Commodore 64"), sys);
+
+        // Short aliases
+        assert_eq!(TargetSystem::C64, "c64");
+        assert_eq!("c64", TargetSystem::C64);
+        assert_eq!(TargetSystem::C64, "commodore 64");
+        assert_eq!(TargetSystem::Vic20, "vic20");
+        assert_eq!(TargetSystem::Plus4, "plus4");
+        assert_eq!(TargetSystem::C1541, "c1541");
+        assert_ne!(TargetSystem::C64, "c128");
+
+        // Custom variants
+        let custom = TargetSystem::Custom("CustomSystem".into());
+        assert_eq!(custom, "CustomSystem");
+        assert_eq!("CustomSystem", custom);
+        assert_eq!(&custom, &"CustomSystem");
+        assert_eq!(&"CustomSystem", &custom);
+
+        // Transitivity & Custom vs Standard equivalence
+        let custom_c64 = TargetSystem::Custom("c64".into());
+        let std_c64 = TargetSystem::C64;
+        let str_c64 = "c64";
+
+        assert_eq!(custom_c64, std_c64);
+        assert_eq!(std_c64, custom_c64);
+        assert_eq!(custom_c64, str_c64);
+        assert_eq!(str_c64, custom_c64);
+        assert_eq!(std_c64, str_c64);
+        assert_eq!(str_c64, std_c64);
+
+        // Case-insensitivity for custom variants
+        let custom_lower = TargetSystem::Custom("my_sys".into());
+        let custom_upper = TargetSystem::Custom("MY_SYS".into());
+        assert_eq!(custom_lower, custom_upper);
+        assert_eq!(custom_upper, custom_lower);
+        assert_eq!(custom_lower, "MY_SYS");
+        assert_eq!("my_sys", custom_upper);
+    }
+
+    #[test]
+    fn test_target_system_pet_and_drive_hardware_specs() {
+        // PET video RAM
+        assert_eq!(TargetSystem::Pet20.screen_ram(), Some(0x8000..=0x87CF));
+        assert_eq!(TargetSystem::Pet40.screen_ram(), Some(0x8000..=0x87CF));
+
+        // PET BASIC ROM
+        assert!(TargetSystem::Pet40.is_in_basic_rom(0xC000));
+        assert!(TargetSystem::Pet40.is_in_basic_rom(0xDFFF));
+        assert!(!TargetSystem::Pet40.is_in_basic_rom(0xA000));
+
+        // Disk Drive RAM start & BASIC ROM
+        for drive in [
+            TargetSystem::C1541,
+            TargetSystem::C1571,
+            TargetSystem::C1581,
+        ] {
+            assert_eq!(drive.ram_start(), 0x0000);
+            assert_eq!(drive.default_basic_start(), 0x0000);
+            assert!(!drive.is_in_basic_rom(0xA000));
+            assert!(!drive.is_in_basic_rom(0xC000));
+        }
+
+        // BASIC exec entry
+        assert!(TargetSystem::C64.is_basic_exec_entry(0xA7AE));
+        assert!(!TargetSystem::C128.is_basic_exec_entry(0xA7AE));
+    }
+
+    #[test]
+    fn test_target_system_serde_visit_string() {
+        let json_owned_str = "\"c64\"".to_string();
+        let deserialized: TargetSystem =
+            serde_json::from_str(&json_owned_str).expect("deserialize owned string");
+        assert_eq!(deserialized, TargetSystem::C64);
     }
 }

@@ -77,7 +77,7 @@ impl Packer for ExomizerPacker {
         system: &System,
         y_reg: u8,
     ) {
-        if system.as_str() != System::C64 {
+        if !system.is_c64() {
             return;
         }
 

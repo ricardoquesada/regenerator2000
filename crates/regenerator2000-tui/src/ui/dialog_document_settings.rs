@@ -163,7 +163,7 @@ impl Widget for DocumentSettingsDialog {
         ];
 
         // Dynamic System Config Options
-        let system_config = crate::assets::load_system_config(&settings.system);
+        let system_config = crate::assets::load_system_config(settings.system.as_str());
 
         // Indices calculation for rigid elements
         let fixed_opts_start = items.len();
@@ -645,7 +645,7 @@ impl Widget for DocumentSettingsDialog {
         ui_state: &mut UIState,
     ) -> WidgetResult {
         // Calculate dynamic max items for navigation
-        let system_config = crate::assets::load_system_config(&app_state.settings.system);
+        let system_config = crate::assets::load_system_config(app_state.settings.system.as_str());
         let dynamic_items_count = system_config.features.len();
 
         let base_items_count = 6; // AllLabels, PreserveLongBytes, BrkSingle, PatchBrk, IllegalOpcodes, AutoAnalyze
@@ -1100,8 +1100,9 @@ impl Widget for DocumentSettingsDialog {
                         }
                         idx if idx >= dynamic_start_idx => {
                             // Dynamic items (system labels)
-                            let system_config =
-                                crate::assets::load_system_config(&app_state.settings.system);
+                            let system_config = crate::assets::load_system_config(
+                                app_state.settings.system.as_str(),
+                            );
                             let config_idx = idx - dynamic_start_idx;
                             if let Some(feature) = system_config.features.get(config_idx) {
                                 let current_val = app_state

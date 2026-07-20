@@ -302,7 +302,7 @@ impl UIState {
                 .or_else(|| app_state.file_info().packer_name);
             self.push_dialog(Box::new(
                 crate::ui::dialog_import_context::ImportContextDialog::new(
-                    &app_state.settings.system.to_string(),
+                    app_state.settings.system.as_str(),
                     app_state.origin,
                     loaded_data.suggested_entry_point,
                     loaded_data.suggested_system.clone(),

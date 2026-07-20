@@ -513,11 +513,9 @@ mod tests {
             is_collapsed: false,
         });
 
-        // 2. Export to a temp file
-        // Since we don't want to depend on `tempfile` crate if it's not in Cargo.toml,
-        // we'll use a local file and try to clean it up.
-        let file_name = "test_output.asm";
-        let path = PathBuf::from(file_name);
+        // 2. Export to a temp file in std::env::temp_dir()
+        let path =
+            std::env::temp_dir().join(format!("test_output_64tass_{}.asm", std::process::id()));
 
         // Clean up before just in case
         if path.exists() {
@@ -528,8 +526,7 @@ mod tests {
         assert!(res.is_ok(), "Export failed: {:?}", res.err());
 
         // 3. Run 64tass (if available)
-        // Command: 64tass test_output.asm
-        let result = Command::new("64tass").arg(file_name).output();
+        let result = Command::new("64tass").arg(&path).output();
 
         match result {
             Ok(output) => {
@@ -538,16 +535,17 @@ mod tests {
                 println!("stdout: {stdout}");
                 println!("stderr: {stderr}");
 
+                let _ = std::fs::remove_file(&path);
+
                 assert!(
                     output.status.success(),
                     "64tass compilation failed. \nStdout: {stdout}\nStderr: {stderr}"
                 );
             }
             Err(e) => {
+                let _ = std::fs::remove_file(&path);
                 if e.kind() == std::io::ErrorKind::NotFound {
                     println!("Skipping test: 64tass not found");
-                    // Cleanup and return success
-                    let _ = std::fs::remove_file(&path);
                     return;
                 }
                 panic!("Failed to execute 64tass: {e}");

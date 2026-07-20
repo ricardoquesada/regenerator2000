@@ -21,11 +21,11 @@ pub fn parse_prg(data: &[u8]) -> Result<PrgData> {
     let raw_data = data[2..].to_vec();
 
     let suggested_system = match origin {
-        0x0801 => Some(System::new(System::C64)),
-        0x1C01 => Some(System::new(System::C128)),
-        0x1001 => Some(System::new(System::PLUS4)),
-        0x0401 => Some(System::new(System::PET)),
-        0x1201 => Some(System::new(System::VIC20)),
+        0x0801 => Some(System::C64),
+        0x1C01 => Some(System::C128),
+        0x1001 => Some(System::Plus4),
+        0x0401 => Some(System::Pet40),
+        0x1201 => Some(System::Vic20),
         _ => None,
     };
 

@@ -34,7 +34,9 @@ impl ImportContextDialog {
         packer_name: Option<impl Into<String>>,
     ) -> Self {
         let systems = crate::assets::get_available_systems();
-        let target_system = suggested_system.as_deref().unwrap_or(current_system);
+        let target_system = suggested_system
+            .as_ref()
+            .map_or(current_system, System::as_str);
         let selected_system_idx = systems.iter().position(|p| p == target_system).unwrap_or(0);
 
         let packer_str: Option<String> = packer_name.map(Into::into);

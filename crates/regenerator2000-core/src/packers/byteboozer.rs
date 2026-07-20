@@ -33,7 +33,7 @@ impl Packer for ByteBoozerPacker {
         system: &System,
         _y_reg: u8,
     ) {
-        if system.as_str() != System::C64 || snapshot.len() < 0x8C4 {
+        if !system.is_c64() || snapshot.len() < 0x8C4 {
             return;
         }
 

@@ -36,7 +36,9 @@ pub struct UnpackConfig {
     pub kernal_rom: Option<Vec<u8>>,
     /// Optional 4 KB Character ROM image (`$D000`–`$DFFF`).
     pub char_rom: Option<Vec<u8>>,
-    /// Target system (default: None, defaults to C64 during execution).
+    /// Target system machine architecture (default: `None`, which defaults to C64 during execution).
+    /// Controls memory boundary ceilings, default RAM and BASIC start addresses,
+    /// hardware vector locations, and target-specific memory mapping during decompression emulation.
     pub target_system: Option<crate::state::types::System>,
 }
 
@@ -575,11 +577,11 @@ const C64_ZEROPAGE_TEMPLATE: [u8; 256] = [
 /// Initializes target zero-page and system area defaults (per unp64 lines 572-620).
 fn init_zero_page(mem: &mut UnpackerMemory, load_addr: u16, data_len: u16, basic_start: u16) {
     let end_addr = load_addr.wrapping_add(data_len);
-    let system = mem.system.clone();
+    let system = &mem.system;
 
     if system.is_c64() {
         mem.mem[0..256].copy_from_slice(&C64_ZEROPAGE_TEMPLATE);
-    } else if system.as_str() == crate::state::types::System::C128 {
+    } else if *system == crate::state::types::TargetSystem::C128 {
         mem.mem[0x00] = 0x2F;
         mem.mem[0x01] = 0x37;
     }

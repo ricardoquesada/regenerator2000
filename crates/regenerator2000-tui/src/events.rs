@@ -294,7 +294,7 @@ fn handle_unpack_complete(
                     // Show import context dialog for system/origin/entry setup
                     ui_state.push_dialog(Box::new(
                         crate::ui::dialog_import_context::ImportContextDialog::new(
-                            &core.state.settings.system.to_string(),
+                            core.state.settings.system.as_str(),
                             origin,
                             Some(entry),
                             None,
@@ -491,10 +491,10 @@ fn handle_vice_registers_get(
         if app_state.settings.system == System::C64 || app_state.settings.system == System::C128 {
             client.send_memory_get(0xD000, 0xDFFF, 3);
             client.send_memory_get(0x0000, 0x0001, 4);
-        } else if app_state.settings.system == System::VIC20 {
+        } else if app_state.settings.system == System::Vic20 {
             // VIC-I registers: $9000–$900F
             client.send_memory_get(0x9000, 0x900F, 3);
-        } else if app_state.settings.system == System::PLUS4 {
+        } else if app_state.settings.system == System::Plus4 {
             // TED chip registers: $FF00–$FF3F
             client.send_memory_get(0xFF00, 0xFF3F, 3);
         }

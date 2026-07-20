@@ -201,7 +201,7 @@ pub fn handle_menu_action(
                     let packer = core.state.file_info().packer_name;
                     ui_state.push_dialog(Box::new(
                         crate::ui::dialog_import_context::ImportContextDialog::new(
-                            &core.state.settings.system.to_string(),
+                            core.state.settings.system.as_str(),
                             origin,
                             Some(entry_point),
                             None, // inherit system from current state
