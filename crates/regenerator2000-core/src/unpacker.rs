@@ -457,6 +457,12 @@ impl Bus for UnpackerMemory {
             let hiram = (bank & 0x02) != 0;
             let charen = (bank & 0x04) != 0;
 
+            // When I/O space is mapped (CHAREN=1 AND (LORAM=1 OR HIRAM=1)), writes to $D000–$DFFF
+            // target I/O chip registers (VIC-II, SID, CIA 1, CIA 2), NOT underlying RAM.
+            // Do NOT mutate `self.mem[a]` here: updating RAM during I/O writes causes depackers
+            // that perform border color flashing (e.g. `INC $D020`) to corrupt RAM bytes beneath
+            // I/O space, which breaks decompression when the depacker later reads those RAM
+            // addresses after switching to RAM bank configuration.
             if (0xD000..=0xDFFF).contains(&addr) && charen && (loram || hiram) {
                 if (0xDC00..=0xDC0F).contains(&addr) {
                     self.cia1.write_reg((addr & 0x0F) as u8, val);
@@ -465,7 +471,6 @@ impl Bus for UnpackerMemory {
                 } else if addr == 0xD011 {
                     self.shadow_d011 = val;
                 }
-                self.mem[a] = val;
                 return;
             }
         }
