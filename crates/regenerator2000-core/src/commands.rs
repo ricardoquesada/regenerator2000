@@ -509,6 +509,11 @@ impl UndoStack {
         self.pointer < self.commands.len()
     }
     #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.commands.is_empty()
+    }
+
+    #[must_use]
     pub fn get_pointer(&self) -> usize {
         self.pointer
     }

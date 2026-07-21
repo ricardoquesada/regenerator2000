@@ -6,6 +6,7 @@
 //! This crate provides all UI-agnostic logic:
 //!
 //! - **[`state`]** — Application state: memory, block types, labels, comments, cross-refs, undo stack.
+//! - **[`action_handlers`]** — Modular domain action handlers for processing user and MCP actions.
 //! - **[`disassembler`]** — 6502 instruction decoding and per-assembler formatters (64tass, ACME, KickAssembler, ca65).
 //! - **[`analyzer`]** — Auto-analysis to identify code and data regions, generate labels and cross-refs.
 //! - **[`commands`]** — Undoable command system (every mutation goes through `Command::apply`).
@@ -20,6 +21,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
+pub mod action_handlers;
 pub mod analyzer;
 pub mod assets;
 pub mod commands;
