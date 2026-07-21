@@ -22,15 +22,17 @@ flowchart TD
 
     subgraph core_crate [regenerator2000-core Crate - Engine]
         Core[Core Hub]
+        ActionHandlers[Action Handlers<br/>File / Disasm / Debug / Nav]
         Action[AppAction]
         CommandSys[Command System]
         AppState[Application State]
+        AnnotationMap[AnnotationManager<br/>Sparse Metadata]
         CoreViewState[Core View State]
         Analyzer[Code Analyzer]
-        DisasmEngine[Disassembly Engine]
+        DisasmEngine[Disassembly Engine<br/>symbols / data_blocks / pipeline]
         ViceClient[VICE Client]
         MCPServer[MCP Server<br/>HTTP/Stdio]
-        Unpacker[Binary Unpacker]
+        Unpacker[Binary Unpacker<br/>cia / bus / engine / detector]
     end
 
     subgraph External [External Interface]
@@ -44,18 +46,20 @@ flowchart TD
     EventLoop -->|Drives| Renderer
     Widget -->|AppAction| Action
     Action -->|apply_action| Core
+    Core -->|Delegates via ActionContext| ActionHandlers
 
     MCPClient -->|Tools/Resources| MCPServer
     MCPServer -->|AppAction| Core
     MCPServer -.->|Read State| AppState
 
-    Core -->|Dispatch| CommandSys
-    Core -->|Direct Mutate| CoreViewState
+    ActionHandlers -->|Dispatch| CommandSys
+    ActionHandlers -->|Direct Mutate| CoreViewState
     Core -->|UnpackStarted Event| EventLoop
     EventLoop -->|Spawns background| Unpacker
     Unpacker -.->|Loads unpacked PRG| AppState
 
     CommandSys -->|Apply/Undo| AppState
+    AppState -->|Consolidates annotations| AnnotationMap
 
     AppState -->|Requests| DisasmEngine
     AppState -->|Triggers| Analyzer
@@ -75,7 +79,7 @@ The project is organized as a Cargo workspace with three primary components:
 
 1. **[`regenerator2000-core`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core)
    **: The head-less engine. Contains all memory management, disassembly logic, CPU tables, analysis heuristics,
-   cross-frontend view state, and the MCP server.
+   cross-frontend view state, binary unpackers, and the MCP server.
 2. **[`regenerator2000-tui`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui)**:
    The TUI library. Implements the `ratatui` widgets, event loop coordination, and theme system.
 3. **[`regenerator2000`](https://github.com/ricardoquesada/regenerator2000/tree/main/src)** (root): The binary crate.
@@ -83,83 +87,65 @@ The project is organized as a Cargo workspace with three primary components:
 
 ## Core Components
 
-### 1. Application State & Logic ([`regenerator2000-core/src/state/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/state))
+### 1. Application State & Logic ([`regenerator2000-core/src/state/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/state) & [`src/action_handlers/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/action_handlers))
 
-The core engine state, organized across multiple modules:
+The core engine state, organized across multiple domain modules:
 
 - **[`core.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/core.rs)**:
   The central `Core` hub. Orchestrates persistent state (`AppState`) and transient view state (`CoreViewState`).
-  Frontends interact with it via `apply_action()`.
-- **[
-  `app_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/app_state.rs)
-  **: The main `AppState` struct that holds the runtime data hub. Contains the Undo Stack, Disassembly Cache, scopes,
-  and connection state for VICE.
-- **[
-  `view_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/view_state.rs)
-  **: Defines `CoreViewState` — the frontend-agnostic representation of cursor positions, selections, and active panes.
-- **[
-  `actions.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/actions.rs)
-  **: Defines the `AppAction` enum — semantic actions that any frontend (TUI, GUI, Web, MCP) can produce.
-- **[
-  `blocks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/blocks.rs)
-  **: Block management logic (Code, Data, Text, etc.) and memory layout queries.
-- **[
-  `disassembly.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/disassembly.rs)
-  **: Disassembly orchestration and line-index lookups.
-- **[
-  `file_io.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/file_io.rs)
-  **: Loading and importing of various formats into `AppState`.
-- **[
-  `navigation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/navigation.rs)
-  **: Pure navigation helpers (jumping to addresses, creating save contexts) that operate on `AppState` +
-  `CoreViewState`.
-- **[
-  `project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/project.rs)
-  **: The `ProjectState` struct — the persistent part of the state saved to `.regen2000proj` files (includes labels,
-  comments, blocks, scopes, and enums).
-- **[
-  `settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/settings.rs)
-  **: Document-level settings (assembler, system, display preferences, fill run threshold).
-- **[
-  `search.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/search.rs)
-  **: Centralized search logic (hex, text, PETSCII).
-- **[
-  `types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/types.rs)
-  **: Core type definitions used across the workspace (`Addr`, `System`, `BlockType`, `Assembler`, `LabelType`, etc.).
-- **[`event.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/event.rs)
-  **: Defines `CoreEvent` (state changes, dialog requests, status messages) and `DialogType` — the frontend-agnostic
-  event vocabulary returned by `Core::apply_action()`.
+  Delegates `apply_action()` execution to SRP action handlers via `ActionContext<'a>`.
+- **[`action_handlers/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/action_handlers)**:
+  Modular action dispatchers that process domain actions cleanly:
+  - **`file_handler.rs`**: File loading, saving, importing, project reset, and assembler export.
+  - **`disassembly_handler.rs`**: Block type toggling, comment editing, label assignment, and scope creation.
+  - **`debug_handler.rs`**: VICE monitor connection, breakpoint/watchpoint management, and execution stepping.
+  - **`navigation_handler.rs`**: Address jumps, symbol navigation, bookmarking, and history stack pushing.
+- **[`app_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/app_state.rs)**:
+  The main `AppState` struct that holds runtime data. Contains the Undo Stack, Disassembly Cache, system configuration,
+  annotations (`AnnotationManager`), cross-references (`cross_refs`), and connection state for VICE.
+- **[`annotations.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/annotations.rs)**:
+  Unified sparse address metadata manager (`AnnotationManager` & `AddressEntry`). Replaces parallel `BTreeMap` address structures with a single sparse annotation map, automatically normalizing empty strings, pruning empty nodes, and maintaining 100% legacy `.regen2000proj` JSON project backward compatibility via `#[serde(flatten)]`.
+- **[`types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/types.rs)**:
+  Domain types including zero-cost `TargetSystem` discriminant enum (`C64`, `C128`, `Vic20`, `Plus4`, `Pet20`, `Pet40`, `Pet80`, `C1541`, `C1571`, `C1581`, `Custom`), `Addr`, `BlockType`, `Assembler`, `LabelType`, etc.
+- **[`error.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/error.rs)**:
+  Domain error hierarchy (`CoreError` via `thiserror`) with subsystem variants (`UnpackError`, `ExportError`, `ViceError`, `ProjectError`) and path-tracking context extension (`IoResultExt`).
+- **[`view_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/view_state.rs)**:
+  Defines `CoreViewState` — the frontend-agnostic representation of cursor positions, selections, and active panes.
+- **[`actions.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/actions.rs)**:
+  Defines the `AppAction` enum — semantic actions that any frontend (TUI, GUI, Web, MCP) can produce.
+- **[`blocks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/blocks.rs)**:
+  Block management logic (Code, Data, Text, etc.) and memory layout queries.
+- **[`file_io.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/file_io.rs)**:
+  Loading and importing of various formats into `AppState`.
+- **[`navigation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/navigation.rs)**:
+  Pure navigation helpers (jumping to addresses, creating save contexts) that operate on `AppState` + `CoreViewState`.
+- **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/project.rs)**:
+  The `ProjectState` struct — the persistent state saved to `.regen2000proj` files. Flattens `annotations: AnnotationManager` for backward compatibility.
+- **[`settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/settings.rs)**:
+  Document-level settings (assembler, system, display preferences, fill run threshold).
+- **[`search.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/search.rs)**:
+  Centralized search logic (hex, text, PETSCII).
+- **[`event.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/event.rs)**:
+  Defines `CoreEvent` (state changes, dialog requests, status messages) and `DialogType` — the frontend-agnostic event vocabulary returned by `Core::apply_action()`.
 
 ### 2. Disassembly Engine ([`regenerator2000-core/src/disassembler/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/disassembler))
 
-Responsible for converting raw bytes into human-readable assembly code based on the state.
+Responsible for converting raw bytes into human-readable assembly code based on the state. Structured as a 4-module subsystem:
 
-- **[
-  `disassembler.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler.rs)
-  **: The main driver. It iterates through the raw data, respecting `BlockType` definitions, and produces a list of
-  `DisassemblyLine`s.
-- **[
-  `context.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/context.rs)
-  **: The `DisassemblyContext` struct that bundles all data needed for a disassembly pass (binary data, block types,
-  labels, comments, cross-refs, analysis hints, etc.).
-- **[
-  `handlers.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/handlers.rs)
-  **: Helper functions for disassembling specific block types (e.g., data bytes, words, addresses, text, screencodes).
-- **[
-  `formatter.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/formatter.rs)
-  **: A trait abstracting the differences between assembler syntaxes.
-- **[
-  `formatter_acme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/formatter_acme.rs)
-  **: ACME assembler implementation.
-- **[
-  `formatter_64tass.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/formatter_64tass.rs)
-  **: 64tass assembler implementation.
-- **[
-  `formatter_ca65.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/formatter_ca65.rs)
-  **: ca65 (cc65 suite) assembler implementation.
-- **[
-  `formatter_kickasm.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/formatter_kickasm.rs)
-  **: KickAssembler implementation.
+- **[`mod.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/mod.rs)**:
+  Public API facade. Re-exports `DisassemblyContext`, `HandleArgs`, `format_cross_references`, `resolve_label`, `resolve_label_name`, `Disassembler`, `DisassemblyLine`, `LABEL_COLUMN_WIDTH`, and `DEFINITION_COLUMN_WIDTH` with 100% backward compatibility.
+- **[`pipeline.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/pipeline.rs)**:
+  Main `disassemble_ctx` decoding loop and instruction execution pipeline (`disassemble_code_instruction`).
+- **[`data_blocks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/data_blocks.rs)**:
+  Formatters for non-instruction memory blocks (`disassemble_bytes`, `disassemble_words`, `disassemble_addresses`, `disassemble_petscii`, `disassemble_screencode`, `disassemble_external_file`, `disassemble_partial_data`, `disassemble_fill_run`).
+- **[`symbols.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/symbols.rs)**:
+  Symbol priority precedence (`User` > `System` > `Auto`), scope name resolution (`compute_scope_names`), local label scanning (`compute_local_label_names`), and instruction target address lookups.
+- **[`context.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/context.rs)**:
+  The `DisassemblyContext` struct bundling binary data, block types, labels, annotations, cross-refs, and pre-computed scope boundaries for $O(\log S)$ virtual splitter checks.
+- **[`handlers.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/handlers.rs)**:
+  Addressing mode operand formatting handlers.
+- **[`formatter.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/formatter.rs)**:
+  A trait abstracting differences between assembler syntaxes (`TassFormatter`, `AcmeFormatter`, `Ca65Formatter`, `KickAsmFormatter`).
 
 ### 3. CPU Model ([`regenerator2000-core/src/cpu.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/cpu.rs))
 
@@ -204,52 +190,49 @@ Handles importing various Commodore file formats and label files.
   from 1541/1571/1581 disk images.
 - **[`t64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/t64.rs)
   **: Parser for T64 tape archive files.
-- **[
-  `dis65.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/dis65.rs)
+- **[`dis65.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/dis65.rs)
   **: Parser for 6502bench SourceGen (.dis65) project files.
-- **[
-  `vice_lbl.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_lbl.rs)
+- **[`vice_lbl.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_lbl.rs)
   **: Parser for VICE label files (.lbl) for importing debug symbols.
-- **[
-  `vice_vsf.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_vsf.rs)
+- **[`vice_vsf.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_vsf.rs)
   **: Parser for VICE snapshot files (.vsf). Auto-detects the system from the VSF header.
-
-These parsers allow Regenerator 2000 to load programs from multiple source formats (PRG, CRT, D64/D71/D81, T64, VSF,
-DIS65) and import debugging symbols from VICE emulator sessions.
 
 ### 7. Exporter ([`regenerator2000-core/src/exporter/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/exporter))
 
 Handles generation of complete, compilable source code and browsable HTML disassembly files.
 
-- **[
-  `asm.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/asm.rs)
+- **[`asm.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/asm.rs)
   **: Exports disassembly as a compilable assembly source file. Supports all four assembler formats (ACME, 64tass, ca65,
   KickAssembler) via the `Formatter` trait, and handles external-file (`incbin`) regions.
-- **[
-  `html.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/html.rs)
+- **[`html.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/html.rs)
   **: Exports disassembly as a self-contained, syntax-highlighted HTML file with clickable cross-reference hyperlinks,
   light/dark theme toggle, and assembler-specific build instructions in the header. `ExternalFile` regions are written
   to separate linked HTML files.
-- **[
-  `verify.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/verify.rs)
+- **[`verify.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/verify.rs)
   **: Export→assemble→diff roundtrip verification. Exports ASM, invokes the real assembler binary, and byte-compares the
   output against the original binary to confirm disassembly correctness. Supports all four assemblers.
 
-### 8. Binary Unpacker ([`regenerator2000-core/src/unpacker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker.rs) & [`regenerator2000-core/src/packers/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/packers))
+### 8. Binary Unpacker ([`regenerator2000-core/src/unpacker/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/unpacker) & [`regenerator2000-core/src/packers/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/packers))
 
-Provides an accurate 6502 emulation sandbox to automatically decompress packed Commodore 64 programs.
+Provides an accurate 6502 emulation sandbox to automatically decompress packed Commodore 64 programs. Structured as a 5-module subsystem:
 
-- **Strategy Pattern Architecture**: Uses a trait-based `Packer` strategy pattern (`Box<dyn Packer>`) where each supported packer lives in its own dedicated module under `src/packers/` (e.g., `exomizer.rs`, `dali.rs`, `pucrunch.rs`). Packers encapsulate signature detection, pre-emulation memory patching (`pre_emulate`), dynamic step hooks (`on_step`), and post-emulation boundary/entry-point overrides (`post_emulate`).
-- **Two-Phase Emulation**: Simulates the packer's decryption stub (Phase 1) and runs the main decompression routine (Phase 2), tracking memory writes to extract clean, decompressed program data.
-- **Advanced Sandboxing**: Intercepts Kernal and BASIC ROM vectors (such as `GETIN`, `CHROUT`, `CLRSCR`) to bypass I/O calls, prevent infinite loops, and handle sophisticated decompression stubs natively.
-- **Background Execution**: Runs asynchronously on a separate thread with real-time instruction counters sent to the TUI status bar for responsiveness during heavy unpacking jobs.
+- **[`mod.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker/mod.rs)**:
+  Public API facade re-exporting `unpack`, `UnpackConfig`, `UnpackResult`, `UnpackerMemory`, `C64Bus`, `UnpackError`, and `find_sys_address`.
+- **[`cia.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker/cia.rs)**:
+  `CiaState` MOS 6526 CIA 1 & CIA 2 timer state emulation and cycle-accurate stepping (`step_cycles`).
+- **[`bus.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker/bus.rs)**:
+  `C64Bus` (`UnpackerMemory`), $00/$01 processor port, ROM banking, and I/O chip redirection with safe checked ROM lookups.
+- **[`engine.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker/engine.rs)**:
+  2-Phase 6502 execution loop with instruction step hooks and ROM trap handling.
+- **[`detector.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker/detector.rs)**:
+  Pure memory range diffing, snapshot matching, and trailing cluster trimming heuristics.
+- **Strategy Pattern Architecture**: Uses a trait-based `Packer` strategy pattern (`Box<dyn Packer>`) where each supported packer lives in its own dedicated module under `src/packers/` (e.g., `exomizer.rs`, `dali.rs`, `pucrunch.rs`).
 
 ### 9. UI Architecture
 
 The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstraction.
 
-- **`Widget` Trait** ([
-  `regenerator2000-tui/src/ui/widget.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/widget.rs)):
+- **`Widget` Trait** ([`regenerator2000-tui/src/ui/widget.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/widget.rs)):
   Defines the interface for all UI components (Views, Dialogs, Menu, StatusBar).
 
   ```rust
@@ -262,295 +245,56 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   ```
 
 - **Core UI Components**:
-  - **[`main.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/main.rs)**: Initializes the terminal
-    and event loop.
-  - **[
-    `events.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/events.rs)
-    **: The primary event loop and rendering coordinator. Synchronizes view states and manages the main application
-    loop.
-  - **[
-    `events/input.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/events/input.rs)
-    **: The input router. It determines the active pane and dispatches input events (keyboard and mouse) to the
-    corresponding `Widget`.
-  - **[`ui.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui.rs)**:
-    The top-level layout engine. It renders the Menu, MinimapBar, StatusBar, and the active Main View.
-  - **[
-    `minimap_bar.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/minimap_bar.rs)
-    **: Top-level horizontal memory map overview widget with IDA Pro-style colored blocks.
-  - **[
-    `statusbar.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/statusbar.rs)
-    **: Bottom status bar showing cursor address, block type, and context info.
-  - **[
-    `navigable.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/navigable.rs)
-    **: Shared trait/helpers for views that support cursor-based navigation.
-  - **[
-    `graphics_common.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/graphics_common.rs)
-    **: Shared rendering logic for graphical views (sprites, charset, bitmap).
+  - **[`main.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/main.rs)**: Initializes the terminal and event loop.
+  - **[`events.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/events.rs)**: The primary event loop and rendering coordinator.
+  - **[`events/input.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/events/input.rs)**: Input router dispatching keyboard and mouse events to active `Widget`.
+  - **[`ui.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui.rs)**: Top-level layout engine.
 
-- **Menu System** ([
-  `regenerator2000-tui/src/ui/menu/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui/menu)):
-  The menu bar is split across several sub-modules:
-  - **[
-    `mod.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/menu/mod.rs)
-    **: The `Menu` struct implementing `Widget`, handling keyboard and mouse interaction with the menu bar and popup
-    menus.
-  - **[
-    `menu_action.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/menu/menu_action.rs)
-    **: Action dispatch logic — routes `AppAction` variants to `Command` applications, dialog creation, and other side
-    effects.
-  - **[
-    `menu_model.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/menu/menu_model.rs)
-    **: Data model for the menu system: `MenuState`, `MenuCategory`, and `MenuItem` structs with keyboard shortcut
-    bindings.
-  - **[
-    `menu_render.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/menu/menu_render.rs)
-    **: Rendering functions for the menu bar and popup menus.
+- **Menu System** ([`regenerator2000-tui/src/ui/menu/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui/menu))
+- **Main Views** ([`regenerator2000-tui/src/ui/view_*.rs`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui))
+- **Dialogs** ([`regenerator2000-tui/src/ui/dialog_*.rs`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui))
 
-- **Main Views** ([
-  `regenerator2000-tui/src/ui/view_*.rs`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui)):
-  - **[
-    `view_disassembly.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly.rs)
-    **: The primary disassembly listing view with syntax highlighting and navigation.
-  - **[
-    `view_hexdump.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_hexdump.rs)
-    **: Hexadecimal dump view with multiple display modes (PETSCII, Screencode).
-  - **[
-    `view_sprites.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_sprites.rs)
-    **: Visual sprite editor/viewer for C64 sprite data.
-  - **[
-    `view_charset.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_charset.rs)
-    **: Character set editor/viewer for font data.
-  - **[
-    `view_bitmap.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_bitmap.rs)
-    **: Bitmap graphics viewer for hires and multicolor bitmaps.
-  - **[
-    `view_blocks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_blocks.rs)
-    **: Block type overview showing the memory layout.
-  - **[
-    `view_debugger.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_debugger.rs)
-    **: Live debugging view for VICE integration.
+### 10. Theme System ([`regenerator2000-tui/src/theme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme.rs))
 
-- **Dialogs** ([
-  `regenerator2000-tui/src/ui/dialog_*.rs`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui)):
-  - **[
-    `dialog_about.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_about.rs)
-    **: About/help dialog.
-  - **[
-    `dialog_apply_enum.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_apply_enum.rs)
-    **: Apply a custom enum definition to a data block or instruction operand.
-  - **[
-    `dialog_bookmarks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_bookmarks.rs)
-    **: Bookmark manager for navigating saved addresses.
-  - **[
-    `dialog_breakpoint_address.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_breakpoint_address.rs)
-    **: Set breakpoint address for VICE debugging.
-  - **[
-    `dialog_comment.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_comment.rs)
-    **: Add/edit comments.
-  - **[
-    `dialog_complete_address.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_complete_address.rs)
-    **: Complete missing byte for Hi/Lo or Lo/Hi address packing when only one immediate value is available.
-  - **[
-    `dialog_confirmation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_confirmation.rs)
-    **: Generic confirmation dialog.
-  - **[
-    `dialog_crt_picker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_crt_picker.rs)
-    **: CRT cartridge chip/bank picker for selecting which chip to load from multi-chip cartridges.
-  - **[
-    `dialog_d64_picker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_d64_picker.rs)
-    **: D64 disk image file picker for loading programs from disk images.
-  - **[
-    `dialog_document_settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_document_settings.rs)
-    **: Project-level settings editor.
-  - **[
-    `dialog_edit_enum.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_edit_enum.rs)
-    **: Create, update, or delete key-value mappings within a custom enum definition.
-  - **[
-    `dialog_export_as.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_export_as.rs)
-    **: Export source code dialog (ASM or HTML).
-  - **[
-    `dialog_export_labels.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_export_labels.rs)
-    **: Export labels to VICE format.
-  - **[
-    `dialog_find_references.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_find_references.rs)
-    **: Find cross-references to an address.
-  - **[
-    `dialog_import_context.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_import_context.rs)
-    **: Import Context Setup dialog. Shown when loading a raw binary (no PRG header) to let the user configure the
-    target system, binary origin address, entry-point address, and whether to auto-disassemble the code sequence from
-    that entry point. Displays a high-entropy warning when the binary may be packed or compressed.
-  - **[
-    `dialog_go_to_symbol.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_go_to_symbol.rs)
-    **: Navigate to a label by name.
-  - **[
-    `dialog_jump_to_address.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_jump_to_address.rs)
-    **: Jump to a specific memory address.
-  - **[
-    `dialog_jump_to_line.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_jump_to_line.rs)
-    **: Jump to a specific line number.
-  - **[
-    `dialog_keyboard_shortcut.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs)
-    **: Keyboard shortcuts reference.
-  - **[
-    `dialog_label.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_label.rs)
-    **: Add/edit labels.
-  - **[
-    `dialog_manage_enums.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_manage_enums.rs)
-    **: Manage the project's custom enum definitions (create, rename, delete).
-  - **[
-    `dialog_memory_dump_address.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_memory_dump_address.rs)
-    **: Set memory dump address for the VICE debugger panel.
-  - **[
-    `dialog_open.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_open.rs)
-    **: Open file browser.
-  - **[
-    `dialog_open_recent.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_open_recent.rs)
-    **: Open recent projects list.
-  - **[
-    `dialog_origin.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_origin.rs)
-    **: Set the load address.
-  - **[
-    `dialog_save_as.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_save_as.rs)
-    **: Save project dialog.
-  - **[
-    `dialog_search.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_search.rs)
-    **: Search for bytes or text.
-  - **[
-    `dialog_settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_settings.rs)
-    **: Application-level settings.
-  - **[
-    `dialog_t64_picker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_t64_picker.rs)
-    **: T64 tape archive file picker for selecting which entry to load.
-  - **[
-    `dialog_vice_connect.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_vice_connect.rs)
-    **: Configures connection to VICE's remote monitor.
-  - **[
-    `dialog_warning.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_warning.rs)
-    **: Generic warning dialog for displaying important messages to the user.
-  - **[
-    `dialog_watchpoint_address.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_watchpoint_address.rs)
-    **: Set watchpoint address for VICE debugging (memory read/write breakpoints).
-
-- **UI State Management ([
-  `regenerator2000-tui/src/ui_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui_state.rs))
-  **:
-  The TUI-specific interface state. It embeds a `CoreViewState` via the `.core` field and uses **`Deref`/`DerefMut`** to
-  allow direct access to core view state (like `cursor_index`) from the UI layer.
-  - **Active Dialog**: `Option<Box<dyn Widget>>` allowing modal dialogs to take over input and rendering.
-  - **Theme**: Current color theme for the TUI.
-  - **Layout Areas**: Cached rectangles for mouse interaction detection.
-  - **TUI Widgets**: `status_bar`, `menu`, and list states for various side-panels.
-
-### 10. Theme System ([`regenerator2000-tui/src/theme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme.rs) & [
-
-`theme_file.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme_file.rs))
-
-Provides customizable color schemes for the UI.
-
-- **[`theme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme.rs)**:
-  Defines color palettes for different UI elements (dialogs, menus, status bar, syntax highlighting). Loads themes by
-  name.
-- **[
-  `theme_file.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme_file.rs)
-  **: Parses TOML-based theme definition files (`theme-*.toml`). Built-in themes are embedded as assets; users can
-  override or create custom themes by placing TOML files in the config directory.
-- Supports multiple built-in themes (Dracula, Nord, Catppuccin, Gruvbox, etc.).
+Provides customizable TOML-based color schemes for the UI.
 
 ### 11. Configuration ([`regenerator2000-core/src/config.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/config.rs))
 
-Manages application-level configuration that persists across sessions.
-
-- **`SystemConfig`**: User preferences including:
-  - Theme selection
-  - View synchronization settings (sync hex dump, sprites, charset, bitmap, blocks with disassembly)
-  - Auto-analyze toggle
-  - Entropy threshold for analysis
-  - Recent projects list
-  - Update checking preference
-- Stored as `config.toml` in the OS-specific config directory (migrated from JSON in v0.9.13). Stored separately from
-  project state to maintain user preferences across different projects.
+Manages application-level configuration (`config.toml`) persisting preferences across sessions.
 
 ### 12. Assets ([`regenerator2000-core/src/assets.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/assets.rs))
 
 Manages embedded system definition files (`system-*.toml`) and theme files (`theme-*.toml`).
-System files provide labels, comments, and exclude-address lists for each supported machine.
-Theme files define color palettes for the TUI. Both support user overrides from the config directory.
 
 ### 13. MCP Server ([`regenerator2000-core/src/mcp/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/mcp))
 
-Implements the Model Context Protocol (MCP) server for programmatic access to Regenerator 2000.
-
-- **[`mod.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/mod.rs)
-  **: Module definition.
-- **[
-  `handler.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/handler.rs)
-  **: Core request handler implementing all MCP tools and resources. Routes tool calls to the appropriate `AppState`
-  commands.
-- **[`http.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/http.rs)
-  **: HTTP transport using Server-Sent Events (SSE) on port 3000 for real-time communication.
-- **[
-  `stdio.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/stdio.rs)
-  **: Stdio transport mode for headless subprocess MCP communication (e.g., Claude Desktop, Gemini CLI).
-- **[
-  `types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/types.rs)
-  **: Shared type definitions for MCP request/response structures.
-
-The MCP server exposes tools and resources allowing AI agents to:
-
-- **Tools**: Manipulate disassembly (set labels, comments, block types), search memory, manage cross-references, save
-  projects, and perform undo/redo operations.
-- **Resources**: Access binary data, disassembly views, hexdump views, and selected regions.
-
-This enables collaborative human-AI workflows where both can work on the same project simultaneously (HTTP mode) or
-fully automated analysis sessions (stdio mode).
+Implements the Model Context Protocol (MCP) server for programmatic access via HTTP (SSE) and Stdio transports.
 
 ### 14. VICE Integration ([`regenerator2000-core/src/vice/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/vice))
 
 Provides live debugging integration with the VICE emulator.
 
-- **[
-  `client.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/vice/client.rs)
-  **: `ViceClient` that manages the TCP connection to VICE's remote monitor, sending commands and receiving events.
-- **[
-  `protocol.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/vice/protocol.rs)
-  **: Defines `ViceCommand` and `ViceMessage` types for the VICE binary monitor protocol.
-- **[
-  `state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/vice/state.rs)
-  **: `ViceState` tracking the debugger connection status, CPU registers, breakpoints, and run/stop state.
-- **[
-  `c64_hardware.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/vice/c64_hardware.rs)
-  **: `Vic2State` and `CiaState` structs for reading and displaying C64 hardware register values during debugging.
+### 15. Utilities ([`regenerator2000-core/src/utils.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/utils.rs))
 
-### 15. Utilities ([`regenerator2000-tui/src/utils.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/../utils.rs) & [`regenerator2000-core/src/utils.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/utils.rs))
-
-Contains shared helper functions and utilities used across the application, split between TUI and core logic.
+Contains shared helper functions and utilities used across the application.
 
 ## Data Flow
 
 1. **Input**: User presses a key (e.g., `C`) or interacts with the mouse.
-2. **Dispatch**: [
-   `regenerator2000-tui/src/events/input.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/events/input.rs)
-   routes the input to the active `Widget`.
-3. **Action**: The Widget processes the input and returns an `AppAction` (e.g., `AppAction::Code`).
-4. **Core Application**: The TUI calls `Core::apply_action(action)`.
-5. **Execution**: `Core` converts the action into a `Command` (e.g., `SetBlockType`), pushes to the `UndoStack`, and
-   applies it to `AppState`.
-6. **Side Effects**: `Core` executes the logic, potentially triggering [
-   `analyzer.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/analyzer.rs)
-   or regenerating the disassembly.
-7. **Events**: `Core::apply_action` returns a list of `CoreEvent`s (e.g., `StateChanged`, `DialogRequested`).
-8. **UI Sync**: The TUI processes these events, updating `UIState` (opening dialogs, syncing cursors, setting status
-   messages).
-9. **Render**: The main loop calls `ui::draw()`, which renders the TUI from the updated `AppState` and `UIState`.
+2. **Dispatch**: [`regenerator2000-tui/src/events/input.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/events/input.rs) routes input to active `Widget`.
+3. **Action**: Widget processes input and returns `AppAction`.
+4. **Core Application**: TUI calls `Core::apply_action(action)`.
+5. **Execution**: `Core` delegates to `ActionHandlers` (`ActionContext<'a>`), converting actions into `Command` applications on `AppState` or updating `CoreViewState`.
+6. **Side Effects**: State changes trigger `analyzer.rs` or re-generate disassembly via `disassembler/`.
+7. **Events**: `Core::apply_action` returns a list of `CoreEvent`s.
+8. **UI Sync**: TUI updates `UIState` (opening dialogs, syncing cursors, status messages).
+9. **Render**: Main loop calls `ui::draw()`, rendering the TUI from `AppState` and `UIState`.
 
 ## Persistence
 
 Projects are saved as JSON files (`.regen2000proj`).
 
-- **Structure**: Serializes the `ProjectState` struct.
-- **Efficiency**:
-  - Raw data is gzip-compressed and base64-encoded to reduce file size.
-  - Block types use run-length encoding to compress long sequences of the same type.
-- **Scopes**: Saved as start/end address pairs to represent named memory regions (.proc, .block, .namespace, etc).
-- **Portability**: Designed to be portable across different machines, storing relative paths where possible.
-- **Session State**: Cursor positions and view settings are saved with the project for seamless session restoration.
+- **Structure**: Serializes `ProjectState` struct.
+- **Sparse Metadata**: `AnnotationManager` is flattened (`#[serde(flatten)]`) to maintain 100% backward compatibility with legacy project files while consolidating address annotations.
+- **Compression**: Raw data is gzip-compressed and base64-encoded; block types use run-length encoding.
+- **Portability**: Relative paths stored for cross-machine portability.
