@@ -1,4 +1,5 @@
 use super::protocol::{ViceCommand, ViceCpuOp, ViceMessage};
+use crate::error::ViceError;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream};
 use std::sync::mpsc::{self, Sender};
@@ -19,8 +20,11 @@ impl ViceClient {
     ///
     /// # Errors
     /// Returns an error if the connection fails or stream clones error.
-    pub fn connect(addr: &str, app_tx: Sender<ViceEvent>) -> anyhow::Result<Self> {
-        let stream = TcpStream::connect(addr)?;
+    pub fn connect(addr: &str, app_tx: Sender<ViceEvent>) -> Result<Self, ViceError> {
+        let stream = TcpStream::connect(addr).map_err(|source| ViceError::ConnectionFailed {
+            address: addr.to_string(),
+            source,
+        })?;
         stream.set_nonblocking(false)?;
         stream.set_nodelay(true)?;
 

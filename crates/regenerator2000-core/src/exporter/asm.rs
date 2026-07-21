@@ -1,6 +1,8 @@
 use crate::disassembler::{DEFINITION_COLUMN_WIDTH, LABEL_COLUMN_WIDTH};
+use crate::error::{CoreError, ExportError};
 use crate::state::AppState;
 use std::path::PathBuf;
+
 /// Column width for the instruction+label portion before side comments.
 const INSTRUCTION_COLUMN_WIDTH: usize = 40;
 
@@ -8,7 +10,7 @@ const INSTRUCTION_COLUMN_WIDTH: usize = 40;
 ///
 /// # Errors
 /// Returns an error if the file cannot be written or an external binary cannot be saved.
-pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
+pub fn export_asm(state: &AppState, path: &PathBuf) -> Result<(), CoreError> {
     let formatter = state.get_formatter();
 
     let mut output = String::new();
@@ -154,13 +156,10 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 .unwrap_or(&std::path::PathBuf::from("."))
                 .join(&bin_filename);
 
-            if let Err(e) = std::fs::write(&bin_path, data_slice) {
-                // Determine how to report error? For now print to stdout or just panic?
-                // Returning Result is better.
-                return Err(std::io::Error::other(format!(
-                    "Failed to write external binary {bin_filename}: {e}"
-                )));
-            }
+            std::fs::write(&bin_path, data_slice).map_err(|source| ExportError::Io {
+                path: bin_path.clone(),
+                source,
+            })?;
 
             // Output directive
             // 64tass: .binary
@@ -327,7 +326,11 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         ));
     }
 
-    std::fs::write(path, output)
+    std::fs::write(path, output).map_err(|source| ExportError::Io {
+        path: path.clone(),
+        source,
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]

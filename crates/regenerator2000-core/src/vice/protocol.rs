@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use crate::error::ViceError;
 
 pub const STX: u8 = 0x02;
 pub const API_VERSION: u8 = 0x02; // Version 2
@@ -77,15 +77,15 @@ impl ViceMessage {
     ///
     /// # Errors
     /// Returns an error if the STX byte is invalid.
-    pub fn decode(buf: &[u8]) -> Result<Option<(Self, usize)>> {
+    pub fn decode(buf: &[u8]) -> Result<Option<(Self, usize)>, ViceError> {
         if buf.len() < 12 {
             return Ok(None);
         }
         if buf[0] != STX {
-            return Err(anyhow!(
+            return Err(ViceError::ProtocolFraming(format!(
                 "Invalid STX byte: expected 0x02, got 0x{:02x}",
                 buf[0]
-            ));
+            )));
         }
         let length = u32::from_le_bytes([buf[2], buf[3], buf[4], buf[5]]) as usize;
         let total_size = 12 + length;

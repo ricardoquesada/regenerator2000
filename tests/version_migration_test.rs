@@ -54,7 +54,7 @@ mod tests {
             Ok(_) => panic!("Expected error for future version"),
         };
         assert!(
-            err_msg.contains("newer version"),
+            err_msg.contains("newer"),
             "Error should mention newer version: {err_msg}"
         );
 

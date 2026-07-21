@@ -9,12 +9,9 @@
 //!   below the return address)
 //! - Phase 2: Run decompression (continues until PC jumps back above the return
 //!   address, indicating the depacker finished)
-
 use mos6502::cpu::CPU;
 use mos6502::instruction::Nmos6502;
 use mos6502::memory::Bus;
-use std::fmt;
-
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
@@ -76,49 +73,7 @@ pub struct UnpackResult {
     pub packer_name: Option<String>,
 }
 
-/// Errors that can occur during unpacking.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum UnpackError {
-    /// The input data is empty.
-    EmptyData,
-    /// Could not find a SYS entry point in the BASIC header.
-    NoEntryPoint,
-    /// Phase 1 exceeded the instruction limit without finding the depacker.
-    Phase1Timeout,
-    /// Phase 2 exceeded the instruction limit without finishing decompression.
-    Phase2Timeout,
-    /// No memory was modified during decompression.
-    NothingWritten,
-    /// The detected entry point is outside the unpacked memory range.
-    InvalidAddressRange {
-        start_addr: u16,
-        end_addr: u16,
-        entry_point: u16,
-    },
-}
-
-impl fmt::Display for UnpackError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::EmptyData => write!(f, "Empty input data"),
-            Self::NoEntryPoint => write!(f, "Could not find SYS entry point"),
-            Self::Phase1Timeout => write!(f, "Phase 1 timeout: depacker not found"),
-            Self::Phase2Timeout => write!(f, "Phase 2 timeout: decompression did not finish"),
-            Self::NothingWritten => write!(f, "No memory was modified during decompression"),
-            Self::InvalidAddressRange {
-                start_addr,
-                end_addr,
-                entry_point,
-            } => write!(
-                f,
-                "Invalid unpacked range (${:04X}-${:04X}): entry point ${:04X} is outside range",
-                start_addr, end_addr, entry_point
-            ),
-        }
-    }
-}
-
-impl std::error::Error for UnpackError {}
+pub use crate::error::UnpackError;
 
 // ---------------------------------------------------------------------------
 // MOS 6526 CIA Timer Emulation

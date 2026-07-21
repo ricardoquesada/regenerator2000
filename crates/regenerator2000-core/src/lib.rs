@@ -28,8 +28,13 @@ pub mod commands;
 pub mod config;
 pub mod core;
 pub mod cpu;
+pub mod error;
 
 pub use core::Core;
+pub use error::*;
+
+/// A specialized [`Result`](std::result::Result) type for core operations returning [`CoreError`].
+pub type Result<T> = std::result::Result<T, CoreError>;
 pub mod disassembler;
 pub mod event;
 pub mod exporter;

@@ -510,7 +510,7 @@ fn apply_initial_load_result(
     ui_state: &mut UIState,
     core: &mut regenerator2000_core::Core,
     initial_load_result: Option<
-        anyhow::Result<(regenerator2000_core::state::LoadedProjectData, PathBuf)>,
+        regenerator2000_core::Result<(regenerator2000_core::state::LoadedProjectData, PathBuf)>,
     >,
     file_was_specified: bool,
 ) {

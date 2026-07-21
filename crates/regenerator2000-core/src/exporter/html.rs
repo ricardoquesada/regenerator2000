@@ -1,4 +1,5 @@
 use crate::disassembler::LABEL_COLUMN_WIDTH;
+use crate::error::{CoreError, ExportError};
 use crate::state::AppState;
 use std::path::PathBuf;
 
@@ -81,7 +82,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 ///
 /// # Errors
 /// Returns an error if the file cannot be written.
-pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
+pub fn export_html(state: &AppState, path: &PathBuf) -> Result<(), CoreError> {
     let formatter = state.get_formatter();
     let mut output = String::new();
 
@@ -505,7 +506,10 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             ext_output.push_str(HTML_START);
             ext_output.push_str(&external_rows);
             ext_output.push_str(HTML_END);
-            let _ = std::fs::write(&ext_path, ext_output);
+            std::fs::write(&ext_path, ext_output).map_err(|source| ExportError::Io {
+                path: ext_path.clone(),
+                source,
+            })?;
 
             let (mnemonic, operand) = formatter.format_binary_include(&ext_filename);
             let linked_operand = operand.replace(
@@ -564,7 +568,11 @@ toggleBtn.addEventListener('click', () => {
 "#;
 
     output.push_str(HTML_END);
-    std::fs::write(path, output)
+    std::fs::write(path, output).map_err(|source| ExportError::Io {
+        path: path.clone(),
+        source,
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]

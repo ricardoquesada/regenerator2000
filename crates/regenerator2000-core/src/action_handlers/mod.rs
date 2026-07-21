@@ -15,41 +15,7 @@ pub use disassembly_handler::DisassemblyActionHandler;
 pub use file_handler::FileActionHandler;
 pub use navigation_handler::NavigationActionHandler;
 
-/// Domain error type representing failures during action execution.
-#[derive(Debug)]
-pub enum CoreError {
-    /// I/O error occurred.
-    Io(std::io::Error),
-    /// Invalid address provided.
-    InvalidAddress(u16),
-    /// General core error message.
-    Custom(String),
-}
-
-impl std::fmt::Display for CoreError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CoreError::Io(err) => write!(f, "I/O error: {err}"),
-            CoreError::InvalidAddress(addr) => write!(f, "Invalid address: ${addr:04X}"),
-            CoreError::Custom(msg) => write!(f, "{msg}"),
-        }
-    }
-}
-
-impl std::error::Error for CoreError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            CoreError::Io(err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
-impl From<std::io::Error> for CoreError {
-    fn from(err: std::io::Error) -> Self {
-        CoreError::Io(err)
-    }
-}
+pub use crate::error::CoreError;
 
 /// Execution context provided to action handlers during action processing.
 pub struct ActionContext<'a> {

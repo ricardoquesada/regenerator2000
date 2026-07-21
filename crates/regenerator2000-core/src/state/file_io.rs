@@ -5,6 +5,8 @@ use super::project::{
 };
 use super::settings::DocumentSettings;
 use super::types::{Addr, BlockType, HexdumpViewMode, LabelKind, LabelType, System};
+use crate::Result;
+use crate::error::{CoreError, IoResultExt, ProjectError};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -13,8 +15,8 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be read, parsed, or if the extension is unsupported.
-    pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
-        let data = std::fs::read(&path)?;
+    pub fn load_file(&mut self, path: PathBuf) -> Result<LoadedProjectData> {
+        let data = std::fs::read(&path).with_path(&path)?;
         self.file_path = Some(path.clone());
         self.project_path = None; // clear project path
         self.export_asm_path = None; // clear export paths
@@ -73,12 +75,19 @@ impl AppState {
                 let prg_ref = if ext.eq_ignore_ascii_case("prg") {
                     &data
                 } else {
-                    prg_bytes_holder = crate::parser::t64::parse_t64(&data)
-                        .map_err(|e| anyhow::anyhow!("Failed to parse T64: {e}"))?;
+                    prg_bytes_holder = crate::parser::t64::parse_t64(&data).map_err(|e| {
+                        CoreError::ParseFailed {
+                            format: "t64".to_string(),
+                            message: format!("{e:#}"),
+                        }
+                    })?;
                     &prg_bytes_holder
                 };
-                let prg_data = crate::parser::prg::parse_prg(prg_ref)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse PRG: {e}"))?;
+                let prg_data =
+                    crate::parser::prg::parse_prg(prg_ref).map_err(|e| CoreError::ParseFailed {
+                        format: "prg".to_string(),
+                        message: format!("{e:#}"),
+                    })?;
                 self.origin = Addr(prg_data.origin);
                 self.raw_data = prg_data.raw_data;
                 let default_system = if ext.eq_ignore_ascii_case("t64") {
@@ -89,13 +98,20 @@ impl AppState {
                 suggested_system = prg_data.suggested_system.or(default_system);
                 cursor_start = prg_data.suggested_entry_point;
             } else if ext.eq_ignore_ascii_case("crt") {
-                let (origin, raw_data) = crate::parser::crt::parse_crt(&data)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse CRT: {e}"))?;
+                let (origin, raw_data) =
+                    crate::parser::crt::parse_crt(&data).map_err(|e| CoreError::ParseFailed {
+                        format: "crt".to_string(),
+                        message: format!("{e:#}"),
+                    })?;
                 self.origin = Addr(origin);
                 self.raw_data = raw_data;
             } else if ext.eq_ignore_ascii_case("vsf") {
-                let vsf_data = crate::parser::vice_vsf::parse_vsf(&data)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse VSF: {e}"))?;
+                let vsf_data = crate::parser::vice_vsf::parse_vsf(&data).map_err(|e| {
+                    CoreError::ParseFailed {
+                        format: "vsf".to_string(),
+                        message: format!("{e:#}"),
+                    }
+                })?;
                 self.origin = Addr::ZERO;
                 self.raw_data = vsf_data.memory;
                 cursor_start = vsf_data.start_address;
@@ -111,14 +127,18 @@ impl AppState {
                 self.origin = Addr::ZERO; // Default for .bin
                 self.raw_data = data;
             } else {
-                return Err(anyhow::anyhow!(
-                    "Unsupported file extension: .{ext}\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .dis65, .regen2000proj"
-                ));
+                return Err(CoreError::ParseFailed {
+                    format: ext.to_string(),
+                    message: format!(
+                        "Unsupported file extension: .{ext}\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .dis65, .regen2000proj"
+                    ),
+                });
             }
         } else {
-            return Err(anyhow::anyhow!(
-                "File has no extension.\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .regen2000proj"
-            ));
+            return Err(CoreError::ParseFailed {
+                format: "none".to_string(),
+                message: "File has no extension.\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .regen2000proj".to_string(),
+            });
         }
 
         self.entry_point = cursor_start.map(Addr);
@@ -164,11 +184,7 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the internal project structures cannot be initialized.
-    pub fn load_binary(
-        &mut self,
-        origin: Addr,
-        data: Vec<u8>,
-    ) -> anyhow::Result<LoadedProjectData> {
+    pub fn load_binary(&mut self, origin: Addr, data: Vec<u8>) -> Result<LoadedProjectData> {
         self.origin = origin;
         self.raw_data = data;
         self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
@@ -239,7 +255,7 @@ impl AppState {
         origin: Addr,
         data: Vec<u8>,
         entry_point: Option<Addr>,
-    ) -> anyhow::Result<LoadedProjectData> {
+    ) -> Result<LoadedProjectData> {
         let settings = self.settings.clone();
         let file_path = self.file_path.clone();
         let project_path = self.project_path.clone();
@@ -296,7 +312,7 @@ impl AppState {
     pub fn resolve_initial_load(
         &mut self,
         file_to_load: Option<&str>,
-    ) -> Option<anyhow::Result<(LoadedProjectData, PathBuf)>> {
+    ) -> Option<Result<(LoadedProjectData, PathBuf)>> {
         if let Some(path_str) = file_to_load {
             let path = PathBuf::from(path_str);
             Some(self.load_file(path.clone()).map(|d| (d, path)))
@@ -314,26 +330,32 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be read, parsed, or if the format version is unsupported.
-    pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
-        let data = std::fs::read_to_string(&path)?;
-        let project: ProjectState = serde_json::from_str(&data)?;
+    pub fn load_project(&mut self, path: PathBuf) -> Result<LoadedProjectData> {
+        let data = std::fs::read_to_string(&path).with_path(&path)?;
+        let project: ProjectState =
+            serde_json::from_str(&data).map_err(|source| ProjectError::InvalidJson {
+                path: path.clone(),
+                source,
+            })?;
 
         // Reject project files from newer versions we don't understand
         if project.version > PROJECT_FORMAT_VERSION {
-            return Err(anyhow::anyhow!(
-                "Project was saved by a newer version (format v{}). \
-                 This build only supports up to format v{}. \
-                 Please update Regenerator 2000.",
-                project.version,
-                PROJECT_FORMAT_VERSION
-            ));
+            return Err(ProjectError::UnsupportedVersion {
+                version: project.version,
+                max_supported: PROJECT_FORMAT_VERSION,
+            }
+            .into());
         }
 
         self.project_path = Some(path);
         self.origin = project.origin;
 
         // Decode raw data
-        self.raw_data = decode_raw_data_from_base64(&project.raw_data)?;
+        self.raw_data =
+            decode_raw_data_from_base64(&project.raw_data).map_err(|e| CoreError::ParseFailed {
+                format: "base64".to_string(),
+                message: format!("{e:#}"),
+            })?;
         self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
 
         // Expand address types and collapsed blocks
@@ -408,24 +430,35 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be read, parsed, or if the CRC32 validation fails.
-    pub fn load_dis65_project(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
-        let content = std::fs::read_to_string(&path)?;
-        let project = crate::parser::dis65::parse_dis65(&content)?;
+    pub fn load_dis65_project(&mut self, path: PathBuf) -> Result<LoadedProjectData> {
+        let content = std::fs::read_to_string(&path).with_path(&path)?;
+        let project =
+            crate::parser::dis65::parse_dis65(&content).map_err(|e| CoreError::ParseFailed {
+                format: "dis65".to_string(),
+                message: format!("{e:#}"),
+            })?;
 
         let mut binary_path = path.clone();
         binary_path.set_extension(""); // Strip .dis65
         if !binary_path.exists() {
-            return Err(anyhow::anyhow!("Binary file not found next to .dis65"));
+            return Err(ProjectError::Io {
+                path: binary_path,
+                source: std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Binary file not found next to .dis65",
+                ),
+            }
+            .into());
         }
 
-        let binary_data = std::fs::read(&binary_path)?;
+        let binary_data = std::fs::read(&binary_path).with_path(&binary_path)?;
         let calculated_crc = crate::utils::calculate_crc32(&binary_data);
         if calculated_crc != project.file_data_crc32 {
-            return Err(anyhow::anyhow!(
-                "CRC32 mismatch: expected {}, got {}",
-                project.file_data_crc32,
-                calculated_crc
-            ));
+            return Err(ProjectError::ChecksumMismatch {
+                expected: format!("{}", project.file_data_crc32),
+                actual: format!("{calculated_crc}"),
+            }
+            .into());
         }
 
         self.raw_data = binary_data;
@@ -583,12 +616,17 @@ impl AppState {
         &mut self,
         ctx: ProjectSaveContext,
         update_global_config: bool,
-    ) -> anyhow::Result<()> {
+    ) -> Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
                 version: PROJECT_FORMAT_VERSION,
                 origin: self.origin,
-                raw_data: encode_raw_data_to_base64(&self.raw_data)?,
+                raw_data: encode_raw_data_to_base64(&self.raw_data).map_err(|e| {
+                    CoreError::ParseFailed {
+                        format: "base64".to_string(),
+                        message: format!("{e:#}"),
+                    }
+                })?,
                 blocks: compress_block_types(&self.block_types, &self.collapsed_blocks),
                 labels: self
                     .labels
@@ -627,8 +665,13 @@ impl AppState {
                 enum_usages: self.enum_usages.clone(),
                 user_excluded_addresses: self.user_excluded_addresses.clone(),
             };
-            let data = serde_json::to_string_pretty(&project)?;
-            std::fs::write(path, data)?;
+            let data = serde_json::to_string_pretty(&project).map_err(|source| {
+                ProjectError::InvalidJson {
+                    path: path.clone(),
+                    source,
+                }
+            })?;
+            std::fs::write(path, data).with_path(path)?;
             self.last_saved_pointer = self.undo_stack.get_pointer();
 
             if update_global_config {
@@ -640,7 +683,7 @@ impl AppState {
 
             Ok(())
         } else {
-            Err(anyhow::anyhow!("No project path set"))
+            Err(ProjectError::NoProjectPath.into())
         }
     }
 
@@ -648,10 +691,14 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be read or parsed.
-    pub fn import_vice_labels(&mut self, path: PathBuf) -> anyhow::Result<String> {
-        let content = std::fs::read_to_string(path)?;
-        let parsed = crate::parser::vice_lbl::parse_vice_labels(&content)
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
+    pub fn import_vice_labels(&mut self, path: PathBuf) -> Result<String> {
+        let content = std::fs::read_to_string(&path).with_path(&path)?;
+        let parsed = crate::parser::vice_lbl::parse_vice_labels(&content).map_err(|e| {
+            CoreError::ParseFailed {
+                format: "vice_lbl".to_string(),
+                message: format!("{e:#}"),
+            }
+        })?;
 
         let mut new_labels_vec = Vec::new();
         let mut old_labels_map = BTreeMap::new();
@@ -689,7 +736,7 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be written.
-    pub fn export_vice_labels(&self, path: PathBuf) -> anyhow::Result<String> {
+    pub fn export_vice_labels(&self, path: PathBuf) -> Result<String> {
         let mut export_list = Vec::new();
         // Sort by address is automatic due to BTreeMap
         for (addr, labels) in &self.labels {
@@ -700,7 +747,7 @@ impl AppState {
             }
         }
         let content = crate::parser::vice_lbl::generate_vice_labels(&export_list);
-        std::fs::write(&path, content)?;
+        std::fs::write(&path, content).with_path(&path)?;
         Ok(format!("Labels exported to {path:?}"))
     }
 }
@@ -950,6 +997,35 @@ mod save_project_tests {
         // Cleanup
         let _ = std::fs::remove_file(file_path);
         let _ = std::fs::remove_file(project_path);
+    }
+
+    #[test]
+    fn test_save_project_no_path_returns_error() {
+        let mut app_state = AppState::new();
+        app_state.project_path = None;
+
+        let ctx = crate::state::project::ProjectSaveContext {
+            cursor_address: None,
+            hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
+            charset_cursor_address: None,
+            bitmap_cursor_address: None,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
+            bitmap_multicolor_mode: false,
+            hexdump_view_mode: HexdumpViewMode::default(),
+            splitters: std::collections::BTreeSet::new(),
+            blocks_view_cursor: None,
+            bookmarks: std::collections::BTreeMap::new(),
+        };
+
+        let result = app_state.save_project(ctx, false);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            crate::error::CoreError::Project(crate::error::ProjectError::NoProjectPath) => {}
+            other => panic!("Expected ProjectError::NoProjectPath, got {other:?}"),
+        }
     }
 }
 
