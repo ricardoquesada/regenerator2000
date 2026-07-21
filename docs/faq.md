@@ -343,6 +343,50 @@ alternative (most shortcuts have both). For the best experience, we recommend us
 Ensure your terminal supports 256 colors or true color (24-bit). Most modern terminals do.
 If running inside `tmux` or `screen`, add `set -g default-terminal "tmux-256color"` to your tmux config.
 
+### Why is my BASIC program disassembling as illegal opcodes?
+
+Commodore BASIC programs consist of tokenized byte sequences linked via 2-byte pointer headers. If you attempt to
+disassemble a BASIC program line as 6502 code (++c++), the 6502 decoder will interpret token bytes (such as `$99` for
+`PRINT` or `$8F` for `REM`) as illegal opcodes or instructions.
+To fix this, highlight the BASIC program memory block and format it using the **Petscii Text** (++p++) or **Word Table
+** (++w++) directives, or use the `r2000-analyze-basic` skill to automatically mark BASIC linked-list pointers (
+`$2B/$2C` start of BASIC) and decode tokens into inline comments.
+
+### Why did VICE binary monitor fail to connect?
+
+VICE integration uses VICE's custom **Binary Monitor Protocol** over TCP (default port `6502`), which is distinct from
+regular text console monitors.
+
+- **Ensure Binary Monitor mode is enabled**: Launch VICE with `x64 -binarymonitor` or enable **Settings → Monitor →
+  Enable binary monitor**.
+- **Check socket framing**: The binary monitor sends 4-byte header frames (`0x02`, `0x00`, body length LE). If a plain
+  text monitor port (e.g. `6510`) is used, socket handshakes will fail.
+- **Verify binary alignment**: Both VICE and Regenerator 2000 must load the exact same `.prg` payload to align PC
+  registers and breakpoint hits.
+
+### Why does roundtrip assembler export verification fail?
+
+Export-assemble-diff verification (`cargo test --test roundtrip_export_test`) compares the re-assembled binary
+byte-for-byte against original raw data.
+Failure modes usually occur due to:
+
+- **Symbol Scoping**: Local labels (`.skip`) referencing a different global label scope across assembler syntaxes.
+- **Branch Bounds**: Assemblers auto-promoting short relative branches (`BNE`) to long absolute jumps (`JMP`) when
+  targets exceed -128/+127 bytes.
+- **BRK Padding**: The 6502 `BRK` instruction is a 2-byte opcode ($00 $00), but standard C64 code treats it as 1 byte.
+  Ensure **Patch BRK** is enabled in Document Settings if your target binary expects 2-byte BRK alignment.
+
+### Why does the Binary Unpacker fail or timeout?
+
+Regenerator 2000's unpacker runs a cycle-accurate 6502 emulation sandbox (`src/unpacker/`) to decompress binaries.
+
+- **Timeout Safety**: The unpacker has a safety ceiling of **50,000,000 instructions** (`max_instructions`). If a packer
+  stub enters a hardware wait loop (such as busy-waiting on raster line `$D012`), emulation will hit the instruction
+  ceiling and timeout.
+- **Vector Traps**: The unpacker automatically traps KERNAL ROM vectors (`$FFE4` GETIN, `$FFD2` CHROUT) to feed
+  simulated keypresses and return `RTS`. For non-standard depacker stubs, specify explicit **Entry Point** or **Depacker
+  Address** overrides in the Unpack Options dialog.
+
 ### How do I report a bug or request a feature?
 
 Open an issue on GitHub:

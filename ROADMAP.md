@@ -5,64 +5,72 @@
 Regenerator 2000 aims to be the ultimate interactive disassembler for retro computing systems.
 Our philosophy is **visual fidelity and system-native idioms**.
 We do not want to just say "we support Commodore 64" because it uses a 6502;
-we want the disassembler to _understand_ the Commodore 64—its memory maps,
-its specific graphics modes, and its hardware registers.
+we want the disassembler to _understand_ each target system—its memory maps,
+its specific graphics modes, custom chips, and hardware registers.
 
-To achieve this without compromising code quality, we are planning a major architectural
-shift to a **Plugin/System Modular System**.
+To achieve this without compromising code quality, the core architecture has been modernized with a zero-cost
+`TargetSystem` domain model, modular action handlers, unified sparse address metadata (`AnnotationManager`), and an
+SRP-compliant 5-module binary unpacker.
 
 ---
 
-## 📅 Development Phases
+## 📅 Development Status & Phases
 
-### 📦 v1.0 - Polishing & Stability for Commodore 64 (Current Focus)
+### ✅ Shipped: Commodore 8-Bit Machine Suite (v0.9.x)
 
-_Target: July 2026_
+Full native support for the entire Commodore 8-bit machine family is **100% Shipped**:
 
-- Stabilize existing features for Commodore 64.
-- Finalize documentation and tutorial.
-- General UX polish and bug fixes.
+- **Commodore 64 (C64)**: Full RAM/ROM banking, VIC-II, SID, CIA 1/2, PETSCII/Screencode.
+- **Commodore 128 (C128)**: MMU banking, 80-column VDC, BASIC 7.0 ROM vectors.
+- **VIC-20**: Unexpanded & expanded RAM configurations, VIC-I character maps.
+- **Plus/4 & C16**: TED chip memory maps, 121-color palettes, BASIC 3.5.
+- **PET (BASIC 2.0 and 4.0)**: Monochrome PETSCII, non-standard memory origins.
+- **Disk Images (D64 / D71 / D81)**: Track/sector directory parsing and binary file extraction.
 
-### 📦 v1.x - Add support for other Commodore 8-bit machines
+---
 
-- Add support for other Commodore 8-bit machines: VIC-20, C128, Plus/4, PET
-- Each minor release will focus on one machine.
-- Adding support for a new machine will require:
-  - Adding a new memory map.
-  - Adding new or updated views.
+### 📦 v1.0 - Polishing & Stability (Current Focus)
 
-### 🏗️ v2.0 - The Architectural Refactor (Plugin System)
+_Target: Q3 2026_
 
-To scale to other systems properly, we need a robust abstraction layer.
+- Finalize release readiness checklist and full test coverage.
+- High-grade architecture modernization across `regenerator2000-core` and `regenerator2000-tui`.
+- Cycle-accurate binary unpacker sandbox with 100% UNP64 benchmark parity.
+- Production-grade MCP server for automated AI agent collaboration (stdio and HTTP transports).
+- Final UX polish, documentation alignment, and roundtrip assembler verification.
 
-- **Modular Views**: Abstract views (Charset, Sprites, Bitmaps) so they are not hardcoded to Commodore.
-- **System Definitions**: Each system (C64, Apple II, NES) will define its own memory maps, CPU variants, and supported views.
+---
+
+### 🏗️ v2.0 - Plugin System Architecture
+
+To scale to non-Commodore systems cleanly without code duplication:
+
+- **Decoupled System Definitions**: Abstract `TargetSystem` memory maps, I/O registers, and ROM definitions into plugin
+  descriptors.
+- **Modular Visual Views**: Abstract Charset, Sprites, and Bitmap renderers to accommodate non-Commodore pixel ratios
+  and palette formats.
+- **Custom Unpacker Extensions**: Expose trait-based unpacker interfaces for third-party packers.
 
 ---
 
 ### 🕹️ Phase 3 - Expanding the 6502 Family
 
-Once the v2.0 architecture is in place, we will expand to other classic 6502 machines:
+Once the v2.0 plugin architecture is in place:
 
-- **Apple II**: Text, Lo-Res, and Hi-Res graphics rendering.
-- **NES (Nintendo Entertainment System)**: PPU visualization, Pattern/Name tables.
-- **Atari 8-bit family** (Atari 2600/400/800/XL/XE):
-- **BBC Micro**:
-- **Oric-1**:
-
----
-
-### 🚀 Phase 4 - Extending to 65xx Variants
-
-Moving to processors that are similar to the 6502 but offer unique extensions:
-
-- **65C816** (Apple II GS): Support for 16-bit data/addressing and 24-bit memory spaces.
-- **CSG 4510** (Mega65 / Commodore 65): Support for the 4510 CPU (internal to the 65-series SOCs), quad-banking, etc.
+- **Apple II / IIe**: Text, Lo-Res, and Hi-Res graphics visualization.
+- **NES (Nintendo Entertainment System)**: PPU visualization, Pattern/Name tables, CHR ROM.
+- **Atari 8-bit family** (2600 / 400 / 800 / XL / XE): TIA/ANTIC/GTIA graphics visualization.
+- **BBC Micro & Oric-1**: System memory maps and character renderers.
 
 ---
 
-### 🌌 Phase 5 - The Ultimate Goal: Commodore Amiga, and other 68k machines
+### 🚀 Phase 4 - 65xx Architecture Extensions
 
-- Support for the **Motorola 68000 (68k)** architecture.
-- Full visualization of custom chips (Copper, Blitter, etc.).
-- This will leverage the v2.0 plugin system to its fullest extent.
+- **65C816** (Apple IIgs / SNES): 16-bit registers, 24-bit linear addressing.
+- **CSG 4510** (Mega65 / Commodore 65): Quad-banking and extended instruction sets.
+
+---
+
+### 🌌 Phase 5 - 68k & Beyond
+
+- **Motorola 68000 (68k)** (Commodore Amiga 500/1000/1200): Copper/Blitter visual state tracing and 32-bit disassembly.

@@ -76,7 +76,6 @@ nav:
   - Examples: examples.md
   - Development & Internals:
       - Architecture: architecture.md
-      - Requirements: requirements.md
       - Roadmap: roadmap.md
       - Changelog: changelog.md
 
