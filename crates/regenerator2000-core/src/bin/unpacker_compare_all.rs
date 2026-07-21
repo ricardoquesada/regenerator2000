@@ -26,9 +26,10 @@ fn main() {
 
     // Dynamically parse allowed test files from test_unpack_known_prg_files in unpacker.rs
     let unpacker_rs_paths = [
+        "crates/regenerator2000-core/src/unpacker/mod.rs",
         "crates/regenerator2000-core/src/unpacker.rs",
         "src/unpacker.rs",
-        "../../crates/regenerator2000-core/src/unpacker.rs",
+        "../../crates/regenerator2000-core/src/unpacker/mod.rs",
     ];
     let mut allowed_files = Vec::new();
     for path in unpacker_rs_paths {

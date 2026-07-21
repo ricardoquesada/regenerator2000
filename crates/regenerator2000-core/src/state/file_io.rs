@@ -876,7 +876,7 @@ mod load_file_tests {
         let mut app_state = AppState::new();
 
         let dir = std::env::temp_dir();
-        let file_path = dir.join("test_file_no_ext");
+        let file_path = dir.join(format!("test_file_no_ext_{}", std::process::id()));
         std::fs::write(&file_path, b"dummy").unwrap();
 
         let result = app_state.load_file(file_path.clone());

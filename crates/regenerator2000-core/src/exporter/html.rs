@@ -754,7 +754,8 @@ mod tests {
         state.raw_data = vec![0x60];
         state.block_types = vec![crate::state::BlockType::Code; 1];
 
-        let path = PathBuf::from("test_css_padding.html");
+        let path =
+            std::env::temp_dir().join(format!("test_css_padding_{}.html", std::process::id()));
         let _ = std::fs::remove_file(&path);
 
         let res = export_html(&state, &path);
