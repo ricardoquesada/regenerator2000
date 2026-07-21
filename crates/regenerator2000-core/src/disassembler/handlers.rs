@@ -62,11 +62,21 @@ fn handle_split_byte_table(
             if ctx.is_virtual_splitter(current_addr) {
                 break;
             }
-            if ctx.user_line_comments.contains_key(&current_addr) {
+            if ctx
+                .annotations
+                .get(current_addr)
+                .and_then(|e| e.user_line_comment.as_ref())
+                .is_some()
+            {
                 break;
             }
             // Stop if a side comment exists on an interior byte.
-            if ctx.user_side_comments.contains_key(&current_addr) {
+            if ctx
+                .annotations
+                .get(current_addr)
+                .and_then(|e| e.user_side_comment.as_ref())
+                .is_some()
+            {
                 break;
             }
         }
@@ -167,7 +177,9 @@ fn handle_split_byte_table(
             line_comment: if i == 0 {
                 line_comment.clone()
             } else {
-                ctx.user_line_comments.get(&current_line_addr).cloned()
+                ctx.annotations
+                    .get(current_line_addr)
+                    .and_then(|e| e.user_line_comment.clone())
             },
             label: if i == 0 {
                 label_name.clone()
@@ -214,7 +226,10 @@ fn handle_split_byte_table(
             mnemonic: formatter.byte_directive().to_string(),
             operand: operands.join(", "),
             comment: ctx.get_side_comment(current_line_addr, formatter.comment_prefix()),
-            line_comment: ctx.user_line_comments.get(&current_line_addr).cloned(),
+            line_comment: ctx
+                .annotations
+                .get(current_line_addr)
+                .and_then(|e| e.user_line_comment.clone()),
             label: chunk_label,
             opcode: None,
             show_bytes: false,

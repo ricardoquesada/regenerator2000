@@ -140,9 +140,9 @@ impl Widget for CompleteAddressDialog {
                     };
 
                     let old_fmt = app_state
-                        .immediate_value_formats
-                        .get(&self.address)
-                        .copied();
+                        .annotations
+                        .get(self.address)
+                        .and_then(|e| e.immediate_format);
 
                     let command = crate::commands::Command::SetImmediateFormat {
                         address: self.address,

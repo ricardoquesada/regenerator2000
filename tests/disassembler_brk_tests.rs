@@ -1,7 +1,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use regenerator2000_core::disassembler::Disassembler;
 use regenerator2000_core::state::Addr;
-use regenerator2000_core::state::{BlockType, DocumentSettings, Label, LabelKind, LabelType};
+use regenerator2000_core::state::{
+    AnnotationManager, BlockType, DocumentSettings, Label, LabelKind, LabelType,
+};
 use std::collections::BTreeMap;
 
 #[test]
@@ -26,14 +28,10 @@ fn test_brk_default_behavior() {
         &BTreeMap::new(),
         Addr(0x1000),
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -64,14 +62,10 @@ fn test_brk_patch_brk_enabled() {
         &BTreeMap::new(),
         Addr(0x1000),
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);
@@ -106,14 +100,10 @@ fn test_brk_single_byte_enabled() {
         &BTreeMap::new(),
         Addr(0x1000),
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);
@@ -160,14 +150,10 @@ fn test_brk_patch_brk_with_label() {
         &labels,
         Addr(0x1000),
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);

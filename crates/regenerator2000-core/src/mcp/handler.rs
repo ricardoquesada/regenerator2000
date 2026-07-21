@@ -590,12 +590,18 @@ fn handle_tool_call_internal(
                 "side" => crate::commands::Command::SetUserSideComment {
                     address,
                     new_comment: Some(comment),
-                    old_comment: app_state.user_side_comments.get(&address).cloned(),
+                    old_comment: app_state
+                        .annotations
+                        .get(address)
+                        .and_then(|e| e.user_side_comment.clone()),
                 },
                 "line" => crate::commands::Command::SetUserLineComment {
                     address,
                     new_comment: Some(comment),
-                    old_comment: app_state.user_line_comments.get(&address).cloned(),
+                    old_comment: app_state
+                        .annotations
+                        .get(address)
+                        .and_then(|e| e.user_line_comment.clone()),
                 },
                 other => {
                     return Err(McpError {
@@ -674,7 +680,11 @@ fn handle_tool_call_internal(
             }
 
             let mut overlaps = false;
-            for (&s, &e) in &app_state.scopes {
+            for (s, e) in app_state
+                .annotations
+                .iter()
+                .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
+            {
                 if start_addr <= e && end_addr >= s {
                     overlaps = true;
                     break;
@@ -709,7 +719,7 @@ fn handle_tool_call_internal(
                 });
             }
 
-            let old_end = app_state.scopes.get(&start_addr).copied();
+            let old_end = app_state.annotations.get(start_addr).and_then(|e| e.scope);
             commands.push(crate::commands::Command::AddScope {
                 start: start_addr,
                 end: end_addr,
@@ -1242,7 +1252,10 @@ fn handle_tool_call_internal(
             let command = crate::commands::Command::SetEnumUsage {
                 address,
                 new_enum: name_opt.clone(),
-                old_enum: app_state.enum_usages.get(&address).cloned(),
+                old_enum: app_state
+                    .annotations
+                    .get(address)
+                    .and_then(|e| e.enum_usage.clone()),
             };
 
             command.apply(app_state);
@@ -1682,7 +1695,10 @@ fn set_immediate_format_impl(
     let command = crate::commands::Command::SetImmediateFormat {
         address,
         new_format: Some(format),
-        old_format: app_state.immediate_value_formats.get(&address).copied(),
+        old_format: app_state
+            .annotations
+            .get(address)
+            .and_then(|e| e.immediate_format),
     };
 
     command.apply(app_state);
@@ -1856,8 +1872,10 @@ fn get_comments_impl(app_state: &AppState, args: &Value) -> Result<Vec<Value>, M
     };
 
     if type_filter != Some("side") {
-        for (addr, comment) in &app_state.user_line_comments {
-            if addr_passes(addr) {
+        for (addr, entry) in app_state.annotations.iter() {
+            if let Some(ref comment) = entry.user_line_comment
+                && addr_passes(&addr)
+            {
                 comments.push(json!({
                     "address": addr,
                     "type": "line",
@@ -1868,8 +1886,10 @@ fn get_comments_impl(app_state: &AppState, args: &Value) -> Result<Vec<Value>, M
     }
 
     if type_filter != Some("line") {
-        for (addr, comment) in &app_state.user_side_comments {
-            if addr_passes(addr) {
+        for (addr, entry) in app_state.annotations.iter() {
+            if let Some(ref comment) = entry.user_side_comment
+                && addr_passes(&addr)
+            {
                 comments.push(json!({
                     "address": addr,
                     "type": "side",
@@ -1990,21 +2010,27 @@ fn get_address_details_impl(app_state: &AppState, address: Addr) -> Result<Value
 
     // 4. Comments
     let mut comments = Vec::new();
-    if let Some(c) = app_state.user_line_comments.get(&address) {
-        comments.push(format!("[User Line] {c}"));
-    }
-    if let Some(c) = app_state.user_side_comments.get(&address) {
-        comments.push(format!("[User Side] {c}"));
-    }
-    if let Some(c) = app_state.system_comments.get(&address) {
-        comments.push(format!("[System] {c}"));
+    if let Some(entry) = app_state.annotations.get(address) {
+        if let Some(c) = &entry.user_line_comment {
+            comments.push(format!("[User Line] {c}"));
+        }
+        if let Some(c) = &entry.user_side_comment {
+            comments.push(format!("[User Side] {c}"));
+        }
+        if let Some(c) = &entry.system_comment {
+            comments.push(format!("[System] {c}"));
+        }
     }
     if !comments.is_empty() {
         details["metadata"]["comments"] = json!(comments);
     }
 
     // 5. Operand Format
-    if let Some(fmt) = app_state.immediate_value_formats.get(&address) {
+    if let Some(fmt) = app_state
+        .annotations
+        .get(address)
+        .and_then(|e| e.immediate_format)
+    {
         details["metadata"]["operand_format"] = json!(format!("{:?}", fmt));
     }
 
@@ -2156,10 +2182,10 @@ fn delete_project_enum_impl(
     // Usage check if force is false
     if !force {
         let usages: Vec<Addr> = app_state
-            .enum_usages
+            .annotations
             .iter()
-            .filter(|(_, enum_ref)| enum_ref.as_str() == name)
-            .map(|(addr, _)| *addr)
+            .filter(|(_, entry)| entry.enum_usage.as_deref() == Some(name))
+            .map(|(addr, _)| addr)
             .collect();
 
         if !usages.is_empty() {
@@ -2418,8 +2444,11 @@ mod tests {
             result_hex
         );
         assert_eq!(
-            app_state.immediate_value_formats.get(&Addr(0x1005)),
-            Some(&ImmediateFormat::Hex)
+            app_state
+                .annotations
+                .get(Addr(0x1005))
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::Hex)
         );
 
         let args_dec = json!({
@@ -2434,8 +2463,11 @@ mod tests {
         );
         assert!(result_dec.is_ok());
         assert_eq!(
-            app_state.immediate_value_formats.get(&Addr(0x1006)),
-            Some(&ImmediateFormat::Decimal)
+            app_state
+                .annotations
+                .get(Addr(0x1006))
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::Decimal)
         );
 
         // 2. Error cases for low_byte/high_byte missing target_address
@@ -2472,8 +2504,11 @@ mod tests {
             result_lo_ok
         );
         assert_eq!(
-            app_state.immediate_value_formats.get(&Addr(0x1007)),
-            Some(&ImmediateFormat::LowByte(Addr(0xEA31)))
+            app_state
+                .annotations
+                .get(Addr(0x1007))
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::LowByte(Addr(0xEA31)))
         );
     }
 

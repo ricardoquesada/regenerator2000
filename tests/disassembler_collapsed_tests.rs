@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use regenerator2000_core::disassembler::Disassembler;
-use regenerator2000_core::state::{BlockType, DocumentSettings};
+use regenerator2000_core::state::{AnnotationManager, BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]
@@ -23,14 +23,10 @@ fn test_collapsed_block_rendering() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &collapsed_blocks,
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Expected:

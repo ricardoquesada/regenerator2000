@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use regenerator2000_core::disassembler::Disassembler;
 use regenerator2000_core::state::Addr;
-use regenerator2000_core::state::{Assembler, BlockType, DocumentSettings};
+use regenerator2000_core::state::{AnnotationManager, Assembler, BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]
@@ -30,14 +30,21 @@ fn test_user_comments_override_system_comments() {
         &labels,
         origin,
         &settings,
-        &system_comments,
-        &user_comments,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &system_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.system_comment = Some(c.clone()));
+            }
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &user_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.user_side_comment = Some(c.clone()));
+            }
+            ann
+        },
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -70,14 +77,21 @@ fn test_user_comments_fallthrough() {
         &labels,
         origin,
         &settings,
-        &system_comments,
-        &user_comments,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &system_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.system_comment = Some(c.clone()));
+            }
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &user_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.user_side_comment = Some(c.clone()));
+            }
+            ann
+        },
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -112,14 +126,21 @@ fn test_user_comments_referenced_address() {
         &labels,
         origin,
         &settings,
-        &system_comments,
-        &user_comments,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &system_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.system_comment = Some(c.clone()));
+            }
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &user_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.user_side_comment = Some(c.clone()));
+            }
+            ann
+        },
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);

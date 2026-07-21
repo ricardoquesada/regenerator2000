@@ -25,7 +25,9 @@ fn test_routine_block_local_symbols_64tass() {
     state.disassemble(); // Initial disassembly for set_block_type_region to work
 
     // 1000-1006 are the first function.
-    state.scopes.insert(Addr(0x1000), Addr(0x1006));
+    state
+        .annotations
+        .update(Addr(0x1000), |e| e.scope = Some(Addr(0x1006)));
     state.splitters.insert(Addr(0x1007));
 
     state.settings.assembler = Assembler::Tass64;
@@ -113,7 +115,9 @@ fn test_routine_block_local_referenced_from_outside() {
     state.disassemble();
 
     // Mark 1000-1004 as Scope
-    state.scopes.insert(Addr(0x1000), Addr(0x1004));
+    state
+        .annotations
+        .update(Addr(0x1000), |e| e.scope = Some(Addr(0x1004)));
     state.splitters.insert(Addr(0x1005));
     state.settings.assembler = Assembler::Tass64;
 
@@ -188,7 +192,9 @@ fn test_routine_split_by_bytes() {
     // Set range as Scope initially
     let start_addr = Addr(0x1000);
     let end_addr = Addr(0x1000 + state.raw_data.len() as u16 - 1);
-    state.scopes.insert(start_addr, end_addr);
+    state
+        .annotations
+        .update(start_addr, |e| e.scope = Some(end_addr));
 
     // Split with Bytes at $1040-$104F (offset 0x40 to 0x4F)
     let byte_start_idx = state
@@ -293,7 +299,9 @@ fn test_routine_block_local_symbols_ca65() {
     state.disassemble(); // Initial disassembly for set_block_type_region to work
 
     // 1000-1006 are the first function.
-    state.scopes.insert(Addr(0x1000), Addr(0x1006));
+    state
+        .annotations
+        .update(Addr(0x1000), |e| e.scope = Some(Addr(0x1006)));
     state.splitters.insert(Addr(0x1007));
 
     state.settings.assembler = Assembler::Ca65;
@@ -370,7 +378,9 @@ fn test_routine_block_local_symbols_kickasm() {
     state.disassemble(); // Initial disassembly for set_block_type_region to work
 
     // 1000-1006 are the first function.
-    state.scopes.insert(Addr(0x1000), Addr(0x1006));
+    state
+        .annotations
+        .update(Addr(0x1000), |e| e.scope = Some(Addr(0x1006)));
     state.splitters.insert(Addr(0x1007));
 
     state.settings.assembler = Assembler::Kick;

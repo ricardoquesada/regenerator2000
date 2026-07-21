@@ -2,7 +2,6 @@
 #[cfg(test)]
 mod tests {
     use regenerator2000_core::state::{AppState, PROJECT_FORMAT_VERSION};
-    use std::collections::BTreeMap;
 
     fn make_test_json(include_version: Option<u32>) -> String {
         let raw_data_b64 = regenerator2000_core::state::encode_raw_data_to_base64(&[0xEA]).unwrap();
@@ -91,7 +90,6 @@ mod tests {
                     hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
-                    bookmarks: BTreeMap::new(),
                 },
                 false,
             )

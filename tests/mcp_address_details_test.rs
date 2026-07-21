@@ -55,10 +55,11 @@ mod tests {
                 label_type: regenerator2000_core::state::LabelType::UserDefined,
             }],
         );
-        app_state.user_side_comments.insert(
-            regenerator2000_core::state::Addr(0x1000),
-            "Start of loop".to_string(),
-        );
+        app_state
+            .annotations
+            .update(regenerator2000_core::state::Addr(0x1000), |e| {
+                e.user_side_comment = Some("Start of loop".to_string())
+            });
 
         let mut ui_state = UIState::new(Theme::default());
 

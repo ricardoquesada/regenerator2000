@@ -210,14 +210,18 @@ impl AppState {
         }
 
         // Add Scopes
-        for (start_addr, end_addr) in &self.scopes {
+        for (start_addr, end_addr) in self
+            .annotations
+            .iter()
+            .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
+        {
             let name = self
                 .labels
-                .get(start_addr)
+                .get(&start_addr)
                 .and_then(|l| l.first().map(|l| l.name.clone()));
             items.push(BlockItem::Scope {
-                start: *start_addr,
-                end: *end_addr,
+                start: start_addr,
+                end: end_addr,
                 name,
             });
         }
@@ -454,10 +458,12 @@ impl AppState {
         // Emit all flat external labels in address order.
         for (addr, name, _, is_zp) in flat {
             let mut comment_parts = Vec::new();
-            if let Some(user_comment) = self.user_side_comments.get(&Addr(addr)) {
-                comment_parts.push(user_comment.clone());
-            } else if let Some(sys_comment) = self.system_comments.get(&Addr(addr)) {
-                comment_parts.push(sys_comment.clone());
+            if let Some(entry) = self.annotations.get(Addr(addr)) {
+                if let Some(ref user_comment) = entry.user_side_comment {
+                    comment_parts.push(user_comment.clone());
+                } else if let Some(ref sys_comment) = entry.system_comment {
+                    comment_parts.push(sys_comment.clone());
+                }
             }
 
             if include_xrefs
@@ -492,10 +498,12 @@ impl AppState {
         // Emit external-file labels after all the others.
         for (addr, name) in ext_file_labels {
             let mut comment_parts = Vec::new();
-            if let Some(user_comment) = self.user_side_comments.get(&Addr(addr)) {
-                comment_parts.push(user_comment.clone());
-            } else if let Some(sys_comment) = self.system_comments.get(&Addr(addr)) {
-                comment_parts.push(sys_comment.clone());
+            if let Some(entry) = self.annotations.get(Addr(addr)) {
+                if let Some(ref user_comment) = entry.user_side_comment {
+                    comment_parts.push(user_comment.clone());
+                } else if let Some(ref sys_comment) = entry.system_comment {
+                    comment_parts.push(sys_comment.clone());
+                }
             }
 
             if include_xrefs
@@ -553,7 +561,11 @@ impl AppState {
 
         // Find unique used enums
         let mut used_enum_names: BTreeSet<String> = BTreeSet::new();
-        for name in self.enum_usages.values() {
+        for name in self
+            .annotations
+            .iter()
+            .filter_map(|(_, entry)| entry.enum_usage.as_ref())
+        {
             used_enum_names.insert(name.clone());
         }
 

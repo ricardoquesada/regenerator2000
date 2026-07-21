@@ -49,23 +49,27 @@ mod tests {
         app_state.labels = labels;
 
         // Add comments in random order (BTreeMap will handle address order, but let's be sure)
-        app_state.user_side_comments.insert(
-            regenerator2000_core::state::Addr(0x1005),
-            "Comment 2".to_string(),
-        );
-        app_state.user_side_comments.insert(
-            regenerator2000_core::state::Addr(0x1000),
-            "Comment 1".to_string(),
-        );
+        app_state
+            .annotations
+            .update(regenerator2000_core::state::Addr(0x1005), |e| {
+                e.user_side_comment = Some("Comment 2".to_string())
+            });
+        app_state
+            .annotations
+            .update(regenerator2000_core::state::Addr(0x1000), |e| {
+                e.user_side_comment = Some("Comment 1".to_string())
+            });
 
-        app_state.user_line_comments.insert(
-            regenerator2000_core::state::Addr(0x1005),
-            "Line 2".to_string(),
-        );
-        app_state.user_line_comments.insert(
-            regenerator2000_core::state::Addr(0x1000),
-            "Line 1".to_string(),
-        );
+        app_state
+            .annotations
+            .update(regenerator2000_core::state::Addr(0x1005), |e| {
+                e.user_line_comment = Some("Line 2".to_string())
+            });
+        app_state
+            .annotations
+            .update(regenerator2000_core::state::Addr(0x1000), |e| {
+                e.user_line_comment = Some("Line 1".to_string())
+            });
 
         // 2. Save for the first time
         app_state
@@ -83,7 +87,6 @@ mod tests {
                     hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
-                    bookmarks: BTreeMap::new(),
                 },
                 false,
             )
@@ -113,7 +116,6 @@ mod tests {
                     hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
-                    bookmarks: BTreeMap::new(),
                 },
                 false,
             )

@@ -1,6 +1,6 @@
 use super::settings::DocumentSettings;
 use super::types::{
-    Addr, BlockType, EnumDefinition, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType, System,
+    Addr, BlockType, EnumDefinition, HexdumpViewMode, LabelKind, LabelType, System,
 };
 use base64::{Engine as _, engine::general_purpose};
 use flate2::Compression;
@@ -48,16 +48,10 @@ pub struct ProjectState {
     pub blocks: Vec<Block>,
     #[serde(default)]
     pub labels: BTreeMap<Addr, Vec<Label>>,
-    #[serde(default, alias = "user_comments")]
-    pub user_side_comments: BTreeMap<Addr, String>,
-    #[serde(default)]
-    pub user_line_comments: BTreeMap<Addr, String>,
+    #[serde(default, flatten)]
+    pub annotations: super::annotations::AnnotationManager,
     #[serde(default)]
     pub settings: DocumentSettings,
-    #[serde(default)]
-    pub immediate_value_formats: BTreeMap<Addr, ImmediateFormat>,
-    #[serde(default)]
-    pub bookmarks: BTreeMap<Addr, String>,
     #[serde(default)]
     pub cursor_address: Option<Addr>,
     #[serde(default)]
@@ -83,11 +77,7 @@ pub struct ProjectState {
     #[serde(default)]
     pub blocks_view_cursor: Option<usize>,
     #[serde(default)]
-    pub scopes: BTreeMap<Addr, Addr>,
-    #[serde(default)]
     pub enums: BTreeMap<String, EnumDefinition>,
-    #[serde(default)]
-    pub enum_usages: BTreeMap<Addr, String>,
     /// Per-project user-excluded addresses: always excluded from symbolic
     /// analysis, independent of the `exclude_well_known_labels` setting.
     /// Defaults to empty so existing project files load without errors.
@@ -128,7 +118,6 @@ pub struct ProjectSaveContext {
     pub hexdump_view_mode: HexdumpViewMode,
     pub splitters: BTreeSet<Addr>,
     pub blocks_view_cursor: Option<usize>,
-    pub bookmarks: BTreeMap<Addr, String>,
 }
 
 /// Encode raw byte data to a base64 string.

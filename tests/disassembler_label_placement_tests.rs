@@ -2,7 +2,7 @@
 use regenerator2000_core::disassembler::Disassembler;
 use regenerator2000_core::state::Addr;
 use regenerator2000_core::state::{
-    Assembler, BlockType, DocumentSettings, Label, LabelKind, LabelType,
+    AnnotationManager, Assembler, BlockType, DocumentSettings, Label, LabelKind, LabelType,
 };
 use std::collections::BTreeMap;
 
@@ -41,14 +41,25 @@ fn test_tass_label_placement_on_text() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(), // user_side_comments
-        &BTreeMap::new(), // user_line_comments
-        &BTreeMap::new(), // immediate_value_formats
-        &cross_refs,      // cross_refs
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = // user_side_comments
+        &BTreeMap::new();
+            for (a, c) in m {
+                ann.update(*a, |e| e.user_line_comment = Some(c.clone()));
+            }
+            let m: &BTreeMap<regenerator2000_core::state::Addr, regenerator2000_core::state::ImmediateFormat> = // user_line_comments
+        &BTreeMap::new();
+            for (a, f) in m {
+                ann.update(*a, |e| e.immediate_format = Some(*f));
+            }
+            ann
+        },
+        // immediate_value_formats
+        &cross_refs,
+        // cross_refs
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Expected Tass output:
@@ -113,14 +124,17 @@ fn test_tass_label_placement_on_screencode() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &user_side_comments,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &user_side_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.user_side_comment = Some(c.clone()));
+            }
+            ann
+        },
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Expected Tass output:

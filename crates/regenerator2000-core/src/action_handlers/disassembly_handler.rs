@@ -157,9 +157,10 @@ fn handle_add_scope(ctx: &mut ActionContext<'_>) {
         let start_addr = line.address;
         let current_scope = ctx
             .state
-            .scopes
+            .annotations
             .iter()
-            .find(|&(&s, &e)| start_addr >= s && start_addr <= e);
+            .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
+            .find(|&(s, e)| start_addr >= s && start_addr <= e);
 
         if current_scope.is_some() {
             ctx.events.push(CoreEvent::StatusMessage(
@@ -186,9 +187,10 @@ fn handle_add_scope(ctx: &mut ActionContext<'_>) {
     if let Some((start_addr, end_addr)) = scope_range {
         let overlaps = ctx
             .state
-            .scopes
+            .annotations
             .iter()
-            .any(|(&s, &e)| !(end_addr < s || start_addr > e));
+            .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
+            .any(|(s, e)| !(end_addr < s || start_addr > e));
 
         if overlaps {
             ctx.events.push(CoreEvent::StatusMessage(
@@ -214,7 +216,7 @@ fn handle_add_scope(ctx: &mut ActionContext<'_>) {
             }
         }
 
-        let old_scope_end = ctx.state.scopes.get(&start_addr).copied();
+        let old_scope_end = ctx.state.annotations.get(start_addr).and_then(|e| e.scope);
         commands.push(crate::commands::Command::AddScope {
             start: start_addr,
             end: end_addr,
@@ -245,10 +247,10 @@ fn handle_nudge_scope_boundary(ctx: &mut ActionContext<'_>, expand: bool) {
     let current_addr = line.address;
     let active_scope = ctx
         .state
-        .scopes
+        .annotations
         .iter()
-        .find(|&(&s, &e)| current_addr >= s && current_addr <= e)
-        .map(|(&s, &e)| (s, e));
+        .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
+        .find(|&(s, e)| current_addr >= s && current_addr <= e);
 
     let Some((start_addr, end_addr)) = active_scope else {
         ctx.events.push(CoreEvent::StatusMessage(
@@ -292,9 +294,10 @@ fn handle_nudge_scope_boundary(ctx: &mut ActionContext<'_>, expand: bool) {
 
     let other_overlap = ctx
         .state
-        .scopes
+        .annotations
         .iter()
-        .any(|(&s, &e)| s != start_addr && !(new_end_addr < s || start_addr > e));
+        .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
+        .any(|(s, e)| s != start_addr && !(new_end_addr < s || start_addr > e));
 
     if other_overlap {
         ctx.events.push(CoreEvent::StatusMessage(
@@ -329,10 +332,10 @@ fn handle_remove_scope(ctx: &mut ActionContext<'_>) {
         let current_addr = line.address;
         let active_scope = ctx
             .state
-            .scopes
+            .annotations
             .iter()
-            .find(|&(&s, &e)| current_addr >= s && current_addr <= e)
-            .map(|(&s, &e)| (s, e));
+            .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
+            .find(|&(s, e)| current_addr >= s && current_addr <= e);
 
         if let Some((start_addr, end_addr)) = active_scope {
             let cmd_scope = crate::commands::Command::RemoveScope {
@@ -396,7 +399,11 @@ fn handle_apply_label(ctx: &mut ActionContext<'_>, address: Addr, name: String, 
 }
 
 fn handle_apply_enum_usage(ctx: &mut ActionContext<'_>, address: Addr, enum_name: Option<&str>) {
-    let old_enum = ctx.state.enum_usages.get(&address).cloned();
+    let old_enum = ctx
+        .state
+        .annotations
+        .get(address)
+        .and_then(|e| e.enum_usage.clone());
     let command = crate::commands::Command::SetEnumUsage {
         address,
         new_enum: enum_name.map(String::from),
@@ -424,7 +431,11 @@ fn handle_apply_comment(
 ) {
     let command = match kind {
         CommentKind::Side => {
-            let old_comment = ctx.state.user_side_comments.get(&address).cloned();
+            let old_comment = ctx
+                .state
+                .annotations
+                .get(address)
+                .and_then(|e| e.user_side_comment.clone());
             crate::commands::Command::SetUserSideComment {
                 address,
                 new_comment: if text.is_empty() { None } else { Some(text) },
@@ -432,7 +443,11 @@ fn handle_apply_comment(
             }
         }
         CommentKind::Line => {
-            let old_comment = ctx.state.user_line_comments.get(&address).cloned();
+            let old_comment = ctx
+                .state
+                .annotations
+                .get(address)
+                .and_then(|e| e.user_line_comment.clone());
             crate::commands::Command::SetUserLineComment {
                 address,
                 new_comment: if text.is_empty() { None } else { Some(text) },
@@ -579,12 +594,20 @@ fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
                 batch_commands.push(crate::commands::Command::SetImmediateFormat {
                     address: addr1,
                     new_format: Some(fmt1),
-                    old_format: ctx.state.immediate_value_formats.get(&addr1).copied(),
+                    old_format: ctx
+                        .state
+                        .annotations
+                        .get(addr1)
+                        .and_then(|e| e.immediate_format),
                 });
                 batch_commands.push(crate::commands::Command::SetImmediateFormat {
                     address: addr2,
                     new_format: Some(fmt2),
-                    old_format: ctx.state.immediate_value_formats.get(&addr2).copied(),
+                    old_format: ctx
+                        .state
+                        .annotations
+                        .get(addr2)
+                        .and_then(|e| e.immediate_format),
                 });
 
                 i = match_idx + 1;
@@ -655,9 +678,9 @@ fn cycle_immediate_format(ctx: &mut ActionContext<'_>, forward: bool) {
 
         let current_fmt = ctx
             .state
-            .immediate_value_formats
-            .get(&address)
-            .cloned()
+            .annotations
+            .get(address)
+            .and_then(|e| e.immediate_format)
             .unwrap_or(ImmediateFormat::Hex);
 
         let current_idx = formats.iter().position(|&f| f == current_fmt).unwrap_or(0);
@@ -672,7 +695,11 @@ fn cycle_immediate_format(ctx: &mut ActionContext<'_>, forward: bool) {
         let command = crate::commands::Command::SetImmediateFormat {
             address,
             new_format: Some(new_fmt),
-            old_format: ctx.state.immediate_value_formats.get(&address).cloned(),
+            old_format: ctx
+                .state
+                .annotations
+                .get(address)
+                .and_then(|e| e.immediate_format),
         };
 
         ctx.preserve_cursor(|c| {
@@ -926,7 +953,11 @@ impl DomainActionHandler for DisassemblyActionHandler {
             AppAction::SideComment => {
                 if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
                     let address = line.address;
-                    let current = ctx.state.user_side_comments.get(&address).cloned();
+                    let current = ctx
+                        .state
+                        .annotations
+                        .get(address)
+                        .and_then(|e| e.user_side_comment.clone());
                     ctx.events.push(CoreEvent::DialogRequested(
                         crate::event::DialogType::Comment {
                             address,
@@ -943,7 +974,11 @@ impl DomainActionHandler for DisassemblyActionHandler {
             AppAction::LineComment => {
                 if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
                     let address = line.address;
-                    let current = ctx.state.user_line_comments.get(&address).cloned();
+                    let current = ctx
+                        .state
+                        .annotations
+                        .get(address)
+                        .and_then(|e| e.user_line_comment.clone());
                     ctx.events.push(CoreEvent::DialogRequested(
                         crate::event::DialogType::Comment {
                             address,
@@ -1071,7 +1106,12 @@ impl DomainActionHandler for DisassemblyActionHandler {
                 if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
                     if line.external_label_address.is_none() {
                         let address = line.address;
-                        let is_bookmarked = ctx.state.bookmarks.contains_key(&address);
+                        let is_bookmarked = ctx
+                            .state
+                            .annotations
+                            .get(address)
+                            .and_then(|e| e.bookmark.as_ref())
+                            .is_some();
 
                         let command = crate::commands::Command::SetBookmark {
                             address,
@@ -1080,7 +1120,11 @@ impl DomainActionHandler for DisassemblyActionHandler {
                             } else {
                                 Some(String::new())
                             },
-                            old_name: ctx.state.bookmarks.get(&address).cloned(),
+                            old_name: ctx
+                                .state
+                                .annotations
+                                .get(address)
+                                .and_then(|e| e.bookmark.clone()),
                         };
                         command.apply(ctx.state);
                         ctx.state.push_command(command);
@@ -1204,12 +1248,18 @@ mod tests {
 
         // Immediate formats should be assigned: $1000 -> LowByte($1688), $1003 -> HighByte($1688)
         assert_eq!(
-            core.state.immediate_value_formats.get(&Addr(0x1000)),
-            Some(&crate::state::ImmediateFormat::LowByte(Addr(0x1688)))
+            core.state
+                .annotations
+                .get(Addr(0x1000))
+                .and_then(|e| e.immediate_format),
+            Some(crate::state::ImmediateFormat::LowByte(Addr(0x1688)))
         );
         assert_eq!(
-            core.state.immediate_value_formats.get(&Addr(0x1003)),
-            Some(&crate::state::ImmediateFormat::HighByte(Addr(0x1688)))
+            core.state
+                .annotations
+                .get(Addr(0x1003))
+                .and_then(|e| e.immediate_format),
+            Some(crate::state::ImmediateFormat::HighByte(Addr(0x1688)))
         );
     }
 
@@ -1236,12 +1286,18 @@ mod tests {
 
         // HiLo address: first byte is High ($16), second is Low ($88) -> Target $1688
         assert_eq!(
-            core.state.immediate_value_formats.get(&Addr(0x1000)),
-            Some(&crate::state::ImmediateFormat::HighByte(Addr(0x1688)))
+            core.state
+                .annotations
+                .get(Addr(0x1000))
+                .and_then(|e| e.immediate_format),
+            Some(crate::state::ImmediateFormat::HighByte(Addr(0x1688)))
         );
         assert_eq!(
-            core.state.immediate_value_formats.get(&Addr(0x1002)),
-            Some(&crate::state::ImmediateFormat::LowByte(Addr(0x1688)))
+            core.state
+                .annotations
+                .get(Addr(0x1002))
+                .and_then(|e| e.immediate_format),
+            Some(crate::state::ImmediateFormat::LowByte(Addr(0x1688)))
         );
     }
 }

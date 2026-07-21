@@ -37,7 +37,6 @@ mod tests {
                     hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
-                    bookmarks: std::collections::BTreeMap::new(),
                 },
                 false,
             )

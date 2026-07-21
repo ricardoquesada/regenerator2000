@@ -31,9 +31,7 @@ mod tests {
                 collapsed: false,
             }],
             labels: BTreeMap::new(), // EMPTY! No saved labels.
-            user_side_comments: BTreeMap::new(),
-            user_line_comments: BTreeMap::new(),
-            immediate_value_formats: BTreeMap::new(),
+            annotations: regenerator2000_core::state::AnnotationManager::default(),
             settings: DocumentSettings::default(),
             cursor_address: None,
             hex_dump_cursor_address: None,
@@ -47,11 +45,8 @@ mod tests {
             hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
-            bookmarks: BTreeMap::new(),
-            scopes: BTreeMap::new(),
             user_excluded_addresses: std::collections::BTreeSet::new(),
             enums: BTreeMap::new(),
-            enum_usages: BTreeMap::new(),
         };
 
         let json = serde_json::to_string(&project).unwrap();
@@ -108,9 +103,7 @@ mod tests {
                 collapsed: false,
             }],
             labels: BTreeMap::new(),
-            user_side_comments: BTreeMap::new(),
-            user_line_comments: BTreeMap::new(),
-            immediate_value_formats: BTreeMap::new(),
+            annotations: regenerator2000_core::state::AnnotationManager::default(),
             settings: DocumentSettings::default(),
             cursor_address: None,
             hex_dump_cursor_address: None,
@@ -124,11 +117,8 @@ mod tests {
             hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
-            bookmarks: BTreeMap::new(),
-            scopes: BTreeMap::new(),
             user_excluded_addresses: [Addr(0xE500), Addr(0xFFD2)].into_iter().collect(),
             enums: BTreeMap::new(),
-            enum_usages: BTreeMap::new(),
         };
 
         let json = serde_json::to_string(&project).unwrap();
@@ -182,7 +172,6 @@ mod tests {
             hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
-            bookmarks: BTreeMap::new(),
         };
         app_state
             .save_project(ctx, false)
@@ -203,6 +192,42 @@ mod tests {
         assert!(app_state2.user_excluded_addresses.contains(&Addr(0xFFD2)));
 
         // Cleanup
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_legacy_project_deserialization() {
+        use regenerator2000_core::state::Addr;
+
+        let raw_bytes: Vec<u8> = vec![0xEA, 0xEA];
+        let raw_data_base64 =
+            regenerator2000_core::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
+
+        let legacy_json = format!(
+            r#"{{
+            "version": 1,
+            "origin": 4096,
+            "raw_data_base64": "{raw_data_base64}",
+            "blocks": [],
+            "user_side_comments": {{ "4096": "Legacy Comment" }}
+        }}"#
+        );
+
+        let mut path = std::env::temp_dir();
+        path.push("test_legacy_project_deserialization.regen2000proj");
+        std::fs::write(&path, legacy_json).unwrap();
+
+        let mut app_state = AppState::new();
+        app_state
+            .load_project(path.clone())
+            .expect("Failed to load legacy project");
+
+        let entry = app_state
+            .annotations
+            .get(Addr(4096))
+            .expect("Annotation at Addr(4096) should exist");
+        assert_eq!(entry.user_side_comment, Some("Legacy Comment".into()));
+
         let _ = std::fs::remove_file(path);
     }
 }

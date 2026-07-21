@@ -3,7 +3,7 @@
 mod tests {
     use regenerator2000_core::mcp::handler::handle_request;
     use regenerator2000_core::mcp::types::McpRequest;
-    use regenerator2000_core::state::AppState;
+    use regenerator2000_core::state::{Addr, AppState};
     use regenerator2000_tui::theme::Theme;
     use regenerator2000_tui::ui_state::UIState;
     use serde_json::json;
@@ -17,8 +17,14 @@ mod tests {
         app_state.load_binary(origin, data).unwrap();
 
         // Initial state check
-        assert!(!app_state.labels.contains_key(&0x1000));
-        assert!(!app_state.user_side_comments.contains_key(&0x1000));
+        assert!(!app_state.labels.contains_key(&Addr(0x1000)));
+        assert!(
+            app_state
+                .annotations
+                .get(Addr(0x1000))
+                .and_then(|e| e.user_side_comment.as_ref())
+                .is_none()
+        );
 
         let mut ui_state = UIState::new(Theme::default());
 
@@ -87,7 +93,11 @@ mod tests {
         let labels = app_state.labels.get(&0x1000).unwrap();
         assert_eq!(labels[0].name, "start_loop");
 
-        let comment = app_state.user_side_comments.get(&0x1000).unwrap();
+        let comment = app_state
+            .annotations
+            .get(Addr(0x1000))
+            .and_then(|e| e.user_side_comment.as_deref())
+            .unwrap();
         assert_eq!(comment, "Loop Entry");
     }
 

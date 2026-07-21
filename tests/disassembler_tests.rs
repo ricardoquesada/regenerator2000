@@ -2,7 +2,7 @@
 
 use regenerator2000_core::disassembler::{Disassembler, DisassemblyLine};
 use regenerator2000_core::state::Addr;
-use regenerator2000_core::state::{Assembler, BlockType, DocumentSettings};
+use regenerator2000_core::state::{AnnotationManager, Assembler, BlockType, DocumentSettings};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[test]
@@ -27,14 +27,10 @@ fn test_tass_formatting_force_w() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -64,14 +60,10 @@ fn test_tass_formatting_no_force_if_disabled() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -98,14 +90,10 @@ fn test_acme_formatting_basic() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -135,14 +123,10 @@ fn test_text_char_limit_configurable() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // With limit 10, it should split:
@@ -182,14 +166,10 @@ fn test_screencode_limit_configurable() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Tass wrapping: .encode, .enc "...", .text (10), .text (10), .endencode
@@ -231,14 +211,10 @@ fn test_acme_directives() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -288,14 +264,10 @@ fn test_acme_lowercase_output() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);
@@ -331,14 +303,10 @@ fn test_acme_plus2_formatting() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -388,14 +356,10 @@ fn test_xref_formatting_with_dollar() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &cross_refs,
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -449,14 +413,10 @@ fn test_xref_count_configurable() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &cross_refs,
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
     assert_eq!(lines.len(), 1);
     // Should show 5 items
@@ -472,14 +432,10 @@ fn test_xref_count_configurable() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &cross_refs,
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
     let comment = &lines[0].comment;
     assert!(comment.contains("$2000, $2001"));
@@ -493,14 +449,10 @@ fn test_xref_count_configurable() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &cross_refs,
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
     assert!(lines[0].comment.is_empty());
 }
@@ -529,14 +481,10 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Tass formatting produces 4 lines: .encode, .enc "ascii", .text "ABC", .endencode
@@ -553,14 +501,10 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!text");
@@ -582,14 +526,10 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!scr");
@@ -605,14 +545,10 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
     // For Tass, this will produce 4 lines: ENCODE, ENC, BYTE, ENDENCODE
     // But we need to use Acme setting from previous step?
@@ -655,14 +591,10 @@ fn test_text_mixed_content() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Filter relevant lines (Tass wraps in ENCODE)
@@ -699,14 +631,10 @@ fn test_text_escaping() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     assert_eq!(lines_acme[0].operand, "\"Quote \\\" Backslash \\\\\"");
@@ -719,14 +647,10 @@ fn test_text_escaping() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Tass output structure: .encode, .enc, .text ..., .endencode
@@ -777,14 +701,10 @@ fn test_screencode_mixed() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     // !scr "\"" (escaped quote), $ff, "\""
@@ -799,14 +719,10 @@ fn test_screencode_mixed() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
     // .text """""", $ff, """"""
     let text_lines: Vec<&DisassemblyLine> = lines_tass
@@ -849,14 +765,10 @@ fn test_tass_screencode_enc_wrapping() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 4);
@@ -897,14 +809,10 @@ fn test_tass_screencode_multiline_wrapping() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Expected:
@@ -958,14 +866,10 @@ fn test_text_show_bytes_is_false() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Filter for the .text line
@@ -997,14 +901,10 @@ fn test_screencode_show_bytes_is_false() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Filter for the .text line (inside .encode block)
@@ -1035,14 +935,10 @@ fn test_databyte_show_bytes_is_false() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -1072,14 +968,10 @@ fn test_dataword_show_bytes_is_false() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -1109,14 +1001,10 @@ fn test_address_show_bytes_is_false() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -1147,14 +1035,10 @@ fn test_tass_block_separation() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Block 1 (SC) -> 4 lines (Start, Enc, Text, End)
@@ -1176,7 +1060,7 @@ fn test_tass_block_separation() {
 
 #[test]
 fn test_tass_label_interruption() {
-    use regenerator2000_core::state::{Label, LabelKind, LabelType};
+    use regenerator2000_core::state::{AnnotationManager, Label, LabelKind, LabelType};
 
     let settings = DocumentSettings {
         assembler: Assembler::Tass64,
@@ -1207,14 +1091,10 @@ fn test_tass_label_interruption() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Expectation:
@@ -1270,14 +1150,10 @@ fn test_tass_screencode_single_byte_special() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // 64tass has threshold $5F, so $4F < $5F is text.
@@ -1319,14 +1195,10 @@ fn test_tass_screencode_case_mapping() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines_a.len(), 4);
@@ -1350,14 +1222,10 @@ fn test_tass_screencode_case_mapping() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines_b.len(), 4);
@@ -1389,14 +1257,10 @@ fn test_screencode_threshold_per_formatter() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Expected: .text "~", $5f, $60
@@ -1440,14 +1304,10 @@ fn test_acme_screencode_case_inversion() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -1486,14 +1346,10 @@ fn test_target_address_population() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 3);
@@ -1558,14 +1414,10 @@ fn test_target_address_specific_instructions() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 5);
@@ -1613,14 +1465,17 @@ fn test_side_comment_propagation_suppressed_for_code() {
         &labels,
         Addr(0x1000),
         &settings,
-        &BTreeMap::new(),
-        &user_side_comments,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &user_side_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.user_side_comment = Some(c.clone()));
+            }
+            ann
+        },
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -1641,14 +1496,17 @@ fn test_side_comment_propagation_suppressed_for_code() {
         &labels,
         Addr(0x1000),
         &settings,
-        &BTreeMap::new(),
-        &user_side_comments,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &user_side_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.user_side_comment = Some(c.clone()));
+            }
+            ann
+        },
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines2.len(), 2);
@@ -1676,14 +1534,17 @@ fn test_side_comment_propagation_allowed_for_data() {
         &labels,
         Addr(0x1000),
         &settings,
-        &BTreeMap::new(),
-        &user_side_comments,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &user_side_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.user_side_comment = Some(c.clone()));
+            }
+            ann
+        },
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -1714,14 +1575,10 @@ fn test_lohi_block() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Should produce 2 lines:
@@ -1753,14 +1610,10 @@ fn test_lohi_block() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines_labelled.len(), 2);
@@ -1803,14 +1656,10 @@ fn test_lohi_internal_label_regression() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Should produce 2 lines (Lo and Hi), not broken parts.
@@ -1850,14 +1699,10 @@ fn test_hilo_block() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // Should produce 2 lines:
@@ -1888,14 +1733,10 @@ fn test_hilo_block() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines_labelled.len(), 2);
@@ -1939,14 +1780,20 @@ fn test_inverted_binary_format() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &immediate_value_formats,
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<
+                regenerator2000_core::state::Addr,
+                regenerator2000_core::state::ImmediateFormat,
+            > = &immediate_value_formats;
+            for (a, f) in m {
+                ann.update(*a, |e| e.immediate_format = Some(*f));
+            }
+            ann
+        },
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines[0].operand, "#~%11111111");
@@ -1979,14 +1826,10 @@ fn test_acme_accumulator_formatting() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 4);
@@ -2047,14 +1890,10 @@ fn test_addresses_per_line() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // We expect 4 lines because 4 pairs / 2 pairs per line = 2 lines for Lo, 2 lines for Hi.
@@ -2106,14 +1945,10 @@ fn test_words_per_line() {
         &labels,
         origin,
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);
@@ -2141,14 +1976,10 @@ fn test_bytes_per_line() {
         &BTreeMap::new(),
         Addr(0x1000),
         &settings,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &AnnotationManager::default(),
         &BTreeMap::new(),
         &[],
         &BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     // With 5 bytes and bytes_per_line=3, disassemble produces 2 lines

@@ -185,16 +185,18 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
     let mut cross_refs: BTreeMap<Addr, Vec<Addr>> = BTreeMap::new();
 
     // 0. Pre-populate labels from immediate_value_formats (LoHi/HiLo)
-    for (addr, fmt) in &state.immediate_value_formats {
-        let target = match fmt {
-            crate::state::ImmediateFormat::LowByte(val) => Some(*val),
-            crate::state::ImmediateFormat::HighByte(val) => Some(*val),
-            _ => None,
-        };
+    for (addr, entry) in state.annotations.iter() {
+        if let Some(fmt) = &entry.immediate_format {
+            let target = match fmt {
+                crate::state::ImmediateFormat::LowByte(val) => Some(val),
+                crate::state::ImmediateFormat::HighByte(val) => Some(val),
+                _ => None,
+            };
 
-        if let Some(target_addr) = target {
-            // Add to usage map to ensure it's tracked
-            update_usage(&mut usage_map, target_addr, LabelType::Pointer, *addr);
+            if let Some(target_addr) = target {
+                // Add to usage map to ensure it's tracked
+                update_usage(&mut usage_map, *target_addr, LabelType::Pointer, addr);
+            }
         }
     }
 

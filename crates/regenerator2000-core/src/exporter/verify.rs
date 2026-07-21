@@ -314,14 +314,10 @@ fn clone_state_for_verify(state: &crate::state::AppState) -> crate::state::AppSt
     clone.block_types = state.block_types.clone();
     clone.labels = state.labels.clone();
     clone.settings = state.settings.clone();
-    clone.system_comments = state.system_comments.clone();
-    clone.user_side_comments = state.user_side_comments.clone();
-    clone.user_line_comments = state.user_line_comments.clone();
-    clone.immediate_value_formats = state.immediate_value_formats.clone();
+    clone.annotations = state.annotations.clone();
     clone.cross_refs = state.cross_refs.clone();
     clone.collapsed_blocks = state.collapsed_blocks.clone();
     clone.splitters = state.splitters.clone();
-    clone.scopes = state.scopes.clone();
     clone.disassembly = state.disassembly.clone();
     clone
 }

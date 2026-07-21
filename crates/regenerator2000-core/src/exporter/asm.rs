@@ -54,16 +54,12 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> Result<(), CoreError> {
         labels: &state.labels,
         origin: state.origin,
         settings: &state.settings,
-        system_comments: &state.system_comments,
-        user_side_comments: &state.user_side_comments,
-        user_line_comments: &state.user_line_comments,
-        immediate_value_formats: &state.immediate_value_formats,
+        annotations: &state.annotations,
         cross_refs: &state.cross_refs,
         collapsed_blocks: &[], // Ignore collapsed_blocks
         splitters: &state.splitters,
-        scopes: &state.scopes,
+        scope_ends: state.annotations.scope_ends(),
         enums: &state.enums,
-        enum_usages: &state.enum_usages,
         user_global_enums: &state.user_global_enums,
         builtin_enums: &state.builtin_enums,
     };
@@ -1236,9 +1232,9 @@ mod tests {
 
         state.raw_data = vec![0xA9, 0x00];
         state.block_types = vec![crate::state::BlockType::Code; 2];
-        state
-            .user_line_comments
-            .insert(crate::state::Addr(0x1000), "Function Start".to_string());
+        state.annotations.update(crate::state::Addr(0x1000), |e| {
+            e.user_line_comment = Some("Function Start".to_string())
+        });
         state.labels.insert(
             crate::state::Addr(0x1000),
             vec![crate::state::Label {
@@ -1289,9 +1285,9 @@ mod tests {
         state.block_types = vec![crate::state::BlockType::Code; 2];
 
         let multiline_comment = "Line 1\nLine 2\nLine 3".to_string();
-        state
-            .user_line_comments
-            .insert(crate::state::Addr(0x1000), multiline_comment);
+        state.annotations.update(crate::state::Addr(0x1000), |e| {
+            e.user_line_comment = Some(multiline_comment)
+        });
 
         let file_name = "test_export_multiline_line_comments.asm";
         let path = PathBuf::from(file_name);

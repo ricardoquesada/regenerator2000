@@ -283,7 +283,11 @@ impl Disassembler {
         _formatter: &dyn Formatter,
     ) -> BTreeMap<Addr, String> {
         let mut scope_names = BTreeMap::new();
-        for (&start, &end) in ctx.scopes {
+        for (start, end) in ctx
+            .annotations
+            .iter()
+            .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
+        {
             // Resolve label name for the scope entry point
             if let Some(v) = ctx.labels.get(&start)
                 && let Some(label) = resolve_label(v, start.0, ctx.settings)
@@ -311,33 +315,24 @@ impl Disassembler {
         labels: &BTreeMap<Addr, Vec<Label>>,
         origin: Addr,
         settings: &DocumentSettings,
-        system_comments: &BTreeMap<Addr, String>,
-        user_side_comments: &BTreeMap<Addr, String>,
-        user_line_comments: &BTreeMap<Addr, String>,
-        immediate_value_formats: &BTreeMap<Addr, crate::state::ImmediateFormat>,
+        annotations: &crate::state::AnnotationManager,
         cross_refs: &BTreeMap<Addr, Vec<Addr>>,
         collapsed_blocks: &[(usize, usize)],
         splitters: &BTreeSet<Addr>,
-        scopes: &BTreeMap<Addr, Addr>,
     ) -> Vec<DisassemblyLine> {
         let empty_enums = BTreeMap::new();
-        let empty_usages = BTreeMap::new();
         let ctx = DisassemblyContext {
             data,
             block_types,
             labels,
             origin,
             settings,
-            system_comments,
-            user_side_comments,
-            user_line_comments,
-            immediate_value_formats,
+            annotations,
             cross_refs,
             collapsed_blocks,
             splitters,
-            scopes,
+            scope_ends: annotations.scope_ends(),
             enums: &empty_enums,
-            enum_usages: &empty_usages,
             user_global_enums: &empty_enums,
             builtin_enums: &empty_enums,
         };
@@ -365,7 +360,11 @@ impl Disassembler {
         let mut all_local_names: Option<BTreeMap<Addr, String>> = None;
         if supports_scopes {
             let mut locals = BTreeMap::new();
-            for (&start_addr, &end_addr) in ctx.scopes {
+            for (start_addr, end_addr) in ctx
+                .annotations
+                .iter()
+                .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
+            {
                 let start_pc = start_addr.0.saturating_sub(ctx.origin.0) as usize;
                 let end_pc = end_addr.0.saturating_sub(ctx.origin.0) as usize;
                 locals.extend(self.compute_local_label_names(
@@ -431,7 +430,7 @@ impl Disassembler {
 
             // Check if we are starting a NEW Scope
             if supports_scopes
-                && let Some(&end_addr) = ctx.scopes.get(&address)
+                && let Some(end_addr) = ctx.annotations.get(address).and_then(|e| e.scope)
                 && current_scope_end_pc.is_none()
             {
                 // Entering a new Scope range
@@ -447,7 +446,10 @@ impl Disassembler {
                 {
                     current_scope_name = label_name_opt.clone();
 
-                    let line_comment = ctx.user_line_comments.get(&address).cloned();
+                    let line_comment = ctx
+                        .annotations
+                        .get(address)
+                        .and_then(|e| e.user_line_comment.clone());
 
                     lines.push(DisassemblyLine {
                         address,
@@ -520,7 +522,9 @@ impl Disassembler {
             let line_comment = if suppress_line_comment {
                 None
             } else {
-                ctx.user_line_comments.get(&address).cloned()
+                ctx.annotations
+                    .get(address)
+                    .and_then(|e| e.user_line_comment.clone())
             };
 
             let current_type = ctx.block_types.get(pc).copied().unwrap_or(BlockType::Code);
@@ -680,9 +684,6 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let settings = ctx.settings;
-        let system_comments = ctx.system_comments;
-        let user_side_comments = ctx.user_side_comments;
-        let immediate_value_formats = ctx.immediate_value_formats;
         let opcode_byte = data[pc];
         let opcode_opt = &self.opcodes[opcode_byte as usize];
 
@@ -811,11 +812,19 @@ impl Disassembler {
                             // But usually KERNAL/System targets won't be in our 'data' block types loop unless we disassembled the whole memory.
                             // If they are outside (target_idx >= len), is_code_target is false, so we show them (correct for external system calls).
                             // If they are INSIDE and marked as Code, we suppress user comments (to fix the bug).
-                            system_comments.get(&target_addr)
-                        } else if let Some(c) = user_side_comments.get(&target_addr) {
+                            ctx.annotations
+                                .get(target_addr)
+                                .and_then(|e| e.system_comment.as_deref())
+                        } else if let Some(c) = ctx
+                            .annotations
+                            .get(target_addr)
+                            .and_then(|e| e.user_side_comment.as_deref())
+                        {
                             Some(c)
                         } else {
-                            system_comments.get(&target_addr)
+                            ctx.annotations
+                                .get(target_addr)
+                                .and_then(|e| e.system_comment.as_deref())
                         };
 
                         if let Some(target_comment) = target_comment {
@@ -873,14 +882,13 @@ impl Disassembler {
                         target_context,
                         labels,
                         settings,
-                        immediate_value_formats,
+                        annotations: ctx.annotations,
                         local_label_names,
                         label_scope_names,
                         current_scope_name: current_scope_name.as_deref(),
                         scope_separator: formatter.scope_resolution_separator(),
                         local_prefix: formatter.local_label_prefix(),
                         enums: ctx.enums,
-                        enum_usages: ctx.enum_usages,
                         user_global_enums: ctx.user_global_enums,
                         builtin_enums: ctx.builtin_enums,
                     };
@@ -950,7 +958,6 @@ impl Disassembler {
         let labels = ctx.labels;
         let origin = ctx.origin;
         let settings = ctx.settings;
-        let user_line_comments = ctx.user_line_comments;
         let address = origin.wrapping_add(pc as u16);
 
         // --- Fill-run detection (Option C) ---
@@ -988,10 +995,20 @@ impl Disassembler {
                     if ctx.cross_refs.get(&cur_addr).is_some_and(|v| !v.is_empty()) {
                         break;
                     }
-                    if user_line_comments.contains_key(&cur_addr) {
+                    if ctx
+                        .annotations
+                        .get(cur_addr)
+                        .and_then(|e| e.user_line_comment.as_ref())
+                        .is_some()
+                    {
                         break;
                     }
-                    if ctx.user_side_comments.contains_key(&cur_addr) {
+                    if ctx
+                        .annotations
+                        .get(cur_addr)
+                        .and_then(|e| e.user_side_comment.as_ref())
+                        .is_some()
+                    {
                         break;
                     }
                 }
@@ -1045,13 +1062,25 @@ impl Disassembler {
             }
 
             // Stop if line comment exists (except start)
-            if count > 0 && user_line_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_line_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
             // Stop if a side comment exists on an interior byte: that byte needs
             // its own line so the comment is displayed with it.
-            if count > 0 && ctx.user_side_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_side_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
@@ -1079,10 +1108,20 @@ impl Disassembler {
                         if ctx.cross_refs.get(&j_addr).is_some_and(|v| !v.is_empty()) {
                             break;
                         }
-                        if user_line_comments.contains_key(&j_addr) {
+                        if ctx
+                            .annotations
+                            .get(j_addr)
+                            .and_then(|e| e.user_line_comment.as_ref())
+                            .is_some()
+                        {
                             break;
                         }
-                        if ctx.user_side_comments.contains_key(&j_addr) {
+                        if ctx
+                            .annotations
+                            .get(j_addr)
+                            .and_then(|e| e.user_side_comment.as_ref())
+                            .is_some()
+                        {
                             break;
                         }
                     }
@@ -1144,7 +1183,6 @@ impl Disassembler {
         let labels = ctx.labels;
         let origin = ctx.origin;
         let settings = ctx.settings;
-        let user_line_comments = ctx.user_line_comments;
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0; // Number of words
@@ -1178,12 +1216,24 @@ impl Disassembler {
 
             // Stop if line comment exists (except start)
             // Note: DataWord is 2 bytes. We check if comment is at the start of the word.
-            if count > 0 && user_line_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_line_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
             // Stop if a side comment exists on an interior word.
-            if count > 0 && ctx.user_side_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_side_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
@@ -1256,7 +1306,6 @@ impl Disassembler {
         let labels = ctx.labels;
         let origin = ctx.origin;
         let settings = ctx.settings;
-        let user_line_comments = ctx.user_line_comments;
         let address = origin.wrapping_add(pc as u16);
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -1281,7 +1330,13 @@ impl Disassembler {
                 break;
             }
 
-            if count > 0 && user_line_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_line_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
@@ -1330,10 +1385,7 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let origin = ctx.origin;
-        let system_comments = ctx.system_comments;
-        let user_side_comments = ctx.user_side_comments;
         let settings = ctx.settings;
-        let user_line_comments = ctx.user_line_comments;
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0;
@@ -1352,12 +1404,24 @@ impl Disassembler {
                 break;
             }
 
-            if count > 0 && user_line_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_line_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
             // Stop if a side comment exists on an interior address entry.
-            if count > 0 && user_side_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_side_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
@@ -1375,11 +1439,19 @@ impl Disassembler {
             let target_comment = if target_idx < data.len() {
                 // Target is inside our disassembled data. Avoid appending user side comments
                 // to prevent duplication and propagation (e.g. in BASIC next pointers).
-                system_comments.get(&val)
-            } else if let Some(c) = user_side_comments.get(&val) {
+                ctx.annotations
+                    .get(Addr(val))
+                    .and_then(|e| e.system_comment.as_deref())
+            } else if let Some(c) = ctx
+                .annotations
+                .get(Addr(val))
+                .and_then(|e| e.user_side_comment.as_deref())
+            {
                 Some(c)
             } else {
-                system_comments.get(&val)
+                ctx.annotations
+                    .get(Addr(val))
+                    .and_then(|e| e.system_comment.as_deref())
             };
 
             if let Some(target_comment) = target_comment {
@@ -1464,8 +1536,6 @@ impl Disassembler {
         let origin = ctx.origin;
         let settings = ctx.settings;
 
-        let user_line_comments = ctx.user_line_comments;
-
         let mut fragments = Vec::new();
         let mut current_literal = String::new();
         let mut count = 0;
@@ -1486,12 +1556,24 @@ impl Disassembler {
                 break;
             }
 
-            if count > 0 && user_line_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_line_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
             // Stop if a side comment exists on an interior byte.
-            if count > 0 && ctx.user_side_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_side_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
@@ -1615,8 +1697,6 @@ impl Disassembler {
         let origin = ctx.origin;
         let settings = ctx.settings;
 
-        let user_line_comments = ctx.user_line_comments;
-
         let mut fragments = Vec::new();
         let mut current_literal = String::new();
         let mut count = 0;
@@ -1637,12 +1717,24 @@ impl Disassembler {
                 break;
             }
 
-            if count > 0 && user_line_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_line_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
             // Stop if a side comment exists on an interior byte.
-            if count > 0 && ctx.user_side_comments.contains_key(&current_address) {
+            if count > 0
+                && ctx
+                    .annotations
+                    .get(current_address)
+                    .and_then(|e| e.user_side_comment.as_ref())
+                    .is_some()
+            {
                 break;
             }
 
@@ -1881,17 +1973,9 @@ mod tests {
         static EMPTY_LABELS: LazyLock<
             BTreeMap<crate::state::Addr, Vec<crate::state::project::Label>>,
         > = LazyLock::new(BTreeMap::new);
-        static EMPTY_COMMENTS: LazyLock<BTreeMap<crate::state::Addr, String>> =
-            LazyLock::new(BTreeMap::new);
-        static EMPTY_IMM: LazyLock<BTreeMap<crate::state::Addr, crate::state::ImmediateFormat>> =
-            LazyLock::new(BTreeMap::new);
-        static EMPTY_SCOPES: LazyLock<BTreeMap<crate::state::Addr, crate::state::Addr>> =
-            LazyLock::new(BTreeMap::new);
         static EMPTY_SPLITTERS: LazyLock<BTreeSet<crate::state::Addr>> =
             LazyLock::new(BTreeSet::new);
         static EMPTY_ENUMS: LazyLock<BTreeMap<String, crate::state::EnumDefinition>> =
-            LazyLock::new(BTreeMap::new);
-        static EMPTY_ENUM_USAGES: LazyLock<BTreeMap<crate::state::Addr, String>> =
             LazyLock::new(BTreeMap::new);
 
         let settings = crate::state::DocumentSettings {
@@ -1902,22 +1986,28 @@ mod tests {
         // We need a 'static-ish settings – leak it for test purposes.
         let settings_box: &'static crate::state::DocumentSettings = Box::leak(Box::new(settings));
 
+        let mut annotations = crate::state::AnnotationManager::default();
+        for (addr, comment) in line_comments {
+            annotations.update(*addr, |e| e.user_line_comment = Some(comment.clone()));
+        }
+        for (addr, comment) in side_comments {
+            annotations.update(*addr, |e| e.user_side_comment = Some(comment.clone()));
+        }
+        let annotations_box: &'static crate::state::AnnotationManager =
+            Box::leak(Box::new(annotations));
+
         DisassemblyContext {
             data,
             block_types,
             labels: &EMPTY_LABELS,
             origin: crate::state::Addr(0xc000),
             settings: settings_box,
-            system_comments: &EMPTY_COMMENTS,
-            user_side_comments: side_comments,
-            user_line_comments: line_comments,
-            immediate_value_formats: &EMPTY_IMM,
+            annotations: annotations_box,
             cross_refs,
             collapsed_blocks: &[],
             splitters: &EMPTY_SPLITTERS,
-            scopes: &EMPTY_SCOPES,
+            scope_ends: annotations_box.scope_ends(),
             enums: &EMPTY_ENUMS,
-            enum_usages: &EMPTY_ENUM_USAGES,
             user_global_enums: &EMPTY_ENUMS,
             builtin_enums: &EMPTY_ENUMS,
         }

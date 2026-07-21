@@ -1,4 +1,4 @@
-use crate::state::{Addr, BlockType, DocumentSettings, EnumDefinition, Label};
+use crate::state::{Addr, AnnotationManager, BlockType, DocumentSettings, EnumDefinition, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::formatter::Formatter;
@@ -10,18 +10,14 @@ pub struct DisassemblyContext<'a> {
     pub labels: &'a BTreeMap<Addr, Vec<Label>>,
     pub origin: Addr,
     pub settings: &'a DocumentSettings,
-    pub system_comments: &'a BTreeMap<Addr, String>,
-    pub user_side_comments: &'a BTreeMap<Addr, String>,
-    pub user_line_comments: &'a BTreeMap<Addr, String>,
-    pub immediate_value_formats: &'a BTreeMap<Addr, crate::state::ImmediateFormat>,
+    pub annotations: &'a AnnotationManager,
     pub cross_refs: &'a BTreeMap<Addr, Vec<Addr>>,
     pub collapsed_blocks: &'a [(usize, usize)],
     pub splitters: &'a BTreeSet<Addr>,
-    pub scopes: &'a BTreeMap<Addr, Addr>,
+    pub scope_ends: BTreeSet<Addr>,
 
     // Enums references
     pub enums: &'a BTreeMap<String, EnumDefinition>,
-    pub enum_usages: &'a BTreeMap<Addr, String>,
     pub user_global_enums: &'a BTreeMap<String, EnumDefinition>,
     pub builtin_enums: &'a BTreeMap<String, EnumDefinition>,
 }
@@ -48,35 +44,27 @@ impl<'a> DisassemblyContext<'a> {
         labels: &'a BTreeMap<Addr, Vec<Label>>,
         origin: Addr,
         settings: &'a DocumentSettings,
-        system_comments: &'a BTreeMap<Addr, String>,
-        user_side_comments: &'a BTreeMap<Addr, String>,
-        user_line_comments: &'a BTreeMap<Addr, String>,
-        immediate_value_formats: &'a BTreeMap<Addr, crate::state::ImmediateFormat>,
+        annotations: &'a AnnotationManager,
         cross_refs: &'a BTreeMap<Addr, Vec<Addr>>,
         collapsed_blocks: &'a [(usize, usize)],
         splitters: &'a BTreeSet<Addr>,
-        scopes: &'a BTreeMap<Addr, Addr>,
         enums: &'a BTreeMap<String, EnumDefinition>,
-        enum_usages: &'a BTreeMap<Addr, String>,
         user_global_enums: &'a BTreeMap<String, EnumDefinition>,
         builtin_enums: &'a BTreeMap<String, EnumDefinition>,
     ) -> Self {
+        let scope_ends = annotations.scope_ends();
         Self {
             data,
             block_types,
             labels,
             origin,
             settings,
-            system_comments,
-            user_side_comments,
-            user_line_comments,
-            immediate_value_formats,
+            annotations,
             cross_refs,
             collapsed_blocks,
             splitters,
-            scopes,
+            scope_ends,
             enums,
-            enum_usages,
             user_global_enums,
             builtin_enums,
         }
@@ -84,7 +72,8 @@ impl<'a> DisassemblyContext<'a> {
 
     #[must_use]
     pub fn resolve_enum_value(&self, address: Addr, value: u16) -> Option<(String, String)> {
-        let enum_name = self.enum_usages.get(&address)?;
+        let entry = self.annotations.get(address)?;
+        let enum_name = entry.enum_usage.as_ref()?;
         let enum_def = self
             .enums
             .get(enum_name)
@@ -99,25 +88,22 @@ impl<'a> DisassemblyContext<'a> {
         if self.splitters.contains(&addr) {
             return true;
         }
-        if self.scopes.contains_key(&addr) {
+        if self.annotations.get(addr).and_then(|e| e.scope).is_some() {
             return true;
         }
-        for &end in self.scopes.values() {
-            if end.wrapping_add(1) == addr {
-                return true;
-            }
-        }
-        false
+        self.scope_ends.contains(&addr)
     }
 
     #[must_use]
     pub fn get_side_comment(&self, address: Addr, comment_prefix: &str) -> String {
         let mut comment_parts = Vec::new();
 
-        if let Some(user_comment) = self.user_side_comments.get(&address) {
-            comment_parts.push(user_comment.clone());
-        } else if let Some(sys_comment) = self.system_comments.get(&address) {
-            comment_parts.push(sys_comment.clone());
+        if let Some(entry) = self.annotations.get(address) {
+            if let Some(user_comment) = &entry.user_side_comment {
+                comment_parts.push(user_comment.clone());
+            } else if let Some(sys_comment) = &entry.system_comment {
+                comment_parts.push(sys_comment.clone());
+            }
         }
 
         if let Some(refs) = self.cross_refs.get(&address)

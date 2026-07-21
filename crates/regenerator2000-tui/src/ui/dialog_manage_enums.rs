@@ -223,10 +223,10 @@ impl Widget for ManageEnumsDialog {
 
                     // 3-level usage detection check
                     let usages: Vec<Addr> = app_state
-                        .enum_usages
+                        .annotations
                         .iter()
-                        .filter(|(_, enum_ref)| enum_ref.as_str() == name_str)
-                        .map(|(addr, _)| *addr)
+                        .filter(|(_, entry)| entry.enum_usage.as_deref() == Some(name_str.as_str()))
+                        .map(|(addr, _)| addr)
                         .collect();
 
                     let mut warning_msg = String::new();
@@ -408,9 +408,9 @@ impl ManageEnumsDialog {
 
                 // Usage stats
                 let usage_count = app_state
-                    .enum_usages
-                    .values()
-                    .filter(|enum_ref| enum_ref.as_str() == name)
+                    .annotations
+                    .iter()
+                    .filter(|(_, entry)| entry.enum_usage.as_deref() == Some(name))
                     .count();
 
                 let mut detail_lines = vec![

@@ -175,16 +175,12 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> Result<(), CoreError> {
         labels: &state.labels,
         origin: state.origin,
         settings: &state.settings,
-        system_comments: &state.system_comments,
-        user_side_comments: &state.user_side_comments,
-        user_line_comments: &state.user_line_comments,
-        immediate_value_formats: &state.immediate_value_formats,
+        annotations: &state.annotations,
         cross_refs: &state.cross_refs,
         collapsed_blocks: &[], // Always uncollapse for export
         splitters: &state.splitters,
-        scopes: &state.scopes,
+        scope_ends: state.annotations.scope_ends(),
         enums: &state.enums,
-        enum_usages: &state.enum_usages,
         user_global_enums: &state.user_global_enums,
         builtin_enums: &state.builtin_enums,
     };
@@ -641,9 +637,9 @@ mod tests {
                 label_type: crate::state::LabelType::UserDefined,
             }],
         );
-        state
-            .user_line_comments
-            .insert(crate::state::Addr(0x1000), "Load accumulator".to_string());
+        state.annotations.update(crate::state::Addr(0x1000), |e| {
+            e.user_line_comment = Some("Load accumulator".to_string())
+        });
 
         let path = PathBuf::from("test_line_comment_align.html");
         let _ = std::fs::remove_file(&path);
@@ -690,9 +686,9 @@ mod tests {
         state.raw_data = vec![0x60];
         state.block_types = vec![crate::state::BlockType::Code; 1];
 
-        state
-            .user_line_comments
-            .insert(crate::state::Addr(0x2000), "Return to caller".to_string());
+        state.annotations.update(crate::state::Addr(0x2000), |e| {
+            e.user_line_comment = Some("Return to caller".to_string())
+        });
 
         let path = PathBuf::from("test_line_comment_space.html");
         let _ = std::fs::remove_file(&path);
@@ -726,9 +722,9 @@ mod tests {
         state.raw_data = vec![0x8D, 0x00, 0xD0];
         state.block_types = vec![crate::state::BlockType::Code; 3];
 
-        state
-            .user_side_comments
-            .insert(crate::state::Addr(0x3000), "Store to VIC".to_string());
+        state.annotations.update(crate::state::Addr(0x3000), |e| {
+            e.user_side_comment = Some("Store to VIC".to_string())
+        });
 
         let path = PathBuf::from("test_side_comment_space.html");
         let _ = std::fs::remove_file(&path);
@@ -785,10 +781,9 @@ mod tests {
         state.raw_data = vec![0xA9, 0x00, 0x60];
         state.block_types = vec![crate::state::BlockType::Code; 3];
 
-        state.user_line_comments.insert(
-            crate::state::Addr(0x5000),
-            "First line\nSecond line\nThird line".to_string(),
-        );
+        state.annotations.update(crate::state::Addr(0x5000), |e| {
+            e.user_line_comment = Some("First line\nSecond line\nThird line".to_string())
+        });
 
         let path = PathBuf::from("test_multiline_comment.html");
         let _ = std::fs::remove_file(&path);

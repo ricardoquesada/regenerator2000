@@ -23,12 +23,8 @@ impl AppState {
         self.export_html_path = None;
         self.labels.clear(); // clear existing labels
         self.settings = DocumentSettings::default(); // reset settings
-        self.user_side_comments.clear();
-        self.user_line_comments.clear();
-        self.immediate_value_formats.clear();
-        self.bookmarks.clear();
+        self.annotations.clear();
         self.enums.clear();
-        self.enum_usages.clear();
         self.collapsed_blocks.clear(); // clear collapsed blocks
         self.splitters.clear(); // clear splitters
         self.user_excluded_addresses.clear();
@@ -202,12 +198,8 @@ impl AppState {
         self.export_html_path = None;
         self.labels.clear();
         self.settings = DocumentSettings::default();
-        self.user_side_comments.clear();
-        self.user_line_comments.clear();
-        self.immediate_value_formats.clear();
-        self.bookmarks.clear();
+        self.annotations.clear();
         self.enums.clear();
-        self.enum_usages.clear();
         self.collapsed_blocks.clear();
         self.splitters.clear();
         self.user_excluded_addresses.clear();
@@ -361,16 +353,10 @@ impl AppState {
         // Expand address types and collapsed blocks
         let (block_types, collapsed_ranges) = expand_blocks(&project.blocks, self.raw_data.len());
 
-        self.scopes = project.scopes;
-
         self.block_types = block_types;
         self.labels = project.labels;
-        self.user_side_comments = project.user_side_comments;
-        self.user_line_comments = project.user_line_comments;
-        self.immediate_value_formats = project.immediate_value_formats;
-        self.bookmarks = project.bookmarks;
+        self.annotations = project.annotations;
         self.enums = project.enums;
-        self.enum_usages = project.enum_usages;
         self.settings = project.settings;
 
         // Migration for legacy system names
@@ -523,7 +509,8 @@ impl AppState {
                 && offset < self.raw_data.len()
             {
                 let addr = self.origin + offset as u16;
-                self.user_side_comments.insert(addr, comment);
+                self.annotations
+                    .update(addr, |e| e.user_side_comment = Some(comment));
             }
         }
 
@@ -532,7 +519,8 @@ impl AppState {
                 && offset < self.raw_data.len()
             {
                 let addr = self.origin + offset as u16;
-                self.user_line_comments.insert(addr, long_comment.text);
+                self.annotations
+                    .update(addr, |e| e.user_line_comment = Some(long_comment.text));
             }
         }
 
@@ -642,10 +630,7 @@ impl AppState {
                     })
                     .filter(|(_, v)| !v.is_empty())
                     .collect(),
-                user_side_comments: self.user_side_comments.clone(),
-                user_line_comments: self.user_line_comments.clone(),
-                immediate_value_formats: self.immediate_value_formats.clone(),
-                bookmarks: self.bookmarks.clone(),
+                annotations: self.annotations.clone(),
                 settings: self.settings.clone(),
                 cursor_address: ctx.cursor_address,
                 hex_dump_cursor_address: ctx.hex_dump_cursor_address,
@@ -660,9 +645,7 @@ impl AppState {
 
                 splitters: ctx.splitters,
                 blocks_view_cursor: ctx.blocks_view_cursor,
-                scopes: self.scopes.clone(),
                 enums: self.enums.clone(),
-                enum_usages: self.enum_usages.clone(),
                 user_excluded_addresses: self.user_excluded_addresses.clone(),
             };
             let data = serde_json::to_string_pretty(&project).map_err(|source| {
@@ -763,10 +746,10 @@ mod load_file_tests {
         let mut app_state = AppState::new();
 
         // Set some state that should be cleared on load
-        app_state
-            .user_side_comments
-            .insert(Addr(0x1000), "test".to_string());
-        app_state.bookmarks.insert(Addr(0x1000), "bm".to_string());
+        app_state.annotations.update(Addr(0x1000), |e| {
+            e.user_side_comment = Some("test".to_string());
+            e.bookmark = Some("bm".to_string());
+        });
         app_state.splitters.insert(Addr(0x2000));
         app_state.collapsed_blocks.push((0, 10));
         app_state.last_import_labels_path = Some(std::path::PathBuf::from("/tmp/test.lbl"));
@@ -786,9 +769,8 @@ mod load_file_tests {
         let result = app_state.load_file(file_path.clone());
         assert!(result.is_ok());
 
-        // All should be cleared
-        assert!(app_state.user_side_comments.is_empty());
-        assert!(app_state.bookmarks.is_empty());
+        // All should be cleared (no persistent user annotations remain)
+        assert!(!app_state.annotations.iter().any(|(_, e)| e.is_persistent()));
         assert!(app_state.splitters.is_empty());
         assert!(app_state.collapsed_blocks.is_empty());
         assert!(app_state.last_import_labels_path.is_none());
@@ -976,7 +958,6 @@ mod save_project_tests {
             hexdump_view_mode: HexdumpViewMode::default(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
-            bookmarks: std::collections::BTreeMap::new(),
         };
         let result = app_state.save_project(ctx, false);
         assert!(result.is_ok());
@@ -1017,7 +998,6 @@ mod save_project_tests {
             hexdump_view_mode: HexdumpViewMode::default(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
-            bookmarks: std::collections::BTreeMap::new(),
         };
 
         let result = app_state.save_project(ctx, false);
@@ -1063,7 +1043,6 @@ mod config_tests {
             hexdump_view_mode: crate::state::types::HexdumpViewMode::default(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
-            bookmarks: std::collections::BTreeMap::new(),
         };
         let _result = app_state.save_project(ctx, true);
 

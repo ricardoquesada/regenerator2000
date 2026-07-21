@@ -50,8 +50,8 @@ fn test_enum_resolution_and_precedence() {
 
     // Apply enum "Colors" to address $1000
     app_state
-        .enum_usages
-        .insert(Addr(0x1000), "Colors".to_string());
+        .annotations
+        .update(Addr(0x1000), |e| e.enum_usage = Some("Colors".to_string()));
 
     // Should resolve using Built-in definition
     assert_eq!(
@@ -186,9 +186,13 @@ fn test_enum_project_roundtrip_serialization() {
             collapsed: false,
         }],
         labels: BTreeMap::new(),
-        user_side_comments: BTreeMap::new(),
-        user_line_comments: BTreeMap::new(),
-        immediate_value_formats: BTreeMap::new(),
+        annotations: {
+            let mut ann = regenerator2000_core::state::AnnotationManager::default();
+            for (a, u) in enum_usages {
+                ann.update(a, |e| e.enum_usage = Some(u));
+            }
+            ann
+        },
         settings: DocumentSettings::default(),
         cursor_address: None,
         hex_dump_cursor_address: None,
@@ -202,11 +206,8 @@ fn test_enum_project_roundtrip_serialization() {
         hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
         splitters: std::collections::BTreeSet::new(),
         blocks_view_cursor: None,
-        bookmarks: BTreeMap::new(),
-        scopes: BTreeMap::new(),
         user_excluded_addresses: std::collections::BTreeSet::new(),
         enums,
-        enum_usages,
     };
 
     // Serialize
@@ -226,7 +227,11 @@ fn test_enum_project_roundtrip_serialization() {
         "BLACK"
     );
     assert_eq!(
-        deserialized.enum_usages.get(&Addr(0x1000)).unwrap(),
+        deserialized
+            .annotations
+            .get(Addr(0x1000))
+            .and_then(|e| e.enum_usage.as_deref())
+            .unwrap(),
         "Colors"
     );
 }
@@ -311,8 +316,8 @@ fn test_disassembly_enum_operand_formatting() {
 
     // Apply enum to address $1000
     app_state
-        .enum_usages
-        .insert(Addr(0x1000), "Colors".to_string());
+        .annotations
+        .update(Addr(0x1000), |e| e.enum_usage = Some("Colors".to_string()));
 
     // --- 1. 64tass ---
     app_state.settings.assembler = Assembler::Tass64;
@@ -353,11 +358,11 @@ fn test_disassembly_data_enum_formatting() {
 
     // Apply enum to data byte at $1000 and word at $1001
     app_state
-        .enum_usages
-        .insert(Addr(0x1000), "Colors".to_string());
+        .annotations
+        .update(Addr(0x1000), |e| e.enum_usage = Some("Colors".to_string()));
     app_state
-        .enum_usages
-        .insert(Addr(0x1001), "Colors".to_string());
+        .annotations
+        .update(Addr(0x1001), |e| e.enum_usage = Some("Colors".to_string()));
 
     // --- Test ca65 ---
     app_state.settings.assembler = Assembler::Ca65;

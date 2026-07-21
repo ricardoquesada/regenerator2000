@@ -167,7 +167,9 @@ mod tests {
 
         core.state.load_binary(origin, code_data).unwrap();
 
-        core.state.scopes.insert(Addr(0x1001), Addr(0x1002));
+        core.state
+            .annotations
+            .update(Addr(0x1001), |e| e.scope = Some(Addr(0x1002)));
 
         core.view.active_pane = ActivePane::Disassembly;
         core.view.is_visual_mode = true;
@@ -176,8 +178,21 @@ mod tests {
         core.view.cursor_index = 2;
         let events = core.apply_action(AppAction::Scope);
 
-        assert_eq!(core.state.scopes.len(), 1);
-        assert_eq!(core.state.scopes.get(&Addr(0x1001)), Some(&Addr(0x1002)));
+        assert_eq!(
+            core.state
+                .annotations
+                .iter()
+                .filter(|(_, e)| e.scope.is_some())
+                .count(),
+            1
+        );
+        assert_eq!(
+            core.state
+                .annotations
+                .get(Addr(0x1001))
+                .and_then(|e| e.scope),
+            Some(Addr(0x1002))
+        );
         assert!(
             events
                 .iter()
@@ -189,7 +204,14 @@ mod tests {
         core.view.cursor_index = 4;
         let events = core.apply_action(AppAction::Scope);
 
-        assert_eq!(core.state.scopes.len(), 1);
+        assert_eq!(
+            core.state
+                .annotations
+                .iter()
+                .filter(|(_, e)| e.scope.is_some())
+                .count(),
+            1
+        );
         assert!(
             events
                 .iter()
@@ -201,8 +223,21 @@ mod tests {
         core.view.cursor_index = 4;
         let events = core.apply_action(AppAction::Scope);
 
-        assert_eq!(core.state.scopes.len(), 2);
-        assert_eq!(core.state.scopes.get(&Addr(0x1003)), Some(&Addr(0x1004)));
+        assert_eq!(
+            core.state
+                .annotations
+                .iter()
+                .filter(|(_, e)| e.scope.is_some())
+                .count(),
+            2
+        );
+        assert_eq!(
+            core.state
+                .annotations
+                .get(Addr(0x1003))
+                .and_then(|e| e.scope),
+            Some(Addr(0x1004))
+        );
         assert!(
             !events
                 .iter()
@@ -262,63 +297,96 @@ mod tests {
         core.view.cursor_index = 0; // Pointing to the LDA instruction
 
         // Initial state: None (effectively Hex)
-        assert_eq!(core.state.immediate_value_formats.get(&origin), None);
+        assert_eq!(
+            core.state
+                .annotations
+                .get(origin)
+                .and_then(|e| e.immediate_format),
+            None
+        );
 
         // Cycle forward
         core.apply_action(AppAction::NextImmediateFormat);
         assert_eq!(
-            core.state.immediate_value_formats.get(&origin),
-            Some(&ImmediateFormat::InvertedHex)
+            core.state
+                .annotations
+                .get(origin)
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::InvertedHex)
         );
 
         core.apply_action(AppAction::NextImmediateFormat);
         assert_eq!(
-            core.state.immediate_value_formats.get(&origin),
-            Some(&ImmediateFormat::Decimal)
+            core.state
+                .annotations
+                .get(origin)
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::Decimal)
         );
 
         core.apply_action(AppAction::NextImmediateFormat);
         assert_eq!(
-            core.state.immediate_value_formats.get(&origin),
-            Some(&ImmediateFormat::NegativeDecimal)
+            core.state
+                .annotations
+                .get(origin)
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::NegativeDecimal)
         );
 
         core.apply_action(AppAction::NextImmediateFormat);
         assert_eq!(
-            core.state.immediate_value_formats.get(&origin),
-            Some(&ImmediateFormat::Binary)
+            core.state
+                .annotations
+                .get(origin)
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::Binary)
         );
 
         core.apply_action(AppAction::NextImmediateFormat);
         assert_eq!(
-            core.state.immediate_value_formats.get(&origin),
-            Some(&ImmediateFormat::InvertedBinary)
+            core.state
+                .annotations
+                .get(origin)
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::InvertedBinary)
         );
 
         core.apply_action(AppAction::NextImmediateFormat);
         assert_eq!(
-            core.state.immediate_value_formats.get(&origin),
-            Some(&ImmediateFormat::Hex)
+            core.state
+                .annotations
+                .get(origin)
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::Hex)
         );
 
         // Loop back to InvertedHex
         core.apply_action(AppAction::NextImmediateFormat);
         assert_eq!(
-            core.state.immediate_value_formats.get(&origin),
-            Some(&ImmediateFormat::InvertedHex)
+            core.state
+                .annotations
+                .get(origin)
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::InvertedHex)
         );
 
         // Test backward cycling from InvertedHex
         core.apply_action(AppAction::PreviousImmediateFormat);
         assert_eq!(
-            core.state.immediate_value_formats.get(&origin),
-            Some(&ImmediateFormat::Hex)
+            core.state
+                .annotations
+                .get(origin)
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::Hex)
         );
 
         core.apply_action(AppAction::PreviousImmediateFormat);
         assert_eq!(
-            core.state.immediate_value_formats.get(&origin),
-            Some(&ImmediateFormat::InvertedBinary)
+            core.state
+                .annotations
+                .get(origin)
+                .and_then(|e| e.immediate_format),
+            Some(ImmediateFormat::InvertedBinary)
         );
     }
 

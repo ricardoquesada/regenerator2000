@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use regenerator2000_core::disassembler::Disassembler;
 use regenerator2000_core::state::Addr;
-use regenerator2000_core::state::{Assembler, BlockType, DocumentSettings};
+use regenerator2000_core::state::{AnnotationManager, Assembler, BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]
@@ -31,14 +31,17 @@ fn test_system_comments_logic() {
         &labels,
         origin,
         &settings,
-        &system_comments,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &system_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.system_comment = Some(c.clone()));
+            }
+            ann
+        },
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -84,14 +87,17 @@ fn test_system_comment_on_sta() {
         &labels,
         origin,
         &settings,
-        &system_comments,
-        &BTreeMap::new(),
-        &BTreeMap::new(),
-        &BTreeMap::new(),
+        &{
+            let mut ann = AnnotationManager::default();
+            let m: &BTreeMap<regenerator2000_core::state::Addr, String> = &system_comments;
+            for (a, c) in m {
+                ann.update(*a, |e| e.system_comment = Some(c.clone()));
+            }
+            ann
+        },
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
-        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);

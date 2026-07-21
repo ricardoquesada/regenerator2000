@@ -1,6 +1,7 @@
+use super::annotations::AnnotationManager;
 use super::project::Label;
 use super::settings::DocumentSettings;
-use super::types::{Addr, BlockType, CachedArrow, EnumDefinition, ImmediateFormat, LabelKind};
+use super::types::{Addr, BlockType, CachedArrow, EnumDefinition, LabelKind};
 use crate::config::SystemConfig;
 use crate::disassembler::{Disassembler, DisassemblyLine};
 use std::collections::{BTreeMap, BTreeSet};
@@ -58,17 +59,11 @@ pub struct AppState {
     pub block_types: Vec<BlockType>,
     pub labels: BTreeMap<Addr, Vec<Label>>,
     pub settings: DocumentSettings,
-    pub system_comments: BTreeMap<Addr, String>,
-    pub user_side_comments: BTreeMap<Addr, String>,
-    pub user_line_comments: BTreeMap<Addr, String>,
-    pub immediate_value_formats: BTreeMap<Addr, ImmediateFormat>,
+    pub annotations: AnnotationManager,
     pub cross_refs: BTreeMap<Addr, Vec<Addr>>,
-    pub bookmarks: BTreeMap<Addr, String>,
-    pub scopes: BTreeMap<Addr, Addr>, // start -> end
 
     // Enums State
     pub enums: BTreeMap<String, EnumDefinition>,
-    pub enum_usages: BTreeMap<Addr, String>,
     pub user_global_enums: BTreeMap<String, EnumDefinition>,
     pub builtin_enums: BTreeMap<String, EnumDefinition>,
 
@@ -128,15 +123,9 @@ impl AppState {
             block_types: Vec::new(),
             labels: BTreeMap::new(),
             settings: DocumentSettings::default(),
-            system_comments: BTreeMap::new(),
-            user_side_comments: BTreeMap::new(),
-            user_line_comments: BTreeMap::new(),
-            immediate_value_formats: BTreeMap::new(),
+            annotations: AnnotationManager::default(),
             cross_refs: BTreeMap::new(),
-            bookmarks: BTreeMap::new(),
-            scopes: BTreeMap::new(),
             enums: BTreeMap::new(),
-            enum_usages: BTreeMap::new(),
             user_global_enums: BTreeMap::new(),
             builtin_enums: BTreeMap::new(),
             system_config: default_config,
@@ -182,9 +171,20 @@ impl AppState {
         // Load comments (conditionally)
         if self.settings.show_system_comments {
             let comments = crate::assets::load_comments(self.settings.system.as_str());
-            self.system_comments = comments.into_iter().map(|(k, v)| (Addr(k), v)).collect();
+            for (k, v) in comments {
+                self.annotations
+                    .update(Addr(k), |e| e.system_comment = Some(v));
+            }
         } else {
-            self.system_comments.clear();
+            let addrs: Vec<Addr> = self
+                .annotations
+                .iter()
+                .filter(|(_, e)| e.system_comment.is_some())
+                .map(|(a, _)| a)
+                .collect();
+            for a in addrs {
+                self.annotations.update(a, |e| e.system_comment = None);
+            }
         }
 
         // Load labels
@@ -345,11 +345,13 @@ impl AppState {
         if self.splitters.contains(&addr) {
             return true;
         }
-        if self.scopes.contains_key(&addr) {
+        if self.annotations.get(addr).and_then(|e| e.scope).is_some() {
             return true;
         }
-        for &end in self.scopes.values() {
-            if end.wrapping_add(1) == addr {
+        for (_, entry) in self.annotations.iter() {
+            if let Some(end) = entry.scope
+                && end.wrapping_add(1) == addr
+            {
                 return true;
             }
         }
@@ -462,7 +464,7 @@ impl AppState {
     /// Checks project-specific enums first, then user global enums, then built-in enums.
     #[must_use]
     pub fn resolve_enum_value(&self, address: Addr, value: u16) -> Option<String> {
-        let enum_name = self.enum_usages.get(&address)?;
+        let enum_name = self.annotations.get(address)?.enum_usage.as_ref()?;
         self.enums
             .get(enum_name)
             .or_else(|| self.user_global_enums.get(enum_name))

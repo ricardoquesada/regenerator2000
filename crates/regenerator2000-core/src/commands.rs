@@ -143,22 +143,18 @@ impl Command {
                 new_comment,
                 old_comment: _,
             } => {
-                if let Some(comment) = new_comment {
-                    state.user_side_comments.insert(*address, comment.clone());
-                } else {
-                    state.user_side_comments.remove(address);
-                }
+                state
+                    .annotations
+                    .update(*address, |e| e.user_side_comment = new_comment.clone());
             }
             Command::SetUserLineComment {
                 address,
                 new_comment,
                 old_comment: _,
             } => {
-                if let Some(comment) = new_comment {
-                    state.user_line_comments.insert(*address, comment.clone());
-                } else {
-                    state.user_line_comments.remove(address);
-                }
+                state
+                    .annotations
+                    .update(*address, |e| e.user_line_comment = new_comment.clone());
             }
             Command::ChangeOrigin {
                 new_origin,
@@ -171,11 +167,9 @@ impl Command {
                 new_format,
                 old_format: _,
             } => {
-                if let Some(format) = new_format {
-                    state.immediate_value_formats.insert(*address, *format);
-                } else {
-                    state.immediate_value_formats.remove(address);
-                }
+                state
+                    .annotations
+                    .update(*address, |e| e.immediate_format = *new_format);
             }
             Command::ToggleSplitter { address } => {
                 state.toggle_splitter(*address);
@@ -199,11 +193,9 @@ impl Command {
                 new_name,
                 old_name: _,
             } => {
-                if let Some(name) = new_name {
-                    state.bookmarks.insert(*address, name.clone());
-                } else {
-                    state.bookmarks.remove(address);
-                }
+                state
+                    .annotations
+                    .update(*address, |e| e.bookmark = new_name.clone());
             }
             Command::SetUserExcludedAddress {
                 address,
@@ -227,24 +219,22 @@ impl Command {
                 end,
                 old_end: _,
             } => {
-                state.scopes.insert(*start, *end);
+                state.annotations.update(*start, |e| e.scope = Some(*end));
             }
             Command::RemoveScope {
                 address,
                 old_end: _,
             } => {
-                state.scopes.remove(address);
+                state.annotations.update(*address, |e| e.scope = None);
             }
             Command::SetEnumUsage {
                 address,
                 new_enum,
                 old_enum: _,
             } => {
-                if let Some(enum_name) = new_enum {
-                    state.enum_usages.insert(*address, enum_name.clone());
-                } else {
-                    state.enum_usages.remove(address);
-                }
+                state
+                    .annotations
+                    .update(*address, |e| e.enum_usage = new_enum.clone());
             }
             Command::SetEnumDefinition {
                 name,
@@ -313,22 +303,18 @@ impl Command {
                 new_comment: _,
                 old_comment,
             } => {
-                if let Some(comment) = old_comment {
-                    state.user_side_comments.insert(*address, comment.clone());
-                } else {
-                    state.user_side_comments.remove(address);
-                }
+                state
+                    .annotations
+                    .update(*address, |e| e.user_side_comment = old_comment.clone());
             }
             Command::SetUserLineComment {
                 address,
                 new_comment: _,
                 old_comment,
             } => {
-                if let Some(comment) = old_comment {
-                    state.user_line_comments.insert(*address, comment.clone());
-                } else {
-                    state.user_line_comments.remove(address);
-                }
+                state
+                    .annotations
+                    .update(*address, |e| e.user_line_comment = old_comment.clone());
             }
             Command::ChangeOrigin {
                 new_origin: _,
@@ -341,11 +327,9 @@ impl Command {
                 new_format: _,
                 old_format,
             } => {
-                if let Some(format) = old_format {
-                    state.immediate_value_formats.insert(*address, *format);
-                } else {
-                    state.immediate_value_formats.remove(address);
-                }
+                state
+                    .annotations
+                    .update(*address, |e| e.immediate_format = *old_format);
             }
             Command::CollapseBlock { range } => {
                 state.collapsed_blocks.retain(|r| r != range);
@@ -375,11 +359,9 @@ impl Command {
                 new_name: _,
                 old_name,
             } => {
-                if let Some(name) = old_name {
-                    state.bookmarks.insert(*address, name.clone());
-                } else {
-                    state.bookmarks.remove(address);
-                }
+                state
+                    .annotations
+                    .update(*address, |e| e.bookmark = old_name.clone());
             }
             Command::SetUserExcludedAddress {
                 address,
@@ -404,25 +386,21 @@ impl Command {
                 end: _,
                 old_end,
             } => {
-                if let Some(old) = old_end {
-                    state.scopes.insert(*start, *old);
-                } else {
-                    state.scopes.remove(start);
-                }
+                state.annotations.update(*start, |e| e.scope = *old_end);
             }
             Command::RemoveScope { address, old_end } => {
-                state.scopes.insert(*address, *old_end);
+                state
+                    .annotations
+                    .update(*address, |e| e.scope = Some(*old_end));
             }
             Command::SetEnumUsage {
                 address,
                 new_enum: _,
                 old_enum,
             } => {
-                if let Some(enum_name) = old_enum {
-                    state.enum_usages.insert(*address, enum_name.clone());
-                } else {
-                    state.enum_usages.remove(address);
-                }
+                state
+                    .annotations
+                    .update(*address, |e| e.enum_usage = old_enum.clone());
             }
             Command::SetEnumDefinition {
                 name,
@@ -700,21 +678,33 @@ mod tests {
         command.apply(&mut app_state);
         app_state.undo_stack.push(command);
 
-        assert_eq!(app_state.user_line_comments.get(&address), Some(&comment));
+        assert_eq!(
+            app_state
+                .annotations
+                .get(address)
+                .and_then(|e| e.user_line_comment.as_ref()),
+            Some(&comment)
+        );
 
         // Undo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
-        assert!(!app_state.user_line_comments.contains_key(&address));
+        assert!(app_state.annotations.get(address).is_none());
 
         // Redo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
-        assert_eq!(app_state.user_line_comments.get(&address), Some(&comment));
+        assert_eq!(
+            app_state
+                .annotations
+                .get(address)
+                .and_then(|e| e.user_line_comment.as_ref()),
+            Some(&comment)
+        );
     }
 
     #[test]

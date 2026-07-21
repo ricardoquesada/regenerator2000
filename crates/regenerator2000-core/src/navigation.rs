@@ -158,7 +158,6 @@ pub fn create_save_context(
         hexdump_view_mode: view_state.hexdump_view_mode,
         splitters: app_state.splitters.clone(),
         blocks_view_cursor: view_state.blocks_selected_index,
-        bookmarks: app_state.bookmarks.clone(),
     }
 }
 

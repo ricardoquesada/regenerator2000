@@ -21,8 +21,21 @@ mod tests {
         };
         cmd.apply(&mut app_state);
 
-        assert!(app_state.bookmarks.contains_key(&addr));
-        assert_eq!(app_state.bookmarks.get(&addr).unwrap(), "TestBookmark");
+        assert!(
+            app_state
+                .annotations
+                .get(addr)
+                .and_then(|e| e.bookmark.as_ref())
+                .is_some()
+        );
+        assert_eq!(
+            app_state
+                .annotations
+                .get(addr)
+                .and_then(|e| e.bookmark.as_deref())
+                .unwrap(),
+            "TestBookmark"
+        );
 
         // 2. Remove Bookmark
         let cmd_remove = Command::SetBookmark {
@@ -32,12 +45,31 @@ mod tests {
         };
         cmd_remove.apply(&mut app_state);
 
-        assert!(!app_state.bookmarks.contains_key(&addr));
+        assert!(
+            app_state
+                .annotations
+                .get(addr)
+                .and_then(|e| e.bookmark.as_ref())
+                .is_none()
+        );
 
         // 3. Undo Remove
         cmd_remove.undo(&mut app_state);
-        assert!(app_state.bookmarks.contains_key(&addr));
-        assert_eq!(app_state.bookmarks.get(&addr).unwrap(), "TestBookmark");
+        assert!(
+            app_state
+                .annotations
+                .get(addr)
+                .and_then(|e| e.bookmark.as_ref())
+                .is_some()
+        );
+        assert_eq!(
+            app_state
+                .annotations
+                .get(addr)
+                .and_then(|e| e.bookmark.as_deref())
+                .unwrap(),
+            "TestBookmark"
+        );
     }
 
     #[test]
@@ -52,10 +84,11 @@ mod tests {
         app_state.block_types = vec![BlockType::Code; 10];
 
         // Add bookmark
-        app_state.bookmarks.insert(
-            regenerator2000_core::state::Addr(0x1002),
-            "MyBookmark".to_string(),
-        );
+        app_state
+            .annotations
+            .update(regenerator2000_core::state::Addr(0x1002), |e| {
+                e.bookmark = Some("MyBookmark".to_string())
+            });
 
         // Save
         let context = regenerator2000_core::state::project::ProjectSaveContext {
@@ -71,7 +104,6 @@ mod tests {
             hexdump_view_mode: Default::default(),
             splitters: Default::default(),
             blocks_view_cursor: None,
-            bookmarks: app_state.bookmarks.clone(),
         };
         app_state.save_project(context, false).expect("Save failed");
 
@@ -81,14 +113,21 @@ mod tests {
             .load_project(path.clone())
             .expect("Load failed");
 
-        // Verify loaded state has bookmark?
-        // Wait, `load_project` updates `loaded_state.bookmarks`?
-        // Let's check `load_project`.
-        // `AppState::load_project` returns `LoadedProjectData` AND updates `self` (app_state).
-        // It consumes `self`? No, `&mut self`.
-
-        assert!(loaded_state.bookmarks.contains_key(&0x1002));
-        assert_eq!(loaded_state.bookmarks.get(&0x1002).unwrap(), "MyBookmark");
+        assert!(
+            loaded_state
+                .annotations
+                .get(Addr(0x1002))
+                .and_then(|e| e.bookmark.as_ref())
+                .is_some()
+        );
+        assert_eq!(
+            loaded_state
+                .annotations
+                .get(Addr(0x1002))
+                .and_then(|e| e.bookmark.as_deref())
+                .unwrap(),
+            "MyBookmark"
+        );
 
         // Clean up
         let _ = std::fs::remove_file(path);

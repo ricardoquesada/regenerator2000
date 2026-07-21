@@ -14,7 +14,7 @@ pub struct FormatContext<'a> {
     pub target_context: Option<crate::state::LabelType>,
     pub labels: &'a BTreeMap<Addr, Vec<Label>>,
     pub settings: &'a crate::state::DocumentSettings,
-    pub immediate_value_formats: &'a BTreeMap<Addr, crate::state::ImmediateFormat>,
+    pub annotations: &'a crate::state::AnnotationManager,
     pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
     pub label_scope_names: Option<&'a BTreeMap<Addr, String>>,
     pub current_scope_name: Option<&'a str>,
@@ -23,7 +23,6 @@ pub struct FormatContext<'a> {
 
     // Enums maps
     pub enums: &'a BTreeMap<String, crate::state::EnumDefinition>,
-    pub enum_usages: &'a BTreeMap<Addr, String>,
     pub user_global_enums: &'a BTreeMap<String, crate::state::EnumDefinition>,
     pub builtin_enums: &'a BTreeMap<String, crate::state::EnumDefinition>,
 }
@@ -46,7 +45,8 @@ impl<'a> FormatContext<'a> {
     /// Resolve a numeric value at this address using the applied enum (if any).
     #[must_use]
     pub fn resolve_enum_value(&self, value: u16) -> Option<(String, String)> {
-        let enum_name = self.enum_usages.get(&self.address)?;
+        let entry = self.annotations.get(self.address)?;
+        let enum_name = entry.enum_usage.as_ref()?;
         let enum_def = self
             .enums
             .get(enum_name)

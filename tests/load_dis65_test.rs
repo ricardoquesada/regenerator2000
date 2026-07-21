@@ -79,7 +79,10 @@ mod tests {
         assert_eq!(label.first().unwrap().name, "my_label");
 
         // Verify side comments
-        let comment = app_state.user_side_comments.get(&Addr(4106)); // 4096 + 10
+        let comment = app_state
+            .annotations
+            .get(Addr(4106))
+            .and_then(|e| e.user_side_comment.as_deref());
         assert!(comment.is_some());
         assert_eq!(comment.unwrap(), "Test comment");
 

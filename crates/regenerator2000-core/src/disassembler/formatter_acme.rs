@@ -44,7 +44,10 @@ impl Formatter for AcmeFormatter {
         let _target_context = ctx.target_context;
         let _labels = ctx.labels;
         let _settings = ctx.settings;
-        let immediate_value_formats = ctx.immediate_value_formats;
+        let immediate_format = ctx
+            .annotations
+            .get(address)
+            .and_then(|e| e.immediate_format);
 
         let get_label =
             |addr: Addr, _l_type: LabelType| -> Option<String> { ctx.resolve_label(addr) };
@@ -57,7 +60,7 @@ impl Formatter for AcmeFormatter {
                 if let Some((enum_name, variant_name)) = ctx.resolve_enum_value(val as u16) {
                     format!("#{}", self.format_enum_reference(&enum_name, &variant_name))
                 } else {
-                    match immediate_value_formats.get(&address) {
+                    match immediate_format {
                         Some(crate::state::ImmediateFormat::InvertedHex) => {
                             format!("#~${:02x}", !val)
                         }
@@ -70,9 +73,9 @@ impl Formatter for AcmeFormatter {
                             format!("#~%{:08b}", !val)
                         }
                         Some(crate::state::ImmediateFormat::LowByte(target)) => {
-                            let name = get_label(*target, LabelType::AbsoluteAddress)
+                            let name = get_label(target, LabelType::AbsoluteAddress)
                                 .unwrap_or_else(|| {
-                                    if *target <= 0xFF {
+                                    if target.0 <= 0xFF {
                                         format!("${target:02x}")
                                     } else {
                                         format!("${target:04x}")
@@ -81,9 +84,9 @@ impl Formatter for AcmeFormatter {
                             format!("#<{name}")
                         }
                         Some(crate::state::ImmediateFormat::HighByte(target)) => {
-                            let name = get_label(*target, LabelType::AbsoluteAddress)
+                            let name = get_label(target, LabelType::AbsoluteAddress)
                                 .unwrap_or_else(|| {
-                                    if *target <= 0xFF {
+                                    if target.0 <= 0xFF {
                                         format!("${target:02x}")
                                     } else {
                                         format!("${target:04x}")

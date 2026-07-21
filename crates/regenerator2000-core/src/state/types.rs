@@ -499,9 +499,74 @@ pub fn default_system() -> TargetSystem {
 ///
 /// Serialises transparently as a plain JSON number so existing project files
 /// are fully backward-compatible.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Addr(pub u16);
+
+impl Serialize for Addr {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u16(self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for Addr {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct AddrVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for AddrVisitor {
+            type Value = Addr;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a 16-bit address as integer or string")
+            }
+
+            fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                u16::try_from(v).map(Addr).map_err(serde::de::Error::custom)
+            }
+
+            fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                u16::try_from(v).map(Addr).map_err(serde::de::Error::custom)
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                let v_trimmed = v.trim();
+                if let Some(hex) = v_trimmed.strip_prefix('$') {
+                    u16::from_str_radix(hex, 16)
+                        .map(Addr)
+                        .map_err(serde::de::Error::custom)
+                } else if let Some(hex) = v_trimmed
+                    .strip_prefix("0x")
+                    .or_else(|| v_trimmed.strip_prefix("0X"))
+                {
+                    u16::from_str_radix(hex, 16)
+                        .map(Addr)
+                        .map_err(serde::de::Error::custom)
+                } else {
+                    v_trimmed
+                        .parse::<u16>()
+                        .map(Addr)
+                        .map_err(serde::de::Error::custom)
+                }
+            }
+        }
+
+        deserializer.deserialize_any(AddrVisitor)
+    }
+}
 
 impl Addr {
     /// Wraps a raw `u16` into an `Addr`.

@@ -1,4 +1,5 @@
 pub mod actions;
+pub mod annotations;
 pub mod app_state;
 mod blocks;
 mod disassembly;
@@ -9,6 +10,7 @@ pub mod settings;
 pub mod types;
 
 pub use actions::*;
+pub use annotations::*;
 pub use app_state::*;
 pub use project::*;
 pub use search::*;

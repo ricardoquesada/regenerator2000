@@ -1197,7 +1197,11 @@ impl Widget for DisassemblyView {
                             // This might need tweak if we show "half an instruction".
                             // For now we assume arrow logic works on Instruction granularity.
 
-                            let is_bookmarked = app_state.bookmarks.contains_key(&mid_addr);
+                            let is_bookmarked = app_state
+                                .annotations
+                                .get(mid_addr)
+                                .and_then(|e| e.bookmark.as_ref())
+                                .is_some();
                             let has_breakpoint = app_state.vice_state.has_breakpoint_at(mid_addr.0);
                             let gutter = if has_breakpoint {
                                 "  *  "
@@ -1284,7 +1288,11 @@ impl Widget for DisassemblyView {
             };
             let arrow_padding = get_arrow_str(current_inst);
 
-            let is_bookmarked = app_state.bookmarks.contains_key(&line.address);
+            let is_bookmarked = app_state
+                .annotations
+                .get(line.address)
+                .and_then(|e| e.bookmark.as_ref())
+                .is_some();
             let is_pc = app_state.vice_state.pc == Some(line.address.0);
             let has_breakpoint = app_state.vice_state.has_breakpoint_at(line.address.0);
             let gutter = if is_pc && has_breakpoint {
@@ -1470,7 +1478,11 @@ impl Widget for DisassemblyView {
             }
 
             if !is_scope_end {
-                for (&start, &end) in &app_state.scopes {
+                for (start, end) in app_state
+                    .annotations
+                    .iter()
+                    .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
+                {
                     if line.address == start
                         && current_inst > 0
                         && app_state.disassembly[current_inst - 1].address == start

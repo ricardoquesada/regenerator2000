@@ -56,7 +56,11 @@ impl Widget for BookmarksDialog {
 
         let inner = block.inner(area);
 
-        let bookmarks: Vec<_> = app_state.bookmarks.iter().collect();
+        let bookmarks: Vec<(crate::state::Addr, &String)> = app_state
+            .annotations
+            .iter()
+            .filter_map(|(addr, entry)| entry.bookmark.as_ref().map(|name| (addr, name)))
+            .collect();
 
         if bookmarks.is_empty() {
             let p = ratatui::widgets::Paragraph::new(
@@ -79,7 +83,7 @@ impl Widget for BookmarksDialog {
             let items: Vec<ListItem> = bookmarks
                 .iter()
                 .map(|(addr, name)| {
-                    let label = if let Some(labels) = app_state.labels.get(*addr)
+                    let label = if let Some(labels) = app_state.labels.get(addr)
                         && let Some(first) = labels.first()
                     {
                         format!(" ({})", first.name)
@@ -117,7 +121,11 @@ impl Widget for BookmarksDialog {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        let bookmarks: Vec<crate::state::Addr> = app_state.bookmarks.keys().copied().collect();
+        let bookmarks: Vec<crate::state::Addr> = app_state
+            .annotations
+            .iter()
+            .filter_map(|(addr, entry)| entry.bookmark.as_ref().map(|_| addr))
+            .collect();
 
         match key.code {
             KeyCode::Esc => {
@@ -177,17 +185,25 @@ impl Widget for BookmarksDialog {
                     let command = crate::commands::Command::SetBookmark {
                         address: addr,
                         new_name: None,
-                        old_name: app_state.bookmarks.get(&addr).cloned(),
+                        old_name: app_state
+                            .annotations
+                            .get(addr)
+                            .and_then(|e| e.bookmark.clone()),
                     };
                     command.apply(app_state);
                     app_state.push_command(command);
 
                     // Adjust selection
-                    if i >= app_state.bookmarks.len() && !app_state.bookmarks.is_empty() {
+                    let bookmarks_len = app_state
+                        .annotations
+                        .iter()
+                        .filter(|(_, entry)| entry.bookmark.is_some())
+                        .count();
+                    if i >= bookmarks_len && bookmarks_len > 0 {
                         ui_state
                             .bookmarks_list_state
-                            .select(Some(app_state.bookmarks.len() - 1));
-                    } else if app_state.bookmarks.is_empty() {
+                            .select(Some(bookmarks_len - 1));
+                    } else if bookmarks_len == 0 {
                         ui_state.bookmarks_list_state.select(None);
                     }
 

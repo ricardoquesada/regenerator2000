@@ -118,14 +118,10 @@ impl Widget for DebuggerView {
             let block_types: Vec<BlockType> = vec![BlockType::Code; live_bytes.len()];
             let empty_labels: BTreeMap<crate::state::Addr, Vec<crate::state::Label>> =
                 BTreeMap::new();
-            let empty_comments: BTreeMap<crate::state::Addr, String> = BTreeMap::new();
-            let empty_line_comments: BTreeMap<crate::state::Addr, String> = BTreeMap::new();
-            let empty_formats: BTreeMap<crate::state::Addr, crate::state::ImmediateFormat> =
-                BTreeMap::new();
+            let empty_annotations = crate::state::AnnotationManager::default();
             let empty_xrefs: BTreeMap<crate::state::Addr, Vec<crate::state::Addr>> =
                 BTreeMap::new();
             let empty_splitters: BTreeSet<crate::state::Addr> = BTreeSet::new();
-            let empty_scopes: BTreeMap<crate::state::Addr, crate::state::Addr> = BTreeMap::new();
             let settings = DocumentSettings::default();
             let collapsed: Vec<(usize, usize)> = Vec::new();
 
@@ -135,14 +131,10 @@ impl Widget for DebuggerView {
                 &empty_labels,
                 crate::state::Addr(mem_start),
                 &settings,
-                &empty_comments,
-                &empty_comments,
-                &empty_line_comments,
-                &empty_formats,
+                &empty_annotations,
                 &empty_xrefs,
                 &collapsed,
                 &empty_splitters,
-                &empty_scopes,
             );
 
             let pc_live_idx = live_lines.iter().position(|l| l.address == pc).unwrap_or(0);

@@ -4,7 +4,7 @@
 /// Mirrors the test structure of `formatter_ca65_tests.rs` and `formatter_kickasm_tests.rs`,
 /// providing equivalent coverage for the ACME assembler output.
 use regenerator2000_core::disassembler::Disassembler;
-use regenerator2000_core::state::{Assembler, DocumentSettings};
+use regenerator2000_core::state::{AnnotationManager, Assembler, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]
@@ -19,6 +19,13 @@ fn test_format_instructions() {
     let opcodes = regenerator2000_core::cpu::get_opcodes();
 
     // LDA #$00  (A9 00)
+    let annotations = {
+        let mut ann = AnnotationManager::default();
+        for (a, f) in &immediate_value_formats {
+            ann.update(*a, |e| e.immediate_format = Some(*f));
+        }
+        ann
+    };
     let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xA9].as_ref().unwrap(),
         operands: &[0x00],
@@ -26,14 +33,13 @@ fn test_format_instructions() {
         target_context: None,
         labels: &labels,
         settings: &settings,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -43,6 +49,13 @@ fn test_format_instructions() {
     );
 
     // STA $D020  (8D 20 D0)
+    let annotations = {
+        let mut ann = AnnotationManager::default();
+        for (a, f) in &immediate_value_formats {
+            ann.update(*a, |e| e.immediate_format = Some(*f));
+        }
+        ann
+    };
     let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0x8D].as_ref().unwrap(),
         operands: &[0x20, 0xD0],
@@ -50,14 +63,13 @@ fn test_format_instructions() {
         target_context: None,
         labels: &labels,
         settings: &settings,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -67,6 +79,13 @@ fn test_format_instructions() {
     );
 
     // NOP  (EA) — Implied
+    let annotations = {
+        let mut ann = AnnotationManager::default();
+        for (a, f) in &immediate_value_formats {
+            ann.update(*a, |e| e.immediate_format = Some(*f));
+        }
+        ann
+    };
     let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xEA].as_ref().unwrap(),
         operands: &[],
@@ -74,14 +93,13 @@ fn test_format_instructions() {
         target_context: None,
         labels: &labels,
         settings: &settings,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -91,6 +109,13 @@ fn test_format_instructions() {
     );
 
     // ASL (Accumulator) — ACME uses empty operand (not "a")
+    let annotations = {
+        let mut ann = AnnotationManager::default();
+        for (a, f) in &immediate_value_formats {
+            ann.update(*a, |e| e.immediate_format = Some(*f));
+        }
+        ann
+    };
     let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0x0A].as_ref().unwrap(),
         operands: &[],
@@ -98,14 +123,13 @@ fn test_format_instructions() {
         target_context: None,
         labels: &labels,
         settings: &settings,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -168,6 +192,13 @@ fn test_forced_absolute_plus2() {
 
     // ACME uses "+2" suffix for forced 16-bit addressing
     settings.preserve_long_bytes = true;
+    let annotations = {
+        let mut ann = AnnotationManager::default();
+        for (a, f) in &immediate_value_formats {
+            ann.update(*a, |e| e.immediate_format = Some(*f));
+        }
+        ann
+    };
     let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
@@ -175,14 +206,13 @@ fn test_forced_absolute_plus2() {
         target_context: None,
         labels: &labels,
         settings: &settings,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -201,14 +231,13 @@ fn test_forced_absolute_plus2() {
         target_context: None,
         labels: &labels,
         settings: &settings_false,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -225,14 +254,13 @@ fn test_forced_absolute_plus2() {
         target_context: None,
         labels: &labels,
         settings: &settings,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -249,14 +277,13 @@ fn test_forced_absolute_plus2() {
         target_context: None,
         labels: &labels,
         settings: &settings,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -278,6 +305,13 @@ fn test_addressing_modes() {
     let opcodes = regenerator2000_core::cpu::get_opcodes();
 
     // LDA ($20,X) — Indirect X
+    let annotations = {
+        let mut ann = AnnotationManager::default();
+        for (a, f) in &immediate_value_formats {
+            ann.update(*a, |e| e.immediate_format = Some(*f));
+        }
+        ann
+    };
     let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xA1].as_ref().unwrap(),
         operands: &[0x20],
@@ -285,14 +319,13 @@ fn test_addressing_modes() {
         target_context: None,
         labels: &labels,
         settings: &settings,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -302,6 +335,13 @@ fn test_addressing_modes() {
     );
 
     // LDA ($20),Y — Indirect Y
+    let annotations = {
+        let mut ann = AnnotationManager::default();
+        for (a, f) in &immediate_value_formats {
+            ann.update(*a, |e| e.immediate_format = Some(*f));
+        }
+        ann
+    };
     let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xB1].as_ref().unwrap(),
         operands: &[0x20],
@@ -309,14 +349,13 @@ fn test_addressing_modes() {
         target_context: None,
         labels: &labels,
         settings: &settings,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -326,6 +365,13 @@ fn test_addressing_modes() {
     );
 
     // BNE $2007 — Relative forward
+    let annotations = {
+        let mut ann = AnnotationManager::default();
+        for (a, f) in &immediate_value_formats {
+            ann.update(*a, |e| e.immediate_format = Some(*f));
+        }
+        ann
+    };
     let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xD0].as_ref().unwrap(),
         operands: &[0x03],
@@ -333,14 +379,13 @@ fn test_addressing_modes() {
         target_context: None,
         labels: &labels,
         settings: &settings,
-        immediate_value_formats: &immediate_value_formats,
+        annotations: &annotations,
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
         enums: &BTreeMap::new(),
-        enum_usages: &BTreeMap::new(),
         user_global_enums: &BTreeMap::new(),
         builtin_enums: &BTreeMap::new(),
     };
@@ -510,6 +555,13 @@ fn test_lax_immediate_mnemonic() {
     let opcodes = regenerator2000_core::cpu::get_opcodes();
 
     if let Some(opcode) = opcodes[0xAB].as_ref() {
+        let annotations = {
+            let mut ann = AnnotationManager::default();
+            for (a, f) in &immediate_value_formats {
+                ann.update(*a, |e| e.immediate_format = Some(*f));
+            }
+            ann
+        };
         let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
             opcode,
             operands: &[0x42],
@@ -517,14 +569,13 @@ fn test_lax_immediate_mnemonic() {
             target_context: None,
             labels: &labels,
             settings: &settings,
-            immediate_value_formats: &immediate_value_formats,
+            annotations: &annotations,
             local_label_names: None,
             label_scope_names: None,
             current_scope_name: None,
             scope_separator: ".",
             local_prefix: None,
             enums: &BTreeMap::new(),
-            enum_usages: &BTreeMap::new(),
             user_global_enums: &BTreeMap::new(),
             builtin_enums: &BTreeMap::new(),
         };

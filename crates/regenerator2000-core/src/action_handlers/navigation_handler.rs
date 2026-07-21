@@ -742,15 +742,18 @@ impl DomainActionHandler for NavigationActionHandler {
                             if let Some(opcode) = &line.opcode {
                                 match opcode.mode {
                                     AddressingMode::Immediate => {
-                                        if let Some(fmt) =
-                                            ctx.state.immediate_value_formats.get(&line.address)
+                                        if let Some(fmt) = ctx
+                                            .state
+                                            .annotations
+                                            .get(line.address)
+                                            .and_then(|e| e.immediate_format)
                                         {
                                             match fmt {
                                                 crate::state::ImmediateFormat::LowByte(target) => {
-                                                    Some(*target)
+                                                    Some(target)
                                                 }
                                                 crate::state::ImmediateFormat::HighByte(target) => {
-                                                    Some(*target)
+                                                    Some(target)
                                                 }
                                                 _ => None,
                                             }
