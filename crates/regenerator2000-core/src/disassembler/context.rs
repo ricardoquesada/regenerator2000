@@ -116,6 +116,31 @@ impl<'a> DisassemblyContext<'a> {
         let separator = format!(" {comment_prefix} "); // e.g. " ; " or " // "
         comment_parts.join(&separator)
     }
+
+    #[must_use]
+    pub fn get_target_comment(&self, target_addr: Addr) -> Option<&str> {
+        let is_code_target = target_addr
+            .0
+            .checked_sub(self.origin.0)
+            .and_then(|off| self.block_types.get(off as usize))
+            .is_some_and(|bt| *bt == BlockType::Code);
+
+        if is_code_target {
+            self.annotations
+                .get(target_addr)
+                .and_then(|e| e.system_comment.as_deref())
+        } else if let Some(c) = self
+            .annotations
+            .get(target_addr)
+            .and_then(|e| e.user_side_comment.as_deref())
+        {
+            Some(c)
+        } else {
+            self.annotations
+                .get(target_addr)
+                .and_then(|e| e.system_comment.as_deref())
+        }
+    }
 }
 
 #[must_use]
