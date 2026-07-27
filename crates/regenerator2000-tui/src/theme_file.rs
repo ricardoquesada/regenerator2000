@@ -4,7 +4,7 @@
 //! and written to `theme-*.toml` files, enabling user-created custom themes.
 //!
 //! Built-in themes are stored as embedded `theme-*.toml` assets in the
-//! `assets/themes/` directory and loaded at runtime via [`include_dir`].
+//! `assets/themes/` directory and loaded at runtime via [`mod@include_dir`].
 //! User-created themes in the config directory take precedence over built-ins.
 //!
 //! # File format

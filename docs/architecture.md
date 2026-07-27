@@ -31,7 +31,7 @@ flowchart TD
         Analyzer[Code Analyzer]
         DisasmEngine[Disassembly Engine<br/>symbols / data_blocks / pipeline]
         ViceClient[VICE Client]
-        MCPServer[MCP Server<br/>HTTP/Stdio]
+        MCPServer[MCP Server<br/>HTTP/Stdio / handler / tools]
         Unpacker[Binary Unpacker<br/>cia / bus / engine / detector]
     end
 
@@ -77,8 +77,8 @@ flowchart TD
 
 The project is organized as a Cargo workspace with three primary components:
 
-1. **[`regenerator2000-core`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core)
-   **: The head-less engine. Contains all memory management, disassembly logic, CPU tables, analysis heuristics,
+1. **[`regenerator2000-core`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core)**:
+   The head-less engine. Contains all memory management, disassembly logic, CPU tables, analysis heuristics,
    cross-frontend view state, binary unpackers, and the MCP server.
 2. **[`regenerator2000-tui`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui)**:
    The TUI library. Implements the `ratatui` widgets, event loop coordination, and theme system.
@@ -178,38 +178,38 @@ A heuristic engine that runs after state changes. It:
 
 Handles importing various Commodore file formats and label files.
 
-- **[`parser.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser.rs)
-  **: Module re-exports for all parser sub-modules.
-- **[`prg.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/prg.rs)
-  **: Parser for standard Commodore PRG files (2-byte load address header). Also parses embedded BASIC SYS addresses to
+- **[`parser.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser.rs)**:
+  Module re-exports for all parser sub-modules.
+- **[`prg.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/prg.rs)**:
+  Parser for standard Commodore PRG files (2-byte load address header). Also parses embedded BASIC SYS addresses to
   suggest entry points.
-- **[`crt.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/crt.rs)
-  **: Parser for Commodore 64 cartridge (.crt) files with multi-bank chip selection.
-- **[`d64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/d64.rs)
-  **: Unified parser for D64 (35/40/42-track), D71 (70/80-track), and D81 disk image files. Supports file extraction
+- **[`crt.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/crt.rs)**:
+  Parser for Commodore 64 cartridge (.crt) files with multi-bank chip selection.
+- **[`d64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/d64.rs)**:
+  Unified parser for D64 (35/40/42-track), D71 (70/80-track), and D81 disk image files. Supports file extraction
   from 1541/1571/1581 disk images.
-- **[`t64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/t64.rs)
-  **: Parser for T64 tape archive files.
-- **[`dis65.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/dis65.rs)
-  **: Parser for 6502bench SourceGen (.dis65) project files.
-- **[`vice_lbl.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_lbl.rs)
-  **: Parser for VICE label files (.lbl) for importing debug symbols.
-- **[`vice_vsf.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_vsf.rs)
-  **: Parser for VICE snapshot files (.vsf). Auto-detects the system from the VSF header.
+- **[`t64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/t64.rs)**:
+  Parser for T64 tape archive files.
+- **[`dis65.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/dis65.rs)**:
+  Parser for 6502bench SourceGen (.dis65) project files.
+- **[`vice_lbl.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_lbl.rs)**:
+  Parser for VICE label files (.lbl) for importing debug symbols.
+- **[`vice_vsf.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_vsf.rs)**:
+  Parser for VICE snapshot files (.vsf). Auto-detects the system from the VSF header.
 
 ### 7. Exporter ([`regenerator2000-core/src/exporter/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/exporter))
 
 Handles generation of complete, compilable source code and browsable HTML disassembly files.
 
-- **[`asm.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/asm.rs)
-  **: Exports disassembly as a compilable assembly source file. Supports all four assembler formats (ACME, 64tass, ca65,
+- **[`asm.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/asm.rs)**:
+  Exports disassembly as a compilable assembly source file. Supports all four assembler formats (ACME, 64tass, ca65,
   KickAssembler) via the `Formatter` trait, and handles external-file (`incbin`) regions.
-- **[`html.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/html.rs)
-  **: Exports disassembly as a self-contained, syntax-highlighted HTML file with clickable cross-reference hyperlinks,
+- **[`html.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/html.rs)**:
+  Exports disassembly as a self-contained, syntax-highlighted HTML file with clickable cross-reference hyperlinks,
   light/dark theme toggle, and assembler-specific build instructions in the header. `ExternalFile` regions are written
   to separate linked HTML files.
-- **[`verify.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/verify.rs)
-  **: Export→assemble→diff roundtrip verification. Exports ASM, invokes the real assembler binary, and byte-compares the
+- **[`verify.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/verify.rs)**:
+  Export→assemble→diff roundtrip verification. Exports ASM, invokes the real assembler binary, and byte-compares the
   output against the original binary to confirm disassembly correctness. Supports all four assemblers.
 
 ### 8. Binary Unpacker ([`regenerator2000-core/src/unpacker/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/unpacker) & [`regenerator2000-core/src/packers/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/packers))
@@ -251,7 +251,14 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **[`ui.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui.rs)**: Top-level layout engine.
 
 - **Menu System** ([`regenerator2000-tui/src/ui/menu/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui/menu))
-- **Main Views** ([`regenerator2000-tui/src/ui/view_*.rs`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui))
+- **Main Views** ([`regenerator2000-tui/src/ui/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui)):
+  - **Disassembly View** ([`view_disassembly/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui/view_disassembly)): Modularized into responsibility-scoped submodules:
+    - **[`mod.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly/mod.rs)**: `DisassemblyView` widget facade and `Widget` trait implementation.
+    - **[`layout.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly/layout.rs)**: Visual line calculations, line height breakdown, and disassembly line index mapping.
+    - **[`navigation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly/navigation.rs)**: Disassembly view navigation operations, cursor movement, scrolling, and paging routines.
+    - **[`mouse.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly/mouse.rs)**: Mouse event handling, scroll wheel actions, and click/drag selection logic.
+    - **[`render.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly/render.rs)**: Rendering pipeline for the disassembly view widget using Ratatui.
+  - **Other Views**: `view_hexdump.rs`, `view_sprites.rs`, `view_charset.rs`, `view_bitmap.rs`, `view_blocks.rs`, `view_debugger.rs`.
 - **Dialogs** ([`regenerator2000-tui/src/ui/dialog_*.rs`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui))
 
 ### 10. Theme System ([`regenerator2000-tui/src/theme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme.rs))
@@ -269,6 +276,14 @@ Manages embedded system definition files (`system-*.toml`) and theme files (`the
 ### 13. MCP Server ([`regenerator2000-core/src/mcp/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/mcp))
 
 Implements the Model Context Protocol (MCP) server for programmatic access via HTTP (SSE) and Stdio transports.
+
+- **[`handler.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/handler.rs)**: Central MCP request handler and tool dispatcher for protocol interactions (`initialize`, `tools/list`, `resources/list`, `tools/call`, `resources/read`).
+- **[`tools/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/mcp/tools)**: Domain-oriented tool submodules:
+  - **[`analysis_tools.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/tools/analysis_tools.rs)**: Disassembly queries, memory regions, cross-references, symbol lookups, address details, and memory/disassembly search tools.
+  - **[`navigation_tools.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/tools/navigation_tools.rs)**: Navigation operations (address jumps, cursor position queries).
+  - **[`modification_tools.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/tools/modification_tools.rs)**: Disassembly modifications (labels, line/side comments, data types, splitters, immediate operand formatting, scope creation, and project-specific enums).
+  - **[`session_tools.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/tools/session_tools.rs)**: Project session tools (save project, undo, redo, batch execution, and binary unpacking).
+  - **[`common.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/tools/common.rs)**: Shared MCP tool utilities, JSON-RPC error construction (`make_mcp_error`), and parameter extraction helpers.
 
 ### 14. VICE Integration ([`regenerator2000-core/src/vice/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/vice))
 

@@ -16,7 +16,7 @@ The project is split into two main crates to separate logic from presentation:
   - `disassembler/`: 6502 decoding and assembler formatters (64tass, ACME, KickAssembler, ca65).
   - `event.rs`: Application event types.
   - `exporter/`: Code for exporting disassembly to ASM or HTML, with roundtrip verification.
-  - `mcp/`: MCP server implementation (stdio and HTTP transports).
+  - `mcp/`: MCP server implementation (stdio and HTTP transports). Contains `handler.rs` dispatcher and `tools/` submodules (`analysis_tools`, `navigation_tools`, `modification_tools`, `session_tools`, `common`).
   - `navigation.rs`: Address navigation logic.
   - `packers/`: 6502 binary packer strategies (`Packer` trait, signature detection, pre/post emulation hooks).
   - `parser/`: File format parsers (.prg, .d64/.d71/.d81, .t64, .crt, .vsf snapshots, .dis65, VICE labels).
@@ -26,7 +26,7 @@ The project is split into two main crates to separate logic from presentation:
   - `view_state.rs`: View state management.
 
 - **`regenerator2000-tui`**: Contains all terminal UI-related code.
-  - `ui/`: TUI widgets, views (Disassembly, HexDump, Sprites, Charset, Bitmap, Blocks, Debugger), and dialogs.
+  - `ui/`: TUI widgets, views (`view_disassembly/` submodule breakdown [`layout.rs`, `navigation.rs`, `mouse.rs`, `render.rs`, `mod.rs`], HexDump, Sprites, Charset, Bitmap, Blocks, Debugger), and dialogs.
   - `ui_state.rs`: Transient UI state (cursor, scroll, active dialog).
   - `events/`: Input handling and event loop.
   - `theme.rs`: Color scheme and styling logic.
@@ -60,17 +60,17 @@ Regenerator 2000 follows a unidirectional data flow (Redux/Elm style):
 
 ### No Logic Duplication — State Logic Lives in Core
 
-All validation, business rules, and state-mutation logic **must** live in `regenerator2000-core` (typically as methods on `AppState` in `state/`). Both the TUI (`regenerator2000-tui`) and the MCP server (`mcp/handler.rs`) are **consumers** of core logic — they must call shared `AppState` methods, not re-implement the same checks independently.
+All validation, business rules, and state-mutation logic **must** live in `regenerator2000-core` (typically as methods on `AppState` in `state/`). Both the TUI (`regenerator2000-tui`) and the MCP server (`mcp/` handler + `mcp/tools/` submodules) are **consumers** of core logic — they must call shared `AppState` methods, not re-implement the same checks independently.
 
-For example, if label creation needs to reject duplicate names, that validation belongs in an `AppState` method (e.g., `create_set_user_label_command`). The MCP handler and the TUI dialog both call that single method. **Never** add domain logic directly into `mcp/handler.rs` or `events/input.rs` if it can be expressed as a core method.
+For example, if label creation needs to reject duplicate names, that validation belongs in an `AppState` method (e.g., `create_set_user_label_command`). The MCP tool submodules (`mcp/tools/`) and the TUI dialogs both call that single method. **Never** add domain logic directly into `mcp/tools/` or `events/input.rs` if it can be expressed as a core method. TUI disassembly rendering belongs in `view_disassembly/render.rs`, view navigation in `view_disassembly/navigation.rs`, visual layout math in `view_disassembly/layout.rs`, and mouse interaction in `view_disassembly/mouse.rs`.
 
 When adding or modifying a feature, ask: *"Would this logic need to be duplicated if a third client (e.g., a GUI, a CLI) were added?"* If yes, it belongs in `regenerator2000-core`.
 
 ### System-Agnostic Design & Unpacker Rules
 
-The core disassembler and binary unpacker (`crates/regenerator2000-core/src/unpacker.rs`) target Commodore 8-bit machines (C64, C128, VIC-20, PET, Plus/4).
+The core disassembler and binary unpacker (`crates/regenerator2000-core/src/unpacker/` directory) target Commodore 8-bit machines (C64, C128, VIC-20, PET, Plus/4).
 
-- **Never hardcode platform constants**: Do not hardcode machine-specific memory addresses (such as `$0800` RAM start, `$0801` BASIC start, `$0400` screen RAM, or `$0314` IRQ vector) directly in `unpacker.rs` or documentation. Always query system properties via `System` platform methods (`system.ram_start()`, `system.default_basic_start()`, `system.screen_ram()`, `system.default_irq()`, `system.is_c64()`).
+- **Never hardcode platform constants**: Do not hardcode machine-specific memory addresses (such as `$0800` RAM start, `$0801` BASIC start, `$0400` screen RAM, or `$0314` IRQ vector) directly in `src/unpacker/` or documentation. Always query system properties via `System` platform methods (`system.ram_start()`, `system.default_basic_start()`, `system.screen_ram()`, `system.default_irq()`, `system.is_c64()`).
 - **Guard platform-specific features**: System-specific behavior (such as C64 PLA processor port `$01` banking or zero-page template copying) must be explicitly guarded (e.g. `if system.is_c64()`).
 - **Keep Documentation System-Agnostic**: When updating `docs/unpacker.md` or adding unpacker documentation, describe memory boundaries and zero-page setups in a system-agnostic way (referencing system RAM start `$0800` on C64, `$1C00` on C128, `$1000` on VIC-20, `$0400` on PET) rather than assuming C64 defaults globally.
 
@@ -89,7 +89,7 @@ Specialized tools are available for common tasks. Invoke them via `activate_skil
 - `coding`: General Rust coding assistance with project context.
 - `code-review`: Review changes for idiomatic Rust and project conventions.
 - `update-keyboard-shortcuts`: Sync keyboard shortcuts across docs and source files.
-- `update-mcp-docs`: Sync `docs/mcp.md` with the actual MCP handler tools.
+- `update-mcp-docs`: Sync `docs/mcp.md` with the actual MCP tools.
 - `verify-mcp`: Run MCP integration test suite to verify server functionality.
 
 ## Rust Best Practices
@@ -116,7 +116,7 @@ Production code must never panic silently.
 - Prefer `?` over manual `match`/`if let` for error propagation.
 - Add context with `.context("what was attempted")` (from `anyhow`) when propagating errors across module boundaries.
 - Do **not** silently swallow errors with `let _ = some_fallible_call();`. Log or propagate them.
-- MCP handler functions must return explicit `McpError` variants for invalid/missing parameters — see `mcp/handler.rs` for the established pattern.
+- MCP tool handler functions must return explicit `McpError` variants for invalid/missing parameters — see `mcp/tools/` submodules for the established pattern.
 
 ### API Hygiene (`#[must_use]`)
 

@@ -21,6 +21,7 @@ struct T64FilePickerEntry {
     size: usize,
 }
 
+/// Dialog for selecting files from a T64 tape image.
 pub struct T64FilePickerDialog {
     files: Vec<T64FilePickerEntry>,
     selected_index: usize,
@@ -29,6 +30,7 @@ pub struct T64FilePickerDialog {
 }
 
 impl T64FilePickerDialog {
+    /// Creates a new `T64FilePickerDialog`.
     #[must_use]
     pub fn new(files: Vec<T64Entry>, disk_data: Vec<u8>, disk_path: PathBuf) -> Self {
         let entries = files

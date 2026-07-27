@@ -365,13 +365,13 @@ impl AppState {
         self.undo_stack.push(command);
     }
 
-    /// Creates a [`Command::SetLabel`] for a user-defined label at the given address,
+    /// Creates a [`SetLabel`](crate::commands::Command::SetLabel) command for a user-defined label at the given address,
     /// validating that no other address already uses the same name.
     ///
     /// If `name` is empty the returned command will **remove** any existing label.
-    /// When `is_local` is true the label receives [`LabelType::LocalUserDefined`];
+    /// When `is_local` is true the label receives [`LocalUserDefined`](crate::state::LabelType::LocalUserDefined);
     /// otherwise the existing label type is preserved (useful when renaming an
-    /// external/system label) or defaults to [`LabelType::UserDefined`].
+    /// external/system label) or defaults to [`UserDefined`](crate::state::LabelType::UserDefined).
     ///
     /// # Errors
     ///

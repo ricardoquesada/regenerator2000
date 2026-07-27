@@ -1,94 +1,165 @@
+//! Executable command patterns and undo/redo infrastructure for Regenerator2000 state mutations.
+//!
+//! This module defines the [`Command`] enum representing all state mutations (setting labels, comments,
+//! block types, scopes, immediate formats, enums, origin, and bookmarks) and the [`UndoStack`] manager
+//! that facilitates bi-directional state transitions.
+
 use crate::state::{Addr, AppState, BlockType, EnumDefinition, ImmediateFormat, Label};
 use std::collections::BTreeMap;
 
+/// Represents an executable and undoable state mutation command.
 #[derive(Debug, Clone)]
 #[allow(clippy::enum_variant_names)]
 pub enum Command {
+    /// Sets the [`BlockType`] classification for a range of memory indices.
     SetBlockType {
+        /// Index range within the raw data buffer.
         range: std::ops::Range<usize>,
+        /// The new block type classification to apply.
         new_type: BlockType,
+        /// The previous block types before modification (for undo).
         old_types: Vec<BlockType>,
     },
+    /// Sets or removes user-defined labels at a memory address [`Addr`].
     SetLabel {
+        /// Target memory address [`Addr`].
         address: Addr,
+        /// The new label vector to assign, or `None` to clear.
         new_label: Option<Vec<crate::state::Label>>,
+        /// The previous label vector at this address (for undo).
         old_label: Option<Vec<crate::state::Label>>,
     },
+    /// Bulk updates labels and cross-references resulting from an analysis pass.
     SetAnalysisData {
+        /// New label mapping by address.
         labels: BTreeMap<Addr, Vec<Label>>,
+        /// New cross-reference mapping by target address.
         cross_refs: BTreeMap<Addr, Vec<Addr>>,
+        /// Previous label mapping (for undo).
         old_labels: BTreeMap<Addr, Vec<Label>>,
+        /// Previous cross-reference mapping (for undo).
         old_cross_refs: BTreeMap<Addr, Vec<Addr>>,
     },
+    /// Sets or removes an inline side comment on an instruction row.
     SetUserSideComment {
+        /// Target memory address [`Addr`].
         address: Addr,
+        /// The new comment string to set, or `None` to clear.
         new_comment: Option<String>,
+        /// The previous comment string (for undo).
         old_comment: Option<String>,
     },
+    /// Sets or removes a line comment appearing above an instruction row.
     SetUserLineComment {
+        /// Target memory address [`Addr`].
         address: Addr,
+        /// The new line comment string, or `None` to clear.
         new_comment: Option<String>,
+        /// The previous line comment string (for undo).
         old_comment: Option<String>,
     },
+    /// Changes the base memory origin address [`Addr`] of the disassembly.
     ChangeOrigin {
+        /// The new 16-bit origin address.
         new_origin: Addr,
+        /// The previous origin address (for undo).
         old_origin: Addr,
     },
+    /// Configures immediate operand formatting [`ImmediateFormat`] at an instruction address.
     SetImmediateFormat {
+        /// Target memory address [`Addr`].
         address: Addr,
+        /// The new operand format option, or `None` to reset to default.
         new_format: Option<ImmediateFormat>,
+        /// The previous operand format option (for undo).
         old_format: Option<ImmediateFormat>,
     },
+    /// Collapses a contiguous block range in the visual disassembly view.
     CollapseBlock {
+        /// Tuple containing start and end line indices of the collapsed range.
         range: (usize, usize),
     },
+    /// Uncollapses a previously collapsed block range in the visual disassembly view.
     UncollapseBlock {
+        /// Tuple containing start and end line indices of the block range to expand.
         range: (usize, usize),
     },
+    /// Toggles a block splitter at an address [`Addr`] to control auto-merging.
     ToggleSplitter {
+        /// Target memory address [`Addr`].
         address: Addr,
     },
+    /// Imports a batch of labels into memory from symbol files or external sources.
     ImportLabels {
+        /// Vector of (Address, Label) tuples to import.
         new_labels: Vec<(Addr, crate::state::Label)>,
+        /// Mapping of previous labels before importing (for undo).
         old_labels: BTreeMap<Addr, Vec<crate::state::Label>>,
     },
+    /// Defines a routine scope covering an address range [`Addr`].
     AddScope {
+        /// Start address of the scope (inclusive).
         start: Addr,
+        /// End address of the scope (inclusive).
         end: Addr,
+        /// Previous scope end address if replacing an existing scope (for undo).
         old_end: Option<Addr>,
     },
+    /// Removes an existing scope starting at an address [`Addr`].
     RemoveScope {
+        /// Start address of the scope to remove.
         address: Addr,
+        /// Previous scope end address (for undo).
         old_end: Addr,
     },
+    /// Sets or clears a named bookmark at a memory address [`Addr`].
     SetBookmark {
+        /// Target memory address [`Addr`].
         address: Addr,
+        /// The new bookmark name string, or `None` to remove bookmark.
         new_name: Option<String>,
+        /// The previous bookmark name string (for undo).
         old_name: Option<String>,
     },
     /// Adds or removes an address from the per-project user-excluded set.
-    /// `add = true` means we are adding the address (applying exclusion);
-    /// `add = false` means we are removing it (undo of an exclusion).
     SetUserExcludedAddress {
+        /// Target memory address [`Addr`].
         address: Addr,
+        /// `true` if adding to exclusion list, `false` if removing.
         add: bool,
+        /// Previous labels before exclusion (for undo).
         old_labels: BTreeMap<Addr, Vec<crate::state::Label>>,
+        /// Previous cross-references before exclusion (for undo).
         old_cross_refs: BTreeMap<Addr, Vec<Addr>>,
     },
+    /// Applies or clears an enum usage annotation [`EnumDefinition`] at an address.
     SetEnumUsage {
+        /// Target memory address [`Addr`].
         address: Addr,
+        /// Name of the enum to apply, or `None` to clear.
         new_enum: Option<String>,
+        /// Name of the previous enum applied (for undo).
         old_enum: Option<String>,
     },
+    /// Creates, updates, or deletes a project-specific enum definition [`EnumDefinition`].
     SetEnumDefinition {
+        /// Unique name identifier of the enum.
         name: String,
+        /// The new enum definition struct, or `None` if deleting.
         new_definition: Option<EnumDefinition>,
+        /// The previous enum definition struct (for undo).
         old_definition: Option<EnumDefinition>,
     },
+    /// Executes a series of commands sequentially as a single atomic undoable action.
     Batch(Vec<Command>),
 }
 
 impl Command {
+    /// Applies the state modification represented by this command to [`AppState`].
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - Mutable reference to the application state [`AppState`].
     pub fn apply(&self, state: &mut AppState) {
         match self {
             Command::CollapseBlock { range } => {
@@ -111,7 +182,6 @@ impl Command {
                         state.block_types[i] = *new_type;
                     }
 
-                    // Re-analyze reference counts and labels
                     // Re-analyze reference counts and labels
                     let result = crate::analyzer::analyze(state);
                     state.labels = result.labels;
@@ -255,6 +325,11 @@ impl Command {
         }
     }
 
+    /// Reverts the state modification represented by this command on [`AppState`].
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - Mutable reference to the application state [`AppState`].
     pub fn undo(&self, state: &mut AppState) {
         match self {
             Command::SetBlockType {
@@ -271,7 +346,6 @@ impl Command {
                         state.block_types[i] = *old_type;
                     }
 
-                    // Re-analyze reference counts and labels
                     // Re-analyze reference counts and labels
                     let result = crate::analyzer::analyze(state);
                     state.labels = result.labels;
@@ -422,8 +496,11 @@ impl Command {
     }
 }
 
+/// Stack manager for tracking applied commands and performing undo/redo state transitions.
 pub struct UndoStack {
+    /// History buffer of executed commands.
     commands: Vec<Command>,
+    /// Pointer pointing to the next command index for execution.
     pointer: usize,
 }
 
@@ -434,6 +511,11 @@ impl Default for UndoStack {
 }
 
 impl UndoStack {
+    /// Constructs a new empty [`UndoStack`].
+    ///
+    /// # Returns
+    ///
+    /// An [`UndoStack`] initialized with an empty command history vector.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -442,6 +524,11 @@ impl UndoStack {
         }
     }
 
+    /// Pushes a new [`Command`] onto the stack, clearing any existing redo history.
+    ///
+    /// # Arguments
+    ///
+    /// * `command` - The executed [`Command`] to append to history.
     pub fn push(&mut self, command: Command) {
         // If we are not at the end, truncate the future
         if self.pointer < self.commands.len() {
@@ -451,6 +538,15 @@ impl UndoStack {
         self.pointer += 1;
     }
 
+    /// Reverts the previous command on the stack.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - Mutable reference to application state [`AppState`].
+    ///
+    /// # Returns
+    ///
+    /// `Some("Undone")` if a command was undone, or `None` if the stack is at the beginning.
     pub fn undo(&mut self, state: &mut AppState) -> Option<String> {
         if self.pointer > 0 {
             self.pointer -= 1;
@@ -463,6 +559,15 @@ impl UndoStack {
         }
     }
 
+    /// Re-applies the next undone command on the stack.
+    ///
+    /// # Arguments
+    ///
+    /// * `state` - Mutable reference to application state [`AppState`].
+    ///
+    /// # Returns
+    ///
+    /// `Some("Redone")` if a command was redone, or `None` if no undone commands remain.
     pub fn redo(&mut self, state: &mut AppState) -> Option<String> {
         if self.pointer < self.commands.len() {
             let command = &self.commands[self.pointer];
@@ -475,22 +580,41 @@ impl UndoStack {
         }
     }
 
-    #[allow(dead_code)]
+    /// Checks if there are commands available to undo.
+    ///
+    /// # Returns
+    ///
+    /// `true` if `pointer > 0`, otherwise `false`.
     #[must_use]
     pub fn can_undo(&self) -> bool {
         self.pointer > 0
     }
 
-    #[allow(dead_code)]
+    /// Checks if there are undone commands available to redo.
+    ///
+    /// # Returns
+    ///
+    /// `true` if `pointer < commands.len()`, otherwise `false`.
     #[must_use]
     pub fn can_redo(&self) -> bool {
         self.pointer < self.commands.len()
     }
+
+    /// Checks if the command history is completely empty.
+    ///
+    /// # Returns
+    ///
+    /// `true` if no commands have been recorded.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.commands.is_empty()
     }
 
+    /// Returns the current position index of the stack pointer.
+    ///
+    /// # Returns
+    ///
+    /// `usize` index pointing to the position in the command history.
     #[must_use]
     pub fn get_pointer(&self) -> usize {
         self.pointer
@@ -506,7 +630,6 @@ mod tests {
     fn test_undo_stack_push_undo_redo() {
         let mut app_state = AppState::new();
         // Setup initial state: 10 lines of Code
-        // We need to allow app_state to have some raw data to be valid for address types
         app_state.raw_data = vec![0xEA; 10]; // NOPs
         app_state.block_types = vec![BlockType::Code; 10];
 
@@ -598,20 +721,14 @@ mod tests {
     fn test_dynamic_label_update() {
         let mut app_state = AppState::new();
         app_state.origin = Addr(0x1000);
-        // JMP $1005 (4C 05 10)
-        // NOP (EA)
-        // NOP (EA)
-        // Target: $1005 (EA)
         let data = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
         app_state.raw_data = data;
         app_state.block_types = vec![BlockType::Code; 6];
 
-        // Initial Analysis
         let result = crate::analyzer::analyze(&app_state);
         app_state.labels = result.labels;
         app_state.cross_refs = result.cross_refs;
 
-        // Assert label exists
         assert!(app_state.labels.contains_key(&Addr(0x1005)));
         assert_eq!(app_state.cross_refs.get(&Addr(0x1005)).unwrap().len(), 1);
         assert_eq!(
@@ -625,7 +742,6 @@ mod tests {
             crate::state::LabelKind::Auto
         );
 
-        // Action: Change JMP (3 bytes) to DataByte
         let range = 0..3;
         let old_types = vec![BlockType::Code; 3];
         let command = Command::SetBlockType {
@@ -637,37 +753,21 @@ mod tests {
         command.apply(&mut app_state);
         app_state.undo_stack.push(command);
 
-        // Verify label is GONE because reference count dropped to 0
         assert!(!app_state.labels.contains_key(&Addr(0x1005)));
 
-        // Undo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
-        // Wait, AppState::new() creates empty stack.
-        // My previous test code used `UndoStack::new()`. I should respect imports.
-        // But `UndoStack` is in this module (super).
-        // Let's check imports in tests module. `use super::*;`.
-        // So `UndoStack::new()` is valid.
-
-        // Retrying with correct stack replacement logic
-        // But wait, `app_state.undo_stack` is `UndoStack`.
-        // `std::mem::replace` needs same type.
-        // `UndoStack::new()` returns `UndoStack`.
-        // So `stack` is `UndoStack`.
-        // `stack.undo` needs `&mut AppState`.
-
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
-        // Verify label is BACK
         assert!(app_state.labels.contains_key(&Addr(0x1005)));
         assert_eq!(app_state.cross_refs.get(&Addr(0x1005)).unwrap().len(), 1);
     }
+
     #[test]
     fn test_user_line_comment_undo_redo() {
         let mut app_state = AppState::new();
         let address = Addr(0x1000);
 
-        // Action: Set User Line Comment
         let comment = "Line Comment".to_string();
         let command = Command::SetUserLineComment {
             address,
@@ -686,14 +786,12 @@ mod tests {
             Some(&comment)
         );
 
-        // Undo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
         assert!(app_state.annotations.get(address).is_none());
 
-        // Redo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
@@ -710,7 +808,6 @@ mod tests {
     #[test]
     fn test_import_labels_undo_redo() {
         let mut app_state = AppState::new();
-        // Setup initial state: Label at 0x1000
         let address = Addr(0x1000);
         let initial_label = crate::state::Label {
             name: "Initial".to_string(),
@@ -721,9 +818,6 @@ mod tests {
             .labels
             .insert(address, vec![initial_label.clone()]);
 
-        // Action: Import Labels
-        // 1. New label at 0x1000 (should merge if name different)
-        // 2. New label at 0x2000
         let new_label1 = crate::state::Label {
             name: "New1".to_string(),
             kind: crate::state::LabelKind::User,
@@ -740,11 +834,8 @@ mod tests {
             (Addr(0x2000), new_label2.clone()),
         ];
 
-        // Capture old state manually (as done in state.rs)
         let mut old_labels = BTreeMap::new();
         old_labels.insert(Addr(0x1000), vec![initial_label.clone()]);
-        // 0x2000 has no old labels, so do we insert empty vec or nothing?
-        // Logic in state.rs: if !old_labels_map.contains_key, insert current (empty).
         old_labels.insert(Addr(0x2000), Vec::new());
 
         let command = Command::ImportLabels {
@@ -755,44 +846,31 @@ mod tests {
         command.apply(&mut app_state);
         app_state.undo_stack.push(command);
 
-        // Verify application
-        // 0x1000 should have 2 labels
         let labels_1000 = app_state.labels.get(&Addr(0x1000)).unwrap();
         assert_eq!(labels_1000.len(), 2);
         assert!(labels_1000.iter().any(|l| l.name == "Initial"));
         assert!(labels_1000.iter().any(|l| l.name == "New1"));
 
-        // 0x2000 should have 1 label
         let labels_2000 = app_state.labels.get(&Addr(0x2000)).unwrap();
         assert_eq!(labels_2000.len(), 1);
         assert_eq!(labels_2000[0].name, "New2");
 
-        // Undo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
-        // Verify Undo
-        // 0x1000 should have 1 label (Initial)
         let labels_1000 = app_state.labels.get(&Addr(0x1000)).unwrap();
         assert_eq!(labels_1000.len(), 1);
         assert_eq!(labels_1000[0].name, "Initial");
 
-        // 0x2000 should be empty/removed
-        // Note: our logic in undo inserts `Vec::new()` which means key exists but is empty.
-        // OR we can check isEmpty.
         if let Some(l) = app_state.labels.get(&Addr(0x2000)) {
             assert!(l.is_empty());
-        } else {
-            // also fine
         }
 
-        // Redo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
-        // Verify Redo
         let labels_1000 = app_state.labels.get(&Addr(0x1000)).unwrap();
         assert_eq!(labels_1000.len(), 2);
 
@@ -804,12 +882,10 @@ mod tests {
     fn test_set_user_excluded_address_undo_redo() {
         let mut app_state = AppState::new();
         app_state.origin = Addr(0x1000);
-        // JMP $E500 (4C 00 E5) -> normally generates label eE500
         let data = vec![0x4C, 0x00, 0xE5];
         app_state.raw_data = data;
         app_state.block_types = vec![BlockType::Code; 3];
 
-        // Initial analysis: label should exist at $E500
         let result = crate::analyzer::analyze(&app_state);
         app_state.labels = result.labels;
         app_state.cross_refs = result.cross_refs;
@@ -824,7 +900,6 @@ mod tests {
             "user_excluded_addresses should be empty initially"
         );
 
-        // Apply: exclude $E500
         let old_labels = app_state.labels.clone();
         let old_cross_refs = app_state.cross_refs.clone();
         let command = Command::SetUserExcludedAddress {
@@ -836,7 +911,6 @@ mod tests {
         command.apply(&mut app_state);
         app_state.undo_stack.push(command);
 
-        // Verify: $E500 should be excluded, no label
         assert!(
             app_state.user_excluded_addresses.contains(&Addr(0xE500)),
             "user_excluded_addresses should contain $E500 after apply"
@@ -846,12 +920,10 @@ mod tests {
             "Label at $E500 should be gone after exclusion"
         );
 
-        // Undo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
-        // Verify undo: label should be back
         assert!(
             !app_state.user_excluded_addresses.contains(&Addr(0xE500)),
             "user_excluded_addresses should NOT contain $E500 after undo"
@@ -861,12 +933,10 @@ mod tests {
             "Label at $E500 should be restored after undo"
         );
 
-        // Redo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
-        // Verify redo: excluded again
         assert!(
             app_state.user_excluded_addresses.contains(&Addr(0xE500)),
             "user_excluded_addresses should contain $E500 after redo"
@@ -881,17 +951,11 @@ mod tests {
     fn test_user_excluded_addresses_merged_in_load_system_assets() {
         let mut app_state = AppState::new();
         app_state.origin = Addr(0x1000);
-        app_state.raw_data = vec![0xEA]; // NOP
+        app_state.raw_data = vec![0xEA];
         app_state.block_types = vec![BlockType::Code; 1];
 
-        // Ensure the "exclude well-known labels" setting is OFF
         app_state.settings.exclude_well_known_labels = false;
-
-        // Add a user-excluded address
         app_state.user_excluded_addresses.insert(Addr(0xFFD2));
-
-        // Call load_system_assets — should merge user-excluded even when
-        // exclude_well_known_labels is false.
         app_state.load_system_assets();
 
         assert!(
@@ -899,5 +963,101 @@ mod tests {
             "User-excluded $FFD2 should be in excluded_addresses even when \
              exclude_well_known_labels is off"
         );
+    }
+
+    #[test]
+    fn test_undo_stack_initial_state() {
+        let stack = UndoStack::new();
+        assert!(
+            !stack.can_undo(),
+            "New UndoStack must have can_undo() == false"
+        );
+        assert!(
+            !stack.can_redo(),
+            "New UndoStack must have can_redo() == false"
+        );
+        assert_eq!(stack.get_pointer(), 0);
+    }
+
+    #[test]
+    fn test_undo_stack_can_undo_after_push() {
+        let mut stack = UndoStack::new();
+        stack.push(Command::ToggleSplitter {
+            address: Addr(0x1000),
+        });
+        assert!(
+            stack.can_undo(),
+            "UndoStack must have can_undo() == true after push"
+        );
+        assert!(
+            !stack.can_redo(),
+            "UndoStack must have can_redo() == false after fresh push"
+        );
+        assert_eq!(stack.get_pointer(), 1);
+    }
+
+    #[test]
+    fn test_undo_stack_can_redo_after_undo() {
+        let mut stack = UndoStack::new();
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        state.raw_data = vec![0xEA; 256];
+        state.block_types = vec![BlockType::Code; 256];
+        state.disassemble();
+
+        stack.push(Command::ToggleSplitter {
+            address: Addr(0x1000),
+        });
+        let _ = stack.undo(&mut state);
+        assert!(
+            !stack.can_undo(),
+            "can_undo() must be false after undoing sole command"
+        );
+        assert!(
+            stack.can_redo(),
+            "can_redo() must be true after undoing command"
+        );
+        assert_eq!(stack.get_pointer(), 0);
+
+        let _ = stack.redo(&mut state);
+        assert!(
+            stack.can_undo(),
+            "can_undo() must be true after redoing command"
+        );
+        assert!(
+            !stack.can_redo(),
+            "can_redo() must be false after redoing last command"
+        );
+        assert_eq!(stack.get_pointer(), 1);
+    }
+
+    #[test]
+    fn test_undo_stack_push_truncates_redo_history() {
+        let mut stack = UndoStack::new();
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        state.raw_data = vec![0xEA; 256];
+        state.block_types = vec![BlockType::Code; 256];
+        state.disassemble();
+
+        stack.push(Command::ToggleSplitter {
+            address: Addr(0x1000),
+        });
+        stack.push(Command::ToggleSplitter {
+            address: Addr(0x2000),
+        });
+
+        let _ = stack.undo(&mut state);
+        assert!(stack.can_redo());
+
+        stack.push(Command::ToggleSplitter {
+            address: Addr(0x3000),
+        });
+        assert!(stack.can_undo());
+        assert!(
+            !stack.can_redo(),
+            "Pushing new command must clear redo stack"
+        );
+        assert_eq!(stack.get_pointer(), 2);
     }
 }

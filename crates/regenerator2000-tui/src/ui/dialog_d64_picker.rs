@@ -22,6 +22,7 @@ struct FilePickerEntry {
     entropy: Option<f32>,
 }
 
+/// Dialog for selecting PRG files from a D64 disk image.
 pub struct D64FilePickerDialog {
     files: Vec<FilePickerEntry>,
     selected_index: usize,
@@ -30,6 +31,7 @@ pub struct D64FilePickerDialog {
 }
 
 impl D64FilePickerDialog {
+    /// Creates a new `D64FilePickerDialog`.
     #[must_use]
     pub fn new(files: Vec<D64FileEntry>, disk_data: Vec<u8>, disk_path: PathBuf) -> Self {
         let entries = files

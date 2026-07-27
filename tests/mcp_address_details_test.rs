@@ -27,12 +27,16 @@ mod tests {
         };
 
         let response = handle_request(&req, app_state, ui_state);
-        let result = response
-            .result
-            .unwrap_or_else(|| panic!("Tool {} failed: {:?}", name, response.error));
-        let content = result["content"].as_array().unwrap();
-        let text = content[0]["text"].as_str().unwrap();
-        serde_json::from_str(text).unwrap()
+        if let Some(ref err) = response.error {
+            panic!("Tool {} failed with McpError: {:?}", name, err);
+        }
+        let result = response.result.expect("Expected result");
+        if let Some(content) = result.get("content").and_then(|c| c.as_array()) {
+            let text = content[0]["text"].as_str().unwrap();
+            serde_json::from_str(text).unwrap()
+        } else {
+            result
+        }
     }
 
     #[test]

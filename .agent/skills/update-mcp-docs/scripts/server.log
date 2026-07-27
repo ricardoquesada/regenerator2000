@@ -1,0 +1,2 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running `target/debug/regenerator2000 --headless --mcp-server`

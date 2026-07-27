@@ -58,11 +58,13 @@ impl DocumentSettingsDialog {
         }
     }
 
+    #[allow(dead_code)]
     pub fn next(&mut self) {
         let max_items = 16;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
+    #[allow(dead_code)]
     pub fn previous(&mut self) {
         let max_items = 16;
         if self.selected_index == 0 {

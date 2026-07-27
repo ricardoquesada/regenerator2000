@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Common graphics utilities for C64 rendering (sprites, charset, bitmaps)
 ///
 /// This module provides shared functionality for rendering C64 graphics data including:
@@ -48,7 +49,7 @@ pub fn get_vic_color(index: u8) -> [u8; 3] {
 /// * `index` - Color index (0-15)
 ///
 /// # Returns
-/// RGB color as `image::Rgb`<u8>
+/// RGB color as `image::Rgb<u8>`
 #[inline]
 #[must_use]
 pub fn get_vic_color_rgb(index: u8) -> Rgb<u8> {

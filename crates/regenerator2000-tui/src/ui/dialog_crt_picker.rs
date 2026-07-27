@@ -19,6 +19,7 @@ struct CrtPickerEntry {
     entropy: f32,
 }
 
+/// Dialog for selecting CHIP banks from a CRT cartridge image.
 pub struct CrtBankPickerDialog {
     chips: Vec<CrtPickerEntry>,
     selected_index: usize,
@@ -27,6 +28,7 @@ pub struct CrtBankPickerDialog {
 }
 
 impl CrtBankPickerDialog {
+    /// Creates a new `CrtBankPickerDialog`.
     #[must_use]
     pub fn new(crt_header: CrtHeader, file_path: PathBuf) -> Self {
         let entries = crt_header

@@ -11,7 +11,9 @@ mod menu_render;
 
 // Re-exports: preserve the existing public API surface so external `use crate::ui::menu::*` paths
 // continue to work without changes.
+#[allow(unused_imports)]
 pub use menu_action::{AppAction, handle_menu_action};
+#[allow(unused_imports)]
 pub use menu_model::{MenuCategory, MenuItem, MenuState};
 pub use menu_render::{render_menu, render_menu_popup};
 

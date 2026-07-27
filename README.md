@@ -42,14 +42,14 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Mini map**: Mini map of the file being analyzed.
 - **Systems**: Supports Commodore 8-bit machines: C64, C128, VIC-20, Plus/4, PET 4.0, PET 2.0, and 1541.
 - **Import**: Load the following file formats
-  - PRG: PRG files
+  - PRG: Standard Commodore program files
   - CRT: Cartridge images with bank selection support
   - D64: 35/40/42-track disk images
   - D71: 70/80-track double-sided disk images
   - D81: 80-track disk images
   - T64: Tape images
   - VSF: VICE Session files
-  - RAW / BIN: Raw binaries files
+  - RAW / BIN: Raw binary files
   - DIS65: 6502bench project files
   - REGEN2000PROJ: Regenerator 2000 project files
 - **Binary Unpacker**: Emulate a cycle-accurate 6502 background sandbox to automatically decompress packed C64 programs.
@@ -86,8 +86,6 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
   - Tools for disassembly manipulation, memory search, block operations
   - Resources for accessing binary data and views
   - Bundled analysis skills that automate block classification, routine tracing, and symbol naming
-- **Fast**:
-  - Extremely fast
 
 ![hexdump screenshot](docs/regenerator2000_hexdump_screenshot.png)
 ![charset screenshot](docs/regenerator2000_charset_screenshot.png)

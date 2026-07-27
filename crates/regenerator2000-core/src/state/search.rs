@@ -273,7 +273,7 @@ fn text_matches(haystack: &str, query_lower: &str, regex: Option<&Regex>) -> boo
 ///
 /// Hex-byte matching uses alignment-aware byte-level scanning and is disabled
 /// in regex mode (the query is a pattern, not a hex string).  Mnemonic,
-/// operand, comment, and label fields are matched via [`text_matches`].
+/// operand, comment, and label fields are matched via text matching.
 #[must_use]
 pub fn match_instruction_content(
     line: &crate::disassembler::DisassemblyLine,
