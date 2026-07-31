@@ -64,3 +64,9 @@ toml = "1.1"
 
 [lints]
 workspace = true
+
+[profile.dev.package.regenerator2000-core]
+opt-level = 3
+
+[profile.dev.package.mos6502]
+opt-level = 3

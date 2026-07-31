@@ -413,16 +413,13 @@ mod tests {
             is_collapsed: false,
         });
 
-        let file_name = "test_export_external.asm";
-        let path = PathBuf::from(file_name);
-        if path.exists() {
-            let _ = std::fs::remove_file(&path);
-        }
+        let temp_dir = std::env::temp_dir().join(format!("regen_test_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let path = temp_dir.join("test_export_external.asm");
+        let bin_path = temp_dir.join("test_export_external_1001_1002.bin");
 
-        let bin_path = PathBuf::from("test_export_external_1001_1002.bin");
-        if bin_path.exists() {
-            let _ = std::fs::remove_file(&bin_path);
-        }
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&bin_path);
 
         // Test 64tass
         state.settings.assembler = crate::state::Assembler::Tass64;
@@ -438,9 +435,6 @@ mod tests {
         assert!(!content.contains(".BYTE $11"));
 
         // Check bin file creation
-        // Note: exporter writes relative to `path` parent.
-        // `path` is "test_export_external.asm". Parent is "" (current dir).
-        // So bin file is "test_project-1001-1002.bin" in current dir.
         assert!(bin_path.exists());
         let bin_content = std::fs::read(&bin_path).unwrap();
         assert_eq!(bin_content, vec![0x11, 0x22]);
@@ -457,6 +451,7 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(&bin_path);
+        let _ = std::fs::remove_dir(&temp_dir);
     }
 
     #[test]
