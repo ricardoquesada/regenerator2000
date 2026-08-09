@@ -143,15 +143,16 @@ fn handle_tool_call(
 
     let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
-    handle_tool_call_internal(name, args, app_state, view_state)
+    handle_tool_call_internal(name, &args, app_state, view_state)
 }
 
-/// Internal dispatcher for individual tool calls and batch executions (`r2000_batch_execute`).
+/// Dispatches an MCP tool call to the appropriate submodule (`analysis_tools`, `navigation_tools`,
+/// `modification_tools`, or `session_tools`). Handles batch tool invocation recursively.
 ///
 /// # Arguments
 ///
-/// * `name` - Tool identifier string.
-/// * `args` - JSON [`Value`] tool arguments object.
+/// * `name` - The tool name (e.g. `"r2000_get_disassembly"`).
+/// * `args` - Reference to the tool arguments as a JSON [`Value`].
 /// * `app_state` - Mutable reference to the application state [`AppState`].
 /// * `view_state` - Mutable reference to the UI viewport state [`CoreViewState`].
 ///
@@ -164,7 +165,7 @@ fn handle_tool_call(
 /// Returns [`McpError`] if `name` is unrecognized or if the tool call fails.
 pub(crate) fn handle_tool_call_internal(
     name: &str,
-    args: Value,
+    args: &Value,
     app_state: &mut AppState,
     view_state: &mut CoreViewState,
 ) -> Result<Value, McpError> {
@@ -175,13 +176,14 @@ pub(crate) fn handle_tool_call_internal(
             .ok_or_else(|| make_mcp_error(-32602, "Missing 'calls' array"))?;
 
         let mut results = Vec::new();
+        let default_args = json!({});
         for call in calls {
             let tool_name = call
                 .get("name")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| make_mcp_error(-32602, "Missing 'name' in call"))?;
 
-            let tool_args = call.get("arguments").cloned().unwrap_or(json!({}));
+            let tool_args = call.get("arguments").unwrap_or(&default_args);
 
             match handle_tool_call_internal(tool_name, tool_args, app_state, view_state) {
                 Ok(val) => results.push(json!({ "status": "success", "result": val })),
@@ -197,19 +199,19 @@ pub(crate) fn handle_tool_call_internal(
         }));
     }
 
-    if let Some(res) = analysis_tools::handle_call(name, &args, app_state, view_state) {
+    if let Some(res) = analysis_tools::handle_call(name, args, app_state, view_state) {
         return res;
     }
 
-    if let Some(res) = navigation_tools::handle_call(name, &args, app_state, view_state) {
+    if let Some(res) = navigation_tools::handle_call(name, args, app_state, view_state) {
         return res;
     }
 
-    if let Some(res) = modification_tools::handle_call(name, &args, app_state) {
+    if let Some(res) = modification_tools::handle_call(name, args, app_state) {
         return res;
     }
 
-    if let Some(res) = session_tools::handle_call(name, &args, app_state, view_state) {
+    if let Some(res) = session_tools::handle_call(name, args, app_state, view_state) {
         return res;
     }
 

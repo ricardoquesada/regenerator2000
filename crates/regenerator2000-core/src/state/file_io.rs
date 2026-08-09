@@ -15,9 +15,10 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be read, parsed, or if the extension is unsupported.
-    pub fn load_file(&mut self, path: PathBuf) -> Result<LoadedProjectData> {
-        let data = std::fs::read(&path).with_path(&path)?;
-        self.file_path = Some(path.clone());
+    pub fn load_file(&mut self, path: impl AsRef<std::path::Path>) -> Result<LoadedProjectData> {
+        let path = path.as_ref();
+        let data = std::fs::read(path).with_path(path)?;
+        self.file_path = Some(path.to_path_buf());
         self.project_path = None; // clear project path
         self.export_asm_path = None; // clear export paths
         self.export_html_path = None;
@@ -46,9 +47,10 @@ impl AppState {
         {
             if ext.eq_ignore_ascii_case("regen2000proj") {
                 // If we loaded a project successfully, update system config
-                let res = self.load_project(path.clone());
+                let res = self.load_project(path);
                 if res.is_ok() {
-                    let abs_path = std::fs::canonicalize(&path).unwrap_or(path.clone());
+                    let abs_path =
+                        std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
                     self.system_config.last_project_path = Some(abs_path.clone());
                     self.system_config.add_recent_project(abs_path);
                     let _ = self.system_config.save();
@@ -57,9 +59,10 @@ impl AppState {
             }
 
             if ext.eq_ignore_ascii_case("dis65") {
-                let res = self.load_dis65_project(path.clone());
+                let res = self.load_dis65_project(path);
                 if res.is_ok() {
-                    let abs_path = std::fs::canonicalize(&path).unwrap_or(path.clone());
+                    let abs_path =
+                        std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
                     self.system_config.last_project_path = Some(abs_path);
                     let _ = self.system_config.save();
                 }
@@ -322,11 +325,12 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be read, parsed, or if the format version is unsupported.
-    pub fn load_project(&mut self, path: PathBuf) -> Result<LoadedProjectData> {
-        let data = std::fs::read_to_string(&path).with_path(&path)?;
+    pub fn load_project(&mut self, path: impl AsRef<std::path::Path>) -> Result<LoadedProjectData> {
+        let path = path.as_ref();
+        let data = std::fs::read_to_string(path).with_path(path)?;
         let project: ProjectState =
             serde_json::from_str(&data).map_err(|source| ProjectError::InvalidJson {
-                path: path.clone(),
+                path: path.to_path_buf(),
                 source,
             })?;
 
@@ -339,7 +343,8 @@ impl AppState {
             .into());
         }
 
-        self.project_path = Some(path);
+        self.project_path = Some(path.to_path_buf());
+        self.schema_version = project.version;
         self.origin = project.origin;
 
         // Decode raw data
@@ -416,15 +421,19 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be read, parsed, or if the CRC32 validation fails.
-    pub fn load_dis65_project(&mut self, path: PathBuf) -> Result<LoadedProjectData> {
-        let content = std::fs::read_to_string(&path).with_path(&path)?;
+    pub fn load_dis65_project(
+        &mut self,
+        path: impl AsRef<std::path::Path>,
+    ) -> Result<LoadedProjectData> {
+        let path = path.as_ref();
+        let content = std::fs::read_to_string(path).with_path(path)?;
         let project =
             crate::parser::dis65::parse_dis65(&content).map_err(|e| CoreError::ParseFailed {
                 format: "dis65".to_string(),
                 message: format!("{e:#}"),
             })?;
 
-        let mut binary_path = path.clone();
+        let mut binary_path = path.to_path_buf();
         binary_path.set_extension(""); // Strip .dis65
         if !binary_path.exists() {
             return Err(ProjectError::Io {
@@ -607,7 +616,7 @@ impl AppState {
     ) -> Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
-                version: PROJECT_FORMAT_VERSION,
+                version: self.schema_version,
                 origin: self.origin,
                 raw_data: encode_raw_data_to_base64(&self.raw_data).map_err(|e| {
                     CoreError::ParseFailed {
@@ -674,8 +683,9 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be read or parsed.
-    pub fn import_vice_labels(&mut self, path: PathBuf) -> Result<String> {
-        let content = std::fs::read_to_string(&path).with_path(&path)?;
+    pub fn import_vice_labels(&mut self, path: impl AsRef<std::path::Path>) -> Result<String> {
+        let path = path.as_ref();
+        let content = std::fs::read_to_string(path).with_path(path)?;
         let parsed = crate::parser::vice_lbl::parse_vice_labels(&content).map_err(|e| {
             CoreError::ParseFailed {
                 format: "vice_lbl".to_string(),
@@ -719,7 +729,8 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be written.
-    pub fn export_vice_labels(&self, path: PathBuf) -> Result<String> {
+    pub fn export_vice_labels(&self, path: impl AsRef<std::path::Path>) -> Result<String> {
+        let path = path.as_ref();
         let mut export_list = Vec::new();
         // Sort by address is automatic due to BTreeMap
         for (addr, labels) in &self.labels {
@@ -730,7 +741,7 @@ impl AppState {
             }
         }
         let content = crate::parser::vice_lbl::generate_vice_labels(&export_list);
-        std::fs::write(&path, content).with_path(&path)?;
+        std::fs::write(path, content).with_path(path)?;
         Ok(format!("Labels exported to {path:?}"))
     }
 }

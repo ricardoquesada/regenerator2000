@@ -32,10 +32,11 @@ pub struct SearchDialog {
 
 impl SearchDialog {
     #[must_use]
-    pub fn new(initial_query: String, filters: SearchFilters) -> Self {
+    pub fn new(initial_query: impl AsRef<str>, filters: SearchFilters) -> Self {
+        let initial_query = initial_query.as_ref();
         let mut textarea = TextArea::default();
         if !initial_query.is_empty() {
-            textarea.insert_str(&initial_query);
+            textarea.insert_str(initial_query);
             textarea.move_cursor(CursorMove::End);
         }
         Self {

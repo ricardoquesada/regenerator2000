@@ -222,7 +222,7 @@ pub fn disassemble_bytes(
             pc,
             formatter,
             label_name,
-            side_comment,
+            &side_comment,
             line_comment,
             "DataByte",
         );
@@ -353,7 +353,7 @@ pub fn disassemble_words(
             pc,
             formatter,
             label_name,
-            side_comment,
+            &side_comment,
             line_comment,
             "Word",
         )
@@ -475,7 +475,7 @@ pub fn disassemble_addresses(
             pc,
             formatter,
             label_name,
-            side_comment,
+            &side_comment,
             line_comment,
             "Address",
         )
@@ -615,7 +615,7 @@ pub fn disassemble_petscii(
             pc,
             formatter,
             label_name,
-            side_comment,
+            &side_comment,
             line_comment,
             "Text",
         )
@@ -789,7 +789,7 @@ pub fn disassemble_screencode(
             pc,
             formatter,
             label_name,
-            side_comment,
+            &side_comment,
             line_comment,
             "Screencode",
         )
@@ -876,7 +876,7 @@ pub fn disassemble_partial_data(
     pc: usize,
     formatter: &dyn Formatter,
     label_name: Option<String>,
-    side_comment: String,
+    side_comment: &str,
     line_comment: Option<String>,
     type_name: &str,
 ) -> (usize, Vec<DisassemblyLine>) {

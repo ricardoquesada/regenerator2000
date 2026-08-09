@@ -43,6 +43,7 @@ pub struct FileInfo {
 }
 
 pub struct AppState {
+    pub schema_version: u32,
     pub file_path: Option<PathBuf>,
     pub project_path: Option<PathBuf>,
     pub export_asm_path: Option<PathBuf>,
@@ -109,6 +110,7 @@ impl AppState {
         };
 
         Self {
+            schema_version: super::project::PROJECT_FORMAT_VERSION,
             file_path: None,
             project_path: None,
             export_asm_path: None,

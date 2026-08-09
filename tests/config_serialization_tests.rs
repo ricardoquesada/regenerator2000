@@ -109,7 +109,11 @@ fn config_path_override_is_not_serialized() {
 
 #[test]
 fn save_and_load_with_override_path() {
-    let dir = std::env::temp_dir().join("r2000_config_test");
+    let unique_id = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let dir = std::env::temp_dir().join(format!("r2000_config_test_{unique_id}"));
     let _ = std::fs::create_dir_all(&dir);
     let config_path = dir.join("test_config.toml");
 

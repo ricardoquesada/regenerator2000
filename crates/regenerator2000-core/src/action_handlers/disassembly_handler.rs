@@ -364,7 +364,7 @@ fn handle_remove_scope(ctx: &mut ActionContext<'_>) {
     }
 }
 
-fn handle_apply_label(ctx: &mut ActionContext<'_>, address: Addr, name: String, is_local: bool) {
+fn handle_apply_label(ctx: &mut ActionContext<'_>, address: Addr, name: &str, is_local: bool) {
     if name.trim().is_empty() {
         if let Ok(command) = ctx
             .state
@@ -382,7 +382,7 @@ fn handle_apply_label(ctx: &mut ActionContext<'_>, address: Addr, name: String, 
     } else {
         if let Ok(command) = ctx
             .state
-            .create_set_user_label_command(address, &name, is_local)
+            .create_set_user_label_command(address, name, is_local)
         {
             ctx.preserve_cursor(|c| {
                 command.apply(c.state);
@@ -939,7 +939,7 @@ impl DomainActionHandler for DisassemblyActionHandler {
                 name,
                 is_local,
             } => {
-                handle_apply_label(ctx, *address, name.clone(), *is_local);
+                handle_apply_label(ctx, *address, name, *is_local);
                 Ok(true)
             }
             AppAction::PackLoHiAddress => {

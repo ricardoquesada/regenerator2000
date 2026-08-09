@@ -34,7 +34,7 @@ impl ViceClient {
         let (cmd_tx, cmd_rx) = mpsc::channel::<ViceMessage>();
 
         // Reading thread
-        let app_tx_read = app_tx.clone();
+        let app_tx_read = app_tx;
         thread::spawn(move || {
             let _ = app_tx_read.send(ViceEvent::Connected);
             let mut buffer = [0u8; 8192];

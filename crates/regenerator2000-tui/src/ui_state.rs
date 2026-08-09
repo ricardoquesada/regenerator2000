@@ -305,7 +305,7 @@ impl UIState {
                     app_state.settings.system.as_str(),
                     app_state.origin,
                     loaded_data.suggested_entry_point,
-                    loaded_data.suggested_system.clone(),
+                    loaded_data.suggested_system.as_ref(),
                     loaded_data.entropy_warning,
                     detected_packer,
                 ),
