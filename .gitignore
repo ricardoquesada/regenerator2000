@@ -13,3 +13,5 @@ site/
 .cache/
 
 .antigravitycli/
+
+__pycache__/
