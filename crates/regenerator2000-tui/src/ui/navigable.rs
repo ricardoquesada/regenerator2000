@@ -135,11 +135,31 @@ pub fn jump_to_disassembly_at_line_idx(
     target_addr: crate::state::Addr,
 ) -> WidgetResult {
     if let Some(line_idx) = line_idx {
-        let cursor_idx = ui_state.core.cursor_index;
-        ui_state.core.navigation_history.push((
-            crate::ui_state::ActivePane::Disassembly,
-            crate::ui_state::NavigationTarget::Index(cursor_idx),
-        ));
+        let active_pane = ui_state.active_pane;
+        let target = match active_pane {
+            crate::ui_state::ActivePane::Disassembly => {
+                crate::ui_state::NavigationTarget::Index(ui_state.core.cursor_index)
+            }
+            crate::ui_state::ActivePane::HexDump => {
+                crate::ui_state::NavigationTarget::Index(ui_state.hex_cursor_index)
+            }
+            crate::ui_state::ActivePane::Sprites => {
+                crate::ui_state::NavigationTarget::Index(ui_state.sprites_cursor_index)
+            }
+            crate::ui_state::ActivePane::Charset => {
+                crate::ui_state::NavigationTarget::Index(ui_state.charset_cursor_index)
+            }
+            crate::ui_state::ActivePane::Bitmap => {
+                crate::ui_state::NavigationTarget::Index(ui_state.bitmap_cursor_index)
+            }
+            crate::ui_state::ActivePane::Blocks => crate::ui_state::NavigationTarget::Index(
+                ui_state.blocks_selected_index.unwrap_or(0),
+            ),
+            crate::ui_state::ActivePane::Debugger => {
+                crate::ui_state::NavigationTarget::Index(ui_state.core.cursor_index)
+            }
+        };
+        ui_state.core.navigation_history.push((active_pane, target));
         ui_state.cursor_index = line_idx;
         ui_state.active_pane = crate::ui_state::ActivePane::Disassembly;
         ui_state.sub_cursor_index = 0;

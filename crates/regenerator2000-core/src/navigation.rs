@@ -9,19 +9,35 @@ pub fn perform_jump_to_address(
     view_state: &mut CoreViewState,
     target_addr: Addr,
 ) {
-    // Push CURRENT state to history
-    if let Some(current_line) = app_state.disassembly.get(view_state.cursor_index) {
-        let addr = current_line
-            .external_label_address
-            .unwrap_or(current_line.address);
-        view_state
-            .navigation_history
-            .push((ActivePane::Disassembly, NavigationTarget::Address(addr.0)));
-    } else {
-        view_state.navigation_history.push((
-            ActivePane::Disassembly,
-            NavigationTarget::Index(view_state.cursor_index),
-        ));
+    let target_exists = app_state
+        .get_line_index_containing_address(target_addr)
+        .or_else(|| app_state.get_line_index_for_address(target_addr))
+        .is_some();
+
+    if target_exists {
+        // Push CURRENT state to history
+        let active_pane = view_state.active_pane;
+        let target = match active_pane {
+            ActivePane::Disassembly => {
+                if let Some(current_line) = app_state.disassembly.get(view_state.cursor_index) {
+                    let addr = current_line
+                        .external_label_address
+                        .unwrap_or(current_line.address);
+                    NavigationTarget::Address(addr.0)
+                } else {
+                    NavigationTarget::Index(view_state.cursor_index)
+                }
+            }
+            ActivePane::HexDump => NavigationTarget::Index(view_state.hex_cursor_index),
+            ActivePane::Sprites => NavigationTarget::Index(view_state.sprites_cursor_index),
+            ActivePane::Charset => NavigationTarget::Index(view_state.charset_cursor_index),
+            ActivePane::Bitmap => NavigationTarget::Index(view_state.bitmap_cursor_index),
+            ActivePane::Blocks => {
+                NavigationTarget::Index(view_state.blocks_selected_index.unwrap_or(0))
+            }
+            ActivePane::Debugger => NavigationTarget::Index(view_state.cursor_index),
+        };
+        view_state.navigation_history.push((active_pane, target));
     }
 
     perform_jump_to_address_no_history(app_state, view_state, target_addr);
@@ -261,6 +277,53 @@ mod tests {
             view_state.cursor_index, ext_label_idx,
             "Should have returned to external label index {}, instead got {}",
             ext_label_idx, view_state.cursor_index
+        );
+    }
+
+    #[test]
+    fn test_perform_jump_to_address_invalid_does_not_push_history() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        app_state.raw_data = vec![0xEA];
+        app_state.block_types = vec![BlockType::Code; 1];
+        app_state.disassemble();
+
+        let mut view_state = CoreViewState {
+            cursor_index: 0,
+            ..Default::default()
+        };
+
+        // Jump to an address that does not exist
+        perform_jump_to_address(&app_state, &mut view_state, Addr(0xC000));
+
+        assert!(
+            view_state.navigation_history.is_empty(),
+            "Invalid jump should not push to navigation history"
+        );
+        assert_eq!(view_state.cursor_index, 0);
+    }
+
+    #[test]
+    fn test_perform_jump_to_address_from_non_disassembly_pane() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        app_state.raw_data = vec![0xEA; 64];
+        app_state.block_types = vec![BlockType::Code; 64];
+        app_state.disassemble();
+
+        let mut view_state = CoreViewState {
+            active_pane: ActivePane::HexDump,
+            hex_cursor_index: 2,
+            ..Default::default()
+        };
+
+        // Jump to valid disassembly address
+        perform_jump_to_address(&app_state, &mut view_state, Addr(0x0801));
+
+        assert_eq!(view_state.navigation_history.len(), 1);
+        assert_eq!(
+            view_state.navigation_history[0],
+            (ActivePane::HexDump, NavigationTarget::Index(2))
         );
     }
 }

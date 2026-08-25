@@ -77,25 +77,10 @@ fn sync_pane_cursor_to_disassembly(ctx: &mut ActionContext<'_>) {
 }
 
 fn handle_navigate_to_address(ctx: &mut ActionContext<'_>, target_addr: Addr) {
-    let old_pane = ctx.view.active_pane;
-    let old_target = match old_pane {
-        ActivePane::Disassembly => ctx
-            .state
-            .disassembly
-            .get(ctx.view.cursor_index)
-            .map(|l| crate::view_state::NavigationTarget::Address(l.address.0))
-            .unwrap_or(crate::view_state::NavigationTarget::Index(
-                ctx.view.cursor_index,
-            )),
-        _ => crate::view_state::NavigationTarget::Index(ctx.view.cursor_index),
-    };
-
     crate::navigation::perform_jump_to_address(ctx.state, ctx.view, target_addr);
-    ctx.view.navigation_history.push((old_pane, old_target));
-    ctx.events.push(CoreEvent::StatusMessage(format!(
-        "Jumped to ${:04X}",
-        target_addr.0
-    )));
+    if let Some(msg) = &ctx.view.status_message {
+        ctx.events.push(CoreEvent::StatusMessage(msg.clone()));
+    }
     ctx.events.push(CoreEvent::ViewChanged);
 }
 
@@ -720,12 +705,32 @@ impl DomainActionHandler for NavigationActionHandler {
                                 crate::state::Addr(addr),
                             );
                         }
-                        crate::view_state::NavigationTarget::Index(idx) => {
-                            ctx.view.cursor_index = idx;
-                            ctx.view.scroll_index = idx;
-                            ctx.view.scroll_sub_index = 0;
-                            ctx.view.sub_cursor_index = 0;
-                        }
+                        crate::view_state::NavigationTarget::Index(idx) => match pane {
+                            ActivePane::Disassembly => {
+                                ctx.view.cursor_index = idx;
+                                ctx.view.scroll_index = idx;
+                                ctx.view.scroll_sub_index = 0;
+                                ctx.view.sub_cursor_index = 0;
+                            }
+                            ActivePane::HexDump => {
+                                ctx.view.hex_cursor_index = idx;
+                            }
+                            ActivePane::Sprites => {
+                                ctx.view.sprites_cursor_index = idx;
+                            }
+                            ActivePane::Charset => {
+                                ctx.view.charset_cursor_index = idx;
+                            }
+                            ActivePane::Bitmap => {
+                                ctx.view.bitmap_cursor_index = idx;
+                            }
+                            ActivePane::Blocks => {
+                                ctx.view.blocks_selected_index = Some(idx);
+                            }
+                            ActivePane::Debugger => {
+                                ctx.view.cursor_index = idx;
+                            }
+                        },
                     }
                     ctx.view.status_message = Some("Navigated back".to_string());
                     ctx.events.push(CoreEvent::ViewChanged);
@@ -1245,5 +1250,178 @@ mod tests {
             ctx.state.disassembly[ctx.view.cursor_index].address,
             Addr(0x2000)
         );
+        assert_eq!(ctx.view.navigation_history.len(), 1);
+    }
+
+    #[test]
+    fn test_jump_twice_and_navigate_back_twice() {
+        use crate::cpu::{AddressingMode, Opcode};
+        use crate::disassembler::DisassemblyLine;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+
+        let line0 = DisassemblyLine {
+            address: Addr(0x1000),
+            bytes: vec![0x4C, 0x00, 0x20],
+            mnemonic: "JMP".to_string(),
+            operand: "$2000".to_string(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: Some(Opcode::new(
+                "JMP",
+                AddressingMode::Absolute,
+                3,
+                3,
+                "Jump to address",
+            )),
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        let line1 = DisassemblyLine {
+            address: Addr(0x2000),
+            bytes: vec![0x4C, 0x00, 0x30],
+            mnemonic: "JMP".to_string(),
+            operand: "$3000".to_string(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: Some(Opcode::new(
+                "JMP",
+                AddressingMode::Absolute,
+                3,
+                3,
+                "Jump to address",
+            )),
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        let line2 = DisassemblyLine {
+            address: Addr(0x3000),
+            bytes: vec![0xEA],
+            mnemonic: "NOP".to_string(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: Some(Opcode::new(
+                "NOP",
+                AddressingMode::Implied,
+                1,
+                2,
+                "No operation",
+            )),
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        state.disassembly = vec![line0, line1, line2];
+
+        let mut view = CoreViewState::new();
+        view.active_pane = ActivePane::Disassembly;
+        view.cursor_index = 0;
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = NavigationActionHandler::new();
+
+        // Initial state at $1000
+        assert_eq!(ctx.view.cursor_index, 0);
+        assert_eq!(ctx.view.navigation_history.len(), 0);
+
+        // Jump 1: Enter on JMP $2000 -> moves to index 1 ($2000)
+        assert!(
+            handler
+                .handle_action(&AppAction::JumpToOperand, &mut ctx)
+                .unwrap()
+        );
+        assert_eq!(ctx.view.cursor_index, 1);
+        assert_eq!(ctx.view.navigation_history.len(), 1);
+
+        // Jump 2: Enter on JMP $3000 -> moves to index 2 ($3000)
+        assert!(
+            handler
+                .handle_action(&AppAction::JumpToOperand, &mut ctx)
+                .unwrap()
+        );
+        assert_eq!(ctx.view.cursor_index, 2);
+        assert_eq!(ctx.view.navigation_history.len(), 2);
+
+        // Back 1: Backspace -> returns to index 1 ($2000)
+        assert!(
+            handler
+                .handle_action(&AppAction::NavigateBack, &mut ctx)
+                .unwrap()
+        );
+        assert_eq!(ctx.view.cursor_index, 1);
+        assert_eq!(ctx.view.navigation_history.len(), 1);
+
+        // Back 2: Backspace -> returns to index 0 ($1000)
+        assert!(
+            handler
+                .handle_action(&AppAction::NavigateBack, &mut ctx)
+                .unwrap()
+        );
+        assert_eq!(ctx.view.cursor_index, 0);
+        assert_eq!(ctx.view.navigation_history.len(), 0);
+
+        // Back 3: Backspace with empty history -> stays at index 0 ($1000)
+        assert!(
+            handler
+                .handle_action(&AppAction::NavigateBack, &mut ctx)
+                .unwrap()
+        );
+        assert_eq!(ctx.view.cursor_index, 0);
+        assert_eq!(ctx.view.status_message.as_deref(), Some("No history"));
+    }
+
+    #[test]
+    fn test_navigate_back_to_hexdump_pane() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        state.raw_data = vec![0xEA; 64];
+        state.block_types = vec![crate::state::BlockType::Code; 64];
+        state.disassemble();
+
+        let mut view = CoreViewState::new();
+        view.active_pane = ActivePane::HexDump;
+        view.hex_cursor_index = 3;
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = NavigationActionHandler::new();
+
+        // Jump to disassembly address from HexDump
+        assert!(
+            handler
+                .handle_action(&AppAction::NavigateToAddress(Addr(0x1000)), &mut ctx)
+                .unwrap()
+        );
+        assert_eq!(ctx.view.active_pane, ActivePane::Disassembly);
+        assert_eq!(ctx.view.navigation_history.len(), 1);
+
+        // Navigate back -> restores HexDump pane and hex_cursor_index
+        assert!(
+            handler
+                .handle_action(&AppAction::NavigateBack, &mut ctx)
+                .unwrap()
+        );
+        assert_eq!(ctx.view.active_pane, ActivePane::HexDump);
+        assert_eq!(ctx.view.hex_cursor_index, 3);
+        assert_eq!(ctx.view.navigation_history.len(), 0);
     }
 }
