@@ -1,315 +1,934 @@
-# Architecture
+# Architecture of Regenerator 2000
 
-Regenerator 2000 is an interactive disassembler for 8-bit Commodore computers (C64, C128, VIC-20, Plus/4, PET, 1541),
-written in Rust. It follows a unidirectional data flow architecture where user events modify the application state
-through commands, triggering re-analysis and re-rendering of the view.
+Regenerator 2000 is an interactive disassembler and reverse-engineering suite
+for 8-bit MOS 6502/6510 Commodore computers (Commodore 64, Commodore 128,
+VIC-20, Plus/4, C16, PET 2001, PET 4000/8000, 1541, 1571, and 1581), written
+in Rust.
 
-## High-Level Overview
+The system is designed with a strict **unidirectional data flow** and a clean
+separation between a headless, multi-platform core engine and its frontends.
+User interactions, automated analysis pipelines, external debuggers, and AI
+agent integrations via the Model Context Protocol (MCP) all interact through a
+single, deterministic action-dispatch architecture.
+
+---
+
+## 1. High-Level Overview
 
 ```mermaid
 flowchart TD
-    subgraph bin [regenerator2000 Crate - CLI]
-        Main[main.rs]
+    subgraph bin_crate [regenerator2000 Crate - CLI Application]
+        Main[main.rs<br/>CLI Parsing & Terminal Init]
     end
 
-    subgraph tui_crate [regenerator2000-tui Crate - TUI]
-        Input[User Input]
-        EventLoop[Event Loop]
-        Widget[Active Widget<br/>View/Dialog]
-        Renderer[TUI Renderer]
-        UIState[UI State]
+    subgraph tui_crate [regenerator2000-tui Crate - TUI Frontend]
+        EventLoop[Event Loop & Router<br/>events.rs / input.rs]
+        UIState[UIState<br/>Deref to CoreViewState]
+        WidgetSystem[Widget Trait System<br/>Disassembly / Views / Dialogs / Menu]
+        Renderer[Ratatui Renderer<br/>ui.rs / render.rs]
+        ThemeEngine[Theme Engine<br/>theme.rs / theme_file.rs]
     end
 
-    subgraph core_crate [regenerator2000-core Crate - Engine]
-        Core[Core Hub]
-        ActionHandlers[Action Handlers<br/>File / Disasm / Debug / Nav]
-        Action[AppAction]
-        CommandSys[Command System]
-        AppState[Application State]
-        AnnotationMap[AnnotationManager<br/>Sparse Metadata]
-        CoreViewState[Core View State]
-        Analyzer[Code Analyzer]
-        DisasmEngine[Disassembly Engine<br/>symbols / data_blocks / pipeline]
-        ViceClient[VICE Client]
-        MCPServer[MCP Server<br/>HTTP/Stdio / handler / tools]
-        Unpacker[Binary Unpacker<br/>cia / bus / engine / detector]
+    subgraph core_crate [regenerator2000-core Crate - Headless Engine]
+        Core[Core Hub<br/>core.rs]
+        ActionHandlers[Action Handlers<br/>File / Disassembly / Debug / Navigation]
+        AppAction[AppAction Enum<br/>actions.rs]
+        CommandSys[Command Pattern & UndoStack<br/>commands.rs]
+        AppState[AppState<br/>Memory / Labels / CrossRefs / Settings]
+        AnnotationMap[AnnotationManager<br/>Sparse AddressEntry Metadata]
+        CoreViewState[CoreViewState<br/>Cursors / Panes / Modes / History]
+        Analyzer[Control-Flow Analyzer<br/>analyzer.rs]
+        DisasmEngine[Disassembly Pipeline<br/>symbols / data_blocks / handlers / formatter]
+        Parsers[Parser Suite<br/>PRG / CRT / D64 / T64 / VSF / SourceGen]
+        Exporters[Exporter Suite & Verify<br/>ASM / HTML / Roundtrip Diff]
+        UnpackerSandbox[6502 Emulation Sandbox<br/>bus / cia / engine / detector / 22+ packers]
+        MCPServer[MCP Server Suite<br/>HTTP SSE / Stdio / handler / tools]
+        ViceClient[VICE Monitor Client<br/>protocol / client / state / c64_hardware]
+        AssetsConfig[Assets & Config<br/>system-*.toml / enum-*.toml / config.toml]
     end
 
-    subgraph External [External Interface]
-        MCPClient[MCP Client / AI Agent]
-        VICE[VICE Emulator]
+    subgraph External [External Interfaces & Tools]
+        MCPClient[MCP Client / AI Agent<br/>Claude Desktop / Cursor / Custom]
+        VICE[VICE Emulator<br/>Binary Monitor TCP Port 6502]
+        AssemblerBinaries[Assembler CLIs<br/>64tass / ACME / ca65 / KickAss]
+        CommodoreFiles[Binary Media<br/>.prg / .crt / .d64 / .d71 / .d81 / .t64 / .vsf]
     end
 
-    Main -->|Initializes| Core
-    Main -->|Initializes| EventLoop
-    Input -->|Handled by| Widget
-    EventLoop -->|Drives| Renderer
-    Widget -->|AppAction| Action
-    Action -->|apply_action| Core
+    %% Lifecycle & Initialization
+    Main -->|Initializes Engine| Core
+    Main -->|Spawns Threads & Runs| EventLoop
+    Main -->|Loads Files / Media| Parsers
+    CommodoreFiles -->|Decoded by| Parsers
+    Parsers -->|Populates Initial State| AppState
+
+    %% UI Flow
+    EventLoop -->|Routes Input Event| WidgetSystem
+    WidgetSystem -->|Emits Action| AppAction
+    AppAction -->|apply_action| Core
     Core -->|Delegates via ActionContext| ActionHandlers
+    ActionHandlers -->|Applies / Undoes| CommandSys
+    ActionHandlers -->|Mutates View State| CoreViewState
+    CommandSys -->|Mutates State| AppState
+    AppState -->|Maintains Metadata| AnnotationMap
+    AppState -->|Triggers Analysis| Analyzer
+    AppState -->|Provides Data| DisasmEngine
+    DisasmEngine -->|Generates Formatted Lines| AppState
 
-    MCPClient -->|Tools/Resources| MCPServer
-    MCPServer -->|AppAction| Core
-    MCPServer -.->|Read State| AppState
-
-    ActionHandlers -->|Dispatch| CommandSys
-    ActionHandlers -->|Direct Mutate| CoreViewState
-    Core -->|UnpackStarted Event| EventLoop
-    EventLoop -->|Spawns background| Unpacker
-    Unpacker -.->|Loads unpacked PRG| AppState
-
-    CommandSys -->|Apply/Undo| AppState
-    AppState -->|Consolidates annotations| AnnotationMap
-
-    AppState -->|Requests| DisasmEngine
-    AppState -->|Triggers| Analyzer
-
+    %% Rendering Flow
     CoreViewState -.->|Embedded via Deref| UIState
-    UIState -->|Provides Context| Renderer
-    AppState -->|Provides Data| Renderer
-    DisasmEngine -->|Generates Lines| Renderer
+    UIState -->|Supplies View State| Renderer
+    AppState -->|Supplies Data| Renderer
+    ThemeEngine -->|Supplies Styles| Renderer
+    EventLoop -->|Drives Render Frame| Renderer
 
-    VICE <-->|Binary Protocol| ViceClient
-    ViceClient -.-> AppState
+    %% Background & External Integrations
+    Core -->|Emits UnpackStarted Event| EventLoop
+    EventLoop -->|Spawns Sandbox Thread| UnpackerSandbox
+    UnpackerSandbox -.->|Loads Unpacked Output| AppState
+
+    MCPClient <-->|JSON-RPC via HTTP SSE or Stdio| MCPServer
+    MCPServer -->|Dispatches AppAction| Core
+    MCPServer -.->|Inspects Engine State| AppState
+
+    VICE <-->|Binary Monitor Protocol| ViceClient
+    ViceClient <-->|Updates Live Registers/RAM| AppState
+
+    Exporters -->|Invokes Assemblers| AssemblerBinaries
+    AssemblerBinaries -->|Byte-Level Diff Verification| Exporters
 ```
 
-## Workspace Structure
+---
 
-The project is organized as a Cargo workspace with three primary components:
+## 2. Workspace & Crate Structure
 
-1. **[`regenerator2000-core`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core)**:
-   The head-less engine. Contains all memory management, disassembly logic, CPU tables, analysis heuristics,
-   cross-frontend view state, binary unpackers, and the MCP server.
-2. **[`regenerator2000-tui`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui)**:
-   The TUI library. Implements the `ratatui` widgets, event loop coordination, and theme system.
-3. **[`regenerator2000`](https://github.com/ricardoquesada/regenerator2000/tree/main/src)** (root): The binary crate.
-   Provides the CLI entry point, initializes the terminal, and links the core engine with the TUI frontend.
+Regenerator 2000 is organized as a Cargo workspace with a strictly decoupled
+tripartite architecture:
 
-## Core Components
+```
+regenerator2000/
+├── Cargo.toml                                 # Workspace manifest
+├── src/                                       # Binary crate (CLI entry point)
+│   └── main.rs
+├── crates/
+│   ├── regenerator2000-core/                  # Headless reverse-engineering engine
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── lib.rs
+│   │       ├── core.rs                        # Engine central hub
+│   │       ├── action_handlers/               # Modular domain action dispatchers
+│   │       ├── state/                         # Domain models, metadata & persistence
+│   │       ├── disassembler/                  # Disassembly pipeline & formatters
+│   │       ├── cpu.rs                         # MOS 6502/6510 opcode table & modes
+│   │       ├── commands.rs                    # Command pattern & UndoStack
+│   │       ├── analyzer.rs                    # Control-flow & symbol heuristics
+│   │       ├── parser/                        # Binary container & snapshot parsers
+│   │       ├── exporter/                      # Multi-assembler, HTML & roundtrip verification
+│   │       ├── unpacker/                      # 6502 sandbox depacker engine
+│   │       ├── packers/                       # 22+ binary packer detection strategies
+│   │       ├── mcp/                           # Model Context Protocol server (HTTP & Stdio)
+│   │       ├── vice/                          # Live VICE binary monitor client
+│   │       ├── assets.rs                      # Embedded ROM definitions, system TOMLs & enums
+│   │       ├── config.rs                      # System configuration persistence
+│   │       ├── error.rs                       # Subsystem error hierarchy (thiserror)
+│   │       ├── event.rs                       # CoreEvent & DialogType vocabularies
+│   │       ├── navigation.rs                  # Address jump & bookmark helpers
+│   │       ├── utils.rs                       # Shared string & formatting utilities
+│   │       ├── view_state.rs                  # Frontend-agnostic CoreViewState
+│   │       └── bin/
+│   │           └── unpacker_compare_all.rs    # Depacker benchmarking & comparison tool
+│   └── regenerator2000-tui/                   # Terminal User Interface frontend
+│       ├── Cargo.toml
+│       └── src/
+│           ├── lib.rs
+│           ├── events.rs                      # Main TUI event loop & background task coordination
+│           ├── events/input.rs                # Input router for keyboard and mouse
+│           ├── ui.rs                          # Top-level Ratatui layout engine
+│           ├── ui_state.rs                    # UIState wrapping CoreViewState via Deref
+│           ├── theme.rs                       # Runtime color theme engine
+│           ├── theme_file.rs                  # TOML theme file parser & dumper
+│           └── ui/
+│               ├── widget.rs                  # Widget trait & WidgetResult
+│               ├── statusbar.rs               # Dynamic bottom status bar
+│               ├── minimap_bar.rs             # Memory map visualization bar
+│               ├── navigable.rs               # Unified navigation trait
+│               ├── graphics_common.rs         # Shared glyph & bit-matrix renderers
+│               ├── menu/                      # Menu bar model, render & actions
+│               ├── view_disassembly/          # Modular disassembly view (5 submodules)
+│               ├── view_hexdump.rs            # Hex dump view (8/16 column)
+│               ├── view_sprites.rs            # Sprite visualizer (1/2 column, mono/multicolor)
+│               ├── view_charset.rs            # Character set visualizer (4/8 column)
+│               ├── view_bitmap.rs             # Full bitmap visualizer (mono/multicolor)
+│               ├── view_blocks.rs             # Memory block overview list
+│               ├── view_debugger.rs           # Live VICE monitor register & RAM view
+│               └── dialog_*.rs                # 35+ modal dialog implementations
+```
 
-### 1. Application State & Logic ([`regenerator2000-core/src/state/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/state) & [`src/action_handlers/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/action_handlers))
+---
 
-The core engine state, organized across multiple domain modules:
+## 3. Subsystem Deep Dives
 
-- **[`core.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/core.rs)**:
-  The central `Core` hub. Orchestrates persistent state (`AppState`) and transient view state (`CoreViewState`).
-  Delegates `apply_action()` execution to SRP action handlers via `ActionContext<'a>`.
-- **[`action_handlers/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/action_handlers)**:
-  Modular action dispatchers that process domain actions cleanly:
-  - **`file_handler.rs`**: File loading, saving, importing, project reset, and assembler export.
-  - **`disassembly_handler.rs`**: Block type toggling, comment editing, label assignment, and scope creation.
-  - **`debug_handler.rs`**: VICE monitor connection, breakpoint/watchpoint management, and execution stepping.
-  - **`navigation_handler.rs`**: Address jumps, symbol navigation, bookmarking, and history stack pushing.
-- **[`app_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/app_state.rs)**:
-  The main `AppState` struct that holds runtime data. Contains the Undo Stack, Disassembly Cache, system configuration,
-  annotations (`AnnotationManager`), cross-references (`cross_refs`), and connection state for VICE.
-- **[`annotations.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/annotations.rs)**:
-  Unified sparse address metadata manager (`AnnotationManager` & `AddressEntry`). Replaces parallel `BTreeMap` address structures with a single sparse annotation map, automatically normalizing empty strings, pruning empty nodes, and maintaining 100% legacy `.regen2000proj` JSON project backward compatibility via `#[serde(flatten)]`.
-- **[`types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/types.rs)**:
-  Domain types including zero-cost `TargetSystem` discriminant enum (`C64`, `C128`, `Vic20`, `Plus4`, `Pet20`, `Pet40`, `Pet80`, `C1541`, `C1571`, `C1581`, `Custom`), `Addr`, `BlockType`, `Assembler`, `LabelType`, etc.
-- **[`error.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/error.rs)**:
-  Domain error hierarchy (`CoreError` via `thiserror`) with subsystem variants (`UnpackError`, `ExportError`, `ViceError`, `ProjectError`) and path-tracking context extension (`IoResultExt`).
-- **[`view_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/view_state.rs)**:
-  Defines `CoreViewState` — the frontend-agnostic representation of cursor positions, selections, and active panes.
-- **[`actions.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/actions.rs)**:
-  Defines the `AppAction` enum — semantic actions that any frontend (TUI, GUI, Web, MCP) can produce.
-- **[`blocks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/blocks.rs)**:
-  Block management logic (Code, Data, Text, etc.) and memory layout queries.
-- **[`file_io.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/file_io.rs)**:
-  Loading and importing of various formats into `AppState`.
-- **[`navigation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/navigation.rs)**:
-  Pure navigation helpers (jumping to addresses, creating save contexts) that operate on `AppState` + `CoreViewState`.
-- **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/project.rs)**:
-  The `ProjectState` struct — the persistent state saved to `.regen2000proj` files. Flattens `annotations: AnnotationManager` for backward compatibility.
-- **[`settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/settings.rs)**:
-  Document-level settings (assembler, system, display preferences, fill run threshold).
-- **[`search.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/search.rs)**:
-  Centralized search logic (hex, text, PETSCII).
-- **[`event.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/event.rs)**:
-  Defines `CoreEvent` (state changes, dialog requests, status messages) and `DialogType` — the frontend-agnostic event vocabulary returned by `Core::apply_action()`.
+### 3.1 Central Hub & Domain Action Handlers
 
-### 2. Disassembly Engine ([`regenerator2000-core/src/disassembler/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/disassembler))
+The engine interface is centered around
+[`Core`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/core.rs),
+which unifies persistent domain state
+([`AppState`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/app_state.rs))
+and transient view state
+([`CoreViewState`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/view_state.rs)).
 
-Responsible for converting raw bytes into human-readable assembly code based on the state. Structured as a 4-module subsystem:
+```rust
+pub struct Core {
+    pub state: AppState,
+    pub view: CoreViewState,
+}
+```
 
-- **[`mod.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/mod.rs)**:
-  Public API facade. Re-exports `DisassemblyContext`, `HandleArgs`, `format_cross_references`, `resolve_label`, `resolve_label_name`, `Disassembler`, `DisassemblyLine`, `LABEL_COLUMN_WIDTH`, and `DEFINITION_COLUMN_WIDTH` with 100% backward compatibility.
-- **[`pipeline.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/pipeline.rs)**:
-  Main `disassemble_ctx` decoding loop and instruction execution pipeline (`disassemble_code_instruction`).
-- **[`data_blocks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/data_blocks.rs)**:
-  Formatters for non-instruction memory blocks (`disassemble_bytes`, `disassemble_words`, `disassemble_addresses`, `disassemble_petscii`, `disassemble_screencode`, `disassemble_external_file`, `disassemble_partial_data`, `disassemble_fill_run`).
-- **[`symbols.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/symbols.rs)**:
-  Symbol priority precedence (`User` > `System` > `Auto`), scope name resolution (`compute_scope_names`), local label scanning (`compute_local_label_names`), and instruction target address lookups.
-- **[`context.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/context.rs)**:
-  The `DisassemblyContext` struct bundling binary data, block types, labels, annotations, cross-refs, and pre-computed scope boundaries for $O(\log S)$ virtual splitter checks.
-- **[`handlers.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/handlers.rs)**:
-  Addressing mode operand formatting handlers.
-- **[`formatter.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/disassembler/formatter.rs)**:
-  A trait abstracting differences between assembler syntaxes (`TassFormatter`, `AcmeFormatter`, `Ca65Formatter`, `KickAsmFormatter`).
+#### The Action Dispatch Pipeline
+Frontends dispatch semantic
+[`AppAction`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/actions.rs)
+enum variants to
+[`Core::apply_action()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/core.rs#L32).
+The hub performs document safety guards, unconfirmed destructive action checks
+(spawning confirmation dialogs if dirty), and delegates execution to domain
+handlers via
+[`ActionContext<'a>`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/action_handlers/mod.rs#L21):
 
-### 3. CPU Model ([`regenerator2000-core/src/cpu.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/cpu.rs))
+```rust
+pub struct ActionContext<'a> {
+    pub state: &'a mut AppState,
+    pub view: &'a mut CoreViewState,
+    pub events: &'a mut Vec<CoreEvent>,
+}
+```
 
-Provides the domain model for the MOS 6502/6510 CPU.
+The context provides
+[`preserve_cursor()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/action_handlers/mod.rs#L32),
+which captures the logical memory address at the active cursor line and
+re-anchors the view cursor to that address after disassembly changes or
+analysis recalculations.
 
-- **`Opcode`**: Definitions of all supported opcodes, including cycle counts, addressing modes, and descriptions.
-- **`AddressingMode`**: Enum defining the different addressing modes (Absolute, ZeroPage, Immediate, etc.).
-  Used by both the **Disassembler** (to decode instructions) and the **Analyzer** (to understand control flow).
+#### Modular Action Handlers ([`action_handlers/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/action_handlers))
+The single-responsibility handlers implement
+[`DomainActionHandler`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/action_handlers/mod.rs#L56):
 
-### 4. Command System ([`regenerator2000-core/src/commands.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/commands.rs))
+- **[`file_handler.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/action_handlers/file_handler.rs)**:
+  Project opening, saving, export generation (ASM/HTML), VICE label
+  import/export, and binary unpacking initialization.
+- **[`disassembly_handler.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/action_handlers/disassembly_handler.rs)**:
+  Memory block type reclassification (`Code`, `Byte`, `Word`, `Address`,
+  `Text`, `Screencode`, `LoHi`, `HiLo`, `ExternalFile`), user comments (inline
+  side comments and preceding line comments), label assignments, immediate
+  operand formatting overrides, routine scope creation/removal, splitter
+  toggling, and enum usage.
+- **[`debug_handler.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/action_handlers/debug_handler.rs)**:
+  VICE monitor TCP connection, execution control (Step, Step Over, Step Out,
+  Continue, Run to Cursor), and hardware breakpoint/watchpoint management.
+- **[`navigation_handler.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/action_handlers/navigation_handler.rs)**:
+  Address jumps, operand target tracking, history stack navigation
+  (Back/Forward), bookmark management, symbol searches, and cross-reference
+  inspection.
 
-Implements the **Command Pattern**. Granular actions (e.g., `SetBlockType`, `SetLabel`) are encapsulated as Structs that
-know how to:
+#### Domain Errors & Events
+- **[`error.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/error.rs)**:
+  Structured hierarchy using `thiserror`. `CoreError` aggregates subsystem
+  error types: `UnpackError`, `ExportError`, `ViceError`, `ProjectError`, and
+  generic `ParseFailed`. The
+  [`IoResultExt`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/error.rs#L243)
+  trait enriches raw standard I/O errors with exact file path context
+  (`with_path`).
+- **[`event.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/event.rs)**:
+  Defines frontend-agnostic event emissions:
+  [`CoreEvent`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/event.rs#L8)
+  (`StateChanged`, `ViewChanged`, `StatusMessage`,
+  `DialogRequested(DialogType)`, `DialogDismissalRequested`, `QuitRequested`,
+  `OpenUrl`, `UnpackStarted`, `StartMcpServerRequested`,
+  `StopMcpServerRequested`) and 30+ modal
+  [`DialogType`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/event.rs#L46)
+  requests.
+- **[`view_state.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/view_state.rs)**:
+  Implements
+  [`CoreViewState`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/view_state.rs#L61)
+  holding active panes
+  ([`ActivePane`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/view_state.rs#L8)),
+  right-pane mode
+  ([`RightPane`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/view_state.rs#L25)),
+  cursor indices, visual selection boundaries, scroll offsets, navigation
+  history stacks, and search queries.
 
-- **Apply**: Execute the change on `AppState`.
-- **Undo**: Revert the change.
-  This enables robust Undo/Redo functionality and ensures state consistency.
+---
 
-### 5. Analyzer ([`regenerator2000-core/src/analyzer.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/analyzer.rs))
+### 3.2 Application State & Memory Domain ([`state/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state))
 
-A heuristic engine that runs after state changes. It:
+Persistent project state is encapsulated in
+[`AppState`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/app_state.rs#L45):
 
-- Traces code paths (following JMPs and branches).
-- Identifies referenced addresses.
-- Identifies and marks fill sequences based on the "Fill run threshold" setting.
-- Auto-generates labels (e.g., `s_C000`, `j_0400`, `zpf_A0`) based on usage context (subroutine, branch, jump, pointer,
-  field). See [Analysis — Label Prefixes](analysis.md#label-prefixes) for the complete prefix reference.
+```rust
+pub struct AppState {
+    pub schema_version: u32,
+    pub file_path: Option<PathBuf>,
+    pub project_path: Option<PathBuf>,
+    pub raw_data: Vec<u8>,
+    pub disassembly: Vec<DisassemblyLine>,
+    pub cached_arrows: Vec<CachedArrow>,
+    pub origin: Addr,
+    pub entry_point: Option<Addr>,
+    pub entropy: Option<f32>,
+    pub block_types: Vec<BlockType>,
+    pub labels: BTreeMap<Addr, Vec<Label>>,
+    pub settings: DocumentSettings,
+    pub annotations: AnnotationManager,
+    pub cross_refs: BTreeMap<Addr, Vec<Addr>>,
+    pub enums: BTreeMap<String, EnumDefinition>,
+    pub user_global_enums: BTreeMap<String, EnumDefinition>,
+    pub builtin_enums: BTreeMap<String, EnumDefinition>,
+    pub system_config: SystemConfig,
+    pub undo_stack: UndoStack,
+    pub last_saved_pointer: usize,
+    pub user_excluded_addresses: BTreeSet<Addr>,
+    pub collapsed_blocks: Vec<(usize, usize)>,
+    pub splitters: BTreeSet<Addr>,
+    pub vice_state: ViceState,
+    pub vice_client: Option<ViceClient>,
+    pub mcp_server_running: bool,
+    // ...
+}
+```
 
-### 6. Parser ([`regenerator2000-core/src/parser/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/parser))
+#### Sparse Address Metadata ([`annotations.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/annotations.rs))
+Rather than maintaining fragmented, parallel address-keyed tables, all
+per-address metadata is consolidated into
+[`AnnotationManager`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/annotations.rs).
+Each address maps to an
+[`AddressEntry`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/annotations.rs#L12):
+- `system_comment`: Auto-loaded ROM/system comment (transient).
+- `user_side_comment`: Inline trailing comment (persisted).
+- `user_line_comment`: Preceding block/line comment (persisted).
+- `immediate_format`: Operand representation override (`Hex`, `InvertedHex`,
+  `Decimal`, `NegativeDecimal`, `Binary`, `InvertedBinary`, `LowByte(Addr)`,
+  `HighByte(Addr)`).
+- `bookmark`: User bookmark label (persisted).
+- `scope`: Routine scope parent boundary address (persisted).
+- `enum_usage`: Named enumeration reference (persisted).
 
-Handles importing various Commodore file formats and label files.
+`AnnotationManager` enforces automatic whitespace normalization, prunes empty
+entries, and uses Serde flattening (`#[serde(flatten)]`) to maintain 100%
+backward and forward compatibility with legacy `.regen2000proj` JSON project
+schemas.
 
-- **[`parser.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser.rs)**:
-  Module re-exports for all parser sub-modules.
-- **[`prg.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/prg.rs)**:
-  Parser for standard Commodore PRG files (2-byte load address header). Also parses embedded BASIC SYS addresses to
-  suggest entry points.
-- **[`crt.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/crt.rs)**:
-  Parser for Commodore 64 cartridge (.crt) files with multi-bank chip selection.
-- **[`d64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/d64.rs)**:
-  Unified parser for D64 (35/40/42-track), D71 (70/80-track), and D81 disk image files. Supports file extraction
-  from 1541/1571/1581 disk images.
-- **[`t64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/t64.rs)**:
-  Parser for T64 tape archive files.
-- **[`dis65.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/dis65.rs)**:
-  Parser for 6502bench SourceGen (.dis65) project files.
-- **[`vice_lbl.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_lbl.rs)**:
-  Parser for VICE label files (.lbl) for importing debug symbols.
-- **[`vice_vsf.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_vsf.rs)**:
-  Parser for VICE snapshot files (.vsf). Auto-detects the system from the VSF header.
+#### Domain Types ([`types.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs))
+- **[`TargetSystem`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs#L9)**:
+  Zero-cost machine discriminator enum (`C64`, `C128`, `Vic20`, `Pet20`,
+  `Pet40`, `Plus4`, `C16`, `C1541`, `C1571`, `C1581`, `Custom(Box<str>)`).
+  Defines architecture parameters: RAM start, default BASIC entry, screen RAM
+  range, hardware I/O boundaries, and ROM vector locations.
+- **[`Addr`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs#L503)**:
+  Transparent 16-bit address newtype (`pub struct Addr(pub u16)`). Implements
+  wrapping 16-bit 6502 address bus arithmetic, hex formatting, and transparent
+  JSON number serialization.
+- **[`BlockType`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs#L771)**:
+  Classification enum (`Code`, `DataByte`, `DataWord`, `Address`, `PetsciiText`,
+  `ScreencodeText`, `LoHiAddress`, `HiLoAddress`, `LoHiWord`, `HiLoWord`,
+  `ExternalFile`, `Undefined`).
+- **[`Assembler`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs#L739)**:
+  Supported export targets (`Tass64`, `Acme`, `Ca65`, `Kick`).
 
-### 7. Exporter ([`regenerator2000-core/src/exporter/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/exporter))
+---
 
-Handles generation of complete, compilable source code and browsable HTML disassembly files.
+### 3.3 Disassembly Pipeline & Assembler Formatting Suite ([`disassembler/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler))
 
-- **[`asm.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/asm.rs)**:
-  Exports disassembly as a compilable assembly source file. Supports all four assembler formats (ACME, 64tass, ca65,
-  KickAssembler) via the `Formatter` trait, and handles external-file (`incbin`) regions.
-- **[`html.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/html.rs)**:
-  Exports disassembly as a self-contained, syntax-highlighted HTML file with clickable cross-reference hyperlinks,
-  light/dark theme toggle, and assembler-specific build instructions in the header. `ExternalFile` regions are written
-  to separate linked HTML files.
-- **[`verify.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/verify.rs)**:
-  Export→assemble→diff roundtrip verification. Exports ASM, invokes the real assembler binary, and byte-compares the
-  output against the original binary to confirm disassembly correctness. Supports all four assemblers.
+The disassembly engine transforms raw binary memory into structured, formatted
+assembly lines.
 
-### 8. Binary Unpacker ([`regenerator2000-core/src/unpacker/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/unpacker) & [`regenerator2000-core/src/packers/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/packers))
+```
+raw_data + block_types + annotations + symbols
+                     │
+                     ▼
+       ┌───────────────────────────┐
+       │   DisassemblyContext      │  (Pre-computes scope ends for O(log S) checks)
+       └─────────────┬─────────────┘
+                     │
+                     ▼
+       ┌───────────────────────────┐
+       │    disassemble_ctx()      │  (pipeline.rs decoding loop)
+       └─────────────┬─────────────┘
+                     │
+       ┌─────────────┴────────────────────────┐
+       ▼                                      ▼
+[Code Instruction]                     [Data Block Formatter]
+pipeline.rs / handlers.rs              data_blocks.rs
+(Opcode lookup & operand format)       (Bytes, Words, Text, Fill runs)
+       │                                      │
+       └─────────────┬────────────────────────┘
+                     │
+                     ▼
+       ┌───────────────────────────┐
+       │     Formatter Trait       │  (64tass / ACME / ca65 / KickAss)
+       └─────────────┬─────────────┘
+                     │
+                     ▼
+       Vec<DisassemblyLine> (Renderable & Exportable rows)
+```
 
-Provides an accurate 6502 emulation sandbox to automatically decompress packed Commodore 64 programs. Structured as a 5-module subsystem:
+- **[`context.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/context.rs)**:
+  [`DisassemblyContext`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/context.rs#L12)
+  bundles references to memory buffers, block types, label tables,
+  cross-references, settings, and annotations. It pre-computes sorted scope
+  boundaries into a vector for $O(\log S)$ binary search virtual splitter
+  validation.
+- **[`pipeline.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/pipeline.rs)**:
+  Orchestrates the main disassembly iteration, emits label definition header
+  lines, and processes instructions through `disassemble_code_instruction`.
+- **[`symbols.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/symbols.rs)**:
+  Resolves symbol priority precedence (`LabelKind::User` > `LabelKind::System` >
+  `LabelKind::Auto`), formats local labels (`.local_label`), resolves routine
+  scope paths (`compute_scope_names`), and identifies instruction target
+  addresses.
+- **[`data_blocks.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/data_blocks.rs)**:
+  Decodes non-code regions: single/multi-byte hex tables (`.byte`), 16-bit words
+  (`.word`), address tables, PETSCII/Screencode strings, split Lo/Hi and Hi/Lo
+  address tables (`<table, >table`), external binary includes (`.incbin`), and
+  fill runs (`.fill`).
+- **[`handlers.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/handlers.rs)**:
+  Implements operand decoding across all 13 6502 addressing modes.
+- **[`formatter.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter.rs)**
+  & Assembler Formatters:
+  - [`formatter_64tass.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_64tass.rs):
+    64tass syntax (`.byte`, `.word`, `.text`, `.fill`, `.binclude`,
+    `* = $ADDR`).
+  - [`formatter_acme.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_acme.rs):
+    ACME syntax (`!byte`, !16, `!pet`, `!fill`, `!binary`, `* = $ADDR`).
+  - [`formatter_ca65.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_ca65.rs):
+    ca65 syntax (`.byte`, `.word`, `.res`, `.incbin`, `.org $ADDR`).
+  - [`formatter_kickasm.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_kickasm.rs):
+    KickAssembler syntax (`.byte`, `.word`, `.text`, `.fill`,
+    `.import binary`, `* = $ADDR`).
 
-- **[`mod.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker/mod.rs)**:
-  Public API facade re-exporting `unpack`, `UnpackConfig`, `UnpackResult`, `UnpackerMemory`, `C64Bus`, `UnpackError`, and `find_sys_address`.
-- **[`cia.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker/cia.rs)**:
-  `CiaState` MOS 6526 CIA 1 & CIA 2 timer state emulation and cycle-accurate stepping (`step_cycles`).
-- **[`bus.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker/bus.rs)**:
-  `C64Bus` (`UnpackerMemory`), $00/$01 processor port, ROM banking, and I/O chip redirection with safe checked ROM lookups.
-- **[`engine.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker/engine.rs)**:
-  2-Phase 6502 execution loop with instruction step hooks and ROM trap handling.
-- **[`detector.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker/detector.rs)**:
-  Pure memory range diffing, snapshot matching, and trailing cluster trimming heuristics.
-- **Strategy Pattern Architecture**: Uses a trait-based `Packer` strategy pattern (`Box<dyn Packer>`) where each supported packer lives in its own dedicated module under `src/packers/` (e.g., `exomizer.rs`, `dali.rs`, `pucrunch.rs`).
+---
 
-### 9. UI Architecture
+### 3.4 MOS 6502/6510 CPU Model ([`cpu.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/cpu.rs))
 
-The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstraction.
+The CPU model provides an exhaustive specification of all 256 opcode bytes
+for the MOS 6502/6510 microprocessor:
+- **`Opcode`**: Represents mnemonic, addressing mode, instruction length in
+  bytes (1–3), base cycle timing, descriptive metadata, and illegal/undocumented
+  flag.
+- **`AddressingMode`**: Enum covering all 13 addressing modes: `Implied`,
+  `Accumulator`, `Immediate`, `ZeroPage`, `ZeroPageX`, `ZeroPageY`, `Relative`,
+  `Absolute`, `AbsoluteX`, `AbsoluteY`, `Indirect`, `IndirectX`, `IndirectY`.
+- **Undocumented Opcodes**: Full support for undocumented/illegal 6502 opcodes
+  (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`, `ALR`, `ANC`, `ARR`,
+  `AXS`, `NOP` aliases, `KIL`/`JAM`). When the document setting
+  `use_illegal_opcodes` is disabled, illegal opcodes are treated as raw data
+  bytes.
 
-- **`Widget` Trait** ([`regenerator2000-tui/src/ui/widget.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/widget.rs)):
-  Defines the interface for all UI components (Views, Dialogs, Menu, StatusBar).
+---
 
+### 3.5 Command Pattern & Undo/Redo Engine ([`commands.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/commands.rs))
+
+All state mutations in Regenerator 2000 are modeled as atomic, reversible
+commands implementing the Command Pattern:
+
+```rust
+pub enum Command {
+    SetBlockType { range: Range<usize>, new_type: BlockType, old_types: Vec<BlockType> },
+    SetLabel { address: Addr, new_label: Option<Vec<Label>>, old_label: Option<Vec<Label>> },
+    SetAnalysisData { labels: BTreeMap<Addr, Vec<Label>>, cross_refs: BTreeMap<Addr, Vec<Addr>>, old_labels: BTreeMap<Addr, Vec<Label>>, old_cross_refs: BTreeMap<Addr, Vec<Addr>> },
+    SetUserSideComment { address: Addr, new_comment: Option<String>, old_comment: Option<String> },
+    SetUserLineComment { address: Addr, new_comment: Option<String>, old_comment: Option<String> },
+    ChangeOrigin { new_origin: Addr, old_origin: Addr },
+    SetImmediateFormat { address: Addr, new_format: Option<ImmediateFormat>, old_format: Option<ImmediateFormat> },
+    CollapseBlock { range: (usize, usize) },
+    UncollapseBlock { range: (usize, usize) },
+    ToggleSplitter { address: Addr },
+    ImportLabels { new_labels: Vec<(Addr, Label)>, old_labels: BTreeMap<Addr, Vec<Label>> },
+    AddScope { start: Addr, end: Addr, old_end: Option<Addr> },
+    RemoveScope { address: Addr, old_end: Addr },
+    SetBookmark { address: Addr, new_name: Option<String>, old_name: Option<String> },
+    SetUserExcludedAddress { address: Addr, add: bool, old_labels: BTreeMap<Addr, Vec<Label>>, old_cross_refs: BTreeMap<Addr, Vec<Addr>> },
+    SetEnumUsage { address: Addr, new_enum: Option<String>, old_enum: Option<String> },
+    SetEnumDefinition { name: String, new_definition: Option<EnumDefinition>, old_definition: Option<EnumDefinition> },
+    Batch(Vec<Command>),
+}
+```
+
+- **`UndoStack`**: Manages the undo/redo history, tracking a pointer relative
+  to the last saved state (`is_dirty()` comparison).
+- **`apply(&mut self, state: &mut AppState)`**: Executes the mutation and
+  invalidates downstream caches.
+- **`undo(&mut self, state: &mut AppState)`**: Reverts the modification cleanly.
+- **Atomic Batches**: `Command::Batch` groups multiple operations (such as
+  multi-address label updates or whole-file analysis results) into a single
+  undo step.
+
+---
+
+### 3.6 Control-Flow & Heuristic Analyzer ([`analyzer.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/analyzer.rs))
+
+The analyzer performs automated reverse-engineering passes over the memory
+buffer to discover subroutines, jump targets, data references, and consecutive
+fill sequences:
+
+```
+[Raw Program Memory]
+         │
+         ▼
+Recursive Control-Flow Tracing ──► JSR / Bxx / JMP / RTS / RTI graph
+         │
+         ▼
+Operand Symbol Classification ──► Usage count & semantic role resolution
+         │
+         ▼
+Auto-Label Generation ──────────► Prefix assignment (s_, j_, b_, p_, etc.)
+         │
+         ▼
+Cross-Reference Construction ───► Inverted index (target -> [referencing addrs])
+         │
+         ▼
+Fill Run Detection ─────────────► Consecutive byte sequences >= threshold
+```
+
+#### Auto-Generated Label Prefixes
+Labels are generated deterministically based on instruction usage context and
+address width:
+
+| Prefix | Category | Semantics |
+| :--- | :--- | :--- |
+| `s_` | Subroutine | Target of a `JSR` instruction (e.g. `s_C000`). |
+| `j_` | Jump Target | Target of an absolute `JMP` instruction (e.g. `j_0400`). |
+| `b_` | Branch Target | Target of relative conditional branch instructions (`BEQ`, `BNE`, `BCC`, `BCS`, `BPL`, `BMI`, `BVC`, `BVS`). |
+| `r_` | Return Target | Target of a branch/jump whose first instruction is `RTS` or `RTI` (mirrors IDA Pro `locret_`). |
+| `p_` | Pointer | 16-bit address referenced by non-flow instructions (e.g. `p_1000`). |
+| `zpp_` | Zero-Page Pointer | Zero-page address used in indirect addressing modes (`($zp),Y` or `($zp,X)`). |
+| `f_` | Field | Absolute memory location read or written by data instructions. |
+| `zpf_` | Zero-Page Field | Zero-page location read or written by data instructions. |
+| `a_` | Absolute Address | Target in an address table or external memory reference. |
+| `zpa_` | Zero-Page Absolute | Zero-page address embedded in an address table. |
+| `e_` | External Jump | Jump target located outside the loaded binary memory range. |
+
+---
+
+### 3.7 Parser Suite ([`parser/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/parser))
+
+The parser suite handles importing raw files, container formats, and debug
+symbol files:
+
+- **[`prg.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/parser/prg.rs)**:
+  Standard Commodore PRG files (extracts 2-byte little-endian load address
+  header and raw binary payload).
+- **[`basic.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/parser/basic.rs)**:
+  Tokenized Commodore BASIC V2 header analyzer. Evaluates `SYS` entry points,
+  including parenthesized arguments and arithmetic expressions (e.g.,
+  `SYS 2048+16`).
+- **[`crt.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/parser/crt.rs)**:
+  C64 cartridge images (.crt). Parses cartridge hardware types, chip packet
+  headers (`CHIP`), bank numbers, load addresses, and ROM sizes with bank
+  selection dialogs.
+- **[`d64.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/parser/d64.rs)**:
+  Unified floppy disk parser supporting D64 (35, 40, and 42-track images with
+  error info), D71 (double-sided 70/80 tracks), and D81 (80 tracks x 40 sectors
+  1581 format). Traverses Track/Sector chains and extracts PRG files.
+- **[`t64.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/parser/t64.rs)**:
+  Tape container parser (.t64). Decodes tape headers, record entries, and
+  container metadata.
+- **[`dis65.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/parser/dis65.rs)**:
+  Imports 6502bench SourceGen project definitions (.dis65), restoring labels,
+  comments, and block types.
+- **[`vice_lbl.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/parser/vice_lbl.rs)**:
+  Parses VICE monitor symbol/label files (`al C:0810 .label_name`).
+- **[`vice_vsf.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/parser/vice_vsf.rs)**:
+  Parses VICE snapshot files (.vsf). Auto-detects machine architecture (C64,
+  C128, VIC-20, Plus/4, PET, C1541) and restores full RAM dumps and CPU
+  register states.
+
+---
+
+### 3.8 Exporter Suite & Roundtrip Verification ([`exporter/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter))
+
+- **[`asm.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/asm.rs)**:
+  Generates complete, compilable assembly files for all 4 supported assembler
+  formats (64tass, ACME, ca65, KickAssembler). Emits build headers, origin
+  directives, symbol scopes, local labels, external file includes (`incbin`),
+  and enum value substitutions.
+- **[`html.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/html.rs)**:
+  Exports self-contained, interactive HTML disassembly. Features full syntax
+  highlighting, hyperlinked cross-references (jump to definition / jump to
+  reference), dark/light theme switching, and external file sub-pages.
+- **[`verify.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/verify.rs)**:
+  **Automated Roundtrip Verification Engine**. Exports disassembly, invokes the
+  actual assembler binary CLI (`64tass`, `acme`, `ca65`/`ld65`, `kickass`),
+  and performs byte-for-byte binary diffing against the original input binary.
+  Ensures zero-regression disassembly correctness.
+
+---
+
+### 3.9 6502 Sandbox Binary Unpacker & Packer Strategies ([`unpacker/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker) & [`packers/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers))
+
+Many Commodore 64 executables are compressed with custom crunchers/packers.
+Regenerator 2000 embeds a cycle-accurate 6502 emulation sandbox based on the
+`unp64` decompression algorithm:
+
+```
+[Packed Input PRG]
+         │
+         ▼
+[Packer Signature Scanner] ──► detect_packer() matches known signature
+         │
+         ▼
+[Phase 1: Depacker Locator] ──► Emulate 6502 from SYS entry until PC < ReturnAddr
+         │
+         ▼
+[Phase 2: Decompression Execution] ──► Emulate depacker stub until PC jumps back
+         │
+         ▼
+[Detector & Memory Diffing] ──► Snapshot diffing & trailing cluster trimming
+         │
+         ▼
+[Unpacked Output PRG + Entry Point]
+```
+
+- **[`bus.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/bus.rs)**:
+  `C64Bus` (`UnpackerMemory`) implements the full 64 KB memory bus, $00/$01
+  processor port banking, and safe checked ROM lookups.
+- **[`cia.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/cia.rs)**:
+  `CiaState` provides MOS 6526 CIA 1 and CIA 2 timer emulation for depackers
+  that synchronize on timer interrupts.
+- **[`engine.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/engine.rs)**:
+  `UnpackEngine` drives the 2-phase 6502 execution loop with step hooks and
+  ROM trap interception.
+- **[`detector.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/detector.rs)**:
+  Compares post-execution RAM snapshots against initial memory, identifying
+  memory boundaries and trimming trailing garbage.
+- **Packer Strategy Pattern
+  ([`packers/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers))**:
+  Modular
+  [`Packer`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/mod.rs#L62)
+  trait implementations (`info`, `pre_emulate`, `on_step`, `post_emulate`)
+  supporting **22+ commercial and demoscene packer formats**:
+  - `action_replay`, `alz64`, `antiram`, `byteboozer`, `card_cruncher`, `ccs`,
+    `cruel_cruncher`, `dali`, `eagle`, `eca`, `exomizer`, `final_cartridge`,
+    `mc_cracken`, `pucrunch`, `simple`, `super_cruncher`, `tbc`,
+    `time_cruncher`, `tiny_crunch`, `triad`, `tscrunch`, `turbo_cruncher`.
+- **Benchmarking CLI
+  ([`src/bin/unpacker_compare_all.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/bin/unpacker_compare_all.rs))**:
+  Regression test harness comparing Regenerator 2000's unpacker against
+  reference `unp64` binaries across hundreds of test samples.
+
+---
+
+### 3.10 Model Context Protocol (MCP) Server ([`mcp/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp))
+
+Regenerator 2000 implements a full Model Context Protocol (MCP 2024-11-05)
+server, enabling AI agents (Claude Desktop, Cursor, Gemini CLI) to inspect,
+query, and refactor disassemblies programmatically:
+
+- **Transports**:
+  - **[`http.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/http.rs)**:
+    Streamable HTTP transport with Server-Sent Events (SSE) (default port 3000)
+    for network or local agent connectivity.
+  - **[`stdio.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/stdio.rs)**:
+    Headless standard I/O loop for CLI-based subagent integration.
+- **Request Dispatcher
+  ([`handler.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/handler.rs))**:
+  Decodes JSON-RPC requests, handling `initialize`, `ping`, `tools/list`,
+  `resources/list`, `resources/read`, and `tools/call`.
+- **Tool Catalogs
+  ([`mcp/tools/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/tools))**:
+  - **[`analysis_tools.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/tools/analysis_tools.rs)**:
+    `get_disassembly`, `get_disassembly_lines`, `get_memory_region`,
+    `get_entropy`, `get_cross_references`, `get_symbols`, `get_address_details`,
+    `get_system_info`, `search_disassembly`, `search_memory`, `get_file_info`.
+  - **[`navigation_tools.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/tools/navigation_tools.rs)**:
+    `navigate_to_address`, `get_cursor_position`.
+  - **[`modification_tools.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/tools/modification_tools.rs)**:
+    `set_block_type`, `set_label`, `remove_label`, `set_comment`,
+    `set_immediate_format`, `toggle_splitter`, `add_scope`, `remove_scope`,
+    `apply_enum`, `set_enum_definition`.
+  - **[`session_tools.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/tools/session_tools.rs)**:
+    `save_project`, `undo`, `redo`, `batch_execute`, `unpack_binary`.
+  - **[`common.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/tools/common.rs)**:
+    Parameter extraction, validation, and JSON-RPC error construction
+    (`make_mcp_error`).
+
+---
+
+### 3.11 VICE Emulator Live Debugger Integration ([`vice/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/vice))
+
+Provides bi-directional live debugging with the VICE emulator:
+- **[`client.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/vice/client.rs)**:
+  Manages non-blocking TCP socket communication with the VICE binary monitor
+  (default port 6502) and spawns an asynchronous reader thread.
+- **[`protocol.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/vice/protocol.rs)**:
+  Implements packet framing (`0x02` start byte, command types, request IDs,
+  body lengths, and error codes). Encodes command packets (`REGISTERS_GET`,
+  `REGISTERS_SET`, `MEMORY_GET`, `MEMORY_SET`, `CHECKPOINT_SET`,
+  `CHECKPOINT_GET`, `CHECKPOINT_DELETE`, `CHECKPOINT_LIST`, `CHECKPOINT_TOGGLE`,
+  `ADVANCE_INSTRUCTIONS`, `EXECUTE_UNTIL_RETURN`, `PING`).
+- **[`state.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/vice/state.rs)**:
+  Tracks connection state, CPU register snapshots (PC, A, X, Y, SP, Flags
+  `NV-BDIZC`), changed register highlights (rendered in yellow), execution
+  status, and active breakpoints/watchpoints (`BreakpointKind::Exec`, `Load`,
+  `Store`, `LoadStore`).
+- **[`c64_hardware.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/vice/c64_hardware.rs)**:
+  Decodes I/O block memory snapshots ($D000–$DFFF) into live VIC-II, SID, and
+  CIA register displays in the Debugger view.
+
+---
+
+### 3.12 Asset Management & Configuration ([`assets.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/assets.rs), [`config.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/config.rs))
+
+- **[`assets.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/assets.rs)**:
+  Embeds system definition files (`system-c64.toml`, `system-c128.toml`,
+  `system-vic20.toml`, `system-plus4.toml`, `system-c16.toml`,
+  `system-pet2001.toml`, `system-pet4000.toml`, `system-1541.toml`,
+  `system-1571.toml`, `system-1581.toml`), theme files (`theme-*.toml`), and
+  hardware register enums (`enum-*.toml`). Supports exporting embedded assets to
+  user directories via CLI dump flags (`--dump-system-config-files`,
+  `--dump-theme-files`, `--dump-enum-files`).
+- **[`config.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/config.rs)**:
+  Manages persistent user preferences (`config.toml` in
+  `~/.config/regenerator2000/`), storing assembler preferences, default
+  systems, theme selections, view synchronization flags, update check
+  preferences, and recent project paths.
+
+---
+
+### 3.13 TUI Frontend Architecture ([`regenerator2000-tui`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui))
+
+The terminal user interface is built on `ratatui` and `crossterm`:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Menu Bar (File, Edit, View, Navigate, Tools, Help)          │
+├──────────────────────────────┬──────────────────────────────┤
+│                              │ Right Pane (Toggleable)      │
+│                              │ - Hex Dump (8/16 Col)        │
+│ Disassembly View             │ - Sprite Matrix (1/2 Col)    │
+│ (Primary Left Pane)          │ - Charset Matrix (4/8 Col)   │
+│ - Virtual Row Indexing       │ - Bitmap Visualizer          │
+│ - Syntax Colored Tokens      │ - Memory Block Overview      │
+│ - Control-Flow Arrows        │ - Live VICE Monitor Debugger │
+│ - Collapsible Code Blocks    │                              │
+│                              │                              │
+├──────────────────────────────┴──────────────────────────────┤
+│ Minimap Bar (Memory Block Distribution Overview)            │
+├─────────────────────────────────────────────────────────────┤
+│ Status Bar (Address, Opcodes, Mode, Progress, Status)       │
+└─────────────────────────────────────────────────────────────┘
+  [ Modal Dialog Overlay: Settings, Search, Labels, Pickers ]
+```
+
+- **`Widget` Trait
+  ([`ui/widget.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/widget.rs))**:
+  All UI views and dialogs implement the unified component trait:
   ```rust
   pub trait Widget {
       fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState);
       fn handle_input(&mut self, key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) -> WidgetResult;
-      // Default implementation returns WidgetResult::Ignored
-      fn handle_mouse(&mut self, mouse: MouseEvent, app_state: &mut AppState, ui_state: &mut UIState) -> WidgetResult;
+      fn handle_mouse(&mut self, mouse: MouseEvent, app_state: &mut AppState, ui_state: &mut UIState) -> WidgetResult {
+          WidgetResult::Ignored
+      }
+      fn handle_tick(&mut self, _app_state: &mut AppState, _ui_state: &mut UIState) -> WidgetResult {
+          WidgetResult::Ignored
+      }
   }
   ```
+- **`UIState` Composition
+  ([`ui_state.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui_state.rs))**:
+  `UIState` wraps the core engine's `CoreViewState` via `Deref`/`DerefMut`,
+  adding TUI-specific runtime fields (active modal dialog stack, menu popup
+  states, Ratatui `ListState` instances, image pickers, and click bounding
+  boxes).
+- **Modular Disassembly View
+  ([`ui/view_disassembly/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_disassembly))**:
+  - [`mod.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_disassembly/mod.rs):
+    Widget facade implementing the `Widget` trait.
+  - [`layout.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_disassembly/layout.rs):
+    Computes visual row heights, collapsed block spans, and bidirectional
+    mappings between visual screen lines and disassembly line indices.
+  - [`navigation.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_disassembly/navigation.rs):
+    Cursor stepping, viewport scrolling, page scrolling, visual selection, and
+    address pinning.
+  - [`mouse.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_disassembly/mouse.rs):
+    Mouse wheel scrolling, single-click row positioning, double-click operand
+    navigation or label editing, and drag selection.
+  - [`render.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_disassembly/render.rs):
+    High-performance Ratatui rendering pipeline formatting addresses, bytes,
+    labels, mnemonics, operands, comments, and control-flow arrow glyphs.
+- **Specialized Right-Pane Views**:
+  - [`view_hexdump.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_hexdump.rs):
+    8-column and 16-column hex dump with PETSCII and Screencode decoding and
+    synchronized cursor tracking.
+  - [`view_sprites.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_sprites.rs):
+    24x21 sprite visualizer supporting single-column and 2-column layouts in
+    monochrome and multicolor modes.
+  - [`view_charset.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_charset.rs):
+    8x8 character set visualizer supporting 4-column and 8-column layouts in
+    monochrome and multicolor modes.
+  - [`view_bitmap.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_bitmap.rs):
+    320x200 standard and 160x200 multicolor bitmap graphics visualizer with
+    configurable Screen RAM mapping (`AfterBitmap` or `BankOffset`).
+  - [`view_blocks.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_blocks.rs):
+    Structured overview of all memory blocks, their classifications, ranges,
+    sizes, and collapsed states.
+  - [`view_debugger.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/view_debugger.rs):
+    Live VICE monitor debugging console displaying CPU registers, changed
+    flags, disassembled instructions around PC, stack page ($0100–$01FF), I/O
+    registers, memory dump window, and active breakpoints.
+- **Menu System
+  ([`ui/menu/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/menu))**:
+  - `menu_model.rs`: Menu structure, shortcuts, and dynamic item enablement
+    based on document and pane state.
+  - `menu_render.rs`: Renders top menu bar and active drop-down popup boxes.
+  - `menu_action.rs`: Converts menu activations into `AppAction`s and processes
+    emitted `CoreEvent`s (opening dialogs, launching threads).
+- **Theme Engine
+  ([`theme.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/theme.rs),
+  [`theme_file.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/theme_file.rs))**:
+  Full 24-bit TrueColor and 256-color TOML theme support with built-in presets
+  (Default, C64 Blue, Green Monochrome, Amber Monochrome, Cyberpunk,
+  Solarized Dark, Nord, Dracula, Monokai, Gruvbox) and user theme file loading.
 
-- **Core UI Components**:
-  - **[`main.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/main.rs)**: Initializes the terminal and event loop.
-  - **[`events.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/events.rs)**: The primary event loop and rendering coordinator.
-  - **[`events/input.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/events/input.rs)**: Input router dispatching keyboard and mouse events to active `Widget`.
-  - **[`ui.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui.rs)**: Top-level layout engine.
+---
 
-- **Menu System** ([`regenerator2000-tui/src/ui/menu/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui/menu))
-- **Main Views** ([`regenerator2000-tui/src/ui/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui)):
-  - **Disassembly View** ([`view_disassembly/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui/view_disassembly)): Modularized into responsibility-scoped submodules:
-    - **[`mod.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly/mod.rs)**: `DisassemblyView` widget facade and `Widget` trait implementation.
-    - **[`layout.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly/layout.rs)**: Visual line calculations, line height breakdown, and disassembly line index mapping.
-    - **[`navigation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly/navigation.rs)**: Disassembly view navigation operations, cursor movement, scrolling, and paging routines.
-    - **[`mouse.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly/mouse.rs)**: Mouse event handling, scroll wheel actions, and click/drag selection logic.
-    - **[`render.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/view_disassembly/render.rs)**: Rendering pipeline for the disassembly view widget using Ratatui.
-  - **Other Views**: `view_hexdump.rs`, `view_sprites.rs`, `view_charset.rs`, `view_bitmap.rs`, `view_blocks.rs`, `view_debugger.rs`.
-- **Dialogs** ([`regenerator2000-tui/src/ui/dialog_*.rs`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui))
+## 4. End-to-End Data Flow & Reactive Cycles
 
-### 10. Theme System ([`regenerator2000-tui/src/theme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme.rs))
+### 4.1 Interactive User Action in TUI (e.g. Block Type Reclassification)
 
-Provides customizable TOML-based color schemes for the UI.
+```
+1. User Input: User presses 'C' in Disassembly View to mark bytes as Code.
+2. Routing: events.rs routes KeyEvent to active DisassemblyView widget.
+3. Action Creation: DisassemblyView returns
+   WidgetResult::Action(AppAction::Code).
+4. Menu Dispatcher: dispatch_menu_action() invokes
+   Core::apply_action(AppAction::Code).
+5. Domain Handler: Core routes action to
+   DisassemblyActionHandler::handle_action().
+6. Context Setup: Handler captures cursor address via
+   ActionContext::preserve_cursor().
+7. Command Execution: Handler constructs Command::SetBlockType and calls
+   UndoStack::apply().
+8. State Mutation: AppState::block_types is updated; UndoStack records previous
+   types.
+9. Downstream Analysis: Disassembly cache is invalidated; analyzer::analyze()
+   recalculates symbols.
+10. Event Emission: Core emits CoreEvent::StateChanged.
+11. UI Sync: TUI syncs CoreViewState to UIState; preserve_cursor() restores
+    visual row.
+12. Render Frame: Event loop invokes ui::draw(), rendering updated disassembly
+    with syntax highlighting.
+```
 
-### 11. Configuration ([`regenerator2000-core/src/config.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/config.rs))
+### 4.2 AI Agent / MCP Server Invocation (e.g. Setting a Label)
 
-Manages application-level configuration (`config.toml`) persisting preferences across sessions.
+```
+1. Client Request: External AI Agent sends JSON-RPC POST 'tools/call'
+   ("set_label", {address: 0x0810, name: "init"}).
+2. Transport Handling: mcp::http or mcp::stdio decodes JSON-RPC payload.
+3. Handler Router: mcp::handler dispatches request to
+   modification_tools::handle_set_label().
+4. Action Dispatch: Tool constructs AppAction::SetLabel and invokes
+   Core::apply_action().
+5. Command Execution: DisassemblyActionHandler applies Command::SetLabel onto
+   AppState.
+6. Reactive Invalidation: State updates labels; disassembly cache updates;
+   analyzer generates cross-refs.
+7. Response Construction: MCP handler builds JSON-RPC success response
+   confirming label creation.
+8. Transport Reply: Response is sent back over HTTP SSE stream or Stdio pipe.
+9. TUI Coordination (if running): Event loop receives AppEvent::Mcp and
+   redraws TUI asynchronously.
+```
 
-### 12. Assets ([`regenerator2000-core/src/assets.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/assets.rs))
+### 4.3 Background Binary Unpacker Sandbox Lifecycle
 
-Manages embedded system definition files (`system-*.toml`) and theme files (`theme-*.toml`).
+```
+1. Trigger: User loads packed binary or selects "Unpack Binary".
+2. Action Dispatch: Core emits CoreEvent::UnpackStarted with binary buffer
+   and UnpackConfig.
+3. Thread Spawn: TUI event loop spawns a background OS thread running
+   unpacker::unpack().
+4. 6502 Emulation:
+   a. Signature scanner identifies packer format (e.g. Exomizer).
+   b. Phase 1 emulates 6502 instructions from SYS address until PC reaches
+      depacker loop.
+   c. Phase 2 emulates depacker execution until decompression finishes.
+   d. Periodically emits AppEvent::UnpackProgress to update the TUI status bar.
+5. Completion Event: Background thread posts AppEvent::UnpackComplete(result)
+   to main event channel.
+6. Result Handling: Event loop invokes handle_unpack_complete(), loading
+   unpacked bytes into AppState.
+7. Context Dialog: TUI opens ImportContextDialog, allowing the user to
+   review origin and entry point.
+```
 
-### 13. MCP Server ([`regenerator2000-core/src/mcp/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/mcp))
+### 4.4 Live VICE Monitor Synchronization
 
-Implements the Model Context Protocol (MCP) server for programmatic access via HTTP (SSE) and Stdio transports.
+```
+1. Connection: ViceClient connects to VICE binary monitor TCP socket on port
+   6502.
+2. Background Reader: Async reader thread parses incoming binary response
+   frames (magic 0x02).
+3. Event Bridge: Packets are converted into AppEvent::Vice and forwarded to the
+   TUI event channel.
+4. State Update:
+   - Registers response (0x01) -> updates ViceState::registers (A, X, Y, SP, PC,
+     Flags).
+   - Memory response (0x02) -> updates ViceState::live_memory (disassembly
+     window around PC) and stack.
+   - Checkpoint hit (0x11/0x12) -> sets ViceState::stop_reason and triggers
+     debugger flash countdown.
+5. UI Sync: DebuggerView renders updated registers with changed values
+   highlighted in yellow.
+```
 
-- **[`handler.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/handler.rs)**: Central MCP request handler and tool dispatcher for protocol interactions (`initialize`, `tools/list`, `resources/list`, `tools/call`, `resources/read`).
-- **[`tools/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/mcp/tools)**: Domain-oriented tool submodules:
-  - **[`analysis_tools.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/tools/analysis_tools.rs)**: Disassembly queries, memory regions, cross-references, symbol lookups, address details, and memory/disassembly search tools.
-  - **[`navigation_tools.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/tools/navigation_tools.rs)**: Navigation operations (address jumps, cursor position queries).
-  - **[`modification_tools.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/tools/modification_tools.rs)**: Disassembly modifications (labels, line/side comments, data types, splitters, immediate operand formatting, scope creation, and project-specific enums).
-  - **[`session_tools.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/tools/session_tools.rs)**: Project session tools (save project, undo, redo, batch execution, and binary unpacking).
-  - **[`common.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/mcp/tools/common.rs)**: Shared MCP tool utilities, JSON-RPC error construction (`make_mcp_error`), and parameter extraction helpers.
+---
 
-### 14. VICE Integration ([`regenerator2000-core/src/vice/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/vice))
+## 5. Persistence & Serialization Model
 
-Provides live debugging integration with the VICE emulator.
+Projects are saved as `.regen2000proj` JSON documents, designed for version
+stability, deterministic diffs, and small file sizes:
 
-### 15. Utilities ([`regenerator2000-core/src/utils.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/utils.rs))
+```json
+{
+  "version": 1,
+  "origin": 2049,
+  "raw_data_base64": "H4sIC...",
+  "blocks": [
+    { "start": 0, "end": 12, "type_": "Code", "collapsed": false },
+    { "start": 13, "end": 100, "type_": "DataByte", "collapsed": false }
+  ],
+  "labels": {
+    "2049": [ { "name": "start", "label_type": "Subroutine", "kind": "User" } ]
+  },
+  "side_comments": { "2049": "Initialize VIC-II" },
+  "line_comments": { "2049": "Main Program Entry Point" },
+  "immediate_formats": { "2052": "Hex" },
+  "bookmarks": { "2049": "Entry" },
+  "scopes": { "2049": 2100 },
+  "enums": {},
+  "settings": {
+    "assembler": "Tass64",
+    "system": "Commodore 64",
+    "use_illegal_opcodes": true
+  },
+  "user_excluded_addresses": [ 53280, 53281 ]
+}
+```
 
-Contains shared helper functions and utilities used across the application.
-
-## Data Flow
-
-1. **Input**: User presses a key (e.g., `C`) or interacts with the mouse.
-2. **Dispatch**: [`regenerator2000-tui/src/events/input.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/events/input.rs) routes input to active `Widget`.
-3. **Action**: Widget processes input and returns `AppAction`.
-4. **Core Application**: TUI calls `Core::apply_action(action)`.
-5. **Execution**: `Core` delegates to `ActionHandlers` (`ActionContext<'a>`), converting actions into `Command` applications on `AppState` or updating `CoreViewState`.
-6. **Side Effects**: State changes trigger `analyzer.rs` or re-generate disassembly via `disassembler/`.
-7. **Events**: `Core::apply_action` returns a list of `CoreEvent`s.
-8. **UI Sync**: TUI updates `UIState` (opening dialogs, syncing cursors, status messages).
-9. **Render**: Main loop calls `ui::draw()`, rendering the TUI from `AppState` and `UIState`.
-
-## Persistence
-
-Projects are saved as JSON files (`.regen2000proj`).
-
-- **Structure**: Serializes `ProjectState` struct.
-- **Sparse Metadata**: `AnnotationManager` is flattened (`#[serde(flatten)]`) to maintain 100% backward compatibility with legacy project files while consolidating address annotations.
-- **Compression**: Raw data is gzip-compressed and base64-encoded; block types use run-length encoding.
-- **Portability**: Relative paths stored for cross-machine portability.
+### Key Persistence Characteristics
+- **Gzip + Base64 Raw Data**: The original binary is compressed using gzip
+  (`flate2`) and encoded in Base64 (`raw_data_base64`), keeping project files
+  compact.
+- **Run-Length Encoded Blocks**: Contiguous memory regions sharing a `BlockType`
+  are serialized as start/end offset ranges.
+- **Flattened Sparse Metadata**: `AnnotationManager` is serialized using
+  `#[serde(flatten)]`. All per-address properties (side comments, line comments,
+  bookmarks, scopes, immediate formats) are emitted as top-level JSON objects,
+  maintaining 100% backward compatibility with early project schemas while
+  internally managed in a single sparse structure.
+- **Deterministic Serialization**: All address-keyed maps use `BTreeMap` and
+  `BTreeSet`, guaranteeing consistent, sorted JSON keys across save cycles and
+  enabling clean Git diffs.
+- **Version Migration**: Projects declare a numeric `version`. When newer
+  formats are introduced, `AppState::migrate_project()` upgrades legacy schemas
+  automatically.
