@@ -282,9 +282,7 @@ impl<'a> UnpackEngine<'a> {
             }
 
             if exit_triggered {
-                let entry_point = if (basic_start..=basic_start.saturating_add(0x10)).contains(&pc)
-                    || system.is_basic_exec_entry(pc)
-                {
+                let entry_point = if system.is_basic_exec_entry(pc) || pc == basic_start {
                     find_sys_address(&cpu.memory.mem, basic_start).unwrap_or(pc)
                 } else if pc == ret_addr {
                     find_entry_in_snapshot(&snapshot, load_addr, data_len, ret_addr).unwrap_or(pc)
@@ -727,7 +725,7 @@ fn finish_unpack(
         || (is_in_kernal_rom(entry_point, system) && kernal_mapped);
 
     if let Some(sys_ep) = find_sys_address(mem, load_addr) {
-        if is_rom_entry || (load_addr..=load_addr.saturating_add(0x10)).contains(&entry_point) {
+        if is_rom_entry || entry_point == load_addr {
             entry_point = sys_ep;
         }
         if start_addr > load_addr {

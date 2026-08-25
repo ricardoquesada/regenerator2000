@@ -1221,13 +1221,9 @@ mod tests {
             is_collapsed: false,
         };
         state.disassembly = vec![line0, line1];
-        state.annotations.insert(
-            Addr(0x1000),
-            crate::state::AddressEntry {
-                immediate_format: Some(crate::state::ImmediateFormat::LowByte(Addr(0x2000))),
-                ..Default::default()
-            },
-        );
+        state.annotations.update(Addr(0x1000), |e| {
+            e.immediate_format = Some(crate::state::ImmediateFormat::LowByte(Addr(0x2000)));
+        });
 
         let mut view = CoreViewState::new();
         view.active_pane = ActivePane::Disassembly;

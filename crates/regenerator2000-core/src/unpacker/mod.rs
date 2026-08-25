@@ -328,7 +328,7 @@ mod tests {
                 file: "c64_connection-8580.pucrunch.prg",
                 exp_start: 0x0801,
                 exp_end: 0xF87D,
-                exp_entry: 0x080D,
+                exp_entry: 0x0810,
                 exp_dep: Some(0x0116),
                 exp_packer: Some("PUCrunch"),
                 max_instructions: None,
@@ -1003,5 +1003,58 @@ mod tests {
             .status
             .contains(mos6502::registers::Status::PS_CARRY);
         println!("Test 2: X={:02X}, Carry={}", cpu.registers.index_x, carry2);
+    }
+
+    #[test]
+    fn test_compare_daah_those_acid_pills() {
+        let packed_path = "../../tests/6502/c64_daah_those_acid_pills.exo2.prg";
+        let packed_data = match std::fs::read(packed_path) {
+            Ok(data) => data,
+            Err(_) => return,
+        };
+
+        let load_addr = u16::from_le_bytes([packed_data[0], packed_data[1]]);
+        let raw_data = &packed_data[2..];
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        // 1. R2000 properties:
+        // Start address is $0801, entry point is $0810 (where the decompressor jumped)
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0xFF91);
+        assert_eq!(result.entry_point, 0x0810);
+
+        // 2. Unpack with unp64 at runtime if available
+        if let Some(unp64_bin) = find_unp64_bin() {
+            let tmp_out = std::env::temp_dir().join("daah_those_acid_pills_unp64.prg");
+            let status = std::process::Command::new(&unp64_bin)
+                .arg(packed_path)
+                .arg("-o")
+                .arg(&tmp_out)
+                .status()
+                .unwrap();
+            if status.success() {
+                let actual_out = if tmp_out.exists() {
+                    tmp_out.clone()
+                } else {
+                    std::path::PathBuf::from(format!("{}.0810", tmp_out.display()))
+                };
+                if actual_out.exists() {
+                    let unp64_bytes = std::fs::read(&actual_out).unwrap();
+                    let unp64_load_addr = u16::from_le_bytes([unp64_bytes[0], unp64_bytes[1]]);
+                    assert_eq!(unp64_load_addr, 0x0810);
+
+                    // Overlapping payload ($0810..=$FF91) is 100% byte-for-byte identical (63,362 bytes)
+                    let r2000_overlap = &result.data[(0x0810 - result.start_addr) as usize..];
+                    let unp64_overlap = &unp64_bytes[2..(0xFF91 - 0x0810 + 1 + 2) as usize];
+                    assert_eq!(r2000_overlap, unp64_overlap);
+
+                    let _ = std::fs::remove_file(actual_out);
+                }
+            }
+        }
     }
 }
