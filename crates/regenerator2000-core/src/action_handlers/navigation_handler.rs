@@ -1025,4 +1025,229 @@ mod tests {
         );
         assert_eq!(ctx.view.hexdump_view_mode, HexdumpViewMode::PETSCIIShifted);
     }
+
+    #[test]
+    fn test_jump_to_operand_absolute() {
+        use crate::cpu::{AddressingMode, Opcode};
+        use crate::disassembler::DisassemblyLine;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        state.raw_data = vec![0x4C, 0x34, 0x12, 0xEA];
+        state.block_types = vec![crate::state::BlockType::Code; 4];
+
+        let line0 = DisassemblyLine {
+            address: Addr(0x1000),
+            bytes: vec![0x4C, 0x34, 0x12],
+            mnemonic: "JMP".to_string(),
+            operand: "$1234".to_string(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: Some(Opcode::new(
+                "JMP",
+                AddressingMode::Absolute,
+                3,
+                3,
+                "Jump to address",
+            )),
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        let line1 = DisassemblyLine {
+            address: Addr(0x1234),
+            bytes: vec![0xEA],
+            mnemonic: "NOP".to_string(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: Some(Opcode::new(
+                "NOP",
+                AddressingMode::Implied,
+                1,
+                2,
+                "No operation",
+            )),
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        state.disassembly = vec![line0, line1];
+
+        let mut view = CoreViewState::new();
+        view.active_pane = ActivePane::Disassembly;
+        view.cursor_index = 0;
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = NavigationActionHandler::new();
+        let handled = handler
+            .handle_action(&AppAction::JumpToOperand, &mut ctx)
+            .unwrap();
+        assert!(handled);
+        assert_eq!(ctx.view.cursor_index, 1);
+        assert_eq!(
+            ctx.state.disassembly[ctx.view.cursor_index].address,
+            Addr(0x1234)
+        );
+    }
+
+    #[test]
+    fn test_jump_to_operand_relative() {
+        use crate::cpu::{AddressingMode, Opcode};
+        use crate::disassembler::DisassemblyLine;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+
+        let line0 = DisassemblyLine {
+            address: Addr(0x1000),
+            bytes: vec![0xD0, 0x05],
+            mnemonic: "BNE".to_string(),
+            operand: "$1007".to_string(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: Some(Opcode::new(
+                "BNE",
+                AddressingMode::Relative,
+                2,
+                2,
+                "Branch if not equal",
+            )),
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        let line1 = DisassemblyLine {
+            address: Addr(0x1007),
+            bytes: vec![0xEA],
+            mnemonic: "NOP".to_string(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: Some(Opcode::new(
+                "NOP",
+                AddressingMode::Implied,
+                1,
+                2,
+                "No operation",
+            )),
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        state.disassembly = vec![line0, line1];
+
+        let mut view = CoreViewState::new();
+        view.active_pane = ActivePane::Disassembly;
+        view.cursor_index = 0;
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = NavigationActionHandler::new();
+        let handled = handler
+            .handle_action(&AppAction::JumpToOperand, &mut ctx)
+            .unwrap();
+        assert!(handled);
+        assert_eq!(ctx.view.cursor_index, 1);
+        assert_eq!(
+            ctx.state.disassembly[ctx.view.cursor_index].address,
+            Addr(0x1007)
+        );
+    }
+
+    #[test]
+    fn test_jump_to_operand_immediate_formatted() {
+        use crate::cpu::{AddressingMode, Opcode};
+        use crate::disassembler::DisassemblyLine;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+
+        let line0 = DisassemblyLine {
+            address: Addr(0x1000),
+            bytes: vec![0xA9, 0x00],
+            mnemonic: "LDA".to_string(),
+            operand: "#<target".to_string(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: Some(Opcode::new(
+                "LDA",
+                AddressingMode::Immediate,
+                2,
+                2,
+                "Load accumulator",
+            )),
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        let line1 = DisassemblyLine {
+            address: Addr(0x2000),
+            bytes: vec![0xEA],
+            mnemonic: "NOP".to_string(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: Some(Opcode::new(
+                "NOP",
+                AddressingMode::Implied,
+                1,
+                2,
+                "No operation",
+            )),
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        state.disassembly = vec![line0, line1];
+        state.annotations.insert(
+            Addr(0x1000),
+            crate::state::AddressEntry {
+                immediate_format: Some(crate::state::ImmediateFormat::LowByte(Addr(0x2000))),
+                ..Default::default()
+            },
+        );
+
+        let mut view = CoreViewState::new();
+        view.active_pane = ActivePane::Disassembly;
+        view.cursor_index = 0;
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = NavigationActionHandler::new();
+        let handled = handler
+            .handle_action(&AppAction::JumpToOperand, &mut ctx)
+            .unwrap();
+        assert!(handled);
+        assert_eq!(ctx.view.cursor_index, 1);
+        assert_eq!(
+            ctx.state.disassembly[ctx.view.cursor_index].address,
+            Addr(0x2000)
+        );
+    }
 }

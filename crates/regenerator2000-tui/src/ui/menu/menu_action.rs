@@ -118,11 +118,20 @@ pub fn handle_menu_action(
                     initial_name,
                     ..
                 } => {
+                    let is_local = core
+                        .state
+                        .labels
+                        .get(&address)
+                        .and_then(|v| v.first())
+                        .map(|l| {
+                            l.label_type == regenerator2000_core::state::LabelType::LocalUserDefined
+                        })
+                        .unwrap_or(false);
                     ui_state.active_dialog =
                         Some(Box::new(crate::ui::dialog_label::LabelDialog::new(
                             Some(&initial_name),
                             address,
-                            false,
+                            is_local,
                         )));
                 }
                 DialogType::Comment {

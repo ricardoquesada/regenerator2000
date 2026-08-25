@@ -134,6 +134,7 @@ pub enum AppAction {
     /// Core will bypass destructive checks for this action.
     Confirmed(Box<AppAction>),
     ManageEnums,
+    ApplyEnumDialog,
     ApplyEnumDefinition {
         name: String,
         definition: Option<super::types::EnumDefinition>,

@@ -471,7 +471,32 @@ fn handle_set_label(ctx: &mut ActionContext<'_>) {
     if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
         let address = line.address;
         let is_external = line.external_label_address.is_some();
-        let target_addr = line.external_label_address.unwrap_or(address);
+        let target_addr = if is_external {
+            line.external_label_address.unwrap_or(address)
+        } else if line.bytes.len() > 1 {
+            let mut resolved = address;
+            let mut current_sub_index = 0;
+            let mut found = false;
+            for offset in 1..line.bytes.len() {
+                let mid_addr = address.wrapping_add(offset as u16);
+                if let Some(labels) = ctx.state.labels.get(&mid_addr) {
+                    for _ in labels {
+                        if current_sub_index == ctx.view.sub_cursor_index {
+                            resolved = mid_addr;
+                            found = true;
+                            break;
+                        }
+                        current_sub_index += 1;
+                    }
+                }
+                if found {
+                    break;
+                }
+            }
+            resolved
+        } else {
+            address
+        };
 
         if is_external {
             let current = ctx
@@ -493,18 +518,18 @@ fn handle_set_label(ctx: &mut ActionContext<'_>) {
             let current = ctx
                 .state
                 .labels
-                .get(&address)
+                .get(&target_addr)
                 .and_then(|v| v.iter().find(|l| l.kind == crate::state::LabelKind::User))
                 .map(|l| l.name.clone());
             ctx.events.push(CoreEvent::DialogRequested(
                 crate::event::DialogType::Label {
-                    address,
+                    address: target_addr,
                     initial_name: current.unwrap_or_default(),
                     is_external: false,
                 },
             ));
             ctx.events.push(CoreEvent::StatusMessage(format!(
-                "Set User Label at ${address:04X}"
+                "Set User Label at ${target_addr:04X}"
             )));
         }
     }
@@ -1002,6 +1027,47 @@ impl DomainActionHandler for DisassemblyActionHandler {
             }
             AppAction::ApplyEnumUsage { address, enum_name } => {
                 handle_apply_enum_usage(ctx, *address, enum_name.as_deref());
+                Ok(true)
+            }
+            AppAction::ApplyEnumDialog => {
+                if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
+                    let offset = line.address.0 as isize - ctx.state.origin.0 as isize;
+                    if offset >= 0 && (offset as usize) < ctx.state.block_types.len() {
+                        let current_type = ctx.state.block_types[offset as usize];
+                        let value = match current_type {
+                            crate::state::BlockType::DataWord => {
+                                if offset + 1 < ctx.state.raw_data.len() as isize {
+                                    let low = ctx.state.raw_data[offset as usize];
+                                    let high = ctx.state.raw_data[offset as usize + 1];
+                                    u16::from(high) << 8 | u16::from(low)
+                                } else {
+                                    u16::from(ctx.state.raw_data[offset as usize])
+                                }
+                            }
+                            _ => {
+                                if let Some(opcode) = &line.opcode {
+                                    if opcode.mode == crate::cpu::AddressingMode::Immediate
+                                        && line.bytes.len() >= 2
+                                    {
+                                        u16::from(line.bytes[1])
+                                    } else {
+                                        u16::from(ctx.state.raw_data[offset as usize])
+                                    }
+                                } else {
+                                    u16::from(ctx.state.raw_data[offset as usize])
+                                }
+                            }
+                        };
+                        ctx.events.push(CoreEvent::DialogRequested(
+                            crate::event::DialogType::ApplyEnum {
+                                address: line.address,
+                                value,
+                            },
+                        ));
+                        ctx.events
+                            .push(CoreEvent::StatusMessage("Apply Enum".to_string()));
+                    }
+                }
                 Ok(true)
             }
             AppAction::ManageEnums => {
