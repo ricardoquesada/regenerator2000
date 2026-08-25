@@ -163,7 +163,7 @@ encrypted binaries have extremely high entropy (>= 7.4).
 If a newly imported file matches this signature (or a known packer is detected):
 
 1. **Import Context Setup Dialog**: A warning is displayed at the bottom of the dialog (e.g.
-   `⚠️ High Entropy (7.82). Packed with Exomizer 3.x.`) and the primary focused button is automatically set to *
+   `[!] High Entropy (7.82). Packed with Exomizer 3.x.`) and the primary focused button is automatically set to *
    *`< Unpack >`** so you can unpack immediately with a single press of **++enter++**.
 2. **High Entropy Warning Dialog**: Standalone warnings also notify you of packed binaries.
 

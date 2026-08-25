@@ -78,13 +78,13 @@ impl Widget for ImportContextDialog {
             .or_else(|| app_state.file_info().packer_name);
 
         let warn_msg = match (self.entropy, packer) {
-            (Some(ent), Some(packer)) => {
-                Some(format!("⚠️ High Entropy ({ent:.2}). Packed with {packer}."))
-            }
-            (Some(ent), None) => Some(format!(
-                "⚠️ High Entropy ({ent:.2}). Possibly packed or compressed."
+            (Some(ent), Some(packer)) => Some(format!(
+                "[!] High Entropy ({ent:.2}). Packed with {packer}."
             )),
-            (None, Some(packer)) => Some(format!("⚠️ Packed with {packer}.")),
+            (Some(ent), None) => Some(format!(
+                "[!] High Entropy ({ent:.2}). Possibly packed or compressed."
+            )),
+            (None, Some(packer)) => Some(format!("[!] Packed with {packer}.")),
             (None, None) => None,
         };
 
@@ -92,7 +92,7 @@ impl Widget for ImportContextDialog {
 
         // Dialog fits content: 10 lines + 2 borders (+1 for entropy/packer warning)
         let min_height = if show_unpack { 13 } else { 12 };
-        let area = crate::utils::centered_rect_adaptive(50, 45, 0, min_height, area);
+        let area = crate::utils::centered_rect_adaptive(60, 56, 0, min_height, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -598,5 +598,50 @@ mod tests {
             &mut ui_state,
         );
         assert_eq!(dialog.active_field, 6);
+    }
+
+    #[test]
+    fn test_import_context_dialog_render_with_warning() {
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        let dialog = ImportContextDialog::new(
+            "C64",
+            Addr(0x0801),
+            Some(Addr(0x080d)),
+            None,
+            Some(7.92),
+            Some("Exomizer 2.x"),
+        );
+        let app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        let res = terminal.draw(|f| {
+            let area = f.area();
+            dialog.render(f, area, &app_state, &mut ui_state);
+        });
+
+        assert!(res.is_ok());
+
+        // Verify that the warning line was rendered into the buffer with "[!]"
+        let buffer = terminal.backend().buffer();
+        let mut found_warning = false;
+        for y in 0..24 {
+            let line_str: String = (0..80)
+                .map(|x| buffer.cell((x, y)).map_or(" ", |c| c.symbol()))
+                .collect();
+            if line_str.contains("[!] High Entropy (7.92). Packed with Exomizer 2.x.") {
+                found_warning = true;
+                // Verify the line has valid ASCII and consistent width
+                assert!(!line_str.contains("⚠️"));
+            }
+        }
+        assert!(
+            found_warning,
+            "Warning message with [!] must be rendered in buffer"
+        );
     }
 }
