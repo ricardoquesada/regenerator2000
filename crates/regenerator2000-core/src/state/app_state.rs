@@ -262,16 +262,7 @@ impl AppState {
 
     #[must_use]
     pub fn is_external(&self, addr: Addr) -> bool {
-        let len = self.raw_data.len();
-        if len == 0 {
-            return true;
-        }
-        let end = self.origin.wrapping_add(len as u16);
-        if self.origin < end {
-            addr < self.origin || addr >= end
-        } else {
-            !(addr >= self.origin || addr < end)
-        }
+        addr.offset_from(self.origin) >= self.raw_data.len()
     }
 
     #[must_use]
@@ -298,7 +289,7 @@ impl AppState {
         let end_addr = if size == 0 {
             start_addr
         } else {
-            Addr(start_addr.0.saturating_add(size as u16).saturating_sub(1))
+            start_addr.wrapping_add(size.saturating_sub(1) as u16)
         };
 
         let mut mem = vec![0u8; 0x10000];
@@ -312,7 +303,10 @@ impl AppState {
         let packer = crate::packers::detect_packer(
             &mem,
             start_addr.0,
-            load_start.saturating_add(size) as u16,
+            (load_start
+                .saturating_add(size)
+                .min(0x10000)
+                .saturating_sub(1)) as u16,
         );
 
         let (is_packed, packer_name, entry_point) = if let Some(ref p) = packer {
@@ -614,5 +608,26 @@ mod tests {
         assert_eq!(info.size, 13);
         assert_eq!(info.entry_point, Some(Addr(2061)));
         assert!(!info.is_packed);
+    }
+
+    #[test]
+    fn test_file_info_full_64k() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0000);
+        app_state.raw_data = vec![0xEA; 65536];
+        let info = app_state.file_info();
+        assert_eq!(info.start_addr, Addr(0x0000));
+        assert_eq!(info.end_addr, Addr(0xFFFF));
+        assert_eq!(info.size, 65536);
+    }
+
+    #[test]
+    fn test_is_external_full_64k() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0000);
+        app_state.raw_data = vec![0xEA; 65536];
+        assert!(!app_state.is_external(Addr(0x0000)));
+        assert!(!app_state.is_external(Addr(0x0810)));
+        assert!(!app_state.is_external(Addr(0xFFFF)));
     }
 }

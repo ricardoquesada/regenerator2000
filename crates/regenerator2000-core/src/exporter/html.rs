@@ -257,8 +257,6 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> Result<(), CoreError> {
                         && !refs.is_empty()
                         && state.settings.max_xref_count > 0
                     {
-                        let origin_val = state.origin.0;
-                        let size = state.raw_data.len() as u16;
                         let mut all_refs = refs.clone();
                         all_refs.sort_unstable();
                         all_refs.dedup();
@@ -268,7 +266,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> Result<(), CoreError> {
                             .iter()
                             .take(max)
                             .map(|r| {
-                                if r.0 >= origin_val && r.0 < origin_val + size {
+                                if !state.is_external(*r) {
                                     format!("<a href=\"#L{:04X}\">${:04X}</a>", r.0, r.0)
                                 } else {
                                     format!("${:04X}", r.0)
@@ -350,9 +348,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> Result<(), CoreError> {
         // 6. Instruction part
         let mut operand_str = line.operand.clone();
         if let Some(target) = line.target_address {
-            let origin_val = state.origin.0;
-            let size = state.raw_data.len() as u16;
-            if target.0 >= origin_val && target.0 < origin_val + size {
+            if !state.is_external(target) {
                 operand_str = format!("<a href=\"#L{:04X}\">{}</a>", target.0, line.operand);
             }
         } else {
@@ -364,10 +360,14 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> Result<(), CoreError> {
                 } else {
                     if !current_word.is_empty() {
                         if let Some(addr) = label_name_to_addr.get(&current_word) {
-                            new_op.push_str(&format!(
-                                "<a href=\"#L{:04X}\">{}</a>",
-                                addr.0, current_word
-                            ));
+                            if !state.is_external(*addr) {
+                                new_op.push_str(&format!(
+                                    "<a href=\"#L{:04X}\">{}</a>",
+                                    addr.0, current_word
+                                ));
+                            } else {
+                                new_op.push_str(&current_word);
+                            }
                         } else {
                             new_op.push_str(&current_word);
                         }
@@ -378,10 +378,14 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> Result<(), CoreError> {
             }
             if !current_word.is_empty() {
                 if let Some(addr) = label_name_to_addr.get(&current_word) {
-                    new_op.push_str(&format!(
-                        "<a href=\"#L{:04X}\">{}</a>",
-                        addr.0, current_word
-                    ));
+                    if !state.is_external(*addr) {
+                        new_op.push_str(&format!(
+                            "<a href=\"#L{:04X}\">{}</a>",
+                            addr.0, current_word
+                        ));
+                    } else {
+                        new_op.push_str(&current_word);
+                    }
                 } else {
                     new_op.push_str(&current_word);
                 }
@@ -400,16 +404,13 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> Result<(), CoreError> {
         let mut comment_str = line.comment.clone();
         // Format x-refs in comments as hyperlinks if they are internal
         if comment_str.contains("x-ref:") {
-            let origin_val = state.origin.0;
-            let size = state.raw_data.len() as u16;
             let words: Vec<String> = comment_str
                 .split(' ')
                 .map(|w| {
                     if w.starts_with('$') {
                         let hex_str = w.trim_matches(|c| c == '$' || c == ',' || c == ';');
                         if let Ok(addr) = u16::from_str_radix(hex_str, 16)
-                            && addr >= origin_val
-                            && addr < origin_val + size
+                            && !state.is_external(crate::state::Addr(addr))
                         {
                             return format!("<a href=\"#L{:04X}\">${:04X}</a>", addr, addr)
                                 + if w.ends_with(',') { "," } else { "" };

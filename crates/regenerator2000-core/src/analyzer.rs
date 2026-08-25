@@ -374,8 +374,6 @@ fn analyze_instruction(
 fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageData>) {
     let origin = state.origin;
     let data = &state.raw_data;
-    let data_len = data.len();
-    let end_addr = origin.wrapping_add(data_len as u16);
 
     for (addr, (_types, _refs, first_type)) in usage_map.iter_mut() {
         // Only promote code-flow label types.
@@ -388,16 +386,11 @@ fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageD
         }
 
         // Only for internal addresses (we cannot inspect external bytes).
-        let is_internal = if origin < end_addr {
-            addr.0 >= origin.0 && addr.0 < end_addr.0
-        } else {
-            addr.0 >= origin.0 || addr.0 < end_addr.0
-        };
-        if !is_internal {
+        if state.is_external(*addr) {
             continue;
         }
 
-        let offset = addr.0.wrapping_sub(origin.0) as usize;
+        let offset = addr.offset_from(origin);
 
         // Target must be in a Code block.
         if state
@@ -452,7 +445,6 @@ fn follow_indirect_jumps(
     let data = &state.raw_data;
     let origin = state.origin;
     let data_len = data.len();
-    let end_addr = origin.wrapping_add(data_len as u16);
 
     let mut pc = 0;
     while pc < data_len {
@@ -491,17 +483,10 @@ fn follow_indirect_jumps(
         }
 
         let jmp_addr = origin.wrapping_add(pc as u16);
-        let pointer_addr: u16 = u16::from(data[pc + 2]) << 8 | u16::from(data[pc + 1]);
+        let pointer_addr = Addr(u16::from(data[pc + 2]) << 8 | u16::from(data[pc + 1]));
 
-        // Check if pointer_addr is inside our binary
-        let is_internal = if origin < end_addr {
-            pointer_addr >= origin.0 && pointer_addr < end_addr.0
-        } else {
-            pointer_addr >= origin.0 || pointer_addr < end_addr.0
-        };
-
-        if is_internal {
-            let ptr_offset = pointer_addr.wrapping_sub(origin.0) as usize;
+        if !state.is_external(pointer_addr) {
+            let ptr_offset = pointer_addr.offset_from(origin);
 
             // Check if the pointer location is an Address block
             let is_address_block = ptr_offset + 1 < data_len
@@ -552,19 +537,10 @@ pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<std::ops::Range<usize>
 
     let origin = state.origin;
     let data_len = state.raw_data.len();
-    let end_addr = origin.wrapping_add(data_len as u16);
 
     let to_offset = |addr: Addr| -> Option<usize> {
-        let in_bounds = if origin < end_addr {
-            addr.0 >= origin.0 && addr.0 < end_addr.0
-        } else {
-            addr.0 >= origin.0 || addr.0 < end_addr.0
-        };
-        if in_bounds {
-            Some(addr.0.wrapping_sub(origin.0) as usize)
-        } else {
-            None
-        }
+        let offset = addr.offset_from(origin);
+        (offset < data_len).then_some(offset)
     };
 
     if let Some(offset) = to_offset(start) {

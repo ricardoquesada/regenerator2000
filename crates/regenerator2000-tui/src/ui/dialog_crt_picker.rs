@@ -88,7 +88,7 @@ impl Widget for CrtBankPickerDialog {
             .map(|picker_entry| {
                 let chip = &picker_entry.chip;
                 let start = chip.load_address;
-                let end = start.wrapping_add(chip.data.len() as u16).wrapping_sub(1);
+                let end = start.wrapping_add(chip.data.len().saturating_sub(1) as u16);
 
                 let addr_str = format!("${start:04X}-${end:04X}");
                 let entropy_str = format!("{:>5.2}", picker_entry.entropy);

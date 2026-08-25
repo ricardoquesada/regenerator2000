@@ -153,4 +153,53 @@ mod tests {
             assert!(refs.iter().any(|v| v.as_u64() == Some(0x1005)));
         }
     }
+
+    #[test]
+    fn test_address_details_full_64k() {
+        let mut app_state = AppState::default();
+        app_state.system_config.default_is_unexplored = false;
+        let origin = regenerator2000_core::state::Addr(0x0000);
+        let mut data = vec![0u8; 65536];
+        // At $0810 (2064):
+        // LDA #$1B (A9 1B)
+        // STA $D011 (8D 11 D0)
+        // LDA #$00 (A9 00)
+        // STA $D020 (8D 20 D0)
+        // JSR $FFD2 (20 D2 FF)
+        // RTS (60)
+        data[0x0810..0x081E].copy_from_slice(&[
+            0xA9, 0x1B, 0x8D, 0x11, 0xD0, 0xA9, 0x00, 0x8D, 0x20, 0xD0, 0x20, 0xD2, 0xFF, 0x60,
+        ]);
+        app_state.load_binary(origin, data).unwrap();
+
+        let mut ui_state = UIState::new(Theme::default());
+
+        let details = call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_get_address_details",
+            json!({ "address": 2064 }),
+        );
+
+        assert_eq!(details["address"], 2064);
+        assert_eq!(details["type"], "Code");
+        assert_eq!(details["instruction"]["mnemonic"], "LDA");
+
+        // First address ($0000) and last address ($FFFF) should also be valid details
+        let details_first = call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_get_address_details",
+            json!({ "address": 0 }),
+        );
+        assert_eq!(details_first["address"], 0);
+
+        let details_last = call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_get_address_details",
+            json!({ "address": 0xFFFF }),
+        );
+        assert_eq!(details_last["address"], 0xFFFF);
+    }
 }

@@ -53,8 +53,7 @@ impl D64FilePickerDialog {
                         end_addr = Some(
                             prg_data
                                 .origin
-                                .wrapping_add(prg_data.raw_data.len() as u16)
-                                .wrapping_sub(1),
+                                .wrapping_add(prg_data.raw_data.len().saturating_sub(1) as u16),
                         );
                         entropy = Some(crate::utils::calculate_entropy(&prg_data.raw_data));
                     }
