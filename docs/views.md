@@ -1,42 +1,35 @@
 # Views
 
-Regenerator 2000 offers several specialized views to efficiently analyze and reverse engineer your Commodore 8-bit binaries.
+Regenerator 2000 provides specialized views to analyze Commodore 8-bit binaries.
 
 ## Disassembly View
 
-The Disassembly View is the central workspace of Regenerator 2000. It shows the disassembled code, data, and text,
-offering a comprehensive interface for reverse engineering.
+The Disassembly View is the primary workspace in Regenerator 2000. It displays disassembled code, data blocks, and text.
 
-In this view, you can:
+Use this view to perform the following tasks:
 
-- **Navigate Memory**: Move through the address space, jump to specific addresses or labels, and follow code execution
-  flows.
-- **Define Block Types**: Classify memory regions as Code, Byte data, Word data, or various Text formats to make sense
-  of the binary.
-- **Annotate**: Add comments to lines or specific instructions and rename labels to something meaningful.
-- **Analyze Flow**: Visual indicators show jump and branch targets, and unexplored code blocks are dimmed for visual
-  clarity.
-- **Minimap Bar**: A horizontal bar at the top of the main view (below the menu) shows a high-level overview of block
-  types across the entire address space. It uses sub-character precision and allows mouse interaction for navigation.
+- **Navigate Memory**: Move through the address space, jump to addresses or labels, and follow execution paths.
+- **Define Block Types**: Convert memory regions into Code, Byte, Word, Address, or Text blocks.
+- **Annotate**: Add side or line comments and rename labels.
+- **Analyze Flow**: Follow jump and branch arrows in the left margin. Regenerator 2000 dims unreferenced code blocks for visual contrast.
+- **Minimap Bar**: Inspect the horizontal minimap bar below the menu bar to see block types across the entire address space. Click the minimap to jump to any location.
 
 ![Disassembly View](regenerator2000_disassembly_screenshot.png)
 
-The Disassembly view consists of:
+The Disassembly View contains these columns:
 
-- **a**: The line number, in decimal. Each line has its own unique number.
-- **b**: The arrows, that indicate code flow.
-- **c**: The address, in hexadecimal.
-- **d**: The bytes, in hexadecimal.
-- **e**: A possible label, which has different prefix (see below).
-- **f**: The mnemonic. E.g. `lda`
-- **g**: The operand. E.g.: `#$05`
-- **h**: A side comment. E.g.: `; this is a comment`
+- **a**: Decimal line number.
+- **b**: Control-flow arrows for jumps and branches.
+- **c**: Hexadecimal memory address.
+- **d**: Hexadecimal instruction or data bytes.
+- **e**: Optional label with a type prefix.
+- **f**: Instruction mnemonic (for example, `lda`).
+- **g**: Instruction operand (for example, `#$05`).
+- **h**: Optional side comment (for example, `; this is a comment`).
 
 ![Disassembly Only](regenerator2000_disassembly_only.png)
 
-Auto-generated labels use a short prefix to indicate how the address is referenced (e.g., `s_` for subroutine
-targets, `j_` for jumps, `a_` for absolute addresses). See [Analysis — Label Prefixes](analysis.md#label-prefixes)
-for the complete prefix reference.
+Auto-generated labels start with a prefix that shows how the code references the address (such as `s_` for subroutines, `j_` for jumps, and `a_` for absolute addresses). See [Analysis — Label Prefixes](analysis.md#label-prefixes) for the complete list of prefixes.
 
 ### Keyboard Shortcuts
 
@@ -79,14 +72,13 @@ for the complete prefix reference.
 
 ## Blocks View
 
-The Blocks View visualizes the memory layout of your project as a contiguous map. It helps you quickly identify:
+The Blocks View displays the memory layout of your project as a list of contiguous blocks:
 
 - **Code regions** (Blue)
 - **Data regions** (Green/Yellow)
 - **Undefined/Unknown regions** (Grey)
 
-This bird's-eye view is essential for understanding the overall structure of the binary, finding gaps, and spotting
-large chunks of unanalyzed data. You can click on any block to jump to that location in the Disassembly View.
+Use this view to inspect the structure of the binary and locate unanalyzed data blocks. Click any block (or press ++enter++) to jump to that address in the Disassembly View.
 
 ![Blocks View](regenerator2000_blocks_screenshot.png)
 
@@ -100,16 +92,11 @@ large chunks of unanalyzed data. You can click on any block to jump to that loca
 
 ## Hexdump View
 
-The Hexdump View provides a raw hexadecimal representation of the memory, side-by-side with a text representation. It is
-useful for inspecting data that hasn't been formatted yet or for verifying the exact byte values in a region.
+The Hexdump View displays raw hexadecimal bytes alongside their decoded text characters. Use it to inspect unformatted data and verify byte values.
 
-This view supports three layout columns: **wide (16-byte)**, **narrow (8-byte)**, and **disabled** (hidden). You can
-cycle through these modes using the **Cycle view** shortcut (++alt+2++ or ++ctrl+2++).
+Press ++alt+2++ (or ++ctrl+2++) to cycle through three layout modes: **wide (16-byte)**, **narrow (8-byte)**, and **disabled** (hidden).
 
-This view supports different text decoding modes to help you spot strings in standard C64 formats. Bytes are colored
-using a **byte-value color palette** (based
-on [Color-code your bytes](https://simonomi.dev/blog/color-code-your-bytes/)) for improved visual pattern recognition,
-making it easier to spot repeating values or data structures.
+Press ++m++ or ++shift+m++ to switch between PETSCII and Screencode character decoding modes. Regenerator 2000 colors each byte with a **byte-value color palette** (based on [Color-code your bytes](https://simonomi.dev/blog/color-code-your-bytes/)) so you can spot repeating values and data structures.
 
 === "16-byte hexdump"
 
@@ -119,14 +106,11 @@ making it easier to spot repeating values or data structures.
 
     ![Hexdump 8-byte View](../regenerator2000_hexdump_narrow_screenshot.png)
 
+The Hexdump View contains these columns:
 
-
-The Hex Dump view consists of:
-
-- **a**: The address
-- **b**: 16 bytes or 8 bytes of hex dump
-- **c**: The text representation, that can be any of: "Screencode shifted", "Screencode unshifted", "PETSCII shifted", "
-  PETSCII unshifted".
+- **a**: Hexadecimal row address.
+- **b**: 16 bytes or 8 bytes of hexadecimal data.
+- **c**: Decoded text ("Screencode shifted", "Screencode unshifted", "PETSCII shifted", or "PETSCII unshifted").
 
 ![Hexdump Only](regenerator2000_hexdump_only.png)
 
@@ -142,14 +126,11 @@ The Hex Dump view consists of:
 
 ## Sprites View
 
-The Sprites View helps you find and analyze sprite data (hardware sprites).
+The Sprites View renders memory as hardware sprites. Press ++alt+3++ (or ++ctrl+3++) to cycle through three layouts: **wide (2-sprites)**, **narrow (1-sprite)**, and **disabled** (hidden).
 
-This view can be cycled through three layouts: **wide (2-sprites)**, **narrow (1-sprite)**, and **disabled** (hidden).
-You can cycle through these modes using the **Cycle view** shortcut (++alt+3++ or ++ctrl+3++).
-
-- **64-byte Chunks**: Displays memory formatted as C64 sprites (24x21 pixels).
-- **Multicolor Support**: Toggle multicolor mode to correctly view game characters and objects.
-- **Identification**: Helps identifying player characters, enemies, and other game objects hidden in the binary.
+- **64-byte Chunks**: Renders each 64-byte block as a 24x21 sprite.
+- **Multicolor Support**: Press ++m++ to toggle between single-color and multicolor sprite modes.
+- **Asset Discovery**: Locate player sprites, enemies, and graphic objects in the binary.
 
 === "2-sprites view"
 
@@ -170,15 +151,12 @@ You can cycle through these modes using the **Cycle view** shortcut (++alt+3++ o
 
 ## Charset View
 
-The Charset View allows you to inspect memory as if it were a C64 character set (font). This is crucial for verifying if
-a memory region contains custom fonts.
+The Charset View renders memory as 8x8 character tiles to help you locate custom fonts and tile sets.
 
-This view can be cycled through three layouts: **wide (8-chars)**, **narrow (4-chars)**, and **disabled** (hidden). You
-can cycle through these modes using the **Cycle view** shortcut (++alt+4++ or ++ctrl+4++).
+Press ++alt+4++ (or ++ctrl+4++) to cycle through three layouts: **wide (8-chars)**, **narrow (4-chars)**, and **disabled** (hidden).
 
-- **Standard & Multicolor**: Toggle between standard hi-res characters and multicolor mode to see if the data makes
-  sense as graphics.
-- **Pattern Recognition**: Useful for spotting graphical data masquerading as code or raw bytes.
+- **Standard & Multicolor**: Press ++m++ to toggle between high-resolution and multicolor character modes.
+- **Pattern Recognition**: Identify character graphics stored in raw byte regions.
 
 === "8-chars view"
 
@@ -199,25 +177,24 @@ can cycle through these modes using the **Cycle view** shortcut (++alt+4++ or ++
 
 ## Bitmap View
 
-The Bitmap View renders memory as a bitmap image, allowing you to visualize large areas of memory as graphics.
+The Bitmap View renders memory as a full-screen bitmap image:
 
-- **Asset Discovery**: Useful for finding splash screens, background graphics, or loading screens.
-- **Format Identification**: Can help identify the format of unknown large data blocks by visualizing patterns.
-- **Screen RAM Overlay**: You can cycle through different Screen RAM addresses to see how colors apply to the bitmap
-  data.
+- **Asset Discovery**: Locate title screens, background graphics, and loading screens.
+- **Format Identification**: Identify the layout of large binary data blocks visually.
+- **Screen RAM Overlay**: Press ++s++ or ++shift+s++ to cycle through Screen RAM addresses and preview bitmap color attributes.
 
 ![Bitmap View](regenerator2000_bitmap_screenshot.png)
 
 !!! warning
 
-    The Bitmap View is heavy on the CPU. It is recommended to hide it once you stop using it.
+    The Bitmap View uses significant CPU resources. Hide the Bitmap View (++alt+5++) when you finish inspecting bitmaps.
 
-The Bitmap View consists of:
+The Bitmap View contains these elements:
 
-- **a**: Bitmap mode (Multicolor or High-Res) and how the bitmap is being rendered (HalfBlocks, iTerm2)
-- **b**: The bitmap and screen RAM addresses. For multi-color mode, the Color RAM is fixed.
-- **c**: The bitmap itself
-- **d**: Screen RAM cycle indicator
+- **a**: Bitmap mode (Multicolor or High-Res) and terminal renderer (HalfBlocks or iTerm2).
+- **b**: Bitmap address and Screen RAM address.
+- **c**: Rendered bitmap canvas.
+- **d**: Screen RAM position indicator.
 
 ![Bitmap Only](regenerator2000_bitmap_only.png)
 
@@ -235,26 +212,23 @@ The Bitmap View consists of:
 
 ## Debugger View
 
-The Debugger View integrates with the [VICE](https://vice-emu.sourceforge.io/) emulator to provide live debugging
-capabilities without leaving Regenerator 2000.
+The Debugger View connects to the [VICE](https://vice-emu.sourceforge.io/) emulator for live debugging inside Regenerator 2000.
 
-Toggle the Debugger View with ++alt+6++ (or ++ctrl+6++). Once connected to VICE, the panel shows:
+Press ++alt+6++ (or ++ctrl+6++) to toggle the Debugger View. When connected to VICE, the panel displays:
 
-- **Connection status**: Whether Regenerator 2000 is connected to VICE and whether the emulator is running or stopped.
-- **Live disassembly**: When the emulator is stopped, a small window of disassembly around the current PC, with the
-  current instruction highlighted.
-- **Registers**: A, X, Y, SP, and P (status) when available.
-- **Breakpoints**: List of breakpoints set in VICE.
-- **Watchpoints**: List of watchpoints set in VICE.
+- **Connection status**: Shows the VICE connection state and whether the emulator runs or pauses.
+- **Live disassembly**: Shows disassembly around the current PC and highlights the active instruction when paused.
+- **Registers**: Displays CPU registers A, X, Y, SP, and P (status).
+- **Breakpoints**: Lists active execution breakpoints in VICE.
+- **Watchpoints**: Lists active memory watchpoints in VICE.
 
 ![Debugger View](regenerator2000_debugger_screenshot.png)
 
 ![Debugger Only](regenerator2000_debugger_screenshot_only.png)
 
-The main **Disassembly** view also reflects the debugger state when connected: the current PC is highlighted, and
-breakpoints are indicated.
+When connected, the main **Disassembly** view also highlights the current PC and marks active breakpoints.
 
-For more details on connecting to VICE and using the debugger, see [Debugger (VICE Integration)](debugger.md).
+See [Debugger (VICE Integration)](debugger.md) for connection instructions and debugger features.
 
 ### Keyboard Shortcuts
 

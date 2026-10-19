@@ -1,18 +1,14 @@
 # Systems
 
-Regenerator 2000 ships with built-in system definitions for a range of 6502-based systems.
-Each system provides **system labels** (ROM entry points, hardware registers, zero-page
-variables), **side comments**, and **excluded address ranges** that help produce cleaner
-disassembly output.
+Regenerator 2000 includes built-in definitions for 13 6502-based systems. Each system definition provides **system labels** (ROM entry points, hardware registers, and zero-page variables), **side comments**, and **excluded address ranges**.
 
-You can select the target system in **File → Document Settings** (++ctrl+d++) under the
-**System** selector.
+Select the target system in **File → Document Settings** (++ctrl+d++) under the **System** selector.
 
 ## Supported Systems
 
-### Enabled by default
+### Enabled by Default
 
-These systems are visible in the System selector out of the box:
+These systems appear in the System selector by default:
 
 | System                | Label Groups              | Comments | Excludes |
 |:----------------------|:--------------------------|:--------:|:--------:|
@@ -24,10 +20,9 @@ These systems are visible in the System selector out of the box:
 | **Commodore PET 4.0** | BASIC, KERNAL, Lower Page |    ✅     |    ✅     |
 | **Commodore 1541**    | —                         |    ❌     |    ❌     |
 
-### Experimental (disabled by default)
+### Experimental (Disabled by Default)
 
-These systems are included but disabled (`enabled = false`). To use them, dump the built-in
-configs and set `enabled = true` (see [Custom Systems](#custom-systems) below):
+Regenerator 2000 includes these systems with `enabled = false`. Dump the built-in configuration files and set `enabled = true` to enable them (see [Custom Systems](#custom-systems)):
 
 | System         | Label Groups | Comments | Excludes |
 |:---------------|:-------------|:--------:|:--------:|
@@ -40,9 +35,7 @@ configs and set `enabled = true` (see [Custom Systems](#custom-systems) below):
 
 ## Label Groups
 
-Each system can define one or more **label groups** — named sets of address-to-label mappings.
-In Document Settings, each group appears as a separate checkbox under **System Labels**, letting
-users toggle them independently.
+Each system defines one or more **label groups** that map addresses to label names. In Document Settings, each group appears as a checkbox under **System Labels** so you can toggle it independently.
 
 Common groups include:
 
@@ -53,10 +46,9 @@ Common groups include:
 
 ## Custom Systems
 
-You can **override** any built-in system or **add entirely new systems** by placing a
-`system-*.toml` file in the application config directory.
+Place a `system-*.toml` file in the application configuration directory to override a built-in system or add a new system.
 
-### Config directory location
+### Config Directory Location
 
 | OS          | Config directory                                          |
 |:------------|:----------------------------------------------------------|
@@ -65,14 +57,13 @@ You can **override** any built-in system or **add entirely new systems** by plac
 | **Windows** | `C:\Users\<User>\AppData\Roaming\regenerator2000\config\` |
 
 > [!TIP]
-> You can verify the path on your machine by running `regenerator2000 --help` — the config
-> directory is printed near the end of the output.
+> Run `regenerator2000 --help` to verify the configuration directory path on your computer. The output prints the directory path near the bottom.
 
-### Getting started
+### Getting Started
 
-The easiest way to create a custom config is to start from the built-in files:
+Start from the built-in files to create a custom system configuration:
 
-1. **Dump** all built-in configs to the config directory:
+1. **Dump** all built-in system configuration files to your configuration directory:
 
     ```bash
     # macOS
@@ -85,23 +76,23 @@ The easiest way to create a custom config is to start from the built-in files:
     regenerator2000.exe --dump-system-config-files $env:APPDATA\regenerator2000\config\
     ```
 
-   This writes every `system-*.toml` to the destination folder and exits.
+    This command writes every `system-*.toml` file to the destination folder and exits.
 
-2. **Edit** the file(s) you want to customise with any text editor.
+2. **Edit** the target file in a text editor.
 
-3. **Launch** Regenerator 2000 normally — your versions are picked up automatically.
+3. **Start** Regenerator 2000. The application loads your custom system definitions automatically.
 
-### How it works
+### How It Works
 
-- Files must be named `system-<name>.toml` (e.g. `system-commodore_64.toml`).
-- A file with the **same** `system_name` as a built-in definition **replaces** the built-in entirely.
-- A file with a **new** `system_name` is added as an additional system.
-- Name matching is case-sensitive; spaces in the filename should be replaced with underscores.
-- Legacy `platform-*.toml` and `platform-*.json` files are still supported for backward compatibility.
+- Name each file `system-<name>.toml` (for example, `system-commodore_64.toml`).
+- If a file uses the **same** `system_name` as a built-in definition, it replaces the built-in definition.
+- If a file uses a **new** `system_name`, Regenerator 2000 adds it as a new system.
+- Name matching is case-sensitive. Replace spaces in the filename with underscores.
+- Regenerator 2000 also supports legacy `platform-*.toml` and `platform-*.json` files for backward compatibility.
 
-### TOML schema reference
+### TOML Schema Reference
 
-Every `system-*.toml` file has the following structure:
+Every `system-*.toml` file uses the following structure:
 
 ```toml
 system_name = "My Custom System"
@@ -115,23 +106,21 @@ excluded = ["9000-900F"]
 "ADDR_HEX" = "Side comment text"
 ```
 
-| Field               | Type             | Description                                                                                                                                                                                 |
-|:--------------------|:-----------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `system_name`       | string           | Display name shown in the Document Settings **System** selector. Must be unique across all configs.                                                                                         |
-| `enabled`           | bool             | If `false`, the system is hidden from the selector. Useful for WIP configs.                                                                                                                 |
-| `labels`            | table            | Groups of address → label mappings. Each key is a **group name** (e.g. `"KERNAL"`, `"I/O"`) that appears as a toggle in Document Settings → **System Labels**.                              |
-| `labels.GROUP_NAME` | table            | Map of hex address strings to label names. Addresses use uppercase hex **without** the `$` prefix or `0x` prefix (e.g. `"D020"` not `"$D020"`).                                             |
-| `comments`          | table            | Map of hex addresses to side-comment strings. When enabled via **Show system comments** in Document Settings, these appear as side comments in the disassembly.                             |
-| `excluded`          | array of strings | Address ranges the analyzer should skip (e.g. `"D000-D031"`). Ranges use `START-END` notation in uppercase hex. Enables the **Exclude well-known addresses** checkbox in Document Settings. |
+| Field               | Type             | Description                                                                                                                                      |
+|:--------------------|:-----------------|:-------------------------------------------------------------------------------------------------------------------------------------------------|
+| `system_name`       | string           | Display name in the Document Settings **System** selector. Must be unique across all configuration files.                                        |
+| `enabled`           | bool             | If `false`, Regenerator 2000 hides the system from the selector.                                                                                 |
+| `labels`            | table            | Groups of address-to-label mappings. Each key is a **group name** (such as `"KERNAL"` or `"I/O"`) in Document Settings → **System Labels**.      |
+| `labels.GROUP_NAME` | table            | Map of hexadecimal address strings to label names. Format addresses in uppercase hex without `$` or `0x` (for example, `"D020"`).                |
+| `comments`          | table            | Map of hexadecimal addresses to side-comment strings. Enable **Show system comments** in Document Settings to display them.                      |
+| `excluded`          | array of strings | Address ranges that the analyzer skips (for example, `"D000-D031"`). Format ranges as `START-END` in uppercase hex.                              |
 
 > [!NOTE]
-> `labels`, `comments`, and `excluded` are all optional — you can omit any section you don't need.
-> An empty `labels` table means no **System Labels** checkboxes appear; an empty `excluded` array
-> means the **Exclude well-known addresses** checkbox is hidden.
+> The `labels`, `comments`, and `excluded` sections are optional. If you omit `labels`, Document Settings hides the **System Labels** checkboxes. If you omit `excluded`, Document Settings hides the **Exclude well-known addresses** checkbox.
 
-### Example: creating a custom system
+### Example: Creating a Custom System
 
-Below is a minimal config for a hypothetical "Acme Computer" with a video chip at `$9000–$900F`:
+The following configuration defines an "Acme Computer" with a video chip at `$9000–$900F`:
 
 ```toml
 system_name = "Acme Computer"
@@ -153,14 +142,11 @@ excluded = ["9000-900F"]
 "900F" = "Background Color"
 ```
 
-Save this as `system-acme_computer.toml` in the config directory. Next time you launch
-Regenerator 2000, **Acme Computer** will appear in the System selector.
+Save this file as `system-acme_computer.toml` in the configuration directory. When you restart Regenerator 2000, **Acme Computer** appears in the System selector.
 
 ### Tips
 
-- **Back up** the original files before editing — you can always re-dump with `--dump-system-config-files`.
-- **Disable** a config temporarily by setting `enabled = false` instead of deleting the file.
-- **Validate** your TOML before launching — a syntax error will cause the file to be silently
-  skipped. Check the log file (path varies by OS) for parsing errors.
-- Each label **group** maps to a separate checkbox in Document Settings. Use meaningful group names
-  like `"KERNAL"`, `"BASIC"`, `"I/O"`, or `"SOUND"` to let users toggle sets independently.
+- **Back up** your custom files before you run `--dump-system-config-files` again.
+- **Disable** a configuration temporarily by setting `enabled = false` instead of deleting the file.
+- **Validate** your TOML syntax before starting the application. Regenerator 2000 skips files with syntax errors and logs the error to the log file.
+- Group related labels under descriptive names such as `"KERNAL"`, `"BASIC"`, `"I/O"`, or `"SOUND"` so users can toggle them independently.

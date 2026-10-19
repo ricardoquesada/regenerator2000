@@ -1,36 +1,35 @@
 # MCP Integration
 
-Regenerator 2000 supports the **Model Context Protocol (MCP)**, allowing AI agents like **Antigravity**,
-**Claude Code**, and others to interact directly with your analysis project.
+Regenerator 2000 supports the **Model Context Protocol (MCP)**. AI agents such as **Antigravity** and **Claude Code** connect to the MCP server to inspect and modify your disassembly project directly.
 
-Through the MCP server, an AI assistant can:
+Through the MCP server, an AI assistant performs four core operations:
 
-- **Read** disassembly, memory dump, and project state.
-- **Modify** comments, labels, and block types.
-- **Navigate** move cursor.
-- **Analyze** code structure and control flow.
+-   **Read** disassembly text, memory dumps, and project state.
+-   **Modify** comments, labels, and block types.
+-   **Navigate** to memory addresses and move the cursor.
+-   **Analyze** code structure and control flow.
 
 !!! note "What is MCP?"
 
-    The Model Context Protocol (MCP) is an open standard that enables AI models to interact with local applications and contexts. Learn more at [modelcontextprotocol.io](https://modelcontextprotocol.io).
+    The Model Context Protocol (MCP) is an open standard that connects AI models to local applications and data sources. See [modelcontextprotocol.io](https://modelcontextprotocol.io) for specification details.
 
 ## Modes of Operation
 
 Regenerator 2000 supports two MCP transport modes:
 
-1. **HTTP Mode (Streamable/SSE)**:
-    - Runs the MCP server over HTTP using Server-Sent Events (SSE).
-    - Allows concurrent TUI usage (User + AI working together).
-    - **Flag**: `--mcp-server` (starts TUI + Server on port 3000)
-    - **Flag**: `--mcp-server --headless` (starts Headless Server on port 3000)
-    - **Endpoint**: `http://127.0.0.1:3000/mcp`
-    - Recommended option!
+1.  **HTTP Mode (Streamable/SSE)** (Recommended):
 
-2. **Stdio Mode (Headless)**:
-    - Starts a headless instance of Regenerator 2000.
-    - Ideal for local assistants (e.g., Claude Desktop, Claude Code) that spawn the server as a subprocess.
-    - **Flag**: `--mcp-server-stdio`, implies `--headless`.
-    - Experimental mode, mostly used for testing.
+    -   Runs the MCP server over HTTP with Server-Sent Events (SSE).
+    -   Supports concurrent TUI and AI usage in the same session.
+    -   **Flag**: `--mcp-server` (starts the TUI and HTTP server on port `3000`).
+    -   **Flag**: `--mcp-server --headless` (starts the headless HTTP server on port `3000`).
+    -   **Endpoint**: `http://127.0.0.1:3000/mcp`
+
+2.  **Stdio Mode (Headless)**:
+
+    -   Starts a headless instance of Regenerator 2000 over standard input/output.
+    -   Works with local AI clients (such as Claude Desktop or Claude Code) that spawn the server as a subprocess.
+    -   **Flag**: `--mcp-server-stdio` (implies `--headless`).
 
 ## Configuration
 
@@ -38,31 +37,28 @@ Regenerator 2000 supports two MCP transport modes:
 
 ### 1. Start the Server
 
-Before connecting any client, you must start Regenerator 2000 with **MCP Server** enabled. This opens the TUI and starts
-the HTTP server, allowing you to use the interface while the AI interacts with it.
+Start Regenerator 2000 with the `--mcp-server` flag before you connect an MCP client. This command opens the TUI and starts the HTTP server on `http://127.0.0.1:3000/mcp`:
 
 ```shell
 # Open your project with the server enabled
 regenerator2000 --mcp-server your_project.regen2000proj
 ```
 
-The server will listen on `http://127.0.0.1:3000/mcp` by default.
-
-### 2. Configure Client
+### 2. Configure the Client
 
 !!! tip
 
-    Ensure the `regenerator2000` application is running with `--mcp-server` **before** you start Claude Code or Antigravity as they will attempt to connect on startup.
+    Start `regenerator2000 --mcp-server` **before** you start Claude Code or Antigravity so the client connects at startup.
 
 #### Claude Code
 
-To use Regenerator 2000 with Claude Code:
+Run this command to register Regenerator 2000 with Claude Code:
 
 ```shell
 claude mcp add -t http regenerator2000 http://127.0.0.1:3000/mcp
 ```
 
-Or, alternatively, add the following to your `claude.json`:
+Alternatively, add this block to `claude.json`:
 
 ```json
 {
@@ -77,14 +73,14 @@ Or, alternatively, add the following to your `claude.json`:
 
 #### Antigravity CLI
 
-To use Antigravity CLI with the running server, simply provide the URL to the connect command or configuration:
+Run this command to register the running server with Antigravity CLI:
 
 ```bash
 # Example connection command
 agy mcp add regenerator2000 http://127.0.0.1:3000/mcp --scope user -t http
 ```
 
-Or, alternatively, add the following to `~/.gemini/antigravity/mcp_config.json`:
+Alternatively, add this block to `~/.gemini/antigravity/mcp_config.json`:
 
 ```json
 {
@@ -102,45 +98,41 @@ Or, alternatively, add the following to `~/.gemini/antigravity/mcp_config.json`:
 
 ## Common Workflows
 
-The true power of the MCP server comes from combining the AI's semantic understanding with Regenerator 2000's analysis
-tools.
+Combine AI semantic analysis with Regenerator 2000 tools to accelerate reverse engineering.
 
 ### 1. Analyze a Routine
 
-**Goal**: Understand what a specific subroutine does, rename variables, and document it.
+**Goal**: Identify what a subroutine does, rename its variables, and add documentation comments.
 
 !!! example "Prompt"
 
-    > "Analyze the routine at $C000. It seems to be checking sprite collisions. Rename variables accordingly and add comments explaining the logic."
+    > "Analyze the routine at $C000. It checks sprite collisions. Rename variables and add comments that explain the logic."
 
-**What happens**: The AI reads the disassembly at `$C000`, follows the code flow, identifies memory accesses (e.g.,
-`$D01E` for sprite collision), and uses `r2000_set_label_name` and `r2000_set_comment` to update your project.
+**Behavior**: The AI reads the disassembly at `$C000`, traces control flow, identifies hardware register accesses (such as `$D01E` for sprite collisions), and calls `r2000_set_label_name` and `r2000_set_comment` to update the project.
 
 ### 2. Identify Code vs. Data
 
-**Goal**: You have a large binary and don't know where the code ends and graphics begin.
+**Goal**: Separate code from graphics and data tables in an unanalyzed memory range.
 
 !!! example "Prompt"
 
-    > "Scan the region from $2000 to $4000. Identify any valid code sequences and mark the rest as byte data. If you see patterns resembling text, mark them as PETSCII."
+    > "Scan the region from $2000 to $4000. Identify valid code sequences and mark the rest as byte data. Mark text strings as PETSCII."
 
-**What happens**: The AI uses `r2000_read_region` or `r2000_get_blocks` to inspect the memory. It then iteratively
-applies `r2000_set_data_type` with `"data_type": "code"` or `"byte"` based on its analysis.
+**Behavior**: The AI calls `r2000_read_region` and `r2000_get_blocks` to inspect the memory range, then calls `r2000_set_data_type` with `"data_type": "code"`, `"byte"`, or `"petscii"`.
 
 ### 3. Trace Cross-References
 
-**Goal**: Find everywhere a specific global variable or function is used.
+**Goal**: Locate every reference to a global variable or subroutine.
 
 !!! example "Prompt"
 
-    > "Find all `JSR $FFD2` (CHROUT) calls. For each call, document what character or value is being printed before the call."
+    > "Find all `JSR $FFD2` (CHROUT) calls. Document the character or value loaded before each call."
 
-**What happens**: The AI queries `r2000_get_cross_references` for `$FFD2`, then inspects the instructions immediately
-preceding each call to deduce the arguments (e.g., `LDA #$05`).
+**Behavior**: The AI calls `r2000_get_cross_references` for `$FFD2`, inspects the instructions before each call site (such as `LDA #$05`), and adds side comments.
 
 ### 4. Semantic Navigation
 
-**Goal**: Move around the project using natural language descriptions instead of addresses.
+**Goal**: Navigate the project using natural-language queries instead of hexadecimal addresses.
 
 !!! example "Prompt"
 
@@ -148,25 +140,23 @@ preceding each call to deduce the arguments (e.g., `LDA #$05`).
 
     > "Go to the interrupt handler."
 
-**What happens**: The AI searches the symbol table or analyzes the code to find the likely candidate, then uses
-`r2000_jump_to_address` to move your viewport.
+**Behavior**: The AI searches the symbol table or disassembly text, locates the target address, and calls `r2000_jump_to_address` to move the TUI cursor.
 
 ## Agent Skills
 
-**Skills** are reusable instruction sets that guide the AI through complex, multi-step tasks. They live in your
-project's `.agent/skills/` directory and are automatically discovered by compatible AI agents (e.g., Antigravity).
+**Skills** are reusable instruction files in `.agent/skills/` that guide AI agents through multi-step reverse-engineering workflows.
 
 ### Installation
 
-To install all available skills at once, run:
+Copy the skill folders into your project directory:
 
 ```shell
 cp -r .agent/skills/r2000* /path/to/your/project/.agent/skills/
 ```
 
-The resulting layout should look like:
+The target directory structure appears as follows:
 
-```
+```text
 your_project/
 └── .agent/
     └── skills/
@@ -176,45 +166,31 @@ your_project/
 
 !!! note "Claude Code users"
 
-    Claude Code looks for skills in `.claude/` rather than `.agent/`. A symlink is the easiest fix:
+    Claude Code loads skills from `.claude/` instead of `.agent/`. Create a symbolic link so both Antigravity and Claude Code share the same skill files:
 
     ```shell
     ln -s .agent .claude
     ```
 
-    This lets both Antigravity and Claude Code discover the same skills without duplicating files.
-
 ### Recommended Workflow
 
-For the best results, we recommend applying these skills in the following order:
+Run the analysis skills in this sequence:
 
-1. **Macro Analysis**: Use `r2000-analyze-blocks` to break down the binary into code and data regions.
-2. **Micro Analysis (Control Flow)**: Use `r2000-analyze-routine` to understand the logic of individual subroutines.
-3. **Micro Analysis (Data Flow)**: Use `r2000-analyze-symbol` to identify variables, pointers, and hardware registers.
+1.  **Macro Analysis**: Run `r2000-analyze-blocks` to partition the binary into code and data blocks.
+2.  **Micro Analysis (Control Flow)**: Run `r2000-analyze-routine` to document individual subroutines.
+3.  **Micro Analysis (Data Flow)**: Run `r2000-analyze-symbol` to classify variables, pointers, and hardware registers.
 
-Or, use **`r2000-analyze-program`** to run all three steps automatically in the correct order, with parallel subagents
-for throughput.
+Alternatively, run **`r2000-analyze-program`** to execute all three phases automatically with parallel subagents.
 
 ### Skill: `r2000-analyze-program`
 
-Orchestrates a full end-to-end analysis of the loaded binary. Runs block classification first, then launches parallel
-subagents to analyze every unanalyzed subroutine and data symbol.
+Executes a complete analysis of the loaded binary. This skill runs block classification first and then spawns parallel subagents to analyze subroutines and data symbols:
 
-**What it does:**
-
-1. **Phase 0 — Gather Context**: Collects binary info, existing blocks, all symbols, and line comments.
-2. **Phase 1 — Classify Blocks**: Runs `r2000-analyze-blocks` to classify all memory regions (code, data, text, tables),
-   then refreshes state.
-3. **Phase 2 — Analyze Routines**: Identifies unanalyzed subroutines — `s_XXXX` labels, `JSR` targets without a line
-   comment, `p_XXXX` labels inside `Code` blocks (pointer-to-code, e.g. chained IRQ handlers), and the `start` entry
-   point. Launches a rolling window of up to 10 parallel subagents, each running `r2000-analyze-routine`. As each
-   subagent completes, the next routine is immediately launched into the freed slot.
-4. **Phase 3 — Analyze Symbols**: Identifies unanalyzed data symbols — auto-generated names with prefixes `zpp_`,
-   `zpf_`, `zpa_` (zero page) and `p_`, `f_`, `a_` (non-zero page). Excludes `s_` (routines, handled in Phase 2), `b_` (
-   branches), `e_` (external targets), and `p_` labels in `Code` blocks (handled as routines in Phase 2). Launches up to
-   10 parallel subagents, each running `r2000-analyze-symbol` to classify and rename one symbol.
-5. **Phase 4 — Save & Report**: Saves the project and produces a summary report with tables of all routines analyzed,
-   symbols renamed, and any uncertain items flagged for manual review.
+1.  **Phase 0 — Gather Context**: Reads binary metadata, existing blocks, symbols, and line comments.
+2.  **Phase 1 — Classify Blocks**: Runs `r2000-analyze-blocks` to classify memory regions (code, data, text, and tables) and refreshes state.
+3.  **Phase 2 — Analyze Routines**: Finds unanalyzed subroutines (`s_XXXX` labels, uncommented `JSR` targets, `p_XXXX` pointers inside `Code` blocks, and the `start` entry point). Spawns a rolling window of up to 10 parallel subagents that run `r2000-analyze-routine`.
+4.  **Phase 3 — Analyze Symbols**: Finds unanalyzed data symbols with auto-generated prefixes (`zpp_`, `zpf_`, `zpa_`, `p_`, `f_`, `a_`). Spawns up to 10 parallel subagents that run `r2000-analyze-symbol` to classify and rename each symbol.
+5.  **Phase 4 — Save & Report**: Saves the project and generates a summary report of analyzed routines, renamed symbols, and ambiguous items.
 
 !!! example "Prompt"
 
@@ -222,23 +198,17 @@ subagents to analyze every unanalyzed subroutine and data symbol.
 
 ### Skill: `r2000-analyze-blocks`
 
-Scans a memory range (or the entire binary) and converts each region to the correct block type — separating code from
-data, text from tables, and pointers from raw bytes. This is the foundational reverse-engineering pass you run on a
-freshly loaded binary.
+Scans a memory range (or the entire binary) and converts each region to the appropriate block type:
 
-**What it does:**
+1.  Reads the target address range via `r2000_get_binary_info`.
+2.  Reads existing block classifications via `r2000_get_blocks`.
+3.  Traces code from entry points, locates text strings, detects data tables, and classifies remaining regions.
+4.  Applies block conversions in batches via `r2000_batch_execute`.
+5.  Inserts splitters via `r2000_toggle_splitter` to separate adjacent tables of the same type.
+6.  Labels and comments notable regions (entry points, strings, and jump tables).
+7.  Outputs a summary of all classified blocks and flags ambiguous regions for manual review.
 
-1. Determines the scope (user-specified range or full binary via `r2000_get_binary_info`).
-2. Reads existing block classifications with `r2000_get_blocks`.
-3. Performs multiple passes: traces code from entry points, identifies text strings, detects data tables, and classifies
-   remaining regions.
-4. Applies conversions in batches using `r2000_batch_execute` for efficiency.
-5. Uses `r2000_toggle_splitter` to correctly separate adjacent tables of the same type.
-6. Optionally labels and comments notable regions (entry points, strings, jump tables).
-7. Reports a summary of all blocks found and flags ambiguous regions for human review.
-
-**Supported block types:** Code, Byte, Word, Address, PETSCII Text, Screencode Text, Lo/Hi Address, Hi/Lo Address, Lo/Hi
-Word, Hi/Lo Word, External File, Undefined.
+**Supported block types:** Code, Byte, Word, Address, PETSCII Text, Screencode Text, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined.
 
 !!! example "Prompt"
 
@@ -246,16 +216,14 @@ Word, Hi/Lo Word, External File, Undefined.
 
 ### Skill: `r2000-analyze-routine`
 
-Analyzes a disassembly subroutine to determine its purpose by examining code, cross-references, and memory usage.
+Analyzes a subroutine by inspecting its instructions, cross-references, and memory accesses:
 
-**What it does:**
-
-1. Identifies the bounds of the routine (entry point → `RTS`/`JMP`/`RTI`).
-2. Reads and interprets the instructions, detecting loops, KERNAL calls, and hardware register accesses.
-3. Checks cross-references to understand the call context.
-4. Analyzes data usage (Zero Page variables, hardware registers, etc.).
-5. Synthesizes a summary of purpose, inputs, outputs, and side effects.
-6. Optionally documents the routine by adding a structured comment block above the entry point and renaming the label.
+1.  Identifies the start and end addresses of the subroutine (entry point to `RTS`, `JMP`, or `RTI`).
+2.  Decodes the instruction flow, loops, KERNAL calls, and hardware register accesses.
+3.  Inspects cross-references to determine the call context.
+4.  Analyzes zero-page variables and memory operands.
+5.  Summarizes the purpose, inputs, outputs, and side effects of the routine.
+6.  Adds a header comment block above the entry point and renames the subroutine label.
 
 !!! example "Prompt"
 
@@ -263,18 +231,14 @@ Analyzes a disassembly subroutine to determine its purpose by examining code, cr
 
 ### Skill: `r2000-analyze-symbol`
 
-Analyzes a specific memory address or label to determine its purpose (variable, flag, pointer, hardware register) by
-examining its cross-references and usage patterns.
+Analyzes a memory address or label by inspecting its cross-references and access patterns:
 
-**What it does:**
-
-1. Determines the target address/label and the system (C64, VIC-20, etc.).
-2. Checks if the address corresponds to a known hardware register.
-3. Analyzes all cross-references to see how the symbol is used (read, write, modify).
-4. Identifies patterns: Pointers (indirect indexed), Flags (boolean checks), Counters (loops), State variables.
-5. Renames the symbol to a descriptive name (`snake_case` for variables, `CapsExpr` for hardware/constants).
-6. Adds comments using `r2000_set_comment` (type `"line"` for definitions, type `"side"` for usages) to document the
-   data flow.
+1.  Identifies the target address, current label, and target platform.
+2.  Checks whether the address maps to a hardware register or ROM entry point.
+3.  Inspects all cross-references to classify read, write, and read-modify-write operations.
+4.  Classifies the symbol as a pointer, flag, loop counter, or state variable.
+5.  Renames the symbol using `snake_case` for variables or `UPPER_CASE` for constants.
+6.  Adds line and side comments via `r2000_set_comment` to document data flow.
 
 !!! example "Prompt"
 
@@ -284,42 +248,42 @@ examining its cross-references and usage patterns.
 
 The server exposes **6** resources:
 
-- `binary://main`: The raw PRG binary payload (including 2-byte load address header) encoded as base64 blob (`application/octet-stream`).
-- `disassembly://current`: The complete disassembled text of the active binary file (`text/x-asm`).
-- `hexdump://current`: The formatted memory hexdump of the active binary file (`text/plain`).
-- `symbols://current`: All labels, functions, and symbols defined in the current disassembly session (`application/json`).
-- `comments://current`: All user line and side comments in the current disassembly session (`application/json`).
-- `blocks://current`: All memory block classifications and their byte ranges (`application/json`).
+-   `binary://main`: Raw PRG binary payload (including the 2-byte load address header) encoded as a base64 blob (`application/octet-stream`).
+-   `disassembly://current`: Complete disassembled text of the active binary file (`text/x-asm`).
+-   `hexdump://current`: Formatted memory hexdump of the active binary file (`text/plain`).
+-   `symbols://current`: All labels, routines, and symbols defined in the active disassembly session (`application/json`).
+-   `comments://current`: All user line and side comments in the active disassembly session (`application/json`).
+-   `blocks://current`: All memory block classifications and byte ranges (`application/json`).
 
 ## Available Tools
 
-The server currently exposes **28** tools.
+The server exposes **28** tools.
 
 ### `r2000_add_scope`
 
-Adds a scope covering the specified memory range. Useful for a piece of code that is a routine. Starts a lexical level where all new symbols within this range are in the local lexical level and are accessible from outside only via explicit scope specification. Nested scopes are not supported.
+Adds a lexical scope over the specified memory range to group a subroutine. New symbols inside this range default to local scope and require explicit scope qualification from outside. Regenerator 2000 does not support nested scopes.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `end_address` | `integer` | End address of the scope (inclusive), decimal. | Yes |
-| `start_address` | `integer` | Start address of the scope (inclusive), decimal. | Yes |
+| `end_address` | `integer` | Inclusive end address of the scope in decimal. | Yes |
+| `start_address` | `integer` | Inclusive start address of the scope in decimal. | Yes |
 
 ### `r2000_apply_enum_usage`
 
-Applies or removes an enum usage for an immediate value at a specific address.
+Applies or clears an enum usage for an immediate operand at a specific address.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `address` | `integer` | The address of the instruction (decimal). | Yes |
-| `name` | `string` | Name of the enum to apply, or empty string to clear. | No |
+| `address` | `integer` | Instruction address in decimal. | Yes |
+| `name` | `string` | Name of the enum to apply, or an empty string to clear. | No |
 
 ### `r2000_batch_execute`
 
-Executes multiple tool calls sequentially in a single request. Use only when you have 5+ independent operations to perform at once.
+Executes multiple tool calls sequentially in a single request. Use this tool to batch 5 or more independent operations.
 
 **Arguments:**
 
@@ -329,15 +293,15 @@ Executes multiple tool calls sequentially in a single request. Use only when you
 
 ### `r2000_create_project_enum`
 
-Creates a new project-specific enum definition embedded in the project file.
+Creates a project-specific enum definition inside the project file.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `description` | `string` | Optional summary explaining the enum's purpose. | No |
+| `description` | `string` | Optional summary of the enum purpose. | No |
 | `name` | `string` | Unique alphanumeric identifier. | Yes |
-| `variants` | `object` | Variant mapping where keys are numeric strings (decimal, hex 0x/$, bin 0b/%) and values are variant names. | Yes |
+| `variants` | `object` | Map of numeric strings (decimal, hex `0x`/`$`, or binary `0b`/`%`) to variant names. | Yes |
 
 ### `r2000_delete_project_enum`
 
@@ -347,44 +311,44 @@ Deletes a project-specific enum definition.
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `force` | `boolean` | When true, forces deletion even if enum is in use. Defaults to false. | No |
+| `force` | `boolean` | Deletes the enum even when instructions reference it (default: `false`). | No |
 | `name` | `string` | Name of the enum to delete. | Yes |
 
 ### `r2000_disassemble`
 
-Performs recursive disassembly starting at a specified address.
+Runs recursive flow disassembly from the specified start address.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `address` | `integer` | Start address to disassemble (decimal). | Yes |
+| `address` | `integer` | Start address to disassemble in decimal. | Yes |
 
 ### `r2000_get_address_details`
 
-Returns detailed information about a specific memory address: instruction semantics, cross-references, labels, comments, and block type.
+Returns instruction semantics, cross-references, labels, comments, and block type for a specific memory address.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `address` | `integer` | The memory address to inspect (decimal). | Yes |
+| `address` | `integer` | Memory address to inspect in decimal. | Yes |
 
 ### `r2000_get_binary_info`
 
-Returns origin address, size, target platform, filename, description, entropy (>7.2000003 suggests compression), and illegal opcodes hint.
+Returns the origin address, size, target platform, filename, description, Shannon entropy (values above `7.2` indicate compression), and illegal-opcode hint.
 
 _No arguments._
 
 ### `r2000_get_blocks`
 
-Returns all memory blocks with their address range and type (Code, Byte, Word, Address, PETSCII, Screencode, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined). Respects splitters.
+Returns all memory blocks with their address ranges and block types (`Code`, `Byte`, `Word`, `Address`, `PETSCII`, `Screencode`, `Lo/Hi Address`, `Hi/Lo Address`, `Lo/Hi Word`, `Hi/Lo Word`, `External File`, or `Undefined`). This tool respects user splitters.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `block_type` | `string` | Optional filter to return only blocks of a specific type. Case-insensitive. | No |
+| `block_type` | `string` | Case-insensitive filter that returns only blocks of a specific type. | No |
 
 ### `r2000_get_comments`
 
@@ -394,195 +358,195 @@ Returns user-defined comments and their addresses with optional filters.
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `addresses` | `array` | Optional list of memory addresses to query comments for (decimal). | No |
-| `end_address` | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal). | No |
-| `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal). | No |
-| `type` | `string` | Optional filter for comment type ('line' or 'side'). | No |
+| `addresses` | `array` | Optional list of memory addresses in decimal. | No |
+| `end_address` | `integer` | Optional inclusive upper address bound in decimal. | No |
+| `start_address` | `integer` | Optional inclusive lower address bound in decimal. | No |
+| `type` | `string` | Optional comment type filter (`'line'` or `'side'`). | No |
 
 ### `r2000_get_cross_references`
 
-Get a list of addresses that reference the given address (e.g. JSRs, JMPs, loads).
+Returns all addresses that reference the target address (such as `JSR`, `JMP`, and memory load/store instructions).
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `address` | `integer` | The target address to find references to (decimal). | Yes |
+| `address` | `integer` | Target address to query in decimal. | Yes |
 
 ### `r2000_get_disassembly_cursor`
 
-Returns the memory address of the current cursor position in the disassembly view.
+Returns the memory address of the current cursor position in the Disassembly View.
 
 _No arguments._
 
 ### `r2000_get_symbols`
 
-Returns defined labels (user and/or platform) and their addresses. With no arguments returns ALL symbols. Provide optional filters to narrow results: 'names' resolves specific label names to addresses, 'start_address'/'end_address' limits to an address range, 'kind' filters by label kind. Filters are combined (AND logic).
+Returns defined labels and their addresses. Without arguments, this tool returns all symbols. Optional filters narrow the results using logical `AND`: `names` resolves specific label names, `start_address` and `end_address` restrict the address range, and `kind` filters by label source.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `end_address` | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal). | No |
-| `kind` | `string` | Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'system' = predefined system labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000). | No |
-| `names` | `array` | Optional list of label names to look up. Only symbols whose name matches one of these strings are returned. Case-sensitive. | No |
-| `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal). | No |
+| `end_address` | `integer` | Optional inclusive upper address bound in decimal. | No |
+| `kind` | `string` | Optional label source filter: `'user'` (user-defined), `'system'` (KERNAL and hardware registers), or `'auto'` (analyzer labels such as `s_C000`). | No |
+| `names` | `array` | Optional case-sensitive list of label names to match. | No |
+| `start_address` | `integer` | Optional inclusive lower address bound in decimal. | No |
 
 ### `r2000_jump_to_address`
 
-Moves the disassembly cursor to a specific memory address and scrolls the view to make it visible. Also keeps the jump history.
+Moves the disassembly cursor to a specific memory address, scrolls the viewport, and records the jump in navigation history.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `address` | `integer` | The target address to jump to (decimal). | Yes |
+| `address` | `integer` | Target address to jump to in decimal. | Yes |
 
 ### `r2000_read_region`
 
-Get disassembly or hexdump text for a specific memory range.
+Returns disassembly or hexdump text for a specific memory range.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `end_address` | `integer` | End address (inclusive), decimal. | Yes |
-| `start_address` | `integer` | Start address (inclusive), decimal. | Yes |
-| `view` | `string` | The view to return. Default: 'disasm'. | No |
+| `end_address` | `integer` | Inclusive end address in decimal. | Yes |
+| `start_address` | `integer` | Inclusive start address in decimal. | Yes |
+| `view` | `string` | View format to return (default: `'disasm'`). | No |
 
 ### `r2000_read_selected`
 
-Get disassembly or hexdump for the range currently selected in the UI. If nothing is selected, returns the instruction/row under the cursor.
+Returns disassembly or hexdump text for the active UI selection, or returns the row under the cursor when no selection is active.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `view` | `string` | The view to return. Default: 'disasm'. | No |
+| `view` | `string` | View format to return (default: `'disasm'`). | No |
 
 ### `r2000_redo`
 
-Redoes the latest undone operation.
+Redoes the most recently undone command.
 
 _No arguments._
 
 ### `r2000_save_project`
 
-Saves current project state to existing .regen2000proj file.
+Saves the current project state to the active `.regen2000proj` file.
 
 _No arguments._
 
 ### `r2000_search_disassembly`
 
-Search the disassembly text for a query string or regular expression. Returns a list of matching addresses with context (label, mnemonic, operand, comment). Searches labels, comments, and instructions by default; individual fields can be disabled.
+Searches disassembly text for a substring or regular expression and returns matching addresses with context (label, mnemonic, operand, and comment). By default, this tool searches labels, comments, and instructions.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `max_results` | `integer` | Maximum number of matching addresses to return. Defaults to 50. | No |
-| `query` | `string` | The search query. Interpreted as a plain case-insensitive substring by default, or as a regex when 'use_regex' is true. | Yes |
-| `search_comments` | `boolean` | Include side and line comments in the search. Defaults to true. | No |
-| `search_instructions` | `boolean` | Include mnemonic and operand text in the search. Defaults to true. | No |
-| `search_labels` | `boolean` | Include label names in the search. Defaults to true. | No |
-| `use_regex` | `boolean` | When true the query is compiled as a case-insensitive regular expression ((?i) is prepended automatically). Defaults to false. | No |
+| `max_results` | `integer` | Maximum number of matching addresses to return (default: `50`). | No |
+| `query` | `string` | Case-insensitive search substring, or regular expression when `use_regex` is `true`. | Yes |
+| `search_comments` | `boolean` | Includes side and line comments in the search (default: `true`). | No |
+| `search_instructions` | `boolean` | Includes mnemonics and operands in the search (default: `true`). | No |
+| `search_labels` | `boolean` | Includes label names in the search (default: `true`). | No |
+| `use_regex` | `boolean` | Compiles `query` as a case-insensitive regular expression with `(?i)` (default: `false`). | No |
 
 ### `r2000_search_memory`
 
-Search for a sequence of bytes or a text string in the memory. Returns a list of addresses where the sequence is found.
+Searches binary memory for a byte sequence or text string and returns all matching addresses.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `encoding` | `string` | Encoding for the query. 'text' searches both PETSCII and Screencode. 'hex' for raw byte patterns. Defaults to 'hex' if query looks like hex bytes, otherwise 'text'. | No |
-| `query` | `string` | The search query. For hex: space-separated bytes, e.g. 'A9 00'. For text: plain string. | Yes |
+| `encoding` | `string` | Query encoding: `'text'` searches PETSCII and Screencode, and `'hex'` searches raw byte patterns. | No |
+| `query` | `string` | Search query (space-separated hex bytes such as `'A9 00'`, or a plain text string). | Yes |
 
 ### `r2000_set_comment`
 
-Adds a comment at a specific address. 'line' comments appear on their own line before the instruction (supports multi-line). 'side' comments appear inline on the same line as the instruction.
+Sets or clears a comment at a specific address. A `'line'` comment appears on a dedicated line before the instruction and supports multiple lines. A `'side'` comment appears inline next to the instruction.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `address` | `integer` | The memory address for the comment (decimal, e.g. 4096 for $1000). | Yes |
-| `comment` | `string` | The comment text. Do not include the ';' prefix. | Yes |
-| `type` | `string` | 'line' = comment on its own line before the instruction. 'side' = inline comment on the same line. | Yes |
+| `address` | `integer` | Target memory address in decimal (for example, `4096` for `$1000`). | Yes |
+| `comment` | `string` | Comment text without a leading `;` character. | Yes |
+| `type` | `string` | Comment placement: `'line'` (above instruction) or `'side'` (inline). | Yes |
 
 ### `r2000_set_data_type`
 
-Sets the data type for a memory region. Use this to mark regions as code, bytes, addresses, text, split tables, etc.
+Sets the block classification (`code`, `byte`, `word`, `address`, `petscii`, `screencode`, or split tables) for a memory range.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `data_type` | `string` | Data type classification string. | Yes |
-| `end_address` | `integer` | End of the memory region (inclusive), decimal. | Yes |
-| `start_address` | `integer` | Start of the memory region (inclusive), decimal. | Yes |
+| `data_type` | `string` | Block type classification string. | Yes |
+| `end_address` | `integer` | Inclusive end address of the memory region in decimal. | Yes |
+| `start_address` | `integer` | Inclusive start address of the memory region in decimal. | Yes |
 
 ### `r2000_set_immediate_format`
 
-Sets the display format for immediate values (operands) at a specific address. Supports hexadecimal, decimal, binary, and Low/High byte references to a 16-bit address.
+Sets the display format for an immediate operand at a specific address (hexadecimal, decimal, binary, or low/high byte of a 16-bit address).
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `address` | `integer` | The address of the instruction (decimal). | Yes |
-| `format` | `string` | hex=$00, decimal=0, binary=%00000000, low_byte=#<p_ADDRESS, high_byte=#>p_ADDRESS. | Yes |
-| `target_address` | `integer` | The 16-bit target address decimal (e.g. 60000 for $EA31). Required when format is 'low_byte' or 'high_byte'. | No |
+| `address` | `integer` | Instruction address in decimal. | Yes |
+| `format` | `string` | Display format: `hex` (`$00`), `decimal` (`0`), `binary` (`%00000000`), `low_byte` (`#<p_ADDRESS`), or `high_byte` (`#>p_ADDRESS`). | Yes |
+| `target_address` | `integer` | 16-bit target address in decimal (required when `format` is `'low_byte'` or `'high_byte'`). | No |
 
 ### `r2000_set_label_name`
 
-Sets a user-defined label at a specific MOS 6502 memory address. Use this to name functions, variables, or jump targets to make the disassembly more readable.
+Assigns or removes a user-defined label at a specific 6502 memory address.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `address` | `integer` | The memory address where the label should be set (decimal, e.g. 4096 for $1000). | Yes |
-| `name` | `string` | The label name (e.g. 'init_screen', 'loop_start'). | Yes |
+| `address` | `integer` | Target memory address in decimal (for example, `4096` for `$1000`). | Yes |
+| `name` | `string` | Label identifier (for example, `'init_screen'` or `'loop_start'`). | Yes |
 
 ### `r2000_toggle_splitter`
 
-Toggles a Splitter at a specific address. Splitters prevent the auto-merger from combining adjacent blocks of the same type.
+Toggles a block splitter at a specific address so the auto-merger does not combine adjacent blocks of the same type.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `address` | `integer` | The memory address where the splitter should be toggled (decimal). | Yes |
+| `address` | `integer` | Memory address in decimal where the splitter toggles. | Yes |
 
 ### `r2000_undo`
 
-Undoes the latest operation.
+Undoes the most recent command.
 
 _No arguments._
 
 ### `r2000_unpack_binary`
 
-Executes dynamic 6502 unpacking analysis on the loaded binary payload.
+Runs dynamic 6502 unpacking emulation on the loaded binary payload.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `depacker_address` | `string` | Optional forced depacker address. | No |
-| `entry_point` | `string` | Optional forced entry point address (hex string or integer). | No |
-| `max_instructions` | `integer` | Maximum instructions to emulate. | No |
-| `return_address` | `string` | Optional forced return address. | No |
+| `depacker_address` | `string` | Optional forced depacker routine address. | No |
+| `entry_point` | `string` | Optional forced entry point address (hexadecimal string or integer). | No |
+| `max_instructions` | `integer` | Maximum number of instructions to emulate. | No |
+| `return_address` | `string` | Optional forced unpacked target address. | No |
 
 ### `r2000_update_project_enum`
 
-Updates or renames an existing project-specific enum.
+Updates or renames an existing project-specific enum definition.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `description` | `string` | Optional updated summary explaining the enum's purpose. | No |
-| `name` | `string` | Existing name of the enum to update. | Yes |
-| `new_name` | `string` | Optional new name if renaming the enum. | No |
-| `variants` | `object` | Variant mapping. | No |
+| `description` | `string` | Optional updated summary of the enum purpose. | No |
+| `name` | `string` | Current name of the enum to update. | Yes |
+| `new_name` | `string` | Optional new identifier when renaming the enum. | No |
+| `variants` | `object` | Updated variant map. | No |

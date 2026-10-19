@@ -6,86 +6,83 @@
 
 ![logo](docs/regenerator2000_logo.png)
 
-A modern, interactive 6502 disassembler for Commodore 8-bit machines. A modern take on [Regenerator][regenerator].
+Regenerator 2000 is an interactive 6502 disassembler for Commodore 8-bit machines. It builds on the original [Regenerator][regenerator].
 
-- **🕹️ Manual Analysis** — A fast, keyboard-centric TUI for hands-on exploration: navigate code, define data, label subroutines, add comments, and iteratively refine your disassembly.
-- **🤖 Automated Analysis** — A built-in MCP Server lets AI assistants drive the disassembler programmatically. Paired with purpose-built skills, it can analyze entire programs — classifying blocks, tracing routines, and naming symbols — with minimal human intervention.
+- **🕹️ Manual Analysis** — Use the keyboard-centric TUI to navigate code, define data, label subroutines, add comments, and refine your disassembly.
+- **🤖 Automated Analysis** — Use the built-in MCP Server and analysis skills so AI assistants classify blocks, trace routines, and name symbols.
 
-Use either workflow on its own, or combine them: let the AI do a first pass, then refine the results interactively.
+Use either workflow independently, or combine them. Run an initial pass with the AI, and then refine the results interactively.
 
-Check out the [Examples](https://regenerator2000.readthedocs.io/en/latest/examples/) to see what can be accomplished, featuring pre-disassembled games across different Commodore platforms!
+See the [Examples](https://regenerator2000.readthedocs.io/en/latest/examples/) page to inspect pre-disassembled games for different Commodore platforms.
 
 [regenerator]: https://csdb.dk/release/?id=247992
 
 ## Features
 
-Regenerator 2000 brings modern conveniences to 6502 disassembly:
+Regenerator 2000 provides the following features for 6502 disassembly:
 
-- **Disassembly**: Full 6502 support including undocumented opcodes.
+- **Disassembly**: Supports the full 6502 instruction set and undocumented opcodes.
 - **Hex Dump**:
-  - Side-by-side view with disassembly.
-  - Synchronized or independent navigation.
-  - Unshifted or Shifted PETSCII and Screencode charset.
+    - Displays a side-by-side view with the disassembly.
+    - Supports synchronized or independent navigation.
+    - Supports unshifted PETSCII, shifted PETSCII, and screencode character sets.
 - **Sprites**:
-  - Side-by-side view with disassembly.
-  - Multicolor or Single Color
+    - Displays a side-by-side view with the disassembly.
+    - Supports multicolor and single-color modes.
 - **Bitmap**:
-  - Side-by-side view with disassembly.
-  - High-Resolution (320x200) and Multicolor (160x200).
-  - Uses quadrant-block rendering for full resolution in TUI.
+    - Displays a side-by-side view with the disassembly.
+    - Supports high-resolution (320x200) and multicolor (160x200) modes.
+    - Uses quadrant-block rendering for full resolution in the TUI.
 - **Charset**:
-  - Side-by-side view with disassembly.
-  - Multicolor or Single Color
+    - Displays a side-by-side view with the disassembly.
+    - Supports multicolor and single-color modes.
 - **Blocks**:
-  - Side-by-side view with disassembly.
-- **Debugger**: Connect to VICE for live disassembly, breakpoints, run/step (F2–F9); Debugger panel in the right pane.
-- **Mini map**: Mini map of the file being analyzed.
+    - Displays a side-by-side view with the disassembly.
+- **Debugger**: Connects to VICE for live disassembly, breakpoints, and step controls (F2–F9) in the right pane.
+- **Mini map**: Shows a mini map of the analyzed file.
 - **Systems**: Supports Commodore 8-bit machines: C64, C128, VIC-20, Plus/4, PET 4.0, PET 2.0, and 1541.
-- **Import**: Load the following file formats
-  - PRG: Standard Commodore program files
-  - CRT: Cartridge images with bank selection support
-  - D64: 35/40/42-track disk images
-  - D71: 70/80-track double-sided disk images
-  - D81: 80-track disk images
-  - T64: Tape images
-  - VSF: VICE Session files
-  - RAW / BIN: Raw binary files
-  - DIS65: 6502bench project files
-  - REGEN2000PROJ: Regenerator 2000 project files
-- **Binary Unpacker**: Emulate a cycle-accurate 6502 background sandbox to automatically decompress packed C64 programs.
-- **Export** to .asm or HTML. Supported assemblers:
-  - **64tass**
-  - **ACME**
-  - **Kick Assembler**
-  - **ca65**
-- **Project Management**: Save and load your work
-- **Analysis**: Auto-analysis to identify code and data regions.
+- **Import**: Loads the following file formats:
+    - PRG: Standard Commodore program files.
+    - CRT: Cartridge images with bank selection support.
+    - D64: 35-track, 40-track, and 42-track disk images.
+    - D71: 70-track and 80-track double-sided disk images.
+    - D81: 80-track disk images.
+    - T64: Tape images.
+    - VSF: VICE snapshot files.
+    - RAW / BIN: Raw binary files.
+    - DIS65: 6502bench project files.
+    - REGEN2000PROJ: Regenerator 2000 project files.
+- **Binary Unpacker**: Emulates a cycle-accurate 6502 sandbox to decompress packed programs automatically.
+- **Export**: Exports projects to `.asm` or HTML for the following assemblers:
+    - **64tass**
+    - **ACME**
+    - **Kick Assembler**
+    - **ca65**
+- **Project Management**: Saves and loads project state.
+- **Analysis**: Runs auto-analysis to identify code and data regions.
 - **Editing**:
-  - **Labels**: Add, edit, and remove local and global labels.
-  - **Enums**: Define and apply three-tiered value-to-name mappings (System, Global, Project-specific) to replace magic numbers in disassembly and data with semantic names.
-  - **Comments**: Add side comments and line comments.
-  - **Origin**: Change the load address/origin of the binary.
-  - **Data Types**: Convert regions to Code, Byte, Word, Address, Lo/Hi Address, Hi/Lo Address,
-    Lo/Hi Word, Hi/Lo Word, PETSCII Text, Screencode Text, External File, or Undefined.
-  - **Undo/Redo**: Full history support for all actions.
+    - **Labels**: Adds, edits, and removes local and global labels.
+    - **Enums**: Defines and applies System, Global, and Project value-to-name mappings to replace numeric literals with semantic names.
+    - **Comments**: Adds side comments and line comments.
+    - **Origin**: Changes the load address (origin) of the binary.
+    - **Data Types**: Converts regions to Code, Byte, Word, Address, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, PETSCII Text, Screencode Text, External File, or Undefined.
+    - **Undo/Redo**: Tracks full history for all actions.
 - **Navigation**:
-  - **Jump**: Go to specific addresses, specific line numbers, or follow
-    operands.
-  - **X-Ref**: Inspect cross-references for labels/addresses.
-  - **History**: Navigate back to previous locations.
+    - **Jump**: Jumps to specific addresses, line numbers, or operand targets.
+    - **X-Ref**: Inspects cross-references for labels and addresses.
+    - **History**: Navigates back to previous locations.
 - **Customization**:
-  - Configure document settings (max x-refs, system, assembler).
-  - Customizable display options (show/hide all labels, etc.).
+    - Configures document settings (maximum x-refs, target system, and target assembler).
+    - Customizes display options (such as label visibility).
 - **TUI**:
-  - Text User interface
-  - Everything can be done from the keyboard
-  - **Visual Mode**: Vim-like selection for batch operations.
+    - Provides a keyboard-driven terminal user interface.
+    - **Visual Mode**: Supports Vim-style selection for batch operations.
 - **MCP Server**:
-  - Model Context Protocol (MCP) server support for programmatic access
-  - HTTP and stdio transport modes
-  - Tools for disassembly manipulation, memory search, block operations
-  - Resources for accessing binary data and views
-  - Bundled analysis skills that automate block classification, routine tracing, and symbol naming
+    - Provides Model Context Protocol (MCP) server support for programmatic access.
+    - Supports HTTP and stdio transport modes.
+    - Exposes tools for disassembly manipulation, memory search, and block operations.
+    - Exposes resources to access binary data and views.
+    - Includes analysis skills that automate block classification, routine tracing, and symbol naming.
 
 ![hexdump screenshot](docs/regenerator2000_hexdump_screenshot.png)
 ![charset screenshot](docs/regenerator2000_charset_screenshot.png)
@@ -97,8 +94,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 
 ### Recommended Terminals
 
-To ensure the best experience, especially regarding keyboard shortcuts and rendering, we recommend using a modern
-terminal.
+Use a modern terminal to ensure full support for keyboard shortcuts and rendering.
 
 | Platform    | Recommended Terminals                              |
 | :---------- | :------------------------------------------------- |
@@ -124,11 +120,11 @@ cargo install --path .
 
 ### Quick Start with AI Agents
 
-To quickly start analyzing binaries using an AI agent (such as Antigravity or Claude Code), you can use the [regenerator2000-template](https://github.com/ricardoquesada/regenerator2000-template) repository. It comes pre-configured with all the required skills and agent permissions so you can start analyzing and reverse-engineering binaries immediately.
+Use the [regenerator2000-template](https://github.com/ricardoquesada/regenerator2000-template) repository to analyze binaries with an AI agent (such as Antigravity or Claude Code). This template includes the required skills and agent permissions so you can analyze binaries immediately.
 
 ## Usage
 
-Start the application with an optional file to load:
+Start the application with an optional file path:
 
 ```bash
 regenerator2000 [OPTIONS] [path/to/file.prg]
@@ -136,45 +132,45 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 
 ## CLI Options
 
-- `--help`: Print help message
-- `--version`: Print version information
-- `--import_lbl <PATH>`: Import VICE labels from the specified file
-- `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import)
-- `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import)
-- `--export_html <PATH>`: Export HTML to the specified file (after analysis/import)
-- `--assembler <NAME>`: Override the assembler format for export. Valid values: `64tass`, `acme`, `ca65`, `kick`
-- `--headless`: Run in headless mode (no TUI), useful for batch processing
-- `--verify`: Verify export roundtrip (export → assemble → diff) for all assemblers. Implies `--headless`
-- `--mcp-server`: Run MCP server (HTTP on port 3000)
-- `--mcp-server-stdio`: Run MCP server via stdio
-- `--vice <HOST:PORT>`: Auto-connect to VICE binary monitor at startup (e.g. `--vice localhost:6502`)
-- `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.toml`) to the specified directory and exit. Useful for inspecting or customizing system definitions.
-- `--dump-theme-files <PATH>`: Dump all built-in theme files (`theme-*.toml`) to the specified directory and exit. Edit them and place in the [config directory](https://regenerator2000.readthedocs.io/en/latest/install/) to create custom themes.
-- `--dump-enum-files <PATH>`: Dump all built-in enum files (`enum-*.toml`) to the specified directory and exit. Edit them and place in the [config directory](https://regenerator2000.readthedocs.io/en/latest/install/) to create custom enums.
+- `--help`: Print the help message.
+- `--version`: Print version information.
+- `--import_lbl <PATH>`: Import VICE labels from the specified file.
+- `--export_lbl <PATH>`: Export labels to the specified file after analysis or import.
+- `--export_asm <PATH>`: Export assembly code to the specified file after analysis or import.
+- `--export_html <PATH>`: Export HTML to the specified file after analysis or import.
+- `--assembler <NAME>`: Override the assembler format for export (`64tass`, `acme`, `ca65`, or `kick`).
+- `--headless`: Run in headless mode without the TUI for batch processing.
+- `--verify`: Verify export roundtrip (export, assemble, and compare) for all assemblers. This flag implies `--headless`.
+- `--mcp-server`: Run the MCP server over HTTP on port 3000.
+- `--mcp-server-stdio`: Run the MCP server over stdio.
+- `--vice <HOST:PORT>`: Connect to the VICE binary monitor at startup (for example, `--vice localhost:6502`).
+- `--dump-system-config-files <PATH>`: Write all built-in system configuration files (`system-*.toml`) to the specified directory and exit.
+- `--dump-theme-files <PATH>`: Write all built-in theme files (`theme-*.toml`) to the specified directory and exit. Place modified files in the [config directory](https://regenerator2000.readthedocs.io/en/latest/install/) to create custom themes.
+- `--dump-enum-files <PATH>`: Write all built-in enum files (`enum-*.toml`) to the specified directory and exit. Place modified files in the [config directory](https://regenerator2000.readthedocs.io/en/latest/install/) to create custom enums.
 
 Supported file formats: `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, 6502bench (`.dis65`), `.bin`, `.raw`, and `.regen2000proj`.
 
 ## Keyboard Shortcuts
 
-All the keyboard shortcuts are documented here: [keyboard_shortcuts](https://regenerator2000.readthedocs.io/en/latest/keyboard_shortcuts/)
+See the [Keyboard Shortcuts](https://regenerator2000.readthedocs.io/en/latest/keyboard_shortcuts/) page for the complete list of shortcuts.
 
 ## Support and Documentation
 
 - [Documentation](http://regenerator2000.readthedocs.io/)
-- [Examples](https://regenerator2000.readthedocs.io/en/latest/examples/): Disassembled Commodore games and software showcase, demonstrating what can be achieved with Regenerator 2000 on various supported platforms.
-- [Support in Discord][discord] (join the `#regenerator2000` channel, under **"Misc Projects"**)
+- [Examples](https://regenerator2000.readthedocs.io/en/latest/examples/): View disassembled Commodore games and software across supported platforms.
+- [Support in Discord][discord]: Join the `#regenerator2000` channel under **"Misc Projects"**.
 
 [discord]: https://discord.gg/r5aMn6Cw5q
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Submit a Pull Request to contribute changes.
 
 ## Acknowledgements
 
 - [Regenerator][regenerator]: The original 6502 disassembler for Windows.
-- [unp64][unp64]: The C64 binary unpacker by iAN CooG, which the unpacker module is based on.
-- [64tass][64tass], [ACME][ACME], [Kick Assembler][Kick Assembler], [ca65][ca65] : Supported assemblers.
+- [unp64][unp64]: The C64 binary unpacker by iAN CooG that forms the basis of the unpacker module.
+- [64tass][64tass], [ACME][ACME], [Kick Assembler][Kick Assembler], [ca65][ca65]: Supported assemblers.
 
 [unp64]: https://csdb.dk/release/?id=260619
 [64tass]: https://tass64.sourceforge.net/
@@ -184,4 +180,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-Dual license: MIT and Apache 2
+Dual license: MIT and Apache 2.

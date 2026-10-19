@@ -1,32 +1,22 @@
-# Block Types and helpers
+# Block Types and Helpers
 
-In Regenerator 2000, every byte of the loaded binary is assigned a **Block Type**. This type tells the disassembly
-engine how to interpret that byte. You can change the Block Type for any region of memory using keyboard shortcuts
-(in Visual Mode or for the single line under the cursor).
-
-The available Block Types are:
+Regenerator 2000 assigns a **Block Type** to every byte in the loaded binary. The block type specifies how the disassembly engine decodes and formats that byte. Press a block-type shortcut on a single line or in Visual Mode (++shift+v++) to change the block classification for any memory range.
 
 ## 1. Disassemble Address (Flow Analysis)
 
-- **Shortcut**: ++d++
-- **Description**: Starting from the current cursor address, simulated execution follows standard 6502 branches and
-  jumps to discover all reachable execution paths. It traces relative branches and absolute jumps, queuing subroutine
-  targets. As soon as it encounters an invalid opcode, it stops the current trace. All discovered ranges of valid
-  instructions are converted into **Code blocks**!
-- **Use Case**: When you encounter unmapped data bytes that you suspect are actually code, place the cursor on the
-  entry point and press ++d++. This is much more robust than manually selecting regions and pressing ++c++ because it
-  will skip static data tables hidden between routines!
+-   **Shortcut**: ++d++
+-   **Description**: Traces execution from the current cursor address across 6502 branches and jumps to discover reachable code paths. The analyzer follows relative branches, absolute jumps, and subroutine calls until it encounters an invalid opcode or return instruction. Regenerator 2000 converts all discovered instruction ranges into **Code** blocks.
+-   **Use Case**: Move the cursor to an unanalyzed entry point and press ++d++. Flow analysis skips static data tables embedded between subroutines, which is more accurate than manual range conversion with ++c++.
 
 !!! note
 
-    Unconditional breaks like `RTS` or `RTI` will terminate the current segment trace. If there is dead code after
-    a return, it will remain unmapped (unless it is explicitly jumped to from somewhere else).
+    Unconditional return instructions (`RTS` and `RTI`) stop the active trace path. Unreferenced bytes after a return remain unanalyzed unless another branch or jump targets them.
 
 ## 2. Code
 
-- **Shortcut**: ++c++
-- **Description**: Interprets the bytes as MOS 6502/6510 instructions.
-- **Use Case**: Use this for all executable machine code.
+-   **Shortcut**: ++c++
+-   **Description**: Decodes the selected bytes as MOS 6502/6510 instructions without flow tracing.
+-   **Use Case**: Use this type for known executable machine code ranges.
 
 !!! example
 
@@ -64,10 +54,9 @@ The available Block Types are:
 
 ## 3. Data Byte
 
-- **Shortcut**: ++b++
-- **Description**: Represents data as single 8-bit values.
-- **Use Case**: sprite data, distinct variables, tables, memory regions where the data format is
-  unknown, etc.
+-   **Shortcut**: ++b++
+-   **Description**: Formats bytes as 8-bit hexadecimal values.
+-   **Use Case**: Use this type for sprite data, single-byte variables, lookup tables, and unknown data regions.
 
 !!! example
 
@@ -101,18 +90,18 @@ The available Block Types are:
 
 !!! note "Fill Run Threshold"
 
-    When a contiguous run of identical bytes exceeds the **Fill run threshold** (configurable in settings), they are grouped and exported using fill directives:
+    When a contiguous run of identical bytes meets or exceeds the **Fill run threshold** in Document Settings, the formatter emits a single fill directive:
 
-    - 64tass: `.fill N, $XX`
-    - ACME: `!fill N, $XX`
-    - KickAssembler: `.fill N, $XX`
-    - ca65: `.res N, $XX`
+    -   64tass: `.fill N, $XX`
+    -   ACME: `!fill N, $XX`
+    -   KickAssembler: `.fill N, $XX`
+    -   ca65: `.res N, $XX`
 
 ## 4. Data Word
 
-- **Shortcut**: ++w++
-- **Description**: Represents data as 16-bit Little-Endian values.
-- **Use Case**: Use for 16-bit counters, pointers (that shouldn't be analyzed as code references), or math constants.
+-   **Shortcut**: ++w++
+-   **Description**: Formats pairs of bytes as 16-bit little-endian numeric values.
+-   **Use Case**: Use this type for 16-bit counters, numeric constants, or raw pointers that should not generate symbolic cross-references.
 
 !!! example
 
@@ -146,48 +135,45 @@ The available Block Types are:
 
 ## 5. Address
 
-- **Shortcut**: ++a++
-- **Description**: Represents data as 16-bit addresses. Unlike "Data Word", this type explicitly tells the analyzer that
-  the value points to a location in memory.
-- **Use Case**: Essential for **Jump Tables**. When you mark a table as "Address", Regenerator 2000 will create
-  Cross-References (X-Refs) to the target locations, allowing you to see where indirect jumps land.
+-   **Shortcut**: ++a++
+-   **Description**: Formats pairs of bytes as 16-bit memory addresses. Unlike `Data Word`, this type instructs the analyzer to treat each 16-bit value as a memory reference.
+-   **Use Case**: Use this type for **Jump Tables** and pointer tables. Regenerator 2000 generates labels and cross-references (`x-ref`) for every target address in the table.
 
 !!! example
 
     === "64tass"
 
         ```asm
-        ; Address blocks are represented as words, that generates an address reference
+        ; Address blocks are represented as words that generate an address reference
         .word a_1234, a_FFAA, a_5678, a_0000, a_ABCD
         ```
 
     === "ACME"
 
         ```asm
-        ; Address blocks are represented as words, that generates an address reference
+        ; Address blocks are represented as words that generate an address reference
         !word a_1234, a_FFAA, a_5678, a_0000, a_ABCD
         ```
 
     === "KickAssembler"
 
         ```asm
-        // Address blocks are represented as words, that generates an address reference
+        // Address blocks are represented as words that generate an address reference
         .word a_1234, a_FFAA, a_5678, a_0000, a_ABCD
         ```
 
     === "ca65"
 
         ```asm
-        ; Address blocks are represented as words, that generates an address reference
+        ; Address blocks are represented as words that generate an address reference
         .word a_1234, a_FFAA, a_5678, a_0000, a_ABCD
         ```
 
 ## 6. PETSCII Text
 
-- **Shortcut**: ++p++
-- **Description**: Interprets bytes as PETSCII text sequences.
-- **Use Case**: Use for game messages, high score names, or print routines. The disassembler will try to group
-  contiguous characters into a single string.
+-   **Shortcut**: ++p++
+-   **Description**: Decodes bytes as Commodore PETSCII character strings.
+-   **Use Case**: Use this type for text messages, high-score tables, and `CHROUT` (`$FFD2`) strings. The formatter groups contiguous printable characters into quoted strings.
 
 !!! example
 
@@ -221,10 +207,9 @@ The available Block Types are:
 
 ## 7. Screencode Text
 
-- **Shortcut**: ++s++
-- **Description**: Interprets bytes as Commodore Screen Codes (Matrix codes) text.
-- **Use Case**: Use for data that is directly copied to Screen RAM ($0400). These values differ from standard PETSCII
-  (e.g., 'A' is 1, not 65).
+-   **Shortcut**: ++s++
+-   **Description**: Decodes bytes as Commodore screen codes (video matrix codes).
+-   **Use Case**: Use this type for text buffers copied directly to Screen RAM (such as `$0400` on the C64). Screen codes differ from PETSCII values (for example, `'A'` is `$01` instead of `$41`).
 
 !!! example
 
@@ -259,10 +244,9 @@ The available Block Types are:
 
 ## 8. Lo/Hi Address Table
 
-- **Shortcut**: ++less-than++
-- **Description**: Marks the selected bytes as the **Low / High** address table. Must have an even number of bytes.
-  The first half will be the lo addresses, the second half will be the hi addresses.
-- **Use Case**: C64 games often split address tables into two arrays (one for Low bytes, one for High bytes).
+-   **Shortcut**: ++less-than++
+-   **Description**: Formats an even number of selected bytes as a split **Low / High** address table. The first half contains the low bytes of the addresses, and the second half contains the high bytes.
+-   **Use Case**: Use this type when 6502 code splits a pointer or jump table into separate low-byte and high-byte arrays for indexed addressing (`LDA table_lo,X` / `LDA table_hi,X`).
 
 !!! example
 
@@ -308,10 +292,9 @@ The available Block Types are:
 
 ## 9. Hi/Lo Address Table
 
-- **Shortcut**: ++greater-than++
-- **Description**: Marks the selected bytes as the **High / Low** address table. Must have an even number of bytes.
-  The first half will be the hi addresses, the second half will be the lo addresses.
-- **Use Case**: C64 games often split address tables into two arrays (one for Low bytes, one for High bytes).
+-   **Shortcut**: ++greater-than++
+-   **Description**: Formats an even number of selected bytes as a split **High / Low** address table. The first half contains the high bytes of the addresses, and the second half contains the low bytes.
+-   **Use Case**: Use this type when a split address table stores the high-byte array before the low-byte array.
 
 !!! example
 
@@ -357,10 +340,9 @@ The available Block Types are:
 
 ## 10. Lo/Hi Word Table
 
-- **Shortcut**: ++comma++
-- **Description**: Marks the selected bytes as the **Low / High** word table. Must have a size divisible by 4.
-  The first half will be the lo words, the second half will be the hi words.
-- **Use Case**: The C64 SID frequency table.
+-   **Shortcut**: ++comma++
+-   **Description**: Formats an even number of selected bytes as a split **Low / High** 16-bit word table without generating address labels. The first half contains the low bytes of the words, and the second half contains the high bytes.
+-   **Use Case**: Use this type for split 16-bit numeric tables such as C64 SID frequency tables.
 
 !!! example
 
@@ -406,10 +388,9 @@ The available Block Types are:
 
 ## 11. Hi/Lo Word Table
 
-- **Shortcut**: ++period++
-- **Description**: Marks the selected bytes as the **High / Low** word table. Must have a size divisible by 4.
-  The first half will be the hi words, the second half will be the lo words.
-- **Use Case**: The C64 SID frequency table.
+-   **Shortcut**: ++period++
+-   **Description**: Formats an even number of selected bytes as a split **High / Low** 16-bit word table without generating address labels. The first half contains the high bytes of the words, and the second half contains the low bytes.
+-   **Use Case**: Use this type for split 16-bit numeric tables that store high bytes before low bytes.
 
 !!! example
 
@@ -455,10 +436,9 @@ The available Block Types are:
 
 ## 12. External File
 
-- **Shortcut**: ++e++
-- **Description**: Treats the selected region as external binary data.
-- **Use Case**: Use for large chunks of included binary data (like music SID files, raw bitmaps, or character sets) that
-  you don't want to clutter the main source file. These will be exported as `.binary "filename.bin"` includes.
+-   **Shortcut**: ++shift+e++
+-   **Description**: Marks the selected range as an external binary include file.
+-   **Use Case**: Use this type for large binary assets (such as SID music, bitmaps, or character sets) to keep the main `.asm` source file compact. During export, Regenerator 2000 writes the raw bytes to a `.bin` file and emits an assembler include directive.
 
 !!! example
 
@@ -504,10 +484,9 @@ The available Block Types are:
 
 ## 13. Undefined
 
-- **Shortcut**: ++question-mark++
-- **Description**: Resets the block to an "Unknown" state.
-- **Use Case**: Use this if you made a mistake and want the Auto-Analyzer to take a fresh look at the usage of this
-  region.
+-   **Shortcut**: ++question-mark++
+-   **Description**: Resets the selected bytes to the `Undefined` (unexplored) state.
+-   **Use Case**: Use this type to clear a manual block classification and return the bytes to single-byte unexplored lines.
 
 !!! example
 
@@ -547,38 +526,40 @@ The available Block Types are:
         .byte $ff
         ```
 
-## 14. Helpers for Immediate Mode instructions
+## 14. Immediate Mode Helpers
 
-### Cycle Data Types for immediate mode instructions
+### Cycle Immediate Operand Formats
 
-- **Shortcut**: ++i++ / ++shift+i++
-- **Description**: Cycles the current immediate mode instruction through the available representations (Hex, Decimal,
-  Binary):
-    - **++i++**: Cycles forward.
-    - **++shift+i++**: Cycles backward.
-- **Use Case**: Sometimes a decimal, or binary representation makes more sense than an hexadecimal one.
+-   **Shortcut**: ++i++ / ++shift+i++
+-   **Description**: Cycles the immediate operand under the cursor through hexadecimal, decimal, and binary formats:
 
-| Representation    | Name                |
-|:------------------|:--------------------|
-| `lda #$d2`        | Hexadecimal         |
-| `lda #~$2d`       | Inverse Hexadecimal |
-| `lda #210`        | Decimal             |
-| `lda #-46`        | Inverse Decimal     |
-| `lda #%11010010`  | Binary              |
-| `lda #~%00101101` | Inverse Binary      |
+    -   **++i++**: Cycles forward.
+    -   **++shift+i++**: Cycles backward.
 
-### Convert LDA/LDX/LDY vector instructions to lo/hi, or hi/lo addresses
+-   **Use Case**: Use decimal or binary notation when bitmasks or base-10 constants are clearer than hexadecimal values.
 
-- **Shortcut**: ++bracket-left++ / ++bracket-right++
-- **Description**: Quickly assigns a "lo/hi" or "hi/lo" address to the selection.
-    - **++bracket-left++**: For **Lo/Hi Address**.
-    - **++bracket-right++**: For **Hi/Lo Address**.
-- **Use Case**: When manually setting 16-bit pointers. See exmaple.
+| Representation | Name |
+|:---|:---|
+| `lda #$d2` | Hexadecimal |
+| `lda #~$2d` | Inverse Hexadecimal |
+| `lda #210` | Decimal |
+| `lda #-46` | Inverse Decimal |
+| `lda #%11010010` | Binary |
+| `lda #~%00101101` | Inverse Binary |
 
-Example:
+### Pack Lo/Hi or Hi/Lo Immediate Addresses
 
-It is clear that `$0314` / `$0315` contains a vector.
-Select the first 3 lines in the Dissasembly view, and press ++open-bracket++.
+-   **Shortcut**: ++open-bracket++ / ++close-bracket++
+-   **Description**: Links two immediate load instructions (`LDA`, `LDX`, or `LDY`) into a 16-bit symbolic pointer reference:
+
+    -   **++open-bracket++**: Packs the first immediate value as the **low byte** and the second as the **high byte** (`Lo/Hi Address`).
+    -   **++close-bracket++**: Packs the first immediate value as the **high byte** and the second as the **low byte** (`Hi/Lo Address`).
+
+-   **Use Case**: Use this helper when 6502 code loads a 16-bit vector or pointer using two 8-bit immediate instructions.
+
+**Example:**
+
+In the following code, `$0314` and `$0315` store the IRQ vector `$1480`. Select lines 1 through 3 in the Disassembly View and press ++open-bracket++:
 
 ```asm hl_lines="1-3"
     lda #$80        ; $80 is the low part of $1480
@@ -590,10 +571,10 @@ Select the first 3 lines in the Dissasembly view, and press ++open-bracket++.
     rti
 ```
 
-And it will be converted to a "lo/hi" address, and it will look like:
+Regenerator 2000 creates the pointer label `p_1480` and formats the immediate operands as low/high byte references:
 
 ```asm
-    ; And the LDA #immediate_mode will be converted to an lo/hi address
+    ; The immediate operands now reference p_1480
     lda #<p_1480
     sta $0314
     lda #>p_1480
@@ -604,51 +585,46 @@ p_1480
     rti
 ```
 
-You can also revert the change by pressing:
+To revert this change:
 
-- ++u++ to undo
-- or press ++d++ to remove the hi/lo or lo/hi address, and represent it as hexadecimal again.
+-   Press ++u++ to undo the command.
+-   Or press ++i++ on each instruction to cycle the immediate operand back to hexadecimal format.
 
 ## Organization Tools
 
-Beyond data types, you can organize your view using Comments, Splitters, and Collapsing:
+Use comments, scopes, splitters, and collapsed blocks to structure your disassembly project.
 
 ### Comments
 
-- **Side Comment**: ++semicolon++
-- **Line Comment**: ++colon++
+-   **Side Comment**: ++semicolon++
+-   **Line Comment**: ++colon++
 
-You can add comments to any line to annotate your disassembly.
+Add comments to any address to document your findings:
 
-- **Side Comments**: Displayed on the same line as the instruction or data, to the right.
-- **Line Comments**: Displayed on a separate line above the instruction or data.
+-   **Side Comments**: Appear inline to the right of the instruction or data directive.
+-   **Line Comments**: Appear on dedicated lines above the instruction or data directive.
 
 !!! note
 
-    **Line Comments** also function as **Splitters**. Inserting a line comment into a grouped block (like a sequence of bytes) will split the block at that point, preventing the auto-merger from combining them.
+    **Line Comments** also act as **Splitters** inside `Address` and `Word` blocks. Inserting a line comment inside a grouped table splits the block at that address.
 
 ### Scopes
 
-- **Create Scope**: ++r++
-- **Remove Scope**: ++delete++ (only at the beginning or end of a scope)
-- **Exclude External Address**: ++delete++ (when cursor is on an external label address, excludes it from analysis)
+-   **Create Scope**: ++r++
+-   **Remove Scope**: ++delete++ (at the start or end boundary of a scope)
+-   **Exclude External Address**: ++delete++ (on an external label definition)
 
 !!! note
 
-    **Scopes** are not a different type of block. Instead they "encapsulate" existing blocks within a scope (AKA "namespace", "proc", etc).
+    **Scopes** do not replace block types. Instead, a scope wraps existing blocks inside a lexical namespace (`.block`, `.proc`, or `{ ... }`).
 
-Scopes allow you to group instructions and data into logical blocks, typically representing routines or functions. The
-primary purpose of scopes is to restrict the visibility of local labels, preventing naming conflicts between different
-parts of the code.
-
-When you export your disassembly, scopes are directly translated into the corresponding directives of your chosen
-assembler.
+Scopes group instructions and data into logical subroutines and isolate local labels to prevent naming collisions. When you export the project, Regenerator 2000 emits the native scope directives for the selected assembler.
 
 !!! example
 
     === "64tass"
 
-        In 64tass, scopes are mapped to the `.block` and `.bend` directives. If a name is provided, it's placed as a label just before the `.block`.
+        64tass maps scopes to `.block` and `.bend` directives and places the scope label immediately before `.block`:
 
         ```asm
         my_routine
@@ -668,11 +644,11 @@ assembler.
 
     === "ACME"
 
-        ACME does **not** support scopes. Any scopes defined in your project will be ignored during export if you select ACME as your assembler.
+        ACME does **not** support lexical scopes in Regenerator 2000 exports. The exporter omits scope wrappers when ACME is the selected assembler.
 
     === "KickAssembler"
 
-        In Kick Assembler, scopes are represented using curly braces `{` and `}`. The scope name is placed right before the opening brace.
+        KickAssembler wraps scopes in curly braces (`{` and `}`) with the scope label before the opening brace:
 
         ```asm
         my_routine
@@ -692,7 +668,7 @@ assembler.
 
     === "ca65"
 
-        In ca65, scopes are mapped to the `.proc` and `.endproc` directives. The scope name is passed as an argument to `.proc`. Unnamed scopes are automatically named `unnamed_scope`.
+        ca65 maps scopes to `.proc` and `.endproc` directives. Unnamed scopes receive the default name `unnamed_scope`:
 
         ```asm
             .proc my_routine
@@ -714,14 +690,13 @@ assembler.
 
 ### Splitters and Auto-Merging
 
-- **Shortcut**: ++pipe++
+-   **Shortcut**: ++pipe++
 
-In Regenerator 2000, adjacent blocks of the same type are **automatically merged** into a single contiguous block. This
-feature keeps the disassembly clean (e.g., combining adjacent Byte blocks into single Byte block).
+Regenerator 2000 merges adjacent blocks of the same type into a single contiguous block automatically.
 
 !!! note
 
-    Only **adjacent** blocks of the **same type** are auto-merged.
+    The auto-merger combines only **adjacent** blocks that share the **exact same block type**.
 
 ```mermaid
 graph LR
@@ -729,14 +704,13 @@ graph LR
     B[Byte Block B <br/> $2000-$2FFF] --> M
 ```
 
-**Splitters** (and **Line Comments**) are used to prevent this behavior when needed. They serve two purposes:
+Insert a **Splitter** (++pipe++) to prevent automatic merging at a specific address. Splitters perform two functions:
 
-1. **Visual Separation**: Inserts a visual separator (newline) in the disassembly view.
-2. **Logical Separation**: Acts as a barrier that **stops the auto-merger**.
+1.  **Visual Separation**: Inserts a blank separator line in the Disassembly View.
+2.  **Logical Separation**: Stops the auto-merger from combining blocks across the splitter address.
 
 **Example**:
-Imagine you have a Lo/Hi table right after another. Without a splitter, they become one. With a splitter, they remain
-separate.
+Two adjacent `Lo/Hi` tables merge into a single table without a splitter. Inserting a splitter between them preserves two independent tables:
 
 ```mermaid
 graph TD
@@ -755,33 +729,33 @@ graph TD
 
 !!! important
 
-    Splitters are especially critical for **Lo/Hi** and **Hi/Lo Address/Word Table** blocks. Because these blocks
-    calculate the split point between the Low and High parts based on the total length of the block, merging two
-    independent tables would result in an incorrect calculation of addresses.
+    Splitters are essential between adjacent **Lo/Hi** and **Hi/Lo** tables. Because each split table calculates its midpoint from the total block length, merging two separate tables corrupts the paired 16-bit values.
 
 ### Collapsing Blocks
 
-- **Collapse/Uncollapse**: ++ctrl+k++
-- **Description**: Hides or shows the content of a block, showing only a summary line.
+-   **Shortcut**: ++ctrl+k++
+-   **Description**: Collapses or expands the block under the cursor into a single summary line.
 
 !!! example
 
-    Valid for the **Disassembly view**.
+    In the **Disassembly View**:
 
     **Expanded View:**
+
     ```asm
     a_1000   .byte $01, $02, $03, $04, $05, $06, $07, $08
             .byte $09, $0a, $0b, $0c, $0d, $0e, $0f, $10
     ```
 
     **Collapsed View:**
+
     ```asm
     a_1000  ; Collapsed Byte block from $1000-$100F
     ```
 
 !!! example
 
-    Valid for the **Block view**: collapsed blocks are tagged with a ++plus++.
+    In the **Blocks View**, a `+` prefix marks collapsed blocks:
 
     ```text
       $0900-$09FF [Code]
@@ -789,8 +763,5 @@ graph TD
       $1010-$11FF [Code]
     ```
 
-- **Use Case**: Use this to hide large tables, long text strings, or finished subroutines to keep your workspace clean
-  and focus on the code you are currently analyzing.
-- **Scope**: This is a **visual-only** feature for the Disassembly View. It does **not** affect:
-    - The exported assembly code (all code is always exported).
-    - Other views (e.g., Hex Dump, Character Set).
+-   **Use Case**: Collapse large data tables, long strings, or analyzed subroutines to focus on active work areas.
+-   **Scope**: Collapsing affects only the TUI display. It does **not** alter exported `.asm` files or secondary views (such as Hex Dump or Charset).

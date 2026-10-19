@@ -1,86 +1,83 @@
 # Themes
 
-Regenerator 2000 ships with **9 built-in color themes**. You can switch between them in **File → Settings**
-(++alt+p++ or ++ctrl+comma++) under the **Theme** option.
+Regenerator 2000 includes **9 built-in color themes**. Switch between them in **File → Settings** (++alt+p++ or ++ctrl+comma++) under the **Theme** option.
 
 ## Available Themes
 
 === "Dracula"
 
-    **The default theme.** A dark theme with vibrant accent colors (purple, pink, cyan). Popular across many editors.
+    **The default theme.** Uses a dark background with purple, pink, and cyan accent colors.
 
     ![Dracula](theme_dracula.png)
 
 === "Solarized Dark"
 
-    A popular low-contrast dark palette by Ethan Schoonover. Easy on the eyes for long sessions.
+    Uses a low-contrast dark palette designed by Ethan Schoonover.
 
     ![Solarized Dark](theme_solarized_dark.png)
 
 === "Solarized Light"
 
-    The light variant of Solarized. Good for bright environments or high-ambient-light setups.
+    Uses the light variant of the Solarized palette for bright environments.
 
     ![Solarized Light](theme_solarized_light.png)
 
 === "Gruvbox Dark"
 
-    A retro-groove color scheme with warm, earthy tones (orange, yellow, aqua).
+    Uses a dark palette with warm orange, yellow, and aqua tones.
 
     ![Gruvbox Dark](theme_gruvbox_dark.png)
 
 === "Gruvbox Light"
 
-    The light variant of Gruvbox. A warm, creamy background with the same earthy accent colors. Great for bright environments.
+    Uses a warm light background with earthy accent colors.
 
     ![Gruvbox Light](theme_gruvbox_light.png)
 
 === "Monokai"
 
-    A classic dark theme with bold, saturated accent colors. Originally from Sublime Text.
+    Uses a dark background with high-contrast saturated accent colors.
 
     ![Monokai](theme_monokai.png)
 
 === "Nord"
 
-    An arctic, north-bluish color palette. Low contrast with a cool, muted aesthetic inspired by the polar night.
+    Uses a low-contrast dark palette with cool blue tones.
 
     ![Nord](theme_nord.png)
 
 === "Catppuccin Mocha"
 
-    The darkest flavor of Catppuccin — a soothing pastel theme with warm tones on a deep background.
+    Uses a dark background with warm pastel accent colors.
 
     ![Catppuccin Mocha](theme_catppuccin_mocha.png)
 
 === "Catppuccin Latte"
 
-    The light flavor of Catppuccin — pastel colors on a warm, creamy background. Great for daytime use.
+    Uses a light background with pastel accent colors for daytime use.
 
     ![Catppuccin Latte](theme_catppuccin_latte.png)
 
 ## How to Change the Theme
 
 1. Open **File → Settings** (++alt+p++ or ++ctrl+comma++).
-2. Navigate to the **Theme** option.
-3. You can change the theme in two ways:
-    - Press ++left++ / ++right++ to cycle through themes instantly (live preview).
-    - Press ++enter++ to open the theme selector popup and pick from the full list.
-4. Choose a theme and press ++enter++.
+2. Select the **Theme** option.
+3. Change the theme with either method:
+    - Press ++left++ or ++right++ to cycle through themes with a live preview.
+    - Press ++enter++ to open the theme selector popup and choose from the list.
+4. Select a theme and press ++enter++.
 
-The theme is saved globally and persists across sessions and projects.
+Regenerator 2000 saves the selected theme globally across sessions and projects.
 
 !!! tip
 
-    All themes support true color (24-bit RGB). For the best visual experience, use a terminal with true color
-    support. See the [Recommended Terminals](install.md#recommended-terminals) section.
+    All themes use 24-bit RGB true color. Use a terminal with true-color support for accurate rendering. See [Recommended Terminals](install.md#recommended-terminals).
 
 ## Custom Themes
 
-You can create your own themes or override any built-in theme by placing a `theme-*.toml` file in the
-application config directory.
+Place a `theme-*.toml` file in the application configuration directory to create a custom theme or override a built-in theme.
 
-### Config directory location
+### Config Directory Location
 
 | Platform    | Config directory                                          |
 |:------------|:----------------------------------------------------------|
@@ -88,11 +85,11 @@ application config directory.
 | **Linux**   | `~/.config/regenerator2000/`                              |
 | **Windows** | `C:\Users\<User>\AppData\Roaming\regenerator2000\config\` |
 
-### Getting started
+### Getting Started
 
-The easiest way to create a custom theme is to start from the built-in files:
+Start from the built-in theme files to create a custom theme:
 
-1. **Dump** all built-in themes to the config directory:
+1. **Dump** all built-in themes to the configuration directory:
 
     ```bash
     # macOS
@@ -105,9 +102,9 @@ The easiest way to create a custom theme is to start from the built-in files:
     regenerator2000.exe --dump-theme-files $env:APPDATA\regenerator2000\config\
     ```
 
-   This writes every `theme-*.toml` to the destination folder and exits.
+    This command writes every `theme-*.toml` file to the destination folder and exits.
 
-2. **Edit** an existing file or create a new one (e.g. `theme-green_screen.toml`):
+2. **Edit** an existing file or create a new file (for example, `theme-green_screen.toml`):
 
     ```toml
     name = "Green Screen"
@@ -118,36 +115,34 @@ The easiest way to create a custom theme is to start from the built-in files:
     border_inactive = "#116611"
     ```
 
-3. **Launch** Regenerator 2000 — your custom theme appears in **Settings → Theme**.
+3. **Start** Regenerator 2000. Your custom theme appears in **Settings → Theme**.
 
-### How it works
+### How It Works
 
-- Theme files must be named `theme-<name>.toml` (e.g. `theme-green_screen.toml`).
-- The `name` field is the display name shown in the theme selector.
-- The optional `base` field names a built-in theme to inherit from. Any color field you omit is
-  filled in from the base (defaults to `"Solarized Dark"` when not specified).
-- A custom theme with the **same name** as a built-in theme **replaces** the built-in.
-- Colors use hex format: `"#RRGGBB"`.
+- Name each theme file `theme-<name>.toml` (for example, `theme-green_screen.toml`).
+- Set the `name` field to the display name shown in the theme selector.
+- Set the optional `base` field to inherit unspecified colors from a built-in theme (defaults to `"Solarized Dark"`).
+- If a custom theme uses the **same name** as a built-in theme, it replaces the built-in theme.
+- Format all colors as hexadecimal strings: `"#RRGGBB"`.
 
 !!! tip
 
-    **Partial themes** are the recommended approach — only override the colors you care about and
-    inherit the rest from a base theme. This makes your theme file short and easy to maintain.
+    Define **partial themes** that override only the colors you want to change and inherit the remaining colors from a `base` theme.
 
-### TOML schema reference
+### TOML Schema Reference
 
-Every `theme-*.toml` file has the following top-level keys:
+Every `theme-*.toml` file supports these top-level keys:
 
-| Field               | Type             | Description                                                                         |
-|:--------------------|:-----------------|:------------------------------------------------------------------------------------|
-| `name`              | string           | **Required.** Display name shown in the theme selector. Must be unique.             |
-| `base`              | string           | Optional. Name of a built-in theme to inherit from. Defaults to `"Solarized Dark"`. |
-| _color fields_      | string           | Optional. Hex color (`"#RRGGBB"`). See below for the full list.                     |
-| `hex_color_palette` | array of strings | Optional. 18-entry array of hex colors for the Hex Dump palette.                    |
+| Field               | Type             | Description                                                                 |
+|:--------------------|:-----------------|:----------------------------------------------------------------------------|
+| `name`              | string           | **Required.** Unique display name in the theme selector.                    |
+| `base`              | string           | Optional. Built-in theme to inherit from. Defaults to `"Solarized Dark"`.   |
+| _color fields_      | string           | Optional. Hexadecimal color (`"#RRGGBB"`). See the list below.              |
+| `hex_color_palette` | array of strings | Optional. 18-entry array of hexadecimal colors for the Hex Dump palette.    |
 
-### Color fields
+### Color Fields
 
-All color fields accept hex strings in `#RRGGBB` format. Omitted fields inherit from the base theme.
+All color fields accept `#RRGGBB` hexadecimal strings. Omitted fields inherit their values from the base theme.
 
 **Base colors:** `background`, `foreground`, `border_active`, `border_inactive`, `selection_bg`,
 `selection_fg`, `block_selection_bg`, `block_selection_fg`, `status_bar_bg`, `status_bar_fg`

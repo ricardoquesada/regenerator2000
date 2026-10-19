@@ -1,7 +1,6 @@
 # Analysis
 
-Regenerator 2000 includes an **auto-analyzer** that scans the binary and automatically creates labels and
-cross-references. This page explains how the analyzer works and what the auto-generated label prefixes mean.
+Regenerator 2000 includes an **auto-analyzer** that scans the binary and creates labels and cross-references automatically. This page explains the analyzer workflow and the generated label prefixes.
 
 ---
 
@@ -9,23 +8,20 @@ cross-references. This page explains how the analyzer works and what the auto-ge
 
 The analyzer runs in two situations:
 
-1. **On load**: When a file is first opened (if enabled in [Settings](settings.md)).
-2. **Manually**: Press ++ctrl+a++ to re-run the analysis at any time.
+1. **On load**: When you open a file and auto-analysis is active in [Settings](settings.md).
+2. **Manually**: When you press ++ctrl+a++ to run the analysis again.
 
-The analyzer is **non-destructive** — it never overwrites user-defined labels or comments. If you have already
-renamed a label at an address, the analyzer will preserve your name and skip auto-generation for that address.
+The analyzer never overwrites user-defined labels or comments. If you rename a label at an address, the analyzer preserves your name and skips auto-generation for that address.
 
 ---
 
 ## How It Works
 
-The analyzer performs a linear scan over all bytes in the loaded binary, examining each instruction and data block
-to determine which addresses are referenced and _how_ they are referenced.
+The analyzer scans all bytes in the loaded binary linearly. It inspects each instruction and data block to identify target addresses and reference types.
 
 ### Step 1: Instruction Scanning
 
-For every byte in a **Code** block, the analyzer decodes the 6502 instruction and classifies the operand address
-based on the **addressing mode**:
+For every byte in a **Code** block, the analyzer decodes the 6502 instruction and classifies the operand address by its **addressing mode**:
 
 | Addressing Mode | Example Instruction | Label Type Generated             |
 |:----------------|:--------------------|:---------------------------------|
@@ -42,69 +38,54 @@ based on the **addressing mode**:
 
 !!! note
 
-    Instructions with no memory operand (Implied, Accumulator, Immediate) do not generate labels.
+    Instructions without a memory operand (Implied, Accumulator, Immediate) do not generate labels.
 
 !!! note
 
-    If the target of a `JSR`, `JMP`, or branch instruction is an internal address whose first byte is
-    `RTS` ($60) or `RTI` ($40), the label is promoted to a **Return** (`r_`) label regardless of the
-    calling instruction type. This mirrors IDA Pro's `locret_` convention.
+    If a `JSR`, `JMP`, or branch instruction targets an internal address that starts with `RTS` ($60) or `RTI` ($40), the analyzer assigns a **Return** (`r_`) label. This behavior matches the `locret_` convention in IDA Pro.
 
 ### Step 2: Data Block Scanning
 
 The analyzer also scans **data blocks** that encode addresses:
 
-- **Address blocks**: Each pair of bytes is read as a little-endian 16-bit address and generates an
-  **Absolute Address** (`a_`) label at the target.
-- **Lo/Hi Address tables**: The block is split in half — the first half contains the low bytes and the second
-  half contains the high bytes. Each pair produces an address label.
-- **Hi/Lo Address tables**: Same as Lo/Hi but reversed — high bytes first, then low bytes.
-- **Lo/Hi Word** and **Hi/Lo Word** tables are skipped (they encode raw values, not addresses).
+- **Address blocks**: The analyzer reads each byte pair as a little-endian 16-bit address and generates an **Absolute Address** (`a_`) label at the target.
+- **Lo/Hi Address tables**: The analyzer splits the block into two halves. The first half holds low bytes, and the second half holds high bytes. Each pair produces an address label.
+- **Hi/Lo Address tables**: The analyzer splits the block into high bytes first and low bytes second.
+- **Lo/Hi Word** and **Hi/Lo Word** tables: The analyzer skips these blocks because they encode raw values instead of addresses.
 
 !!! tip
 
-    Use [splitters](tutorial.md#splitters) (++pipe++) to divide adjacent address tables. Without a splitter,
-    the analyzer treats a continuous run of the same block type as a single table and pairs bytes accordingly.
+    Press ++pipe++ to insert [splitters](tutorial.md#splitters) between adjacent address tables. Without a splitter, the analyzer treats contiguous blocks of the same type as one table.
 
 #### Fill Run Detection
 
-When a **Byte** block contains a contiguous run of identical bytes that exceeds the **Fill run threshold** (set
-in [Document Settings](settings.md)), the disassembler automatically groups them. These runs are represented using
-assembler-specific fill directives (like `.fill` or `.res`) during export, keeping the output clean.
+If a **Byte** block contains a contiguous run of identical bytes that exceeds the **Fill run threshold** in [Document Settings](settings.md), the disassembler groups those bytes. During export, the exporter emits assembler-specific fill directives (such as `.fill` or `.res`).
 
 ### Step 3: Label Generation
 
-After scanning, the analyzer has a map of every referenced address and _how_ it was used. It then generates labels:
+After the scan completes, the analyzer maps every referenced address to its usage type and generates labels:
 
-1. **User labels are preserved**: If you have already defined a label at an address (`LabelKind::User`), the
-   analyzer keeps it and does not add an auto-generated label.
-2. **Internal addresses** (within the loaded binary) get a single label based on the first usage type encountered.
-3. **External addresses** (outside the loaded binary) get a single label based on the first usage type
-   encountered — the same rule as internal addresses. Code-flow types (`JSR`, `JMP`, branches) are
-   promoted to **External Jump** (`e_`) labels.
+1. **Preserve user labels**: If an address has a user label (`LabelKind::User`), the analyzer keeps it and skips auto-generation.
+2. **Assign internal labels**: Internal addresses (inside the binary) receive one label from the first usage type that the analyzer encounters.
+3. **Assign external labels**: External addresses (outside the binary) also receive one label from the first usage type. The analyzer converts control-flow targets (`JSR`, `JMP`, branches) outside the binary into **External Jump** (`e_`) labels.
 
 ### Step 4: Cross-Reference Building
 
-Every time an instruction references an address, the analyzer records a **cross-reference** (x-ref) from the
-instruction's address to the target. These x-refs are displayed as side comments in the disassembly and can be
-navigated with ++ctrl+x++ (Find References).
+When an instruction references an address, the analyzer records a **cross-reference** (x-ref) from the instruction address to the target. The disassembly view displays these x-refs as side comments. Press ++ctrl+x++ (Find References) to navigate to them.
 
 ### Step 5: Indirect Jump Resolution
 
-As a final pass, the analyzer looks for `JMP ($xxxx)` instructions where `$xxxx` points to an **Address** block
-inside the binary. If it finds one, it reads the 16-bit pointer stored there and registers the destination as a
-jump target with its own label and cross-reference.
+In the final pass, the analyzer inspects `JMP ($xxxx)` instructions where `$xxxx` points to an internal **Address** block. If the analyzer finds a match, it reads the 16-bit pointer and registers the destination as a jump target with a label and cross-reference.
 
 ---
 
 ## Label Prefixes
 
-Every auto-generated label uses a prefix that indicates _how_ the address is referenced in the code. The prefix
-tells you at a glance whether an address is a subroutine entry point, a data table, a pointer, etc.
+Every auto-generated label starts with a prefix that shows how the code references that address. This prefix identifies whether an address is a subroutine entry point, a data table, or a pointer.
 
 ### Code-Flow Labels
 
-These labels are generated from control-flow instructions (jumps, calls, branches):
+Control-flow instructions (jumps, calls, and branches) generate these labels:
 
 | Prefix | Full Name     | Generated When                                                           | Example  |
 |:-------|:--------------|:-------------------------------------------------------------------------|:---------|
@@ -116,7 +97,7 @@ These labels are generated from control-flow instructions (jumps, calls, branche
 
 ### Data-Access Labels
 
-These labels are generated from data-access instructions (loads, stores, indexed access):
+Data-access instructions (loads, stores, and indexed operations) generate these labels:
 
 | Prefix | Full Name           | Generated When                                       | Example  |
 |:-------|:--------------------|:-----------------------------------------------------|:---------|
@@ -129,19 +110,20 @@ These labels are generated from data-access instructions (loads, stores, indexed
 
 ### User-Defined Labels
 
-| `L_`   | User-Defined | Default prefix when you create a label manually |
-| `scope_` | LocalUserDefined | Prefix for labels within a scope (e.g. .proc, .block) |
+| Prefix   | Full Name        | Description                                            |
+|:---------|:-----------------|:-------------------------------------------------------|
+| `L_`     | User-Defined     | Default prefix when you create a label manually        |
+| `scope_` | LocalUserDefined | Prefix for labels inside a scope (`.proc` or `.block`) |
 
 !!! tip
 
-    You can rename any auto-generated label by pressing ++l++. Once renamed, the analyzer will preserve your
-    custom name across future analysis runs.
+    Press ++l++ to rename any auto-generated label. The analyzer preserves your custom name during subsequent analysis runs.
 
 ---
 
 ## Address Formatting
 
-Label names include the target address in hexadecimal. The number of hex digits depends on the address range:
+Label names include the hexadecimal target address. The address range determines the number of hexadecimal digits:
 
 | Address Range                             | Digits | Example                      |
 |:------------------------------------------|:-------|:-----------------------------|
@@ -153,41 +135,31 @@ Label names include the target address in hexadecimal. The number of hex digits 
 
 ## Excluded Addresses
 
-Some addresses are excluded from label generation. There are two levels of exclusion:
+You can exclude specific addresses from label generation at two levels:
 
 ### System-Level Exclusion
 
-When a system is selected, the **"Exclude well-known addresses from symbolic analysis"** checkbox in
-[Document Settings](settings.md) lets you suppress labels for system-specific addresses that typically
-create noise (e.g., hardware registers that are accessed indirectly or computed dynamically). This setting
-uses a curated exclusion list shipped with the system definition.
+Select **"Exclude well-known addresses from symbolic analysis"** in [Document Settings](settings.md) to suppress labels for noisy system addresses (such as indirectly accessed hardware registers). This setting uses the exclusion list from the active system definition.
 
 ### Per-Project User Exclusion
 
-You can also exclude individual external addresses on a per-project basis by pressing ++delete++ while the
-cursor is on an **external label** in the disassembly. This adds the address to the project's
-**user-excluded addresses** set, which is saved with the project file.
+Place the cursor on an **external label** in the disassembly and press ++delete++ to exclude that address for the current project. Regenerator 2000 adds the address to the **user-excluded addresses** set and saves it in the project file.
 
-This is useful for suppressing labels that are not real targets — for example, addresses that are computed
-dynamically and appear as false references in the code.
+Use this feature to suppress false references, such as dynamically computed addresses.
 
 !!! tip
 
-    The exclusion is undoable (++ctrl+z++). You can also see excluded addresses reflected immediately:
-    the label and its cross-references are removed from the disassembly after exclusion.
+    Press ++ctrl+z++ to undo an address exclusion. When you exclude an address, Regenerator 2000 removes the label and its cross-references from the disassembly immediately.
 
 ### Effect
 
-When an address is in either exclusion set (system-level or per-project), the analyzer skips it
-entirely — no label or cross-reference is generated.
+If an address belongs to the system-level or per-project exclusion set, the analyzer skips it and generates no label or cross-reference.
 
 ---
 
 ## System-Specific Labels
 
-When a [system](systems.md) is selected (e.g., Commodore 64), the analyzer benefits from pre-defined
-**system labels** — well-known addresses for hardware registers, KERNAL entry points, and OS variables.
-These labels have `LabelKind::System` and are preserved across analysis runs just like user labels.
+When you select a [system](systems.md) (such as the Commodore 64), the analyzer loads predefined **system labels** for hardware registers, KERNAL entry points, and OS variables. These labels use `LabelKind::System`, and the analyzer preserves them across analysis runs.
 
 For example, on the C64:
 
@@ -198,18 +170,16 @@ For example, on the C64:
 | `$FFD2` | `CHROUT`     | KERNAL: Output character |
 | `$FFE4` | `GETIN`      | KERNAL: Get input        |
 
-System labels take precedence over auto-generated labels. If the analyzer detects a `JSR $FFD2`, it will
-display `JSR CHROUT` rather than `JSR s_FFD2`.
+System labels take precedence over auto-generated labels. If the analyzer detects `JSR $FFD2`, it displays `JSR CHROUT` instead of `JSR s_FFD2`.
 
 ---
 
 ## Re-Running the Analyzer
 
-You should re-run the analyzer (++ctrl+a++) after making significant changes:
+Press ++ctrl+a++ to run the analyzer again after you make structural changes:
 
-- After converting blocks between Code and Data types.
-- After defining new Address, Lo/Hi, or Hi/Lo tables.
-- After loading additional system definition files.
+- After you convert blocks between Code and Data types.
+- After you define new Address, Lo/Hi, or Hi/Lo tables.
+- After you load additional system definition files.
 
-The analyzer rebuilds all auto-generated labels and cross-references from scratch, while always preserving
-your user-defined labels and comments.
+The analyzer rebuilds all auto-generated labels and cross-references from scratch and preserves your user-defined labels and comments.

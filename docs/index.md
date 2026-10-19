@@ -6,62 +6,58 @@
 
 # The Modern 6502 Disassembler
 
-**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 and other 6502-based systems. It
-combines the retro feel of Turbo Debugger with the power of modern tools like IDA Pro, offering two powerful workflows:
+**Regenerator 2000** is an interactive disassembler for the Commodore 64 and other 6502-based systems. It supports two primary workflows:
 
-- **🕹️ Manual Analysis** — A fast, keyboard-centric terminal interface for hands-on exploration. Navigate code, define
-  data regions, label subroutines, add comments, and iteratively refine your disassembly at your own pace.
-- **🤖 Automated Analysis** — A built-in [MCP Server](mcp.md) lets AI assistants drive the disassembler programmatically.
-  Paired with purpose-built [skills](https://github.com/ricardoquesada/regenerator2000/tree/main/.agent/skills), it can
-  analyze entire programs — classifying blocks, tracing routines, and naming symbols — with minimal human intervention.
+- **🕹️ Manual Analysis** — Use the keyboard-centric terminal interface to navigate code, define data regions, label subroutines, add comments, and refine your disassembly.
+- **🤖 Automated Analysis** — Use the built-in [MCP Server](mcp.md) and [skills](https://github.com/ricardoquesada/regenerator2000/tree/main/.agent/skills) so AI assistants classify blocks, trace routines, and name symbols automatically.
 
-Use either workflow on its own, or combine them: let the AI do a first pass, then refine the results interactively.
+Use either workflow independently, or combine them. Run an initial pass with the AI, and then refine the results interactively.
 
 ---
 
-## At a Glance
+## Views Overview
 
-Explore the regenerative power of Regenerator 2000 through its various views:
+Inspect your binary through specialized views:
 
 === "Disassembly"
 
-    **The Code View**: The heart of the operation. Navigate and disassemble code, follow jumps, and label everything.
+    **The Code View**: Navigate and disassemble code, follow jumps, and manage labels.
 
     ![Disassembly View](regenerator2000_disassembly_screenshot.png)
 
 === "Hexdump"
 
-    **The Data View**: Inspect raw memory, spotting patterns in data and tables.
+    **The Data View**: Inspect raw memory to identify patterns in data and tables.
 
     ![Hexdump View](regenerator2000_hexdump_screenshot.png)
 
 === "Character Set"
 
-    **Visualizing Graphics**: Instantly see 8x8 character data.
+    **Character Graphics**: Inspect 8x8 character data directly in the terminal.
 
     ![Charset View](regenerator2000_charset_screenshot.png)
 
 === "Sprites"
 
-    **Sprite Gallery**: View 24x21 sprites in all their glory.
+    **Sprite Viewer**: Inspect 24x21 hardware sprites in single-color or multicolor mode.
 
     ![Sprites View](regenerator2000_sprites_screenshot.png)
 
 === "Bitmap"
 
-    **Bitmap Mode**: Visualize memory as a bitmap (HiRes or MultiColor).
+    **Bitmap Mode**: Render memory as a high-resolution or multicolor bitmap.
 
     ![Bitmap View](regenerator2000_bitmap_screenshot.png)
 
 === "Blocks"
 
-    **Structure Analysis**: See how Regenerator 2000 analyzes and segments the binary into code and data blocks.
+    **Structure Analysis**: Inspect how Regenerator 2000 segments the binary into code and data blocks.
 
     ![Blocks View](regenerator2000_blocks_screenshot.png)
 
 === "Debugger"
 
-    **Live Debugging**: Connect to VICE, view registers, memory, breakpoints, and step through code.
+    **Live Debugging**: Connect to VICE to inspect registers, memory, and breakpoints, and step through code.
 
     ![Debugger View](regenerator2000_debugger_screenshot.png)
 
@@ -69,46 +65,43 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 
 ## Key Features
 
-- **🚀 6502 & Undocumented Opcodes**: Full support for the 6502 instruction set including undocumented opcodes.
-- **⚡ Fast TUI**: Built with Rust for blazingly fast performance.
-- **🧠 Analysis**: Automatically create labels and comments.
-- **⏪ Undo/Redo**: Experiment without fear.
-- **🏷️ Labels & Comments**: Rename subroutines and variables for readability.
-- **📂 Scopes**: Organize code with namespaces.
-- **🔢 Enums**: Define and apply three-tiered value-to-name mappings (System, Global, Project-specific) to replace magic
-  numbers in disassembly and data with semantic names.
-- **📦 Binary Unpacker**: Cycle-accurate, background 6502 emulated sandbox to automatically unpack compressed C64
-  programs.
-- **🎨 Custom Themes**: Personalize your experience with TOML-based theme files.
-- **🐛 VICE Debugger Integration**: Connect to a running VICE emulator for live debugging — step through code, inspect
-  registers, set breakpoints and watchpoints.
-- **🤖 MCP Integration**: Collaborate with AI assistants for deeper analysis.
-- **💾 Project Saving**: Save your work and resume later.
-- **📤 Export**: Generate compilable assembly code for multiple assemblers, or HTML files for sharing. Exported HTML
-  files include clickable cross-references for labels.
+- **🚀 6502 & Undocumented Opcodes**: Supports the full 6502 instruction set and undocumented opcodes.
+- **⚡ Fast TUI**: Uses Rust to deliver responsive terminal rendering.
+- **🧠 Analysis**: Creates labels and cross-reference comments automatically.
+- **⏪ Undo/Redo**: Reverts or reapplies any editing action.
+- **🏷️ Labels & Comments**: Renames subroutines and variables to improve readability.
+- **📂 Scopes**: Organizes code into lexical namespaces.
+- **🔢 Enums**: Defines and applies System, Global, and Project value-to-name mappings to replace numeric literals with semantic names.
+- **📦 Binary Unpacker**: Emulates a cycle-accurate 6502 sandbox to unpack compressed programs automatically.
+- **🎨 Custom Themes**: Customizes interface colors with TOML theme files.
+- **🐛 VICE Debugger Integration**: Connects to a running VICE emulator to step through code, inspect registers, and set breakpoints or watchpoints.
+- **🤖 MCP Integration**: Connects AI assistants to the disassembler for automated analysis.
+- **💾 Project Saving**: Saves project state to disk so you can resume work later.
+- **📤 Export**: Generates assembly code for multiple assemblers, or exports HTML files with clickable cross-references.
 
 ## Quick Start
 
 1. **Install**:
 
-   ```bash
-   cargo install regenerator2000
-   ```
+    ```bash
+    cargo install regenerator2000
+    ```
 
 2. **Run**:
 
-   ```bash
-   regenerator2000 my_game.prg
-   ```
+    ```bash
+    regenerator2000 my_game.prg
+    ```
 
-   When importing a new binary, use the **Import Context** dialog to configure the System, Origin, and Entry Point.
+    When you import a new binary, use the **Import Context** dialog to configure the System, Origin, and Entry Point.
 
 3. **Explore**:
-    - **Move**: Arrow keys, map, or jumps.
-    - **Disassemble**: Press ++d++ to start disassembling.
-    - **Define Data**: Press ++b++
-    - **Comment**: Press ++semicolon++
-    - **Rename**: Press ++l++
+
+    - **Move**: Use the arrow keys, mini map, or jump commands.
+    - **Disassemble**: Press ++d++ to convert bytes to code.
+    - **Define Data**: Press ++b++ to convert regions to data bytes.
+    - **Comment**: Press ++semicolon++ to add a side comment.
+    - **Rename**: Press ++l++ to rename a label.
 
 [Get Started Now](install.md){ .md-button .md-button--primary }
 
@@ -116,19 +109,18 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 
 ## Documentation
 
-- **[Installation & Usage](install.md)**: Setup guide.
-- **[Views](views.md)**: Detailed breakdown of each view.
-- **[Analysis](analysis.md)**: How the auto-analyzer works and label prefix reference.
-- **[Enums](enums.md)**: Replace magic numbers with semantic named constants.
-- **[Binary Unpacker](unpacker.md)**: Automatically decompress C64 programs.
-- **[Keyboard Shortcuts](keyboard_shortcuts.md)**: Master the controls.
+- **[Installation & Usage](install.md)**: Install and run Regenerator 2000.
+- **[Views](views.md)**: Learn about each interface view.
+- **[Analysis](analysis.md)**: Understand the auto-analyzer and label prefixes.
+- **[Enums](enums.md)**: Replace numeric literals with named constants.
+- **[Binary Unpacker](unpacker.md)**: Decompress packed binaries automatically.
+- **[Keyboard Shortcuts](keyboard_shortcuts.md)**: Review all keyboard controls.
 - **[Debugger (VICE)](debugger.md)**: Connect to VICE for live debugging.
-- **[MCP Integration](mcp.md)**: meaningful AI collaboration.
+- **[MCP Integration](mcp.md)**: Connect AI agents to Regenerator 2000.
 
 ## Tutorial
 
-A typical workflow involves loading a file, identifying code and data regions, labeling them, and iteratively refining
-the disassembly.
+A standard workflow loads a file, identifies code and data regions, adds labels, and refines the disassembly iteratively.
 
 ```mermaid
 flowchart TD
@@ -144,4 +136,4 @@ flowchart TD
     S10 --> Done[Assemble it, patch it, etc.]
 ```
 
-For a detailed step-by-step walkthrough, check out the [full tutorial](tutorial.md).
+Read the [full tutorial](tutorial.md) for a complete step-by-step walkthrough.

@@ -1,18 +1,13 @@
 # Keyboard Shortcuts
 
-Regenerator 2000 is designed to be a keyboard-centric application. While it features mouse support—which is handy for
-scrolling through different views—you'll find that the keyboard shortcuts are often a more efficient way to navigate and
-interact with the program.
+Regenerator 2000 uses a keyboard-first interface. Mouse input scrolls views, while keyboard shortcuts provide fast navigation and editing.
 
-The shortcut scheme follows a simple logic:
+The shortcut layout uses two rules:
 
-- **Block Type Operations:** These are usually a single letter or `Shift` + letter (e.g., `c` for Code, `b` for Byte).
-- **Dialogs & Application Actions:** Operations that open a dialog or perform application-level tasks typically use
-  `Ctrl` + letter or `Alt` + letter.
+-   **Block Type Operations:** Single letters or `Shift` + letter combinations change block types (for example, `c` for Code or `b` for Byte).
+-   **Dialogs & Application Actions:** `Ctrl` + letter or `Alt` + letter combinations open dialogs and execute application commands.
 
-We've tested these shortcuts extensively across Windows, macOS, and Linux, and in various terminal environments (
-including inside `tmux`). Wherever a standard shortcut might conflict with a reserved key combination (like `Ctrl+2` in
-`tmux`), we've provided alternatives (e.g., `Alt+2`).
+These shortcuts work across Windows, macOS, and Linux terminals, including `tmux`. When a standard shortcut conflicts with a terminal keybinding (such as `Ctrl+2` in `tmux`), an `Alt` alternative (such as `Alt+2`) is available.
 
 | Context                            | Action                                                                                  | Shortcut                                                      |
 |:-----------------------------------|:----------------------------------------------------------------------------------------|:--------------------------------------------------------------|

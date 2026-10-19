@@ -1,41 +1,38 @@
 # Disassembly Examples
 
-Welcome to the Regenerator 2000 examples documentation. These HTML disassemblies are generated directly by Regenerator
-2000 and showcase the auto-analysis, layout parity, and modern styling capabilities of our HTML exporter.
+Regenerator 2000 generated these HTML disassemblies directly. They show the auto-analysis, layout parity, and styling features of the HTML exporter.
 
-Below are the main examples available in this project:
+Review the following examples included in this project:
 
 ## Moving Tubes - Commodore 64
 
 ![screenshot](examples/c64_moving_tubes_screenshot.png)
 
-A disassembly of [Moving Tubes][moving_tubes] intro, by Laxity.
+This example disassembles the [Moving Tubes][moving_tubes] intro by Laxity.
 
 !!! example "Disassembly"
 
     * [🔗 c64_moving_tubes_lxt.html](examples/c64_moving_tubes_lxt.html)
 
-Main takeaways:
+Key highlights:
 
-- Great source to learn about different techniques (intermediate level).
-- Clean code.
-- How a SID player works: the SID player was disassembled in detail.
-- Raster IRQ techniques
-- Different tips & tricks:
-    - Convert `JMP` into `BIT`, and other self-modifying code techniques.
-    - Double call with `JSR` to next line
-    - Background logo color in sync with SID music
-    - Sine table for scrolling speed
-    - Variable-width chars in scroller
+- Shows intermediate 6502 and C64 programming techniques.
+- Contains well-structured assembly code.
+- Documents a complete SID music player routine.
+- Uses raster IRQ synchronization techniques.
+- Includes specific 6502 optimizations:
+    - Modifies `JMP` instructions into `BIT` opcodes through self-modifying code.
+    - Uses `JSR` to call the immediately following instruction twice.
+    - Synchronizes the background logo color with the SID music.
+    - Uses a sine table to control scroll speed.
+    - Renders variable-width characters in the text scroller.
 
-Source:
+Source details:
 
 - CSDB: [Moving Tubes (Laxity Intro #145)][moving_tubes]
-- The original intro was packed. The disassembly contains the unpacked version.
-  Unpacked with [Unp64][unp64]).
+- [Unp64][unp64] unpacked the original compressed intro before disassembly.
 
 [moving_tubes]: https://csdb.dk/release/?id=259330
-
 [unp64]: https://csdb.dk/release/?id=260619
 
 ---
@@ -44,21 +41,21 @@ Source:
 
 ![screenshot](examples/pet_lode_runner_screenshot.png)
 
-A disassembly of [Lode Runner][lode_runner_site] clone for Commodore PET, by jimbo.
+This example disassembles the [Lode Runner][lode_runner_site] clone for the Commodore PET by jimbo.
 
 !!! example "Disassembly"
 
     * 🔗 [pet_loderunner.html](examples/pet_loderunner.html)
 
-Main takeaways:
+Key highlights:
 
-- Clean code.
-- Great place to learn about the PET programming.
+- Contains clean, readable 6502 assembly code.
+- Shows standard Commodore PET programming patterns.
 
-Source:
+Source details:
 
-- Itchio: [Lode Runner for the PET by jimbo][lode_runner_site]
-- Since the game was not packed, this is a good example of how the disassembly looks like without any post-processing.
+- itch.io: [Lode Runner for the PET by jimbo][lode_runner_site]
+- Because the original game binary is unpacked, this example shows direct disassembly output without unpacking.
 
 [lode_runner_site]: https://jimbo.itch.io/lode-runner-clone-for-commodore-pet
 
@@ -68,22 +65,21 @@ Source:
 
 ![screenshot](examples/vic20_omega_race_screenshot.png)
 
-A disassembly of the game [Omega Race][vic20_omega_race_info] for VIC-20.
+This example disassembles the game [Omega Race][vic20_omega_race_info] for the VIC-20.
 
 !!! example "Disassembly"
 
     * [🔗 vic20_omega_race_cart_generic_a000.html](examples/vic20_omega_race_cart_generic_a000.html)
 
-Main takeaways:
+Key highlights:
 
-- WIP
+- Work in progress.
 
-Source:
+Source details:
 
 - [Omega Race on VIC-20 Cartridges][vic20_omega_race_cart]
 
 [vic20_omega_race_info]: https://en.wikipedia.org/wiki/Omega_Race
-
 [vic20_omega_race_cart]: https://archive.org/download/Commodore_VIC20_TOSEC_2012_04_23/Commodore_VIC20_TOSEC_2012_04_23.zip/Commodore%20VIC20%20%5BTOSEC%5D%2FCommodore%20VIC20%20-%20Games%20-%20%5BCRT%5D%20%28TOSEC-v2011-12-15_CM%29%2FOmega%20Race%20%281982%29%28Commodore%29%5BA000%5D.zip
 
 ---
@@ -92,17 +88,17 @@ Source:
 
 ![screenshot](examples/plus4_kikstart_screenshot.png)
 
-A disassembly of the Commodore Plus/4 motorcycle obstacle course game [Kikstart][kikstart_info].
+This example disassembles the Commodore Plus/4 game [Kikstart][kikstart_info].
 
 !!! example "Disassembly"
 
     * 🔗 [plus4_kikstart_8192.html](examples/plus4_kikstart_8192.html)
 
-Main takeaways:
+Key highlights:
 
-- WIP
+- Work in progress.
 
-Source:
+Source details:
 
 - [Kikstart on Plus/4 World][kikstart_info]
 
@@ -112,19 +108,19 @@ Source:
 
 ![screenshot](examples/c128_hero_is_back_screenshot.png)
 
-A disassembly of the Commodore 128 game [H.E.R.O is Back][hero_is_back_info], by LC Games.
+This example disassembles the Commodore 128 game [H.E.R.O is Back][hero_is_back_info] by LC Games.
 
 !!! example "Disassembly"
 
     * 🔗 [c128_hero_is_back.html](examples/c128_hero_is_back.html)
 
-Main takeaways:
+Key highlights:
 
-- WIP
+- Work in progress.
 
-Source:
+Source details:
 
-- [H.E.R.O Is Back Webapage][hero_is_back_info]
+- [H.E.R.O Is Back Webpage][hero_is_back_info]
 
 [hero_is_back_info]: https://lowcarb.itch.io/hero-is-back-c64
 
@@ -134,46 +130,33 @@ Source:
 
 ![screenshot](examples/c64_burnin_rubber_screenshot.png)
 
-A disassembly of the Commodore 64 ["Burnin' Rubber"][burnin_rubber_info] game.
+This example disassembles the Commodore 64 game ["Burnin' Rubber"][burnin_rubber_info].
 
 !!! example "Disassembly"
 
     * 🔗 [c64_burnin_rubber.html](examples/c64_burnin_rubber.html)
 
-Main takeaways:
+Key highlights:
 
-- The code was written in a [monitor][monitor], not with an assembler. Evidence:
-    - Dead code / Dead tables: Although not uncommon to have some dead code / tables in a program, it is a lot more
-      common when using a [monitor].
-    - There is a `.T0400,07FF,2C00` [monitor] command [in the code][c64_burnin_rubber_monitor_cmd]. Which means "
-      Transfer the bytes from $0400-$07FF to $2C00". Funny thing, that command is at `$2C00`, which makes sense. The
-      programmer might have typed it at the top-left of the screen.
-    - Functions that are split in multiple places, using `JMP` to connect them.
-    - Three `NOP` opcodes padding at the beginning of some functions. Possibly to remove a possible `JSR` to a debug
-      routine.
-    - Some ZP variables are accessed using the three-byte variant of `LDA`. E.g.: `LDA $F2` translates to `AD F2 00`
-      instead of `A5 F2`
-    - Lack of a "clean" high level architecture: for example the main loop is split in multiple places.
-- Good place to learn how early C64 games were programmed using a [monitor], but not a good place to learn modern best
-  practices.
-    - Trivia: It is not possible to add comments when using a [monitor], so, the developers might have used other tools,
-      like a notebook, to document the code ([that's what I used to do when I was a kid!][chardef_scan]).
+- The developer wrote the code in a machine code [monitor][monitor] rather than an assembler:
+    - The binary contains unused code and data tables, which often remain when developers edit memory directly in a [monitor].
+    - Address `$2C00` contains the `.T0400,07FF,2C00` [monitor] command [in the binary][c64_burnin_rubber_monitor_cmd]. This command copies bytes `$0400`–`$07FF` (screen RAM) to `$2C00`.
+    - Subroutines split across non-contiguous memory regions and connect with `JMP` instructions.
+    - Several functions start with three `NOP` bytes that overwrite former `JSR` debug calls.
+    - Instructions access zero-page variables with 3-byte absolute addressing (for example, `LDA $00F2` as `AD F2 00` instead of `A5 F2`).
+    - The main loop splits across multiple memory locations.
+- Shows how developers wrote early C64 games with a [monitor] and [paper notes][chardef_scan].
 
-Source:
+Source details:
 
 - TAP file: [Burnin' Rubber.tap][burnin_rubber_tap]
-- The game was taken from the original TAP source.
-- The game was encrypted. Part of the game code was in the loader, and part was in the main program.
-- The disassembly contains a single file that includes the decrypted main program with part of the loader code.
-- Part of the encrypted code is still present, but not used.
-- Run it with: `SYS 4752`
+- Extracted from the original encrypted TAP image.
+- The single disassembly file combines the decrypted main program and part of the loader code.
+- Unused portions of the encrypted loader remain in the binary image.
+- Start the program with `SYS 4752`.
 
 [burnin_rubber_tap]: https://archive.org/download/Ultimate_Tape_Archive_V5/Ultimate_Tape_Archive_V5.zip/Ultimate_Tape_Archive_V5.0%2FBurnin%27_Rubber_%281983_Audiogenic_Ltd.%29_%5B5346%5D%2FBurnin%27_Rubber.tap
-
 [burnin_rubber_info]: https://www.c64-wiki.com/wiki/Burnin_Rubber>
-
 [monitor]: https://www.c64-wiki.com/wiki/Machine_Code_Monitor
-
 [c64_burnin_rubber_monitor_cmd]: examples/c64_burnin_rubber.html#L2BE0
-
 [chardef_scan]: https://github.com/ricardoquesada/c64-c128-erasoft/blob/master/scans/chardef.pdf
