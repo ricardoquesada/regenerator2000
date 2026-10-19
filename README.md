@@ -6,7 +6,7 @@
 
 ![logo](docs/regenerator2000_logo.png)
 
-Regenerator 2000 is an interactive 6502 disassembler for Commodore 8-bit machines. It builds on the original [Regenerator][regenerator].
+Regenerator 2000 is an interactive 6502 disassembler for Commodore 8-bit machines. It is inspired by the original [Regenerator][regenerator].
 
 - **🕹️ Manual Analysis** — Use the keyboard-centric TUI to navigate code, define data, label subroutines, add comments, and refine your disassembly.
 - **🤖 Automated Analysis** — Use the built-in MCP Server and analysis skills so AI assistants classify blocks, trace routines, and name symbols.
