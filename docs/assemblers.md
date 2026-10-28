@@ -142,10 +142,10 @@ Scopes isolate local label names (such as `loop` or `next`) so you can reuse the
 
 | Assembler      | Start Directive | End Directive    | Notes                    |
 | :------------- | :-------------- | :--------------- | :----------------------- |
-| 64tass         | `.block`        | `.endblock`      |                          |
-| ACME           | `!zone`         |                  | Limited scope support    |
+| 64tass         | `.block`        | `.bend`          |                          |
+| ACME           |                 |                  | Not supported (ignored)  |
 | ca65           | `.proc`         | `.endproc`       |                          |
-| KickAssembler  | `.namespace`    | `.endnamespace`  |                          |
+| KickAssembler  | `{`             | `}`              | Label precedes `{`       |
 
 ---
 
@@ -172,7 +172,7 @@ Install the target assemblers and add them to your `PATH`:
 | ca65 (cc65)    | `cl65`           | Must be in `PATH`                                            |
 | KickAssembler  | `java -jar ...`  | Requires `KICKASS_JAR` env var (see [above](#kickassembler)) |
 
-If an assembler is missing, Regenerator 2000 skips it without failing the verification run. At least one assembler must be available for verification to succeed.
+If an assembler is missing, Regenerator 2000 skips it. A missing assembler does not cause the verification run to fail. At least one assembler must be available for verification to succeed.
 
 ### Example Output
 

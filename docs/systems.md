@@ -22,7 +22,7 @@ These systems appear in the System selector by default:
 
 ### Experimental (Disabled by Default)
 
-Regenerator 2000 includes these systems with `enabled = false`. Dump the built-in configuration files and set `enabled = true` to enable them (see [Custom Systems](#custom-systems)):
+Regenerator 2000 includes these systems with `enabled = false`. To enable them, dump the built-in configuration files. Then set `enabled = true` (see [Custom Systems](#custom-systems)):
 
 | System         | Label Groups | Comments | Excludes |
 |:---------------|:-------------|:--------:|:--------:|
@@ -146,7 +146,7 @@ Save this file as `system-acme_computer.toml` in the configuration directory. Wh
 
 ### Tips
 
-- **Back up** your custom files before you run `--dump-system-config-files` again.
-- **Disable** a configuration temporarily by setting `enabled = false` instead of deleting the file.
-- **Validate** your TOML syntax before starting the application. Regenerator 2000 skips files with syntax errors and logs the error to the log file.
+- **Copy** your custom files to a backup location before you run `--dump-system-config-files` again.
+- **Disable** a configuration temporarily with `enabled = false`. You do not need to delete the file.
+- **Validate** your TOML syntax before you start the application. Regenerator 2000 skips files with syntax errors and logs the error to the log file.
 - Group related labels under descriptive names such as `"KERNAL"`, `"BASIC"`, `"I/O"`, or `"SOUND"` so users can toggle them independently.

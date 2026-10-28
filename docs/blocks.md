@@ -1,12 +1,12 @@
 # Block Types and Helpers
 
-Regenerator 2000 assigns a **Block Type** to every byte in the loaded binary. The block type specifies how the disassembly engine decodes and formats that byte. Press a block-type shortcut on a single line or in Visual Mode (++shift+v++) to change the block classification for any memory range.
+Regenerator 2000 assigns a **Block Type** to every byte in the loaded binary. The block type specifies how the disassembly engine decodes and formats that byte. To change the block classification for a memory range, press a block-type shortcut. You can press it on a single line or in Visual Mode (++shift+v++).
 
 ## 1. Disassemble Address (Flow Analysis)
 
 -   **Shortcut**: ++d++
 -   **Description**: Traces execution from the current cursor address across 6502 branches and jumps to discover reachable code paths. The analyzer follows relative branches, absolute jumps, and subroutine calls until it encounters an invalid opcode or return instruction. Regenerator 2000 converts all discovered instruction ranges into **Code** blocks.
--   **Use Case**: Move the cursor to an unanalyzed entry point and press ++d++. Flow analysis skips static data tables embedded between subroutines, which is more accurate than manual range conversion with ++c++.
+-   **Use Case**: Move the cursor to an unanalyzed entry point. Press ++d++. Flow analysis skips static data tables embedded between subroutines. This makes it more accurate than manual range conversion with ++c++.
 
 !!! note
 
@@ -101,7 +101,7 @@ Regenerator 2000 assigns a **Block Type** to every byte in the loaded binary. Th
 
 -   **Shortcut**: ++w++
 -   **Description**: Formats pairs of bytes as 16-bit little-endian numeric values.
--   **Use Case**: Use this type for 16-bit counters, numeric constants, or raw pointers that should not generate symbolic cross-references.
+-   **Use Case**: Use this type for 16-bit counters, numeric constants, or raw pointers. This type does not generate symbolic cross-references.
 
 !!! example
 
@@ -246,7 +246,7 @@ Regenerator 2000 assigns a **Block Type** to every byte in the loaded binary. Th
 
 -   **Shortcut**: ++less-than++
 -   **Description**: Formats an even number of selected bytes as a split **Low / High** address table. The first half contains the low bytes of the addresses, and the second half contains the high bytes.
--   **Use Case**: Use this type when 6502 code splits a pointer or jump table into separate low-byte and high-byte arrays for indexed addressing (`LDA table_lo,X` / `LDA table_hi,X`).
+-   **Use Case**: Use this type when 6502 code splits a pointer or jump table into separate low-byte and high-byte arrays. The code reads these arrays with indexed addressing (`LDA table_lo,X` / `LDA table_hi,X`).
 
 !!! example
 
@@ -438,7 +438,7 @@ Regenerator 2000 assigns a **Block Type** to every byte in the loaded binary. Th
 
 -   **Shortcut**: ++shift+e++
 -   **Description**: Marks the selected range as an external binary include file.
--   **Use Case**: Use this type for large binary assets (such as SID music, bitmaps, or character sets) to keep the main `.asm` source file compact. During export, Regenerator 2000 writes the raw bytes to a `.bin` file and emits an assembler include directive.
+-   **Use Case**: Use this type for large binary assets, such as SID music, bitmaps, or character sets. This keeps the main `.asm` source file compact. During export, Regenerator 2000 writes the raw bytes to a `.bin` file and emits an assembler include directive.
 
 !!! example
 
@@ -559,7 +559,7 @@ Regenerator 2000 assigns a **Block Type** to every byte in the loaded binary. Th
 
 **Example:**
 
-In the following code, `$0314` and `$0315` store the IRQ vector `$1480`. Select lines 1 through 3 in the Disassembly View and press ++open-bracket++:
+In the following code, `$0314` and `$0315` store the IRQ vector `$1480`. Select lines 1 through 3 in the Disassembly View. Then press ++open-bracket++:
 
 ```asm hl_lines="1-3"
     lda #$80        ; $80 is the low part of $1480
@@ -606,7 +606,7 @@ Add comments to any address to document your findings:
 
 !!! note
 
-    **Line Comments** also act as **Splitters** inside `Address` and `Word` blocks. Inserting a line comment inside a grouped table splits the block at that address.
+    **Line Comments** also act as **Splitters** inside `Address` and `Word` blocks. A line comment inside a grouped table splits the block at that address.
 
 ### Scopes
 
@@ -710,7 +710,7 @@ Insert a **Splitter** (++pipe++) to prevent automatic merging at a specific addr
 2.  **Logical Separation**: Stops the auto-merger from combining blocks across the splitter address.
 
 **Example**:
-Two adjacent `Lo/Hi` tables merge into a single table without a splitter. Inserting a splitter between them preserves two independent tables:
+Without a splitter, two adjacent `Lo/Hi` tables merge into a single table. A splitter between them preserves two independent tables:
 
 ```mermaid
 graph TD
@@ -729,7 +729,7 @@ graph TD
 
 !!! important
 
-    Splitters are essential between adjacent **Lo/Hi** and **Hi/Lo** tables. Because each split table calculates its midpoint from the total block length, merging two separate tables corrupts the paired 16-bit values.
+    Splitters are essential between adjacent **Lo/Hi** and **Hi/Lo** tables. Each split table calculates its midpoint from the total block length. If two separate tables merge, the merge corrupts the paired 16-bit values.
 
 ### Collapsing Blocks
 
@@ -764,4 +764,4 @@ graph TD
     ```
 
 -   **Use Case**: Collapse large data tables, long strings, or analyzed subroutines to focus on active work areas.
--   **Scope**: Collapsing affects only the TUI display. It does **not** alter exported `.asm` files or secondary views (such as Hex Dump or Charset).
+-   **Scope**: This feature affects only the TUI display. It does **not** alter exported `.asm` files or secondary views (such as Hex Dump or Charset).

@@ -8,8 +8,8 @@
 
 Regenerator 2000 is an interactive 6502 disassembler for Commodore 8-bit machines. It is inspired by the original [Regenerator][regenerator].
 
-- **🕹️ Manual Analysis** — Use the keyboard-centric TUI to navigate code, define data, label subroutines, add comments, and refine your disassembly.
-- **🤖 Automated Analysis** — Use the built-in MCP Server and analysis skills so AI assistants classify blocks, trace routines, and name symbols.
+- **🕹️ Manual Analysis** — Use the keyboard-centric terminal interface to navigate code, define data regions, label subroutines, add comments, and refine your disassembly.
+- **🤖 Automated Analysis** — Use the built-in MCP Server and analysis skills so AI assistants classify blocks, trace routines, and name symbols automatically.
 
 Use either workflow independently, or combine them. Run an initial pass with the AI, and then refine the results interactively.
 
@@ -70,7 +70,7 @@ Regenerator 2000 provides the following features for 6502 disassembly:
 - **Navigation**:
     - **Jump**: Jumps to specific addresses, line numbers, or operand targets.
     - **X-Ref**: Inspects cross-references for labels and addresses.
-    - **History**: Navigates back to previous locations.
+    - **History**: Returns to previous locations.
 - **Customization**:
     - Configures document settings (maximum x-refs, target system, and target assembler).
     - Customizes display options (such as label visibility).

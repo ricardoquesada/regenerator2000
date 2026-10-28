@@ -63,9 +63,9 @@ Regenerator 2000 includes **9 built-in color themes**. Switch between them in **
 1. Open **File → Settings** (++alt+p++ or ++ctrl+comma++).
 2. Select the **Theme** option.
 3. Change the theme with either method:
-    - Press ++left++ or ++right++ to cycle through themes with a live preview.
+    - Press ++left++ or ++right++ to cycle themes with a live preview.
     - Press ++enter++ to open the theme selector popup and choose from the list.
-4. Select a theme and press ++enter++.
+4. Select a theme. Then press ++enter++.
 
 Regenerator 2000 saves the selected theme globally across sessions and projects.
 
@@ -127,7 +127,7 @@ Start from the built-in theme files to create a custom theme:
 
 !!! tip
 
-    Define **partial themes** that override only the colors you want to change and inherit the remaining colors from a `base` theme.
+    Define **partial themes** that override only the colors you want to change. A partial theme inherits the remaining colors from a `base` theme.
 
 ### TOML Schema Reference
 

@@ -33,7 +33,7 @@ The Settings dialog configures global application preferences. Select `File -> S
 
 #### Sync View Options
 
-These options synchronize the secondary view cursors with the main Disassembly View. When enabled, cursor movement in the Disassembly View updates the active secondary view to the same memory address. The options appear in keyboard shortcut order (++ctrl+1++ through ++ctrl+5++):
+These options synchronize the secondary view cursors with the main Disassembly View. If you enable an option, cursor movement in the Disassembly View updates the active secondary view to the same memory address. The options appear in keyboard shortcut order (++ctrl+1++ through ++ctrl+5++):
 
 1.  **Sync Blocks View** (++ctrl+1++): Synchronizes the Blocks view.
 2.  **Sync Hex Dump View** (++ctrl+2++): Synchronizes the Hex Dump view.
@@ -117,11 +117,11 @@ The **Document Settings** dialog configures binary analysis and code export rule
 
 2.  **Preserve long bytes**
 
-    -   **Description**: Prevents the assembler from optimizing 3-byte absolute instructions into 2-byte zero-page instructions during re-assembly. The formatter adds explicit width prefixes (`@w`, `+2`, or `.abs`) to preserve the exact byte count of the original binary.
+    -   **Description**: Keeps 3-byte absolute instructions at 3 bytes during re-assembly. Without this option, the assembler can optimize them into 2-byte zero-page instructions. The formatter adds explicit width prefixes (`@w`, `+2`, or `.abs`) to preserve the exact byte count of the original binary.
 
 3.  **BRK single byte**
 
-    -   **Description**: Treats `BRK` as a 1-byte instruction (enabled by default). Although the 6502 hardware increments the return address past a 2nd padding byte, most C64 programs treat `BRK` as 1 byte. Clear this option if the binary uses the 2nd signature byte after `BRK`.
+    -   **Description**: Treats `BRK` as a 1-byte instruction (enabled by default). Although the 6502 hardware increments the return address past a 2nd padding byte, most C64 programs treat `BRK` as 1 byte. If the binary uses the 2nd signature byte after `BRK`, clear this option.
 
         When `BRK single byte` is enabled, the disassembler formats four `$00` bytes as:
 
@@ -165,7 +165,7 @@ The **Document Settings** dialog configures binary analysis and code export rule
 
 5.  **Use Illegal Opcodes**
 
-    -   **Description**: Decodes undocumented (illegal) 6502 opcodes as instructions. When disabled, the disassembler emits raw `.byte` directives for undocumented opcodes.
+    -   **Description**: Decodes undocumented (illegal) 6502 opcodes as instructions. If you disable this option, the disassembler emits raw `.byte` directives for undocumented opcodes.
 
         When `Use Illegal Opcodes` is disabled, the disassembly appears as follows:
 
@@ -239,7 +239,7 @@ The **Document Settings** dialog configures binary analysis and code export rule
 
 7.  **Description**
 
-    -   **Description**: Stores a short text note for the project. Press `Enter` to edit the text, press `Enter` again to save, or press `Esc` to cancel.
+    -   **Description**: Stores a short text note for the project. Press `Enter` to edit the text. Press `Enter` again to save. Press `Esc` to cancel.
 
 8.  **Max X-Refs**
 
@@ -285,15 +285,15 @@ The **Document Settings** dialog configures binary analysis and code export rule
         .fill 16, $00
         ```
 
-        The formatter coalesces runs only within a single `Byte` block. Labels, cross-references, splitters, or comments inside the block split the run at that address.
+        The formatter combines runs only within a single `Byte` block. Labels, cross-references, splitters, or comments inside the block split the run at that address.
 
 14. **Assembler**
 
-    -   **Description**: Selects the target assembler syntax (**64tass**, **ACME**, **KickAssembler**, or **ca65**) for the Disassembly View and `.asm` export. Press `Enter` to open the selector popup, or press `Left` and `Right` to cycle.
+    -   **Description**: Selects the target assembler syntax (**64tass**, **ACME**, **KickAssembler**, or **ca65**) for the Disassembly View and `.asm` export. Press `Enter` to open the selector popup. Press `Left` and `Right` to cycle.
 
 15. **Target System**
 
-    -   **Description**: Selects the target hardware platform (such as Commodore 64) to load platform-specific memory maps, hardware registers, and ROM routines. Press `Enter` to open the selector popup, or press `Left` and `Right` to cycle. Changing the target system resets the active **System Labels** selections.
+    -   **Description**: Selects the target hardware platform (such as Commodore 64) to load platform-specific memory maps, hardware registers, and ROM routines. Press `Enter` to open the selector popup. Press `Left` and `Right` to cycle. If you change the target system, Regenerator 2000 resets the active **System Labels** selections.
 
 16. **System Labels** *(system-dependent)*
 

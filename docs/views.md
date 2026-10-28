@@ -29,7 +29,7 @@ The Disassembly View contains these columns:
 
 ![Disassembly Only](regenerator2000_disassembly_only.png)
 
-Auto-generated labels start with a prefix that shows how the code references the address (such as `s_` for subroutines, `j_` for jumps, and `a_` for absolute addresses). See [Analysis — Label Prefixes](analysis.md#label-prefixes) for the complete list of prefixes.
+Auto-generated labels start with a prefix. The prefix shows how the code references the address (such as `s_` for subroutines, `j_` for jumps, and `a_` for absolute addresses). See [Analysis — Label Prefixes](analysis.md#label-prefixes) for the complete list of prefixes.
 
 ### Keyboard Shortcuts
 
@@ -96,7 +96,7 @@ The Hexdump View displays raw hexadecimal bytes alongside their decoded text cha
 
 Press ++alt+2++ (or ++ctrl+2++) to cycle through three layout modes: **wide (16-byte)**, **narrow (8-byte)**, and **disabled** (hidden).
 
-Press ++m++ or ++shift+m++ to switch between PETSCII and Screencode character decoding modes. Regenerator 2000 colors each byte with a **byte-value color palette** (based on [Color-code your bytes](https://simonomi.dev/blog/color-code-your-bytes/)) so you can spot repeating values and data structures.
+Press ++m++ or ++shift+m++ to switch between PETSCII and Screencode character decoding modes. Regenerator 2000 colors each byte with a **byte-value color palette** (based on [Color-code your bytes](https://simonomi.dev/blog/color-code-your-bytes/)). This palette helps you find repeated values and data structures.
 
 === "16-byte hexdump"
 
@@ -187,7 +187,7 @@ The Bitmap View renders memory as a full-screen bitmap image:
 
 !!! warning
 
-    The Bitmap View uses significant CPU resources. Hide the Bitmap View (++alt+5++) when you finish inspecting bitmaps.
+    The Bitmap View uses significant CPU resources. Hide the Bitmap View (++alt+5++) after you inspect the bitmaps.
 
 The Bitmap View contains these elements:
 
@@ -214,10 +214,10 @@ The Bitmap View contains these elements:
 
 The Debugger View connects to the [VICE](https://vice-emu.sourceforge.io/) emulator for live debugging inside Regenerator 2000.
 
-Press ++alt+6++ (or ++ctrl+6++) to toggle the Debugger View. When connected to VICE, the panel displays:
+Press ++alt+6++ (or ++ctrl+6++) to toggle the Debugger View. When the connection to VICE is active, the panel displays:
 
 - **Connection status**: Shows the VICE connection state and whether the emulator runs or pauses.
-- **Live disassembly**: Shows disassembly around the current PC and highlights the active instruction when paused.
+- **Live disassembly**: Shows disassembly around the current PC and highlights the active instruction when the emulator pauses.
 - **Registers**: Displays CPU registers A, X, Y, SP, and P (status).
 - **Breakpoints**: Lists active execution breakpoints in VICE.
 - **Watchpoints**: Lists active memory watchpoints in VICE.
@@ -226,7 +226,7 @@ Press ++alt+6++ (or ++ctrl+6++) to toggle the Debugger View. When connected to V
 
 ![Debugger Only](regenerator2000_debugger_screenshot_only.png)
 
-When connected, the main **Disassembly** view also highlights the current PC and marks active breakpoints.
+When the connection to VICE is active, the main **Disassembly** view also highlights the current PC and marks active breakpoints.
 
 See [Debugger (VICE Integration)](debugger.md) for connection instructions and debugger features.
 

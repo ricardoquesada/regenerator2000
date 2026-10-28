@@ -50,7 +50,7 @@ Yes. Download pre-compiled binaries for all three platforms from the [GitHub Rel
 
 ### How do I reopen a recent project?
 
-Select **File → Open Recent** (++alt+o++ or ++ctrl+shift+o++) to open your recent files and projects.
+Select **File → Open Recents...** (++alt+o++ or ++ctrl+shift+o++) to open your recent files and projects.
 
 ---
 
@@ -58,7 +58,7 @@ Select **File → Open Recent** (++alt+o++ or ++ctrl+shift+o++) to open your rec
 
 ### How do I change the type of a block?
 
-Move the cursor to the target line (or press ++shift+v++ to select a range in Visual Mode) and press the block key:
+Move the cursor to the target line (or press ++shift+v++ to select a range in Visual Mode). Press the block key:
 
 | Key               | Block Type          |
 |:------------------|:--------------------|
@@ -83,7 +83,7 @@ Press ++shift+v++ to enter **Visual Mode**. Press ++arrow-up++ or ++arrow-down++
 
 ### Can I rename labels?
 
-Yes. Move the cursor to a label and press ++l++. Type the new name and press ++enter++. Regenerator 2000 updates every instruction that references that address with the new name.
+Yes. Move the cursor to a label. Press ++l++. Type the new name. Press ++enter++. Regenerator 2000 updates every instruction that references that address with the new name.
 
 ### What do the label prefixes mean?
 
@@ -97,7 +97,7 @@ See [Analysis — Label Prefixes](analysis.md#label-prefixes) for the complete p
 - **Local Labels** (such as `_loop` or `.skip`): Belong to the nearest preceding **Global Label** and remain visible only until the next global label. Use local labels for loop targets to avoid name collisions across subroutines.
 - **Scope Labels**: Belong to a custom scope block (such as a procedure or block). Code outside the scope must reference them as `scope_name.label_name`.
 
-Press ++l++ to open the label dialog, press ++tab++ to focus the local scope checkbox, and press ++space++ to toggle it.
+Press ++l++ to open the label dialog. Press ++tab++ to focus the local scope checkbox. Press ++space++ to toggle it.
 
 ### How do I navigate the disassembly?
 
@@ -119,11 +119,11 @@ The left columns of the disassembly view draw arrows for jump (`JMP`) and branch
 
 ### How does undo/redo work?
 
-Press ++u++ to undo the last action, and press ++ctrl+r++ to redo it. Regenerator 2000 records every block change, label edit, and comment edit on the undo stack and saves it in the project file.
+Press ++u++ to undo the last action. Press ++ctrl+r++ to redo it. Regenerator 2000 records every block change, label edit, and comment edit on the undo stack and saves it in the project file.
 
 ### What is "Patch BRK"?
 
-The 6502 `BRK` instruction occupies 2 bytes, but most C64 programs use it as a 1-byte instruction. By default, Regenerator 2000 enables **BRK single byte**. If your program uses 2-byte `BRK` instructions, clear **BRK single byte** in Document Settings and enable **Patch BRK** to preserve the padding byte. See [Settings](settings.md) for details.
+The 6502 `BRK` instruction occupies 2 bytes, but most C64 programs use it as a 1-byte instruction. By default, Regenerator 2000 enables **BRK single byte**. If your program uses 2-byte `BRK` instructions, clear **BRK single byte** in Document Settings. Then enable **Patch BRK** to preserve the padding byte. See [Settings](settings.md) for details.
 
 ---
 
@@ -131,8 +131,8 @@ The 6502 `BRK` instruction occupies 2 bytes, but most C64 programs use it as a 1
 
 ### How do I add a comment?
 
-- **Side comment** (inline after the instruction): Press ++semicolon++ and enter your comment.
-- **Line comment** (on a separate line above the instruction): Press ++colon++ and enter your comment.
+- **Side comment** (inline after the instruction): Press ++semicolon++. Type your comment.
+- **Line comment** (on a separate line above the instruction): Press ++colon++. Type your comment.
 
 Line comments also act as **splitters** that prevent adjacent blocks of the same type from merging.
 
@@ -221,7 +221,7 @@ See [Assemblers](assemblers.md) for command-line flags and linker configurations
 
 ### How do I export my project?
 
-- ++ctrl+e++: Export to ASM with the previous filename, or prompt if none exists.
+- ++ctrl+e++: Export to ASM with the previous filename. If no previous filename exists, Regenerator 2000 prompts for one.
 - ++alt+e++ (or ++ctrl+shift+e++): Prompt for a filename and export.
 
 Run exports from the command line in headless mode:
@@ -236,7 +236,7 @@ regenerator2000 --headless --assembler acme --export_asm output.asm my_file.rege
 
 ### Can I export VICE labels?
 
-Yes. Select **File → Export → Export VICE Labels...** to generate a `.lbl` file for the VICE monitor.
+Yes. Select **File → Export VICE Labels...** to generate a `.lbl` file for the VICE monitor.
 
 ### What is the "External File" block type for?
 
@@ -250,8 +250,9 @@ When you mark a memory region as "External File" (++e++), the exporter writes th
 
 1. Start VICE with the binary monitor active: `x64 -binarymonitor my_program.prg`
 2. Load the **same** binary in Regenerator 2000: `regenerator2000 my_program.prg`
-3. Select **Debugger → Connect to VICE...** and press ++enter++ (default: `localhost:6502`).
-4. Press ++alt+6++ to open the Debugger panel.
+3. Select **Debugger → Connect to VICE...**.
+4. Press ++enter++ to connect (default: `localhost:6502`).
+5. Press ++alt+6++ to open the Debugger panel.
 
 !!! warning
 
@@ -305,16 +306,16 @@ Verify that your terminal supports 256 colors or 24-bit true color. If you use `
 
 ### Why is my BASIC program disassembling as illegal opcodes?
 
-Commodore BASIC programs store tokenized byte sequences linked by 2-byte pointers. If you convert a BASIC line to 6502 code (++c++), the decoder interprets BASIC tokens (such as `$99` for `PRINT` or `$8F` for `REM`) as opcodes.
+Commodore BASIC programs store tokenized byte sequences, and 2-byte pointers link these sequences. If you convert a BASIC line to 6502 code (++c++), the decoder interprets BASIC tokens (such as `$99` for `PRINT` or `$8F` for `REM`) as opcodes.
 
-To fix this, select the BASIC memory range and press ++p++ (**PETSCII Text**) or ++w++ (**Word**). Alternatively, run the `r2000-analyze-basic` skill to format BASIC pointers and decode tokens into side comments automatically.
+To fix this, select the BASIC memory range. Press ++p++ (**PETSCII Text**) or ++w++ (**Word**). Alternatively, run the `r2000-analyze-basic` skill to format BASIC pointers and decode tokens into side comments automatically.
 
 ### Why did VICE binary monitor fail to connect?
 
 Regenerator 2000 connects to the VICE **Binary Monitor Protocol** over TCP (default port `6502`), not the plain-text monitor:
 
 - **Enable Binary Monitor mode**: Start VICE with `x64 -binarymonitor` or enable **Settings → Monitor → Enable binary monitor**.
-- **Check the port type**: The binary monitor sends 4-byte binary headers (`0x02`, `0x00`, little-endian length). Connecting to a plain-text monitor port (such as `6510`) fails the handshake.
+- **Check the port type**: The binary monitor sends 4-byte binary headers (`0x02`, `0x00`, little-endian length). If you connect to a plain-text monitor port (such as `6510`), the handshake fails.
 - **Load identical binaries**: Load the exact same `.prg` file in both VICE and Regenerator 2000 so PC addresses and breakpoints match.
 
 ### Why does roundtrip assembler export verification fail?
@@ -323,7 +324,7 @@ Roundtrip verification (`cargo test --test roundtrip_export_test` or `--verify`)
 
 - **Symbol Scoping**: A local label (such as `.skip`) resolves to a different global label scope in the target assembler.
 - **Branch Bounds**: An assembler expands a relative branch (`BNE`) into a long jump (`JMP`) when the offset exceeds -128/+127 bytes.
-- **BRK Padding**: The 6502 `BRK` opcode takes 2 bytes (`$00 $00`), whereas C64 code often treats it as 1 byte. Enable **Patch BRK** in Document Settings if your binary requires 2-byte `BRK` alignment.
+- **BRK Padding**: The 6502 `BRK` opcode takes 2 bytes (`$00 $00`), whereas C64 code often treats it as 1 byte. If your binary requires 2-byte `BRK` alignment, enable **Patch BRK** in Document Settings.
 
 ### Why does the Binary Unpacker fail or timeout?
 

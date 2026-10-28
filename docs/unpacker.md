@@ -25,13 +25,13 @@ crates/regenerator2000-core/src/unpacker/
 2. **`cia.rs`**: Implements `CiaState` for MOS 6526 CIA 1 and CIA 2 timer latches, counters, and cycle stepping (`step_cycles(cycles)`).
 3. **`bus.rs`**: Implements `mos6502::memory::Bus` for `C64Bus` (`UnpackerMemory`). It handles checked ROM slice lookups (`checked_sub` and `.get()`), processor port `$00`/`$01` banking, and RAM access.
 4. **`detector.rs`**: Implements memory range scanning (`detect_output_range`), trailing cluster trimming, and snapshot diffing.
-5. **`engine.rs`**: Runs the two-phase 6502 execution loop, undocumented opcodes (`SHX`, `SHY`), and ROM vector traps.
+5. **`engine.rs`**: Runs the two-phase 6502 execution loop. It also handles undocumented opcodes (`SHX`, `SHY`) and ROM vector traps.
 
 ---
 
 ## How It Works: Two-Phase Emulation
 
-The unpacker runs a cycle-accurate MOS 6502 emulation sandbox with target system memory mappings. It uses a two-phase execution algorithm based on [**unp64**](http://iancoog.altervista.org/):
+The unpacker runs a cycle-accurate sandbox for MOS 6502 emulation with target system memory mappings. It uses a two-phase execution algorithm based on [**unp64**](http://iancoog.altervista.org/):
 
 ```
   ┌────────────────────────────────────────────────────────┐
@@ -62,9 +62,9 @@ The unpacker runs a cycle-accurate MOS 6502 emulation sandbox with target system
 
 Most packed programs start with a BASIC bootstrap stub (such as `10 SYS 2061`) that jumps into a loader:
 
-- The emulator starts executing instructions at the parsed `SYS` address.
+- The emulator executes instructions from the parsed `SYS` address.
 - It executes the bootstrap setup until it reaches the decompression loop.
-- When the program counter (`PC`) drops below the system RAM start boundary (`$0800` on C64, `$1C00` on C128, `$1000` on VIC-20, or `$0400` on PET) or matches a known packer signature, Phase 1 completes.
+- If the program counter (`PC`) matches a known packer signature, Phase 1 completes. Phase 1 also completes when the `PC` drops below the system RAM start boundary (`$0800` on C64, `$1C00` on C128, `$1000` on VIC-20, or `$0400` on PET).
 
 ### Phase 2: Decompress Binary
 
@@ -72,7 +72,7 @@ When the decompression routine starts:
 
 - The emulator enables a **write-tracking bitmap** across the 64 KB RAM address space.
 - Each time the CPU writes a byte to RAM, the unpacker marks the corresponding bit as `true`.
-- Emulation continues until the `PC` jumps back above the system RAM start boundary (such as `$0800` on C64, `$1C00` on C128, `$1000` on VIC-20, or `$0400` on PET) into the unpacked program.
+- Emulation continues until the `PC` jumps back above the system RAM start boundary (such as `$0800` on C64, `$1C00` on C128, `$1000` on VIC-20, or `$0400` on PET). This jump enters the unpacked program.
 
 ### Extraction & Range Reconstruction
 
@@ -114,7 +114,7 @@ Regenerator 2000 uses the `Packer` trait (`Box<dyn Packer>`) under `src/packers/
 
 The unpacker emulates hardware features that complex packers require:
 
-- **PLA Bank Switching**: On C64, the bus simulates Processor Port (`$01`) banking so packers can decompress data into RAM under the `$D000`–`$DFFF` I/O area or bank ROMs in and out.
+- **PLA Bank Switching**: On C64, the bus simulates Processor Port (`$01`) banking. Packers can then decompress data into RAM under the `$D000`–`$DFFF` I/O area. They can also enable or disable ROM banks.
 - **ROM Interception Stubs**: Traps standard Commodore ROM vectors (such as KERNAL `GETIN` at `$FFE4`, `CHROUT` at `$FFD2`, and `CINT` at `$FF5B`). It supplies simulated keystrokes and returns `RTS` to prevent infinite wait loops.
 - **PLA-Visible RAM Writes**: Ignores writes to `$D000` I/O registers unless the processor port maps RAM into `$D000`–`$DFFF`.
 
@@ -128,7 +128,7 @@ When you load a binary file, Regenerator 2000 calculates its **Shannon Entropy**
 
 If a file has high entropy or matches a known packer signature:
 
-1. **Import Context Setup Dialog**: Displays a warning at the bottom of the dialog (for example, `[!] High Entropy (7.82). Packed with Exomizer 3.x.`) and focuses the **`< Unpack >`** button so you can press **++enter++** to unpack immediately.
+1. **Import Context Setup Dialog**: Displays a warning at the bottom of the dialog (for example, `[!] High Entropy (7.82). Packed with Exomizer 3.x.`). It also focuses the **`< Unpack >`** button. Press **++enter++** to unpack immediately.
 2. **High Entropy Warning Dialog**: Alerts you when you open a packed binary.
 
 ### 2. Unpacking in the TUI
@@ -173,4 +173,4 @@ Call the `r2000_unpack_binary` tool from an MCP client or AI agent to unpack the
 
 ## unp64 Compatibility & Benchmark Parity
 
-The Regenerator 2000 unpacker matches `unp64` output across all 31 benchmark test binaries (`cargo run --bin unpacker_compare_all`), producing identical decompressed payloads for Exomizer 3, ByteBoozer 2, TinyCrunch, Dali, and MC-Cracken.
+The Regenerator 2000 unpacker matches `unp64` output across all 31 benchmark test binaries (`cargo run --bin unpacker_compare_all`). It produces identical decompressed payloads for Exomizer 3, ByteBoozer 2, TinyCrunch, Dali, and MC-Cracken.

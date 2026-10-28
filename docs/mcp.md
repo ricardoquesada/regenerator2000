@@ -108,7 +108,7 @@ Combine AI semantic analysis with Regenerator 2000 tools to accelerate reverse e
 
     > "Analyze the routine at $C000. It checks sprite collisions. Rename variables and add comments that explain the logic."
 
-**Behavior**: The AI reads the disassembly at `$C000`, traces control flow, identifies hardware register accesses (such as `$D01E` for sprite collisions), and calls `r2000_set_label_name` and `r2000_set_comment` to update the project.
+**Behavior**: The AI reads the disassembly at `$C000`, traces control flow, and identifies hardware register accesses (such as `$D01E` for sprite collisions). Then it calls `r2000_set_label_name` and `r2000_set_comment` to update the project.
 
 ### 2. Identify Code vs. Data
 
@@ -184,7 +184,7 @@ Alternatively, run **`r2000-analyze-program`** to execute all three phases autom
 
 ### Skill: `r2000-analyze-program`
 
-Executes a complete analysis of the loaded binary. This skill runs block classification first and then spawns parallel subagents to analyze subroutines and data symbols:
+Analyzes all of the loaded binary. This skill runs block classification first and then spawns parallel subagents to analyze subroutines and data symbols:
 
 1.  **Phase 0 — Gather Context**: Reads binary metadata, existing blocks, symbols, and line comments.
 2.  **Phase 1 — Classify Blocks**: Runs `r2000-analyze-blocks` to classify memory regions (code, data, text, and tables) and refreshes state.
@@ -342,7 +342,7 @@ _No arguments._
 
 ### `r2000_get_blocks`
 
-Returns all memory blocks with their address ranges and block types (`Code`, `Byte`, `Word`, `Address`, `PETSCII`, `Screencode`, `Lo/Hi Address`, `Hi/Lo Address`, `Lo/Hi Word`, `Hi/Lo Word`, `External File`, or `Undefined`). This tool respects user splitters.
+Returns all memory blocks with their address ranges and block types. The block types are `Code`, `Byte`, `Word`, `Address`, `PETSCII`, `Screencode`, `Lo/Hi Address`, `Hi/Lo Address`, `Lo/Hi Word`, `Hi/Lo Word`, `External File`, and `Undefined`. This tool respects user splitters.
 
 **Arguments:**
 
@@ -381,7 +381,7 @@ _No arguments._
 
 ### `r2000_get_symbols`
 
-Returns defined labels and their addresses. Without arguments, this tool returns all symbols. Optional filters narrow the results using logical `AND`: `names` resolves specific label names, `start_address` and `end_address` restrict the address range, and `kind` filters by label source.
+Returns defined labels and their addresses. Without arguments, this tool returns all symbols. Optional filters narrow the results with logical `AND`. `names` resolves specific label names. `start_address` and `end_address` restrict the address range. `kind` filters by label source.
 
 **Arguments:**
 

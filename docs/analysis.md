@@ -139,11 +139,11 @@ You can exclude specific addresses from label generation at two levels:
 
 ### System-Level Exclusion
 
-Select **"Exclude well-known addresses from symbolic analysis"** in [Document Settings](settings.md) to suppress labels for noisy system addresses (such as indirectly accessed hardware registers). This setting uses the exclusion list from the active system definition.
+Select **"Exclude well-known addresses from symbolic analysis"** in [Document Settings](settings.md). This setting suppresses labels for noisy system addresses (such as indirectly accessed hardware registers). It uses the exclusion list from the active system definition.
 
 ### Per-Project User Exclusion
 
-Place the cursor on an **external label** in the disassembly and press ++delete++ to exclude that address for the current project. Regenerator 2000 adds the address to the **user-excluded addresses** set and saves it in the project file.
+Place the cursor on an **external label** in the disassembly. Press ++delete++ to exclude that address for the current project. Regenerator 2000 adds the address to the **user-excluded addresses** set and saves it in the project file.
 
 Use this feature to suppress false references, such as dynamically computed addresses.
 
@@ -182,4 +182,4 @@ Press ++ctrl+a++ to run the analyzer again after you make structural changes:
 - After you define new Address, Lo/Hi, or Hi/Lo tables.
 - After you load additional system definition files.
 
-The analyzer rebuilds all auto-generated labels and cross-references from scratch and preserves your user-defined labels and comments.
+The analyzer regenerates all auto-generated labels and cross-references. It preserves your user-defined labels and comments.

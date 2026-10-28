@@ -4,7 +4,7 @@ This tutorial guides you through a reverse-engineering session in **Regenerator 
 
 !!! tip "Prerequisites"
 
-    Install Regenerator 2000 and prepare a Commodore 64 program (`.prg`) for analysis.
+    Install Regenerator 2000. Prepare a Commodore 64 program (`.prg`) for analysis.
 
 ---
 
@@ -54,13 +54,13 @@ When you load a raw binary (not a `.regen2000proj` project), the **Import Contex
 ### Basic Movement
 
 -   **Scroll**: Press ++arrow-up++ / ++arrow-down++ or ++page-up++ / ++page-down++.
--   **Jump to Address**: Press ++ctrl+g++, type a hexadecimal address (such as `c000`), and press ++enter++.
--   **Follow Flow**: Move the cursor to a `JMP` or `JSR` instruction and press ++enter++ to jump to its target address.
+-   **Jump to Address**: Press ++ctrl+g++. Type a hexadecimal address (such as `c000`). Press ++enter++.
+-   **Follow Flow**: Move the cursor to a `JMP` or `JSR` instruction. Press ++enter++ to jump to its target address.
 -   **Go Back**: Press ++backspace++ to return to the previous address.
 
 ### Auto-Analysis
 
-When you load a binary, Regenerator 2000 runs automatic analysis (when enabled in Settings):
+If you enable automatic analysis in Settings, Regenerator 2000 runs it when you load a binary:
 
 -   Traces code execution flow from known entry points.
 -   Generates labels for subroutines (`s_XXXX`), jump targets (`j_XXXX`), and branch targets (`b_XXXX`).
@@ -85,9 +85,9 @@ Unanalyzed byte regions appear as follows:
 $C000  A9 00 85 D0 ...
 ```
 
-To trace execution from an address, move the cursor to the line and press ++d++.
+To trace execution from an address, move the cursor to the line. Press ++d++.
 
-Regenerator 2000 disassembles the bytes from that address using **Flow Analysis**. It follows relative branches and absolute jumps until it encounters an invalid opcode or a return instruction. Use ++d++ at new subroutine entry points to trace code while skipping inline data tables.
+Regenerator 2000 disassembles the bytes from that address with **Flow Analysis**. It follows relative branches and absolute jumps until it encounters an invalid opcode or a return instruction. Press ++d++ at each new subroutine entry point to trace code and skip inline data tables.
 
 ### Converting to Data
 
@@ -129,24 +129,25 @@ Assign descriptive names to addresses instead of raw hexadecimal numbers:
 
 1.  Move the cursor to `$C015`.
 2.  Press ++l++.
-3.  Type `main_loop` and press ++enter++.
+3.  Type `main_loop`.
+4.  Press ++enter++.
 
 Every instruction that references `$C015` now displays `JMP main_loop` instead of `JMP $C015`.
 
 !!! tip "Local vs. Global Labels"
 
-    In the label dialog, press ++tab++ to focus the scope checkbox and press ++space++ to toggle between **Local** and **Global**. Use local labels for loop counters and branch targets inside a subroutine.
+    In the label dialog, press ++tab++ to focus the scope checkbox. Press ++space++ to toggle between **Local** and **Global**. Use local labels for loop counters and branch targets inside a subroutine.
 
 ### Using Cross-References (X-Refs)
 
 Regenerator 2000 tracks **Cross-References (X-Refs)** for every address:
 
 -   Inspect the `x-ref` list in the side comments (for example, `; x-ref: $0820, $0850`).
--   Press ++ctrl+x++ to open the **Find References** dialog and jump to any caller.
+-   Press ++ctrl+x++ to open the **Find References** dialog. Use the dialog to jump to any caller.
 
 ### Go to Symbol
 
-Press ++ctrl+p++ to open the **Go to Symbol** dialog. Type part of a label name to filter the list, then press ++enter++ to jump to the selected symbol.
+Press ++ctrl+p++ to open the **Go to Symbol** dialog. Type part of a label name to filter the list. Press ++enter++ to jump to the selected symbol.
 
 ---
 
@@ -159,7 +160,8 @@ Use comments to document the purpose of instructions and subroutines.
 Use side comments for brief notes on a single instruction:
 
 -   Press ++semicolon++.
--   Type `Update score counter` and press ++enter++.
+-   Type `Update score counter`.
+-   Press ++enter++.
 -   Result: `INC $D020  ; Update score counter`
 
 ### Line Comments
@@ -167,7 +169,8 @@ Use side comments for brief notes on a single instruction:
 Use line comments for subroutine headers or multi-line explanations:
 
 -   Press ++colon++.
--   Type `--- INIT ROUTINE ---` and press ++enter++.
+-   Type `--- INIT ROUTINE ---`.
+-   Press ++enter++.
 -   Result: The comment appears on a dedicated line above the instruction:
 
     ```asm
@@ -201,7 +204,7 @@ Regenerator 2000 provides two search modes.
 
 ### Vim-Style Search
 
-Press ++slash++, type a search query, and press ++enter++. The search scans labels, mnemonics, operands, and comments. Press ++n++ to jump to the next match or ++shift+n++ to jump to the previous match.
+Press ++slash++. Type a search query. Press ++enter++. The search scans labels, mnemonics, operands, and comments. Press ++n++ to jump to the next match or ++shift+n++ to jump to the previous match.
 
 ### Search Dialog
 
@@ -211,7 +214,7 @@ Press ++ctrl+f++ to open the Search dialog:
 -   **Hex pattern search**: Searches raw byte sequences (such as `A9 00 8D`). Use `??` as a wildcard for any single byte.
 -   **PETSCII / Screencode search**: Searches memory for encoded text strings.
 
-Press ++f3++ or ++shift+f3++ to jump to the next or previous match after you close the dialog.
+After you close the dialog, press ++f3++ or ++shift+f3++ to jump to the next or previous match.
 
 ---
 
@@ -219,16 +222,16 @@ Press ++f3++ or ++shift+f3++ to jump to the next or previous match after you clo
 
 Inspect non-code regions with the visual inspection views:
 
--   **Hex Dump**: Press ++alt+2++ to open the Hex Dump View. Press ++m++ to cycle text encodings (PETSCII and Screencode). Byte colors highlight data patterns (`$00` is dimmed, `$FF` is bright, and printable characters use distinct colors).
--   **Sprites**: Press ++alt+3++ to open the **Sprite View** and locate 24x21 hardware sprites.
+-   **Hex Dump**: Press ++alt+2++ to open the Hex Dump View. Press ++m++ to cycle text encodings (PETSCII and Screencode). Byte colors highlight data patterns (`$00` appears dim, `$FF` appears bright, and printable characters use distinct colors).
+-   **Sprites**: Press ++alt+3++ to open the **Sprite View**. Locate 24x21 hardware sprites.
 -   **Charset**: Press ++alt+4++ to inspect 8x8 character sets.
--   **Bitmap**: Press ++alt+5++ to open the **Bitmap View** and inspect 320x200 or 160x200 bitmaps.
+-   **Bitmap**: Press ++alt+5++ to open the **Bitmap View**. Inspect 320x200 or 160x200 bitmaps.
 
 Mark confirmed graphics regions as `Byte` blocks (++b++) so the disassembler does not decode them as instructions.
 
 !!! tip "Syncing Views"
 
-    When view synchronization is enabled in Settings, cursor movement in the Disassembly View updates the active right-hand pane to the same memory address.
+    If you enable view synchronization in Settings, cursor movement in the Disassembly View updates the active right-hand pane to the same memory address.
 
 ---
 
@@ -238,7 +241,7 @@ Use structural markers to organize large disassembly projects.
 
 ### Scopes
 
-Scopes group instructions and isolate local labels (using `.proc`/`.endproc` in ca65, `.block`/`.endblock` in 64tass, or `.namespace` in KickAssembler):
+Scopes group instructions and isolate local labels (with `.proc`/`.endproc` in ca65, `.block`/`.bend` in 64tass, or `{`/`}` in KickAssembler):
 
 -   Press ++r++ to create a scope at the current address or selection.
 -   Press ++delete++ to remove a scope boundary.
@@ -265,7 +268,7 @@ Export your project to an assembly source file (`.asm`):
 
 -   Press ++ctrl+e++ to export the disassembly.
 -   Select the target assembler (**64tass**, **ACME**, **KickAssembler**, or **ca65**) in **Document Settings** (++alt+d++).
--   Adjust the **Fill run threshold** (default `8`) in Document Settings to collapse identical consecutive bytes into `.fill`, `!fill`, or `.res` directives.
+-   Adjust the **Fill run threshold** (default `8`) in Document Settings to collapse identical consecutive bytes into `.fill`, `!fill`, or `.res`.
 
 ### Batch Processing (Headless Mode)
 
@@ -307,7 +310,7 @@ Connect Regenerator 2000 to a running VICE emulator instance for live debugging:
         regenerator2000 --vice localhost:6502 my_game.prg
         ```
 
-3.  **View**: Press ++alt+6++ (or ++ctrl+6++) to open the **Debugger** panel and inspect the program counter, CPU registers, and breakpoints.
+3.  **View**: Press ++alt+6++ (or ++ctrl+6++) to open the **Debugger** panel. Inspect the program counter, CPU registers, and breakpoints.
 
 !!! warning
 
@@ -315,9 +318,9 @@ Connect Regenerator 2000 to a running VICE emulator instance for live debugging:
 
 ### Debugging Features
 
--   **Breakpoints**: Press ++f2++ (or ++shift+f2++) to toggle a breakpoint, or press ++f6++ to set a watchpoint at the cursor.
+-   **Breakpoints**: Press ++f2++ (or ++shift+f2++) to toggle a breakpoint. Press ++f6++ to set a watchpoint at the cursor.
 -   **Stepping**: Press ++f7++ (Step Instruction), ++f8++ (Step Over), or ++shift+f8++ (Step Out).
--   **Control**: Press ++f9++ to continue execution, or press ++f4++ to run to the cursor address.
+-   **Control**: Press ++f9++ to continue execution. Press ++f4++ to run to the cursor address.
 
 ### Debugging Workflow
 
@@ -325,13 +328,13 @@ Follow these steps to debug a routine:
 
 1.  Set a breakpoint at the target routine (++f2++).
 2.  Resume execution in VICE (++f9++).
-3.  Inspect the CPU registers and stack in the Debugger panel when execution stops at the breakpoint.
+3.  When execution stops at the breakpoint, inspect the CPU registers and stack in the Debugger panel.
 4.  Step through the instructions (++f7++) to observe state changes.
 5.  Update labels and comments in the Disassembly View based on the observed behavior.
 
 !!! note "Legacy Workflow: Export VICE Labels"
 
-    To use the standalone VICE monitor without the integrated debugger, select **File → Export VICE labels...** to export project symbols.
+    To use the standalone VICE monitor without the integrated debugger, select **File → Export VICE Labels...** to export project symbols.
 
 ---
 

@@ -34,7 +34,7 @@ flowchart TD
         DisasmEngine[Disassembly Pipeline<br/>symbols / data_blocks / handlers / formatter]
         Parsers[Parser Suite<br/>PRG / CRT / D64 / T64 / VSF / SourceGen]
         Exporters[Exporter Suite & Verify<br/>ASM / HTML / Roundtrip Diff]
-        UnpackerSandbox[6502 Emulation Sandbox<br/>bus / cia / engine / detector / 22+ packers]
+        UnpackerSandbox[6502 Emulation Sandbox<br/>bus / cia / engine / detector / 21 packers]
         MCPServer[MCP Server Suite<br/>HTTP SSE / Stdio / handler / tools]
         ViceClient[VICE Monitor Client<br/>protocol / client / state / c64_hardware]
         AssetsConfig[Assets & Config<br/>system-*.toml / enum-*.toml / config.toml]
@@ -80,7 +80,7 @@ flowchart TD
     UnpackerSandbox -.->|Loads Unpacked Output| AppState
 
     MCPClient <-->|JSON-RPC via HTTP SSE or Stdio| MCPServer
-    MCPServer -->|Dispatches AppAction| Core
+    MCPServer -->|Builds & Applies Commands via AppState| CommandSys
     MCPServer -.->|Inspects Engine State| AppState
 
     VICE <-->|Binary Monitor Protocol| ViceClient
@@ -116,7 +116,7 @@ regenerator2000/
 │   │       ├── parser/                        # Binary container & snapshot parsers
 │   │       ├── exporter/                      # Multi-assembler, HTML & roundtrip verification
 │   │       ├── unpacker/                      # 6502 sandbox depacker engine
-│   │       ├── packers/                       # 22+ binary packer detection strategies
+│   │       ├── packers/                       # 21 binary packer detection strategies
 │   │       ├── mcp/                           # Model Context Protocol server (HTTP & Stdio)
 │   │       ├── vice/                          # Live VICE binary monitor client
 │   │       ├── assets.rs                      # Embedded ROM definitions, system TOMLs & enums
@@ -152,7 +152,7 @@ regenerator2000/
 │               ├── view_bitmap.rs             # Full bitmap visualizer (mono/multicolor)
 │               ├── view_blocks.rs             # Memory block overview list
 │               ├── view_debugger.rs           # Live VICE monitor register & RAM view
-│               └── dialog_*.rs                # 35+ modal dialog implementations
+│               └── dialog_*.rs                # 34 modal dialog implementations
 ```
 
 ---
@@ -249,7 +249,7 @@ pub struct AppState {
 -   `scope`: Persisted routine scope boundary address.
 -   `enum_usage`: Persisted enumeration reference name.
 
-`AnnotationManager` normalizes whitespace, removes empty entries automatically, and uses Serde flattening (`#[serde(flatten)]`) to preserve compatibility with `.regen2000proj` JSON files.
+`AnnotationManager` normalizes whitespace and removes empty entries automatically. Its custom `Serialize` implementation writes one JSON object per address and skips transient `system_comment` values. Its custom `Deserialize` implementation also accepts the legacy per-field maps (`user_side_comments`, `user_line_comments`, `immediate_value_formats`, `bookmarks`, `scopes`, and `enum_usages`), so older `.regen2000proj` files load without errors.
 
 #### Domain Types ([`types.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs))
 
@@ -294,7 +294,7 @@ pipeline.rs / handlers.rs              data_blocks.rs
        Vec<DisassemblyLine> (Renderable & Exportable rows)
 ```
 
--   **[`context.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/context.rs)**: [`DisassemblyContext`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/context.rs#L12) holds references to memory buffers, block types, labels, cross-references, settings, and annotations. It pre-sorts scope boundaries into a vector for $$O(\log S)$$ binary-search splitter checks.
+-   **[`context.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/context.rs)**: [`DisassemblyContext`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/context.rs#L7) holds references to memory buffers, block types, labels, cross-references, settings, and annotations. It pre-computes `scope_ends` into a `BTreeSet`. `is_virtual_splitter()` treats user splitters, scope starts, and scope ends as section breaks with $$O(\log S)$$ lookups.
 -   **[`pipeline.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/pipeline.rs)**: Drives the main disassembly loop, emits label header lines, and decodes instructions via `disassemble_code_instruction`.
 -   **[`symbols.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/symbols.rs)**: Resolves symbol precedence (`LabelKind::User` > `LabelKind::System` > `LabelKind::Auto`), formats local labels, computes scope paths (`compute_scope_names`), and resolves operand target addresses.
 -   **[`data_blocks.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/data_blocks.rs)**: Formats non-code blocks including byte tables (`.byte`), 16-bit words (`.word`), address tables, PETSCII and Screencode strings, split Lo/Hi and Hi/Lo tables, external binary includes (`.incbin`), and fill runs (`.fill`).
@@ -313,8 +313,8 @@ pipeline.rs / handlers.rs              data_blocks.rs
 The CPU module defines all 256 opcode bytes of the MOS 6502/6510 processor:
 
 -   **`Opcode`**: Stores the mnemonic, addressing mode, byte length (1–3), cycle count, description, and illegal-opcode flag.
--   **`AddressingMode`**: Enumerates all 13 addressing modes (`Implied`, `Accumulator`, `Immediate`, `ZeroPage`, `ZeroPageX`, `ZeroPageY`, `Relative`, `Absolute`, `AbsoluteX`, `AbsoluteY`, `Indirect`, `IndirectX`, and `IndirectY`).
--   **Undocumented Opcodes**: Supports undocumented 6502 opcodes (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`, `ALR`, `ANC`, `ARR`, `AXS`, multi-byte `NOP` variants, and `KIL`/`JAM`). When `use_illegal_opcodes` is disabled in Document Settings, the disassembler formats undocumented opcodes as raw `.byte` values.
+-   **`AddressingMode`**: Enumerates all 13 addressing modes (`Implied`, `Accumulator`, `Immediate`, `ZeroPage`, `ZeroPageX`, `ZeroPageY`, `Relative`, `Absolute`, `AbsoluteX`, `AbsoluteY`, `Indirect`, `IndirectX`, and `IndirectY`), plus an `Unknown` sentinel for undecodable bytes.
+-   **Undocumented Opcodes**: Supports undocumented 6502 opcodes (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`, `ALR`, `ANC`, `ARR`, `AXS`, multi-byte `NOP` variants, and `KIL`/`JAM`). If you disable `use_illegal_opcodes` in Document Settings, the disassembler formats undocumented opcodes as raw `.byte` values.
 
 ---
 
@@ -345,9 +345,9 @@ pub enum Command {
 }
 ```
 
--   **`UndoStack`**: Maintains the undo and redo history and tracks a cursor relative to `last_saved_pointer` for `is_dirty()` checks.
--   **`apply(&mut self, state: &mut AppState)`**: Applies the state change and invalidates dependent caches.
--   **`undo(&mut self, state: &mut AppState)`**: Reverts the state change and restores previous values.
+-   **`UndoStack`**: Maintains the undo and redo history and exposes a stack pointer. `AppState::is_dirty()` compares this pointer with `AppState::last_saved_pointer`.
+-   **`apply(&self, state: &mut AppState)`**: Applies the state change and invalidates dependent caches.
+-   **`undo(&self, state: &mut AppState)`**: Reverts the state change and restores previous values.
 -   **Atomic Batches**: `Command::Batch` groups multiple mutations (such as multi-address label updates or batch MCP calls) into a single undoable operation.
 
 ---
@@ -445,9 +445,10 @@ Regenerator 2000 embeds a 6502 emulation sandbox based on `unp64` heuristics to 
 -   **[`cia.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/cia.rs)**: `CiaState` emulates MOS 6526 CIA 1 and CIA 2 timers for depackers that poll timer registers.
 -   **[`engine.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/engine.rs)**: `UnpackEngine` runs the two-phase 6502 execution loop with step hooks and ROM traps.
 -   **[`detector.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/detector.rs)**: Diffs post-emulation RAM against the initial memory snapshot to determine unpacked start/end boundaries and trim trailing depacker stubs.
--   **Packer Strategy Pattern ([`packers/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers))**: Implements the [`Packer`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/mod.rs#L62) trait (`info`, `pre_emulate`, `on_step`, and `post_emulate`) across **22+ packer families**:
+-   **Packer Strategy Pattern ([`packers/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers))**: Implements the [`Packer`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/mod.rs#L62) trait (`info`, `pre_emulate`, `on_step`, and `post_emulate`) across **21 packer families** registered in `detect_packer()`:
 
-    -   `action_replay`, `alz64`, `antiram`, `byteboozer`, `card_cruncher`, `ccs`, `cruel_cruncher`, `dali`, `eagle`, `eca`, `exomizer`, `final_cartridge`, `mc_cracken`, `pucrunch`, `simple`, `super_cruncher`, `tbc`, `time_cruncher`, `tiny_crunch`, `triad`, `tscrunch`, and `turbo_cruncher`.
+    -   `action_replay`, `alz64`, `antiram`, `byteboozer`, `card_cruncher`, `ccs`, `cruel_cruncher`, `dali`, `eagle`, `eca`, `exomizer`, `final_cartridge`, `mc_cracken`, `pucrunch`, `super_cruncher`, `tbc`, `time_cruncher`, `tiny_crunch`, `triad`, `tscrunch`, and `turbo_cruncher`.
+    -   `simple.rs` supplies the shared `SimplePacker` helper for signature-only packers. It is not a packer family.
 
 -   **Benchmarking CLI ([`src/bin/unpacker_compare_all.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/bin/unpacker_compare_all.rs))**: Compares Regenerator 2000 unpacker output against `unp64` across test binaries.
 
@@ -462,7 +463,7 @@ Regenerator 2000 implements an MCP (`2024-11-05`) server so AI agents (Antigravi
     -   **[`http.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/http.rs)**: Serves streamable HTTP with Server-Sent Events (SSE) on port `3000` by default.
     -   **[`stdio.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/stdio.rs)**: Runs a headless standard I/O loop for subprocess clients.
 
--   **Request Dispatcher ([`handler.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/handler.rs))**: Routes JSON-RPC requests (`initialize`, `ping`, `tools/list`, `resources/list`, `resources/read`, and `tools/call`).
+-   **Request Dispatcher ([`handler.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/handler.rs))**: Routes JSON-RPC requests (`initialize`, `notifications/initialized`, `tools/list`, `resources/list`, `resources/read`, and `tools/call`).
 -   **Tool Submodules ([`mcp/tools/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/tools))**:
 
     -   **[`analysis_tools.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/mcp/tools/analysis_tools.rs)**: Reads disassembly regions, blocks, cross-references, symbols, address details, binary metadata, and search matches.
@@ -478,7 +479,7 @@ Regenerator 2000 implements an MCP (`2024-11-05`) server so AI agents (Antigravi
 The `vice` module provides live bidirectional debugging with the VICE emulator:
 
 -   **[`client.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/vice/client.rs)**: Manages non-blocking TCP socket communication with the VICE binary monitor (default port `6502`) on a background reader thread.
--   **[`protocol.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/vice/protocol.rs)**: Encodes and decodes binary monitor packets (`0x02` STX byte, command IDs, request IDs, and payloads) for `REGISTERS_GET`, `REGISTERS_SET`, `MEMORY_GET`, `MEMORY_SET`, `CHECKPOINT_SET`, `CHECKPOINT_GET`, `CHECKPOINT_DELETE`, `CHECKPOINT_LIST`, `CHECKPOINT_TOGGLE`, `ADVANCE_INSTRUCTIONS`, `EXECUTE_UNTIL_RETURN`, and `PING`.
+-   **[`protocol.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/vice/protocol.rs)**: Encodes and decodes binary monitor packets (`0x02` STX byte, API version `0x02`, command IDs, request IDs, and payloads) for `MEMORY_GET` (`0x01`), `MEMORY_SET` (`0x02`), `CHECKPOINT_GET` (`0x11`), `CHECKPOINT_SET` (`0x12`), `CHECKPOINT_DELETE` (`0x13`), `CHECKPOINT_LIST` (`0x14`), `REGISTERS_GET` (`0x31`), `ADVANCE_INSTRUCTION` (`0x71`), `EXECUTE_UNTIL_RETURN` (`0x73`), `PING` (`0x81`), and `EXIT_MONITOR` (`0xAA`). It also decodes the asynchronous `STOPPED` (`0x62`) and `RESUMED` (`0x65`) events.
 -   **[`state.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/vice/state.rs)**: Tracks connection status, CPU register snapshots (`PC`, `A`, `X`, `Y`, `SP`, and `NV-BDIZC` flags), modified register highlights, and active checkpoints (`BreakpointKind::Exec`, `Load`, `Store`, and `LoadStore`).
 -   **[`c64_hardware.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/vice/c64_hardware.rs)**: Decodes C64 I/O memory snapshots (`$D000–$DFFF`) into live VIC-II, SID, and CIA register views.
 
@@ -583,8 +584,8 @@ The terminal user interface uses `ratatui` and `crossterm`:
 10. Event Emission: Core emits CoreEvent::StateChanged.
 11. UI Sync: The TUI syncs CoreViewState to UIState, and preserve_cursor()
     restores the visual row.
-12. Render Frame: The event loop calls ui::draw() to render the updated
-    disassembly.
+12. Render Frame: The event loop calls terminal.draw() with ui::ui() to render
+    the updated disassembly.
 ```
 
 ### 4.2 AI Agent / MCP Server Invocation (Setting a Label)
@@ -593,19 +594,23 @@ The terminal user interface uses `ratatui` and `crossterm`:
 1. Client Request: The external AI agent sends a JSON-RPC POST 'tools/call'
    ("r2000_set_label_name", {address: 2064, name: "init"}).
 2. Transport Handling: mcp::http or mcp::stdio decodes the JSON-RPC request.
-3. Handler Router: mcp::handler dispatches the request to
-   modification_tools::handle_set_label().
-4. Action Dispatch: The tool constructs AppAction::SetLabel and calls
-   Core::apply_action().
-5. Command Execution: DisassemblyActionHandler applies Command::SetLabel to
-   AppState.
-6. Reactive Invalidation: AppState updates the label table, rebuilds the
-   disassembly cache, and updates cross-references.
+3. Handler Router: mcp::handler routes 'tools/call' to
+   modification_tools, which matches the tool name to set_label_name_impl().
+4. Shared Validation: The tool calls
+   AppState::create_set_user_label_command(). This core method validates the
+   name (for example, it rejects duplicates) and builds a Command::SetLabel.
+   The TUI path (DisassemblyActionHandler for AppAction::SetLabel) calls the
+   same method.
+5. Command Execution: The tool calls Command::apply() on AppState. Then
+   AppState::push_command() records it on the UndoStack. MCP tools do not
+   dispatch an AppAction through Core::apply_action().
+6. Reactive Invalidation: The tool calls AppState::disassemble() to rebuild
+   the disassembly cache.
 7. Response Construction: The MCP handler constructs a JSON-RPC success
    response.
 8. Transport Reply: The transport writes the response to the HTTP SSE stream or
    Stdio pipe.
-9. TUI Coordination: When the TUI is active, the event loop receives
+9. TUI Coordination: If the TUI is active, the event loop receives
    AppEvent::Mcp and redraws the screen.
 ```
 
@@ -615,7 +620,8 @@ The terminal user interface uses `ratatui` and `crossterm`:
 1. Trigger: The user loads a packed binary or selects "Unpack Binary".
 2. Action Dispatch: Core emits CoreEvent::UnpackStarted with the binary buffer
    and UnpackConfig.
-3. Thread Spawn: The TUI event loop spawns a background thread that runs
+3. Thread Spawn: The TUI menu action dispatcher (menu_action.rs) processes
+   CoreEvent::UnpackStarted and spawns a background thread that runs
    unpacker::unpack().
 4. 6502 Emulation:
    a. The signature scanner identifies the packer format (such as Exomizer).
@@ -640,21 +646,25 @@ The terminal user interface uses `ratatui` and `crossterm`:
    (0x02 STX header).
 3. Event Bridge: The client converts packets into AppEvent::Vice events and
    sends them to the TUI event channel.
-4. State Update:
-   - Registers response (0x01) updates ViceState::registers (A, X, Y, SP, PC,
-     and Flags).
-   - Memory response (0x02) updates ViceState::live_memory and the stack view.
-   - Checkpoint hit (0x11/0x12) sets ViceState::stop_reason and triggers the
-     debugger highlight flash.
-5. UI Sync: DebuggerView renders the updated registers and highlights modified
-   values in yellow.
+4. State Update (events.rs handle_vice_message):
+   - REGISTERS_GET response (0x31) updates ViceState::pc, a, x, y, sp, and p
+     (status flags). Before each step, debug_handler.rs stores the prior
+     snapshot in ViceState::previous.
+   - MEMORY_GET response (0x01) updates ViceState::live_memory,
+     stack_memory, io_memory, vectors, or dump_memory, based on the request.
+   - CHECKPOINT_GET / CHECKPOINT_SET responses (0x11/0x12) update
+     ViceState::breakpoints and set ViceState::stop_reason on a hit.
+   - STOPPED event (0x62) sets ViceState::running to false and starts the
+     debugger highlight flash. RESUMED (0x65) clears stop_reason.
+5. UI Sync: DebuggerView renders the updated registers and highlights values
+   that differ from ViceState::previous.
 ```
 
 ---
 
 ## 5. Persistence & Serialization Model
 
-Regenerator 2000 saves projects as `.regen2000proj` JSON files designed for schema stability, deterministic diffs, and compact storage:
+Regenerator 2000 saves projects as `.regen2000proj` JSON files designed for schema stability, deterministic diffs, and compact storage. The example below omits some view-state fields, such as `cursor_address`, `right_pane_visible`, and `hexdump_view_mode`:
 
 ```json
 {
@@ -668,17 +678,20 @@ Regenerator 2000 saves projects as `.regen2000proj` JSON files designed for sche
   "labels": {
     "2049": [ { "name": "start", "label_type": "Subroutine", "kind": "User" } ]
   },
-  "side_comments": { "2049": "Initialize VIC-II" },
-  "line_comments": { "2049": "Main Program Entry Point" },
-  "immediate_formats": { "2052": "Hex" },
-  "bookmarks": { "2049": "Entry" },
-  "scopes": { "2049": 2100 },
-  "enums": {},
+  "2049": {
+    "user_side_comment": "Initialize VIC-II",
+    "user_line_comment": "Main Program Entry Point",
+    "bookmark": "Entry",
+    "scope": 2100
+  },
+  "2052": { "immediate_format": "Hex" },
   "settings": {
     "assembler": "Tass64",
     "system": "Commodore 64",
     "use_illegal_opcodes": true
   },
+  "splitters": [],
+  "enums": {},
   "user_excluded_addresses": [ 53280, 53281 ]
 }
 ```
@@ -687,6 +700,6 @@ Regenerator 2000 saves projects as `.regen2000proj` JSON files designed for sche
 
 -   **Gzip + Base64 Raw Data**: The serializer compresses `raw_data` with gzip (`flate2`) and encodes the result in Base64 (`raw_data_base64`).
 -   **Run-Length Encoded Blocks**: Contiguous memory regions that share a `BlockType` serialize as compact `{start, end, type_, collapsed}` range objects.
--   **Flattened Sparse Metadata**: `AnnotationManager` serializes with `#[serde(flatten)]`. Per-address maps (`side_comments`, `line_comments`, `bookmarks`, `scopes`, and `immediate_formats`) appear as top-level JSON fields for backward compatibility.
+-   **Flattened Sparse Metadata**: `ProjectState` embeds `AnnotationManager` with `#[serde(flatten)]`. Each annotated address appears as a top-level key (for example, `"2049"`) whose value holds only the persistent `AddressEntry` fields. The serializer never saves transient `system_comment` values.
 -   **Deterministic Serialization**: All address-keyed maps use `BTreeMap` and `BTreeSet` so saved project files produce sorted keys and clean Git diffs.
--   **Version Migration**: Project files store a numeric `version` field. `AppState::migrate_project()` upgrades older project schemas automatically on load.
+-   **Version Handling**: Project files store a numeric `version` field (`PROJECT_FORMAT_VERSION`, currently `1`). The loader rejects files with a newer version (`ProjectError::UnsupportedVersion`). The `AnnotationManager` deserializer upgrades legacy per-field annotation maps on load.

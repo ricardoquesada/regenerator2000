@@ -55,7 +55,7 @@ Key highlights:
 Source details:
 
 - itch.io: [Lode Runner for the PET by jimbo][lode_runner_site]
-- Because the original game binary is unpacked, this example shows direct disassembly output without unpacking.
+- Because the original game binary is not packed, this example shows direct disassembly output without unpacking.
 
 [lode_runner_site]: https://jimbo.itch.io/lode-runner-clone-for-commodore-pet
 
@@ -150,13 +150,13 @@ Key highlights:
 Source details:
 
 - TAP file: [Burnin' Rubber.tap][burnin_rubber_tap]
-- Extracted from the original encrypted TAP image.
+- The binary comes from the original encrypted TAP image.
 - The single disassembly file combines the decrypted main program and part of the loader code.
 - Unused portions of the encrypted loader remain in the binary image.
 - Start the program with `SYS 4752`.
 
 [burnin_rubber_tap]: https://archive.org/download/Ultimate_Tape_Archive_V5/Ultimate_Tape_Archive_V5.zip/Ultimate_Tape_Archive_V5.0%2FBurnin%27_Rubber_%281983_Audiogenic_Ltd.%29_%5B5346%5D%2FBurnin%27_Rubber.tap
-[burnin_rubber_info]: https://www.c64-wiki.com/wiki/Burnin_Rubber>
+[burnin_rubber_info]: https://www.c64-wiki.com/wiki/Burnin_Rubber
 [monitor]: https://www.c64-wiki.com/wiki/Machine_Code_Monitor
 [c64_burnin_rubber_monitor_cmd]: examples/c64_burnin_rubber.html#L2BE0
 [chardef_scan]: https://github.com/ricardoquesada/c64-c128-erasoft/blob/master/scans/chardef.pdf

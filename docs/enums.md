@@ -2,7 +2,7 @@
 
 Regenerator 2000 supports custom **Enums** for each target system. You can replace raw numeric values (immediate operands, data bytes, and data words) with named constants across your disassemblies.
 
-Enums improve code readability by mapping numeric literals (such as color indices or state constants) to text identifiers.
+Enums map numeric literals (such as color indices or state constants) to text identifiers. This makes the code easier to read.
 
 ---
 
@@ -46,7 +46,7 @@ Regenerator 2000 uses a three-tier model to manage enum definitions. You can reu
 - **Scope**: User-wide across all projects on your computer.
 - **Purpose**: Reuses custom enum definitions (such as math constants or loader codes) across multiple projects.
 - **Precedence**: Medium priority. Global enums override built-in system enums, and project enums override global enums.
-- **Storage**: Saved as individual `.toml` files in your global configuration directory.
+- **Storage**: Regenerator 2000 saves global enums as individual `.toml` files in your global configuration directory.
 
 ### 3. Built-in System Enums
 
@@ -86,10 +86,11 @@ Create, edit, clone, or delete custom enums:
 1. Press **++f10++** to open the main menu (or press **++alt+t++** to open the Edit menu).
 2. Select **Manage Enums...**.
 3. Use the **Project**, **Global**, and **System** tabs in the dialog:
+
     - **Add**: Create a new local or global enum.
     - **Edit**: Update variant values, names, or descriptions.
-    - **Delete**: Remove an unused enum. Regenerator 2000 blocks deletion if the disassembly uses the enum.
-    - **Clone to Project/Global**: Copy a system or global enum into your project pool (or vice versa) to customize it.
+    - **Delete**: Remove an unused enum. If the disassembly uses the enum, Regenerator 2000 does not let you delete it.
+    - **Clone to Project/Global**: Copy a system or global enum into your project pool to customize it. You can also copy an enum in the opposite direction.
 
 ---
 

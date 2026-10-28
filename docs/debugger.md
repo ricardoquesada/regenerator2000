@@ -18,9 +18,10 @@ Regenerator 2000 connects to the [VICE](https://vice-emu.sourceforge.io/) emulat
 
 1. Start VICE with the `-binarymonitor` flag so it listens for a TCP connection (for example, `x64 -binarymonitor`).
 2. In Regenerator 2000, open the **Debugger** menu and select **Connect to VICE...**.
-3. Keep the default `localhost:6502` address or enter a custom address, and press **Enter** to connect.
-4. Select **View → Toggle Debugger View** (or press ++alt+6++ / ++ctrl+6++) to open the Debugger panel in the right pane.
-5. Press **Tab** to switch focus to the Debugger pane when it is visible.
+3. Keep the default `localhost:6502` address or enter a custom address.
+4. Press **Enter** to connect.
+5. Select **View → Toggle Debugger View** (or press ++alt+6++ / ++ctrl+6++) to open the Debugger panel in the right pane.
+6. If the Debugger pane is visible, press **Tab** to switch focus to it.
 
 ### Auto-connecting via CLI
 
@@ -60,13 +61,13 @@ When connected and paused, the Debugger panel displays the connection status, li
 
 ![Debugger Only](regenerator2000_debugger_screenshot_only.png)
 
-When connected, the main **Disassembly** view also highlights the current PC and marks active breakpoints. Press ++f2++ to toggle a breakpoint at the cursor, or press ++shift+f2++ to toggle a breakpoint at a specific address. Press ++f6++ to toggle a watchpoint.
+When connected, the main **Disassembly** view also highlights the current PC and marks active breakpoints. Press ++f2++ to toggle a breakpoint at the cursor. Press ++shift+f2++ to toggle a breakpoint at a specific address. Press ++f6++ to toggle a watchpoint.
 
 ## Memory Dump
 
-When connected and paused, the Debugger panel can display a **Memory Dump** next to the live disassembly. Focus the Debugger pane, press ++m++ to open the **Memory Dump Address** dialog, and enter a hexadecimal address (such as `0400` or `D000`).
+When connected and paused, the Debugger panel can display a **Memory Dump** next to the live disassembly. Focus the Debugger pane. Press ++m++ to open the **Memory Dump Address** dialog. Enter a hexadecimal address (such as `0400` or `D000`).
 
-The dump displays 64 bytes (8 rows of 8 bytes) starting from the specified address. Regenerator 2000 refreshes this dump automatically each time the emulator pauses.
+The dump displays 64 bytes (8 rows of 8 bytes) from the specified address. Regenerator 2000 refreshes this dump automatically each time the emulator pauses.
 
 If you do not set a memory dump address, the panel displays `(press 'm' to config)`.
 
