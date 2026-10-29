@@ -18,9 +18,10 @@ The project is split into two main crates to separate logic from presentation:
   - `exporter/`: Code for exporting disassembly to ASM or HTML, with roundtrip verification.
   - `mcp/`: MCP server implementation (stdio and HTTP transports). Contains `handler.rs` dispatcher and `tools/` submodules (`analysis_tools`, `navigation_tools`, `modification_tools`, `session_tools`, `common`).
   - `navigation.rs`: Address navigation logic.
-  - `packers/`: 6502 binary packer strategies (`Packer` trait, signature detection, pre/post emulation hooks).
+  - `packers/`: Declarative 6502 binary packer specifications (`PackerSpec`, `Signature`, `Hints`, `MemoryPatch`, `PackerHooks` in `spec.rs`, and the ordered `REGISTRY` in `registry.rs`).
   - `parser/`: File format parsers (.prg, .d64/.d71/.d81, .t64, .crt, .vsf snapshots, .dis65, VICE labels).
   - `state/`: Persistent application state and project serialization.
+  - `unpacker/`: 2-phase 6502 emulation unpacker sandbox (`bus.rs`, `cia.rs`, `machine.rs`, `engine.rs`, `detector.rs`, `UnpackReport`, `BoundSource`).
   - `utils.rs`: Shared utility functions.
   - `vice/`: VICE binary monitor protocol client for live debugging.
   - `view_state.rs`: View state management.
@@ -207,7 +208,7 @@ cargo clippy -- -D warnings      # Lint (warnings are errors)
 - **New Block Type**: Add to `BlockType` enum in `types.rs`, update `analyzer.rs`, and add a shortcut in `input.rs`.
 - **New Assembler**: Add to `Assembler` enum, implement `Formatter` trait in `disassembler/formatter_*.rs`.
 - **New Command**: Add variant to `Command` in `commands.rs`, implement `apply` and `undo`.
-- **New Packer**: Create a new module file in `crates/regenerator2000-core/src/packers/<name>.rs` implementing a `detect()` function that returns `Option<Box<dyn Packer>>`. For simple signature-only packers, instantiate `SimplePacker::new(PackerInfo { ... })`. For packers requiring pre-emulation memory patches, instruction step tracking, or post-emulation boundary overrides, define a custom struct implementing the `Packer` trait (`pre_emulate`, `on_step`, `post_emulate`). Finally, declare `pub mod <name>;` and register `if let Some(p) = <name>::detect(...) { return Some(p); }` inside `detect_packer()` in `src/packers/mod.rs`, and add a signature unit test.
+- **New Packer**: Create a new module file in `crates/regenerator2000-core/src/packers/<name>.rs` defining `pub static SPEC: PackerSpec` with declarative `Signature` patterns (`Anchor`, `sig!`), `Hints` (`AddrSource`), optional `patches` (`MemoryPatch`), optional `resolve` escape hatch (`fn(&LoadedImage<'_>, &SignatureMatch) -> Option<ResolvedSpec>`), optional `hooks` factory (`PackerHooks` with `StepContext` and `RefineContext`), and a synthetic `fixture` (`fixture_load_addr`). Export `pub mod <name>;` in `src/packers/mod.rs`, register `&<name>::SPEC` in ascending `priority` order in `REGISTRY` in `src/packers/registry.rs`, add a unit test, and (when a real packed `.prg` fixture is available) add a `[[case]]` entry to `tests/6502/unpack_corpus.toml`, record its `unp64` reference with `cargo run -p regenerator2000-core --bin unpacker_compare_all -- --update`, and update `tests/6502/unpack_baseline.toml` (`UPDATE_UNPACK_BASELINE=1`).
 
 ### Git Commit Style
 

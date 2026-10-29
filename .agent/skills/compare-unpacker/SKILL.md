@@ -1,99 +1,142 @@
 ---
 name: compare-unpacker
-description: Runs unpacker_compare_all to compare Regenerator 2000 unpacker against unp64, comparing start/end addresses and entry points across C64 PRG binaries, and generates a comparison report.
+description: Runs unpacker_compare_all to compare the Regenerator 2000 unpacker against unp64 over the corpus manifest (tests/6502/unpack_corpus.toml), records unp64's results with --update, detects unp64 drift with --check, and produces a classified Markdown report with --markdown.
 ---
 
 # Unpacker Comparison Skill (`compare-unpacker`)
 
-Use this skill when you need to benchmark or compare the Regenerator 2000 unpacker against `unp64` across all test PRG binaries registered in `test_unpack_known_prg_files`.
+Use this skill to compare the Regenerator 2000 (R2000) unpacker against
+`unp64`, to record unp64's results for new corpus cases, or to check that the
+recorded results still match the installed unp64.
 
-## Single Source of Truth
+## Source of truth
 
-The single source of truth for test PRG files is `test_unpack_known_prg_files` in [`crates/regenerator2000-core/src/unpacker.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker.rs).
+* **Case list and recorded unp64 results:**
+  [`tests/6502/unpack_corpus.toml`](file:///Users/ricardoq/progs/regenerator2000/tests/6502/unpack_corpus.toml).
+  Each `[[case]]` names a fixture in `tests/6502`. Its `[case.unp64]` table
+  (range, entry, length, payload hash, overlap window, unp64 version) is
+  **written by the tool**, never by hand. `[[group]]` entries name an
+  original, unpacked binary that is ground truth for its members.
+* **Frozen R2000 outputs:**
+  [`tests/6502/unpack_baseline.toml`](file:///Users/ricardoq/progs/regenerator2000/tests/6502/unpack_baseline.toml),
+  regenerated with
+  `UPDATE_UNPACK_BASELINE=1 cargo test -p regenerator2000-core --test unpack_corpus`.
+* **Tool:**
+  [`crates/regenerator2000-core/src/bin/unpacker_compare_all/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/bin/unpacker_compare_all/main.rs).
+  The shared corpus library lives in its `corpus/` module.
+* **CI check:**
+  [`crates/regenerator2000-core/tests/unpack_corpus.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/tests/unpack_corpus.rs)
+  reads the recorded results, so CI never needs unp64.
 
-The comparison tool ([`crates/regenerator2000-core/src/bin/unpacker_compare_all.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/bin/unpacker_compare_all.rs)) dynamically parses `unpacker.rs` to extract the exact list of active test PRGs. Do not hardcode the total count of test files in reports or documentation.
+Do not hardcode the number of cases in reports or documentation. Count the
+`[[case]]` entries in the manifest.
 
 ---
 
-## Workflow Overview
-
-1. **Execute Comparison Binary**: Run `unpacker_compare_all` to execute both `unp64` and Regenerator 2000's `unpack()` engine on all test files dynamically extracted from `test_unpack_known_prg_files`.
-2. **Analyze Output**: Extract and compare start address, end address, and entry point for every binary.
-3. **Generate Report Artifact**: Create a comprehensive Markdown comparison report summarizing results, exact matches, and categorized discrepancies.
-
----
-
-## Step 1: Run the Comparison Tool
-
-Execute the comparison binary:
+## Modes
 
 ```bash
-cargo run -p regenerator2000-core --bin unpacker_compare_all
+# Comparison report only (Markdown on stdout)
+cargo run -p regenerator2000-core --bin unpacker_compare_all -- --markdown
+
+# Re-run unp64 and exit 1 if a recorded result no longer matches the binary
+cargo run -p regenerator2000-core --bin unpacker_compare_all -- --check --markdown
+
+# Record unp64's results into the manifest and propose exceptions
+cargo run -p regenerator2000-core --bin unpacker_compare_all -- --update
 ```
 
-> **Note**: The binary automatically looks for `unp64` in `PATH`, `~/.local/bin/unp64`, `~/bin/unp64`, or via the `UNP64` / `UNP64_PATH` environment variable. If `unp64` is in a custom location, specify `UNP64=/path/to/unp64 cargo run ...`.
+| Exit code | Meaning |
+| :-- | :-- |
+| 0 | Success (no drift) |
+| 1 | `--check` found drift: re-run `--update` and review the `git diff` |
+| 2 | Usage error or tool error (unp64 missing, broken manifest, unrecordable unp64 output) |
+
+The tool runs every case with the case's own `max_instructions` (default
+50 M). It runs unp64 as `unp64 <fixture> -o <unique temporary file>`, so it
+never writes next to a fixture. unp64's exit code is not trusted: a run
+without a `saved $SSSS-$EEEE` line is recorded as `failed`.
+
+> **unp64 location:** `$UNP64` if set (no fallback), else `unp64` on `PATH`,
+> else `~/.local/bin/unp64`. Example: `UNP64=/path/to/unp64 cargo run ...`.
 
 ---
 
-## Step 2: Analyze & Categorize Discrepancies
+## Divergence categories
 
-For each file listed by the tool, examine the three primary fields:
+The classifier and the corpus test share one closed set of categories.
 
-- **Start Address** (`start_addr`): Range start address (`unp64` vs `R2000`).
-- **End Address** (`end_addr`): Range end address (`unp64` vs `R2000`).
-- **Entry Point** (`entry_point`): Program entry point address (`unp64` vs `R2000`).
+| Category | Meaning | Proposed by `--update`? |
+| :-- | :-- | :-- |
+| `agree` | Same range, entry and payload | No exception needed |
+| `padding_byte` | The starts are the BASIC link byte pair (e.g. `$0800`/`$0801`) | Yes, `fields = ["start"]` |
+| `unp64_default_end` | unp64's end is above R2000's and on the top page (`>= $FF00`) | Yes, `fields = ["end"]` |
+| `unp64_default_start` | unp64's start is `min(load, RAM start)` | Yes, `fields = ["start"]` |
+| `unp64_missing_opcode` | unp64 stopped on an unimplemented opcode | Yes, all fields |
+| `unexplained` | Differs, and no benign explanation applies | Yes, the differing fields |
+| `payload_mismatch` | Bytes differ over the shared range | **Never**: investigate |
+| `entry_mismatch` | Both tools resolved different entries | **Never**: investigate |
+| `one_side_failed` | R2000 or unp64 failed | Only a failed unp64 run (as `unexplained`) |
 
-### Common Discrepancy Patterns
+Proposals are written **unsigned** (`reviewed_by` missing). The corpus test
+fails until a human reviews and signs them. A signed exception survives later
+`--update` runs while the recorded results and the differing fields stay the
+same. Otherwise it is replaced by a new unsigned proposal. Exceptions that no
+longer apply are removed.
 
-When classifying mismatches, categorize them into standard root causes:
-1. **Exact Match (PASS)**: Start, end, and entry point match 100%.
-2. **Header Byte Offset (1-byte shift)**: `$0800` vs `$0801` start address difference due to PRG 2-byte load address header padding.
-3. **Payload vs. Container**: `unp64` dumps the compressed input file range (e.g., Screen RAM `$0400`), while R2000 isolates the actual decompressed payload range (e.g., `$EFB0`).
-4. **Tail Padding**: Minor byte differences at end of RAM allocation.
-5. **Phase 2 Timeout**: Emulation exceeded instruction limit (e.g., stuck in BASIC keyboard polling loop).
+`expected_fail` markers are a closed list, and each one masks only its own
+failures:
+
+* `padding_convention`: a ground-truth start mismatch on the BASIC link
+  byte pair. No case uses it today (Dali did until its start was fixed).
+* `payload_mismatch_under_investigation`: payload and overlap hash mismatches
+  only (ruling R17).
+
+When a marked case starts passing, the corpus test fails with "unexpected
+pass: remove expected_fail".
 
 ---
 
-## Step 3: Create the Comparison Report Artifact
+## Workflow
 
-Write the formatted comparison report as an artifact (e.g., `unpacker_comparison_report.md` in the artifact directory).
+1. **Add a case (optional):** add a `[[case]]` with only `file = "..."` (plus
+   `group`, `max_instructions` if needed) to the manifest. Check that the
+   fixture is tracked: `git ls-files --error-unmatch tests/6502/<file>`.
+2. **Record:** run `--update`. It prints one line per case (record status,
+   divergence category, and what happened to the exception). It also lists
+   the cases that need a review decision.
+3. **Review:** for each proposal, confirm the category and sign it with
+   `reviewed_by = "<your name>"`. For `payload_mismatch` / `entry_mismatch`,
+   investigate. Never accept them blindly.
+4. **Verify:** run
+   `cargo test -p regenerator2000-core --test unpack_corpus` (use
+   `CORPUS_FILTER=<text>` for a subset). If R2000's outputs changed on
+   purpose, regenerate the baseline, then review `git diff tests/6502/unpack_baseline.toml`.
+5. **Check fixtures:** `git status --short tests/6502` must show no modified
+   fixture.
 
-### Report Structure Template
+---
 
-```markdown
-# Regenerator 2000 Unpacker vs unp64 Comparison Report
+## Create the comparison report artifact
 
-**Date**: <Current Date>
-**Test Suite Source**: `test_unpack_known_prg_files` in `unpacker.rs`
-**Tools**: `regenerator2000-core` unpacker vs `unp64`
+Run `--markdown` (or `--check --markdown`) and save the output as an
+artifact, for example `unpacker_comparison_report.md`. The report contains:
 
-## Executive Summary
+* a summary table with the number of cases per divergence category;
+* one row per case: file, unp64's packer name, unp64 and R2000 range and
+  entry, the divergence category, and how the manifest treats the case
+  (ground truth, accepted exception and its review state, or the plain unp64
+  reference);
+* a **User action items** section: unsigned or pending exceptions,
+  `unexplained` cases, and `expected_fail` markers.
 
-| Metric | Count | Percentage |
-| :--- | :---: | :---: |
-| **Total Test PRGs Analyzed** | **<Total Count>** | 100% |
-| **Pass (100% Exact Match)** | **<Pass Count>** | <Pass %> |
-| **Fail / Discrepancy** | **<Fail Count>** | <Fail %> |
-
-## Comparison Breakdown Table
-
-| Status | PRG File | unp64 (Range / Entry) | R2000 (Range / Entry) | Discrepancy Note |
-| :--- | :--- | :--- | :--- | :--- |
-| **PASS** | `c64_mule.exo3.prg` | `$0800-$9D19 ($1100)` | `$0800-$9D19 ($1100)` | Exact match |
-| **FAIL** | `c64_boilerplate.exo3.prg` | `$0801-$FEA4 ($1000)` | `$0800-$FEA4 ($1000)` | 1-byte load address offset |
-| ... | ... | ... | ... | ... |
-
-## Key Insights & Next Steps
-
-1. Highlight any newly fixed binaries or improvements.
-2. Summarize remaining failure categories (header offsets, timeout cases, etc.).
-```
+Add a short "Key insights" section with new agreements, new divergences, and
+any `payload_mismatch` or `entry_mismatch` cases.
 
 ---
 
 ## Verification
 
-After generating the report, verify:
-- All test PRGs from `test_unpack_known_prg_files` are accounted for.
-- Start, end, and entry points are explicitly listed for both tools.
-- `cargo test -p regenerator2000-core --lib unpacker::tests::test_unpack_known_prg_files` passes cleanly.
+* `cargo test -p regenerator2000-core --test unpack_corpus` passes.
+* `cargo run -p regenerator2000-core --bin unpacker_compare_all -- --check` exits 0.
+* `git status --short tests/6502` shows no modified fixture.
