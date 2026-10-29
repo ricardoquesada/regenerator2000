@@ -1,0 +1,733 @@
+# Unpacker corpus manifest. `[case.unp64]` tables are written by
+# `cargo run -p regenerator2000-core --bin unpacker_compare_all -- --update`.
+# Comments are not preserved: put human notes in `note` and sign reviewed
+# exceptions with `reviewed_by`.
+
+[[group]]
+id = "moving_tubes"
+original = "c64_moving_tubes_lxt_2e00.prg"
+entry = "$2E00"
+
+[[group]]
+id = "mule"
+original = "c64_mule_1100.prg"
+entry = "$1100"
+
+[[case]]
+file = "c64_323_ice_psm.1001_card_cruncher.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$319C"
+entry = "$3197"
+len = 10652
+payload_fnv64 = "8830977f58b6745b"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$319C"
+fnv64 = "8830977f58b6745b"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$319C entry $3197; R2000 $07C1-$319C entry $3197"
+
+[[case]]
+file = "c64_8_bit_ball.meanteam_cruncher.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$BFFE"
+entry = "$8100"
+len = 47102
+payload_fnv64 = "6bf40d5a21c8cd7b"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$BFFE"
+fnv64 = "6bf40d5a21c8cd7b"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$BFFE entry $8100; R2000 $0801-$FF9E entry $8100"
+
+[[case]]
+file = "c64_Bit_by_Bits-BZ!.exo3.prg"
+
+[case.unp64]
+start = "$0800"
+end = "$EF83"
+entry = "$083A"
+len = 59268
+payload_fnv64 = "3a7b02fba7ba181b"
+version = "2.42"
+
+[[case]]
+file = "c64_CopperBooze.byte_boozer2.prg"
+
+[case.unp64]
+start = "$0800"
+end = "$E7FF"
+entry = "$1300"
+len = 57344
+payload_fnv64 = "44f9c4eb7b8400b6"
+version = "2.42"
+
+[[case]]
+file = "c64_FppScroller.byte_boozer2.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$A057"
+entry = "$080D"
+len = 38999
+payload_fnv64 = "e282d5a9685fd6aa"
+version = "2.42"
+
+[[case]]
+file = "c64_HBFS.exo3.prg"
+max_instructions = 150000000
+expected_fail = "payload_mismatch_under_investigation"
+
+[case.unp64]
+start = "$0400"
+end = "$FEFF"
+entry = "$080D"
+len = 64256
+payload_fnv64 = "6eefb073d5c418af"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$FEFF"
+fnv64 = "42839c5dfde0a310"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start", "entry"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "ruling R17 hypothesis: unp64 dumps after the first layer (returns to $080D, saved $0400-$FEFF), while R2000 continues to the inner stage at $EFB0 ($0801-$FEFF), so start, entry and the overlap payload (61303 bytes, first at $0803) all differ; the expected_fail marker masks only the payload"
+
+[[case]]
+file = "c64_Layers.exo3.prg"
+max_instructions = 350000000
+
+[case.unp64]
+start = "$080D"
+end = "$FBF1"
+entry = "$0834"
+len = 62437
+payload_fnv64 = "577ea702be4ccfd8"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$080D"
+end = "$FBF1"
+fnv64 = "577ea702be4ccfd8"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $080D-$FBF1 entry $0834; R2000 $0801-$FBF1 entry $0834"
+
+[[case]]
+file = "c64_bluemarble4k_unk.prg"
+
+[case.unp64]
+start = "$0800"
+end = "$FFFF"
+entry = "$0911"
+len = 63488
+payload_fnv64 = "71fbaff3f2fcd8ba"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0800"
+end = "$FFEF"
+fnv64 = "032b6672d60eda3a"
+
+[case.accepted_divergence]
+kind = "unp64_default_end"
+fields = ["end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0800-$FFFF entry $0911; R2000 $0800-$FFEF entry $0911"
+
+[[case]]
+file = "c64_boilerplate.exo3.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$FEA4"
+entry = "$1000"
+len = 63140
+payload_fnv64 = "4855a97906e0f18b"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$FEA4"
+fnv64 = "4855a97906e0f18b"
+
+[case.accepted_divergence]
+kind = "padding_byte"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$FEA4 entry $1000; R2000 $0800-$FEA4 entry $1000"
+
+[[case]]
+file = "c64_boo_alz64.prg"
+
+[case.unp64]
+start = "$2A78"
+end = "$4D3B"
+entry = "$2A78"
+len = 8900
+payload_fnv64 = "3e82eeb108e201eb"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$2A78"
+end = "$4D3B"
+fnv64 = "3e82eeb108e201eb"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start", "end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "M3.6b exact_return resolved the 1927-byte payload mismatch (overlap $2A78-$4D3B matches unp64 100%); R2000 dumps $0801-$4D3C (ALZ64 start $080B clamped to BASIC SYS at $0801, plus $00CF end pointer +1 padding byte) while unp64 dumps $2A78-$4D3B"
+
+[[case]]
+file = "c64_chiller.antiram_packer.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$CE00"
+entry = "$0818"
+len = 50688
+payload_fnv64 = "8f1fa1c60dd4e21f"
+version = "2.42"
+
+[[case]]
+file = "c64_connection-8580.pucrunch.prg"
+
+[case.unp64]
+start = "$0810"
+end = "$FF3F"
+entry = "$0810"
+len = 63280
+payload_fnv64 = "cf0316648aaf0566"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0810"
+end = "$F87D"
+fnv64 = "6d002afd9036eaf6"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start", "end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0810-$FF3F entry $0810; R2000 $0801-$F87D entry $0810"
+
+[[case]]
+file = "c64_cubicdream.exo3.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$EF2A"
+entry = "$080D"
+len = 59178
+payload_fnv64 = "06650017553c1a63"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$EF2A"
+fnv64 = "06650017553c1a63"
+
+[case.accepted_divergence]
+kind = "padding_byte"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$EF2A entry $080D; R2000 $0800-$EF2A entry $080D"
+
+[[case]]
+file = "c64_daah_those_acid_pills.exo2.prg"
+
+[case.unp64]
+start = "$0810"
+end = "$FFF9"
+entry = "$0810"
+len = 63466
+payload_fnv64 = "d1f6d0571b1981df"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0810"
+end = "$FF91"
+fnv64 = "43ce63080bd68d7f"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start", "end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0810-$FFF9 entry $0810; R2000 $0801-$FF91 entry $0810"
+
+[[case]]
+file = "c64_druid_too.exo3.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$CE1F"
+entry = "$4800"
+len = 50719
+payload_fnv64 = "51f797b4a8caadc3"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$CE1F"
+fnv64 = "51f797b4a8caadc3"
+
+[case.accepted_divergence]
+kind = "padding_byte"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$CE1F entry $4800; R2000 $0800-$CE1F entry $4800"
+
+[[case]]
+file = "c64_endoskull.exo3.prg"
+
+[case.unp64]
+start = "$0800"
+end = "$FF29"
+entry = "$0810"
+len = 63274
+payload_fnv64 = "f0ea939cc87e09ec"
+version = "2.42"
+
+[[case]]
+file = "c64_f600.exo.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$FEFF"
+entry = "$0810"
+len = 63231
+payload_fnv64 = "a39ed85e3c0c3138"
+version = "2.42"
+
+[[case]]
+file = "c64_fantasy_intro.eca_compactor.prg"
+
+[case.unp64]
+start = "$0800"
+end = "$37FF"
+entry = "$3000"
+len = 12288
+payload_fnv64 = "55ab7299a9a56ce0"
+version = "2.42"
+
+[[case]]
+file = "c64_gianna_sister_remix_badboy.tbc_multicompactor.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$C947"
+entry = "$0810"
+len = 49479
+payload_fnv64 = "e4c86f473342045c"
+version = "2.42"
+
+[[case]]
+file = "c64_hw20131031.exo.prg"
+
+[case.unp64]
+start = "$0800"
+end = "$FF3F"
+entry = "$3000"
+len = 63296
+payload_fnv64 = "8fd3c44c3dd89dc3"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$F481"
+fnv64 = "0dcbde023e58ba45"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start", "end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0800-$FF3F entry $3000; R2000 $0801-$F481 entry $3000"
+
+[[case]]
+file = "c64_leftovers-pl.exo3.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$F3F0"
+entry = "$080E"
+len = 60400
+payload_fnv64 = "f8d2679820c3daa6"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$F3F0"
+fnv64 = "f8d2679820c3daa6"
+
+[case.accepted_divergence]
+kind = "padding_byte"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$F3F0 entry $080E; R2000 $0800-$F3F0 entry $080E"
+
+[[case]]
+file = "c64_lft-nine.exo3.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$7CBC"
+entry = "$080D"
+len = 29884
+payload_fnv64 = "75596b8117981459"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$7CBC"
+fnv64 = "75596b8117981459"
+
+[case.accepted_divergence]
+kind = "padding_byte"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$7CBC entry $080D; R2000 $0800-$7CBC entry $080D"
+
+[[case]]
+file = "c64_lft-rodents-in-the-attic.exo3.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$C56B"
+entry = "$080D"
+len = 48491
+payload_fnv64 = "cdae0580f8d8b77e"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$C56B"
+fnv64 = "cdae0580f8d8b77e"
+
+[case.accepted_divergence]
+kind = "padding_byte"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$C56B entry $080D; R2000 $0800-$C56B entry $080D"
+
+[[case]]
+file = "c64_little_things.exo3.prg"
+
+[case.unp64]
+start = "$0800"
+end = "$98FF"
+entry = "$080D"
+len = 37120
+payload_fnv64 = "ece8f67ef8140c28"
+version = "2.42"
+
+[[case]]
+file = "c64_moving_tubes_lxt.dali.prg"
+group = "moving_tubes"
+
+[case.unp64]
+start = "$0800"
+end = "$31FF"
+entry = "$2E00"
+len = 10752
+payload_fnv64 = "5add2d44f7b01d41"
+version = "2.42"
+
+[[case]]
+file = "c64_moving_tubes_lxt.exo3.prg"
+group = "moving_tubes"
+
+[case.unp64]
+start = "$0800"
+end = "$31FF"
+entry = "$2E00"
+len = 10752
+payload_fnv64 = "5add2d44f7b01d41"
+version = "2.42"
+
+[[case]]
+file = "c64_moving_tubes_lxt.pucrunch.prg"
+group = "moving_tubes"
+
+[case.unp64]
+start = "$0800"
+end = "$31FF"
+entry = "$2E00"
+len = 10752
+payload_fnv64 = "5add2d44f7b01d41"
+version = "2.42"
+
+[[case]]
+file = "c64_moving_tubes_lxt.tscrunch_x.prg"
+group = "moving_tubes"
+
+[case.unp64]
+start = "$0800"
+end = "$31FF"
+entry = "$2E00"
+len = 10752
+payload_fnv64 = "5add2d44f7b01d41"
+version = "2.42"
+
+[[case]]
+file = "c64_moving_tubes_lxt.tscrunch_x2.prg"
+group = "moving_tubes"
+
+[case.unp64]
+start = "$0800"
+end = "$31FF"
+entry = "$2E00"
+len = 10752
+payload_fnv64 = "5add2d44f7b01d41"
+version = "2.42"
+
+[[case]]
+file = "c64_mule.dali.prg"
+group = "mule"
+
+[case.unp64]
+start = "$0800"
+end = "$9D19"
+entry = "$1100"
+len = 38170
+payload_fnv64 = "61d2cf115af235de"
+version = "2.42"
+
+[[case]]
+file = "c64_mule.exo3.prg"
+group = "mule"
+max_instructions = 350000000
+
+[case.unp64]
+start = "$0800"
+end = "$9D19"
+entry = "$1100"
+len = 38170
+payload_fnv64 = "61d2cf115af235de"
+version = "2.42"
+
+[[case]]
+file = "c64_mule.mccracken_compressor.prg"
+group = "mule"
+
+[case.unp64]
+start = "$0800"
+end = "$9D19"
+entry = "$1100"
+len = 38170
+payload_fnv64 = "61d2cf115af235de"
+version = "2.42"
+
+[[case]]
+file = "c64_mule.pucrunch.prg"
+group = "mule"
+
+[case.unp64]
+start = "$0800"
+end = "$9D19"
+entry = "$1100"
+len = 38170
+payload_fnv64 = "61d2cf115af235de"
+version = "2.42"
+
+[[case]]
+file = "c64_mule.tscrunch_x.prg"
+group = "mule"
+
+[case.unp64]
+start = "$0800"
+end = "$9D19"
+entry = "$1100"
+len = 38170
+payload_fnv64 = "61d2cf115af235de"
+version = "2.42"
+
+[[case]]
+file = "c64_mule.tscrunch_x2.prg"
+group = "mule"
+
+[case.unp64]
+start = "$0800"
+end = "$9D19"
+entry = "$1100"
+len = 38170
+payload_fnv64 = "61d2cf115af235de"
+version = "2.42"
+
+[[case]]
+file = "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg"
+
+[case.unp64]
+start = "$0800"
+end = "$9FFF"
+entry = "$2800"
+len = 38912
+payload_fnv64 = "defb5d033252969c"
+version = "2.42"
+
+[[case]]
+file = "c64_robot - not human.exo3.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$CBE6"
+entry = "$0810"
+len = 50150
+payload_fnv64 = "9a1db5cd7e64d5ed"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$CBE6"
+fnv64 = "9a1db5cd7e64d5ed"
+
+[case.accepted_divergence]
+kind = "padding_byte"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$CBE6 entry $0810; R2000 $0800-$CBE6 entry $0810"
+
+[[case]]
+file = "c64_roma.exe.exo3.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$C8C5"
+entry = "$0820"
+len = 49349
+payload_fnv64 = "866e48067dc31e31"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$C8C5"
+fnv64 = "866e48067dc31e31"
+
+[case.accepted_divergence]
+kind = "padding_byte"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$C8C5 entry $0820; R2000 $0800-$C8C5 entry $0820"
+
+[[case]]
+file = "c64_soul_on_fire_unk.prg"
+
+[case.unp64]
+start = "$0800"
+end = "$FFFF"
+entry = "$E000"
+len = 63488
+payload_fnv64 = "7a5fecb497135f8d"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$E000"
+fnv64 = "07fdc0d92553b0ac"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start", "end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0800-$FFFF entry $E000; R2000 $0801-$E000 entry $E000"
+
+[[case]]
+file = "c64_spectro.exo3.prg"
+
+[case.unp64]
+start = "$080D"
+end = "$E7FF"
+entry = "$08A1"
+len = 57331
+payload_fnv64 = "bdd50b500180297b"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$080D"
+end = "$E7FF"
+fnv64 = "bdd50b500180297b"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $080D-$E7FF entry $08A1; R2000 $0801-$E7FF entry $08A1"
+
+[[case]]
+file = "c64_sprite_runners.exo3.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$95BF"
+entry = "$6900"
+len = 36287
+payload_fnv64 = "824ec79ac310e992"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$95BF"
+fnv64 = "824ec79ac310e992"
+
+[case.accepted_divergence]
+kind = "padding_byte"
+fields = ["start"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$95BF entry $6900; R2000 $0800-$95BF entry $6900"
+
+[[case]]
+file = "c64_thats_the_way_scoop.time_cruncher.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$E750"
+entry = "$0801"
+len = 57168
+payload_fnv64 = "b8a927223e970618"
+version = "2.42"
+
+[[case]]
+file = "c64_traveller.tiny_crunch.prg"
+
+[case.unp64]
+start = "$0801"
+end = "$FFFD"
+entry = "$0911"
+len = 63485
+payload_fnv64 = "f68ef9b91d50b2c0"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0801"
+end = "$7949"
+fnv64 = "107ce3a882bea7b2"
+
+[case.accepted_divergence]
+kind = "unp64_default_end"
+fields = ["end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0801-$FFFD entry $0911; R2000 $0801-$7949 entry $0911"
