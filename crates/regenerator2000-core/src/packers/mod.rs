@@ -14,7 +14,8 @@ pub mod exomizer;
 pub mod final_cartridge;
 pub mod mc_cracken;
 pub mod pucrunch;
-pub mod simple;
+pub mod registry;
+pub mod spec;
 pub mod super_cruncher;
 pub mod tbc;
 pub mod time_cruncher;
@@ -23,12 +24,16 @@ pub mod triad;
 pub mod tscrunch;
 pub mod turbo_cruncher;
 
-use mos6502::cpu::CPU;
-use mos6502::instruction::Nmos6502;
-use std::fmt::Debug;
-
-use crate::state::types::System;
-use crate::unpacker::UnpackerMemory;
+pub use registry::{
+    PACKERS, REGISTRY, detect, detect_all, detect_all_in_specs, detect_in_specs, detect_spec,
+    detect_spec_in, find_entry_by_name, registry_specs,
+};
+pub use spec::{
+    AddrSource, Anchor, Bounds, Hints, HooksFactory, LoadedImage, MemoryPatch, PackerHooks,
+    PackerId, PackerSpec, Pat, PatchAddr, PointerGuard, PointerMonitor, RefineContext, Reg,
+    Registers, ResolveFn, ResolvedSpec, Signature, SignatureMatch, StepContext, is_valid_packer_id,
+    sig, system_matches,
+};
 
 /// Information about a detected packer.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,124 +52,66 @@ pub struct PackerInfo {
     pub end_addr_ptr: Option<u16>,
 }
 
-/// A byte modification to apply to RAM prior to 6502 emulation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MemoryPatch {
-    /// Target address to modify.
-    pub addr: u16,
-    /// Expected byte value before patching (if any).
-    pub expected: Option<u8>,
-    /// Replacement byte value.
-    pub patch: u8,
-}
+impl PackerInfo {
+    /// Resolves detection-time [`PackerInfo`] from a [`LoadedImage`] and [`SignatureMatch`].
+    ///
+    /// # Examples
+    /// ```
+    /// use regenerator2000_core::packers::{LoadedImage, PackerInfo, eagle};
+    ///
+    /// let (mem, load_addr, load_end) = eagle::SPEC.build_fixture_memory();
+    /// let image = LoadedImage::for_c64(&mem, load_addr, load_end);
+    /// let sig_match = eagle::SPEC.detect(&image).unwrap();
+    /// let info = PackerInfo::resolve(&image, &sig_match);
+    /// assert_eq!(info.name, "Eagle Cruncher");
+    /// ```
+    #[must_use]
+    pub fn resolve(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Self {
+        let hints = sig_match.resolved.hints;
+        let anchor_addr = sig_match.anchor_addr;
 
-/// Interface for packer detection and lifecycle hooks.
-pub trait Packer: Debug + Send + Sync {
-    /// Returns the metadata description of this packer.
-    fn info(&self) -> PackerInfo;
+        let dep_addr = hints
+            .dep_addr
+            .and_then(|src| src.resolve_static(image, anchor_addr));
+        let start_addr = hints
+            .start_addr
+            .and_then(|src| src.resolve_static(image, anchor_addr));
+        let end_addr = hints
+            .end_addr
+            .and_then(|src| src.resolve_static(image, anchor_addr));
+        let entry_point = hints
+            .entry_point
+            .and_then(|src| src.resolve_static(image, anchor_addr));
+        let end_addr_ptr = match hints.end_addr {
+            Some(AddrSource::PointerAfterRun { ptr_addr, .. }) => Some(ptr_addr),
+            _ => None,
+        };
 
-    /// Pre-emulation hook: applies patches to memory before 6502 emulation starts.
-    fn pre_emulate(&self, _mem: &mut [u8], _system: &System) {}
-
-    /// Instruction step hook: invoked during 6502 emulation.
-    fn on_step(&mut self, _cpu: &mut CPU<UnpackerMemory, Nmos6502>, _phase: u8) {}
-
-    /// Post-emulation hook: refines/overrides the unpacked memory bounds and entry point.
-    #[allow(clippy::too_many_arguments)]
-    fn post_emulate(
-        &self,
-        _mem: &[u8],
-        _snapshot: &[u8],
-        _written: &[bool],
-        _range: &mut (u16, u16),
-        _entry_point: &mut u16,
-        _system: &System,
-        _y_reg: u8,
-    ) {
+        Self {
+            name: sig_match.spec_name,
+            dep_addr,
+            start_addr,
+            end_addr,
+            entry_point,
+            end_addr_ptr,
+        }
     }
-}
-
-/// Scans memory for known packer signatures and returns a corresponding [`Packer`] strategy if found.
-///
-/// **Note:** Detection order matters to avoid false positives between packers with overlapping
-/// signatures. The detection order here follows the scanner order established in `unp64` (`_Scanners.c`).
-#[must_use]
-pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Box<dyn Packer>> {
-    if let Some(p) = eca::detect(mem) {
-        return Some(p);
-    }
-    if let Some(p) = action_replay::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = cruel_cruncher::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = pucrunch::detect(mem) {
-        return Some(p);
-    }
-    if let Some(p) = time_cruncher::detect(mem) {
-        return Some(p);
-    }
-    if let Some(p) = card_cruncher::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = mc_cracken::detect(mem) {
-        return Some(p);
-    }
-    if let Some(p) = tbc::detect(mem) {
-        return Some(p);
-    }
-    if let Some(p) = byteboozer::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = alz64::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = tscrunch::detect(mem, load_addr, load_end) {
-        return Some(p);
-    }
-    if let Some(p) = dali::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = tiny_crunch::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = super_cruncher::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = final_cartridge::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = exomizer::detect(mem, load_addr, load_end) {
-        return Some(p);
-    }
-    if let Some(p) = ccs::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = triad::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = eagle::detect(mem, load_addr) {
-        return Some(p);
-    }
-    if let Some(p) = antiram::detect(mem) {
-        return Some(p);
-    }
-    if let Some(p) = turbo_cruncher::detect(mem, load_addr) {
-        return Some(p);
-    }
-
-    None
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn detect_info(mem: &[u8], load_addr: u16, load_end: u16) -> Option<PackerInfo> {
+        let image = LoadedImage::for_c64(mem, load_addr, load_end);
+        let (_spec, sig_match) = detect_spec(&image)?;
+        Some(PackerInfo::resolve(&image, &sig_match))
+    }
+
     #[test]
     fn test_detect_packer_none() {
         let mem = vec![0; 0x1000];
-        assert!(detect_packer(&mem, 0x0801, 0x1000).is_none());
+        assert!(detect_info(&mem, 0x0801, 0x1000).is_none());
     }
 
     #[test]
@@ -197,8 +144,7 @@ mod tests {
         mem[p + 0x16] = 0x20;
         mem[p + 0x17] = 0x08;
 
-        let packer = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        let info = packer.info();
+        let info = detect_info(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "Exomizer 3.0");
         assert_eq!(info.dep_addr, Some(0x0134));
         assert_eq!(info.start_addr, None);
@@ -224,8 +170,7 @@ mod tests {
         mem[p - 5] = 0x34;
         mem[p - 4] = 0x01;
 
-        let packer = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        let info = packer.info();
+        let info = detect_info(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "Exomizer v3.02+");
     }
 
@@ -239,8 +184,7 @@ mod tests {
         mem[p + 3] = 0xD0;
         mem[p + 7] = 0x4C;
 
-        let packer = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        let info = packer.info();
+        let info = detect_info(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "Exomizer 2.x");
         assert_eq!(info.dep_addr, Some(0x0150));
         assert_eq!(info.start_addr, Some(0x0801));
@@ -280,8 +224,7 @@ mod tests {
         mem[ep + 0x0A] = 0x00;
         mem[ep + 0x0B] = 0x20;
 
-        let packer = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        let info = packer.info();
+        let info = detect_info(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "PUCrunch");
         assert_eq!(info.dep_addr, Some(0x0116));
         assert_eq!(info.start_addr, Some(0x0801));
@@ -301,8 +244,7 @@ mod tests {
         mem[0x816] = 0xC4;
         mem[0x817] = 0xB9;
 
-        let packer = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        let info = packer.info();
+        let info = detect_info(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "Time Cruncher");
         assert_eq!(info.dep_addr, Some(0x0100));
         assert_eq!(info.start_addr, Some(0x0801));
@@ -329,11 +271,13 @@ mod tests {
         mem[q + 0xFF] = 0x10;
         mem[q + 0x44] = 0x6B;
 
-        let packer = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        let info = packer.info();
+        let info = detect_info(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "Dali");
         assert_eq!(info.dep_addr, Some(0x0003));
-        assert_eq!(info.start_addr, Some(0x0801));
+        // T1.B.1: no start hint. The generic output detector yields the
+        // original load address (`$0800` on the C64, Design Doc Open
+        // Question 1); `dali::tests` pins the resulting payload.
+        assert_eq!(info.start_addr, None);
         assert_eq!(info.entry_point, Some(0x1000));
         assert_eq!(info.end_addr_ptr, Some(0x006B));
     }
@@ -357,8 +301,7 @@ mod tests {
         mem[0x8CB] = 0x00;
         mem[0x8CC] = 0x20;
 
-        let packer = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        let info = packer.info();
+        let info = detect_info(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "ByteBoozer");
         assert_eq!(info.dep_addr, Some(0x0010));
         assert_eq!(info.start_addr, Some(0x0801));
@@ -393,8 +336,7 @@ mod tests {
         mem[p + 0xf2] = 0x00;
         mem[p + 0xf3] = 0x20;
 
-        let packer = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        let info = packer.info();
+        let info = detect_info(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "ALZ64/Quiss");
         assert_eq!(info.dep_addr, Some(0x005E));
         assert_eq!(info.start_addr, Some(0x080b));
@@ -428,8 +370,7 @@ mod tests {
         mem[p + 0xfe] = 0x00;
         mem[p + 0xff] = 0x20;
 
-        let packer = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        let info = packer.info();
+        let info = detect_info(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "ALZ64/Kabuto");
         assert_eq!(info.dep_addr, Some(0x005E));
         assert_eq!(info.start_addr, Some(0x080b));

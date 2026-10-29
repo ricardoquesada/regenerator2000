@@ -179,6 +179,11 @@ impl Bus for C64Bus {
         self.mem[a] = val;
         self.written[a] = true;
 
+        // Invariant 1 (Bus-driven stage flip): When code executing below `ram_start`
+        // (e.g. a zero-page, stack, or low-memory depacker stub) writes at or above
+        // `ram_start`, the bus latches `in_phase2 = true` and tracks the write in
+        // `written_phase2`. The engine's `FindDepacker` step reads `in_phase2` to
+        // transition into `Phase::Decompress`.
         let ram_start = self.system.ram_start();
         if !self.in_phase2 && self.current_pc < ram_start && addr >= ram_start {
             self.in_phase2 = true;
@@ -232,6 +237,7 @@ pub(crate) fn is_io_mapped(mem: &[u8], system: &crate::state::types::System) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::types::TargetSystem;
 
     #[test]
     fn test_memory_write_tracking() {
@@ -250,5 +256,62 @@ mod tests {
         mem.set_byte(0xD020, 0xFF); // VIC border color
         assert_eq!(mem.get_byte(0xD020), 0x00); // Reads return 0
         assert!(!mem.written[0xD020]); // Write not tracked
+    }
+
+    /// T2.3.1 (Invariant 1): writing at or above `system.ram_start()` while
+    /// `current_pc < system.ram_start()` flips `in_phase2` to `true` and marks
+    /// `written_phase2`. Writes from high PC or to addresses below `ram_start`
+    /// leave `in_phase2` false.
+    #[test]
+    fn bus_write_above_ram_start_from_low_pc_flips_phase2() {
+        let mut bus = C64Bus::new(TargetSystem::C64, None, None, None);
+        bus.mem[0x00] = 0x2F;
+        bus.mem[0x01] = 0x37;
+        let ram_start = TargetSystem::C64.ram_start();
+        assert_eq!(ram_start, 0x0800);
+        assert!(!bus.in_phase2);
+
+        // High PC ($0800 >= ram_start) writing to high RAM ($0800): does NOT flip in_phase2.
+        bus.current_pc = ram_start;
+        bus.set_byte(ram_start, 0x11);
+        assert!(!bus.in_phase2);
+        assert!(bus.written[usize::from(ram_start)]);
+        assert!(!bus.written_phase2[usize::from(ram_start)]);
+
+        // Low PC ($07FF < ram_start) writing below ram_start ($07FF): does NOT flip in_phase2.
+        bus.current_pc = ram_start - 1;
+        bus.set_byte(ram_start - 1, 0x22);
+        assert!(!bus.in_phase2);
+        assert!(bus.written[usize::from(ram_start - 1)]);
+        assert!(!bus.written_phase2[usize::from(ram_start - 1)]);
+
+        // Low PC writing to mapped I/O ($D020): suppressed, so does NOT flip in_phase2.
+        bus.set_byte(0xD020, 0x01);
+        assert!(!bus.in_phase2);
+        assert!(!bus.written[0xD020]);
+
+        // Low PC ($07FF < ram_start) writing at ram_start ($0800): flips in_phase2 to true
+        // and records the write in both `written` and `written_phase2`.
+        bus.set_byte(ram_start, 0x33);
+        assert!(bus.in_phase2);
+        assert!(bus.written[usize::from(ram_start)]);
+        assert!(bus.written_phase2[usize::from(ram_start)]);
+
+        // Once latched, subsequent writes (even from high PC to low RAM) mark `written_phase2`.
+        bus.current_pc = 0x1000;
+        bus.set_byte(0x0300, 0x44);
+        assert!(bus.in_phase2);
+        assert!(bus.written_phase2[0x0300]);
+
+        // System-aware boundary check on C128 (ram_start = $1C00).
+        let mut c128_bus = C64Bus::new(TargetSystem::C128, None, None, None);
+        let c128_ram_start = TargetSystem::C128.ram_start();
+        assert_eq!(c128_ram_start, 0x1C00);
+        c128_bus.current_pc = 0x0800;
+        c128_bus.set_byte(c128_ram_start - 1, 0x55);
+        assert!(!c128_bus.in_phase2);
+        c128_bus.set_byte(c128_ram_start, 0x66);
+        assert!(c128_bus.in_phase2);
+        assert!(c128_bus.written_phase2[usize::from(c128_ram_start)]);
     }
 }

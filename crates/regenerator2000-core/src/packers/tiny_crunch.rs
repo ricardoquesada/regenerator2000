@@ -1,32 +1,38 @@
-//! TinyCrunch strategy implementation.
+//! TinyCrunch packer specification.
 
-use super::simple::SimplePacker;
-use super::{Packer, PackerInfo};
+use crate::state::types::TargetSystem;
 
-/// Detects TinyCrunch signature.
-#[must_use]
-pub fn detect(mem: &[u8], load_addr: u16) -> Option<Box<dyn Packer>> {
-    if mem.len() > 0x815 && load_addr <= 0x0801 {
-        let q = 0x080D;
-        if q >= load_addr as usize
-            && mem[q] == 0x78
-            && mem[q + 1] == 0xA2
-            && mem[q + 2] == 0xBB
-            && mem[q + 3] == 0xBD
-            && mem[q + 4] == 0x1B
-            && mem[q + 5] == 0x08
-            && mem[q + 6] == 0x9D
-            && mem[q + 7] == 0xFF
-        {
-            return Some(Box::new(SimplePacker::new(PackerInfo {
-                name: "TinyCrunch",
-                dep_addr: Some(0x010E),
-                start_addr: Some(0x0801),
-                end_addr: None,
-                entry_point: Some(u16::from_le_bytes([mem[0x836], mem[0x837]])),
-                end_addr_ptr: None,
-            })));
-        }
-    }
-    None
-}
+use super::spec::{AddrSource, Anchor, Hints, PackerSpec, Signature, sig};
+
+const SIGNATURES: [Signature; 1] = [Signature {
+    anchor: Anchor::BasicStart { offset: 0x0C },
+    pattern: sig![0x78, 0xA2, 0xBB, 0xBD, 0x1B, 0x08, 0x9D, 0xFF],
+}];
+
+/// Declarative specification for the TinyCrunch stub at `$080D` with entry operand at `$0836`.
+pub static SPEC: PackerSpec = PackerSpec {
+    id: "tiny_crunch",
+    name: "TinyCrunch",
+    priority: 130,
+    systems: &[TargetSystem::C64],
+    load_addr_max: Some(0x0801),
+    signatures: &SIGNATURES,
+    hints: Hints {
+        dep_addr: Some(AddrSource::Const(0x010E)),
+        start_addr: Some(AddrSource::BasicStart(0)),
+        entry_point: Some(AddrSource::OperandLe { from_match: 0x29 }),
+        ..Hints::NONE
+    },
+    patches: &[],
+    resolve: None,
+    hooks: None,
+    // 12 padding bytes ($0801..=$080C) + 8 signature bytes ($080D..=$0814)
+    // + 33 padding bytes ($0815..=$0835) + LE entry operand $0911 at $0836..=$0837.
+    fixture: &[
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x78, 0xA2, 0xBB,
+        0xBD, 0x1B, 0x08, 0x9D, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x09,
+    ],
+    fixture_load_addr: 0x0801,
+};

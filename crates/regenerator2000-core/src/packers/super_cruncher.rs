@@ -1,34 +1,36 @@
-//! Super Cruncher strategy implementation.
+//! Super Cruncher packer specification.
 
-use super::simple::SimplePacker;
-use super::{Packer, PackerInfo};
+use crate::state::types::TargetSystem;
 
-/// Detects Super Cruncher signature.
-#[must_use]
-pub fn detect(mem: &[u8], load_addr: u16) -> Option<Box<dyn Packer>> {
-    if mem.len() > 0x818 && load_addr <= 0x0801 {
-        let q = 0x080D;
-        if q >= load_addr as usize
-            && mem[q] == 0x78
-            && mem[q + 1] == 0xA9
-            && mem[q + 2] == 0x34
-            && mem[q + 3] == 0x85
-            && mem[q + 4] == 0x01
-            && mem[q + 5] == 0xA2
-            && mem[q + 7] == 0xBD
-            && mem[q + 0x0D] == 0xC8
-            && mem[q + 0x0E] == 0xB9
-            && mem[q + 0x11] == 0x99
-        {
-            return Some(Box::new(SimplePacker::new(PackerInfo {
-                name: "Super Cruncher",
-                dep_addr: Some(0x0100),
-                start_addr: Some(0x0801),
-                end_addr: None,
-                entry_point: None,
-                end_addr_ptr: None,
-            })));
-        }
-    }
-    None
-}
+use super::spec::{AddrSource, Anchor, Hints, PackerSpec, Signature, sig};
+
+const SIGNATURES: [Signature; 1] = [Signature {
+    anchor: Anchor::BasicStart { offset: 0x0C },
+    pattern: sig![
+        0x78, 0xA9, 0x34, 0x85, 0x01, 0xA2, __, 0xBD, __, __, __, __, __, 0xC8, 0xB9, __, __, 0x99
+    ],
+}];
+
+/// Declarative specification for the Super Cruncher stub at `$080D`.
+pub static SPEC: PackerSpec = PackerSpec {
+    id: "super_cruncher",
+    name: "Super Cruncher",
+    priority: 140,
+    systems: &[TargetSystem::C64],
+    load_addr_max: Some(0x0801),
+    signatures: &SIGNATURES,
+    hints: Hints {
+        dep_addr: Some(AddrSource::Const(0x0100)),
+        start_addr: Some(AddrSource::BasicStart(0)),
+        ..Hints::NONE
+    },
+    patches: &[],
+    resolve: None,
+    hooks: None,
+    // 12 padding bytes ($0801..=$080C) + 18 signature bytes at $080D..=$081E.
+    fixture: &[
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x78, 0xA9, 0x34,
+        0x85, 0x01, 0xA2, 0x00, 0xBD, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC8, 0xB9, 0x00, 0x00, 0x99,
+    ],
+    fixture_load_addr: 0x0801,
+};

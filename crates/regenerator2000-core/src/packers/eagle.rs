@@ -1,35 +1,36 @@
-//! Eagle Cruncher strategy implementation.
+//! Eagle Cruncher packer specification.
 
-use super::simple::SimplePacker;
-use super::{Packer, PackerInfo};
+use crate::state::types::TargetSystem;
 
-/// Detects Eagle Cruncher signature.
-#[must_use]
-pub fn detect(mem: &[u8], load_addr: u16) -> Option<Box<dyn Packer>> {
-    if mem.len() > 0x818 && load_addr <= 0x0801 {
-        let q = 0x080D;
-        if q >= load_addr as usize
-            && mem[q] == 0x78
-            && mem[q + 1] == 0xA2
-            && mem[q + 3] == 0xBD
-            && mem[q + 6] == 0x9D
-            && mem[q + 7] == 0x00
-            && mem[q + 8] == 0x01
-            && mem[q + 9] == 0xD0
-            && mem[q + 0x0A] == 0xFC
-            && mem[q + 0x0B] == 0x4C
-            && mem[q + 0x0C] == 0x00
-            && mem[q + 0x0D] == 0x01
-        {
-            return Some(Box::new(SimplePacker::new(PackerInfo {
-                name: "Eagle Cruncher",
-                dep_addr: Some(0x0100),
-                start_addr: Some(0x0801),
-                end_addr: None,
-                entry_point: None,
-                end_addr_ptr: None,
-            })));
-        }
-    }
-    None
-}
+use super::spec::{AddrSource, Anchor, Hints, PackerSpec, Signature, sig};
+
+const SIGNATURES: [Signature; 1] = [Signature {
+    anchor: Anchor::BasicStart { offset: 0x0C },
+    pattern: sig![
+        0x78, 0xA2, __, 0xBD, __, __, 0x9D, 0x00, 0x01, 0xD0, 0xFC, 0x4C, 0x00, 0x01
+    ],
+}];
+
+/// Declarative specification for the Eagle Cruncher stub at `$080D`.
+pub static SPEC: PackerSpec = PackerSpec {
+    id: "eagle",
+    name: "Eagle Cruncher",
+    priority: 190,
+    systems: &[TargetSystem::C64],
+    load_addr_max: Some(0x0801),
+    signatures: &SIGNATURES,
+    hints: Hints {
+        dep_addr: Some(AddrSource::Const(0x0100)),
+        start_addr: Some(AddrSource::BasicStart(0)),
+        ..Hints::NONE
+    },
+    patches: &[],
+    resolve: None,
+    hooks: None,
+    // 12 padding bytes ($0801..=$080C) + 14 signature bytes at $080D..=$081A.
+    fixture: &[
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x78, 0xA2, 0x00,
+        0xBD, 0x00, 0x00, 0x9D, 0x00, 0x01, 0xD0, 0xFC, 0x4C, 0x00, 0x01,
+    ],
+    fixture_load_addr: 0x0801,
+};

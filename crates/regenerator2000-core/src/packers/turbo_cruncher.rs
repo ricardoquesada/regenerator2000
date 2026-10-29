@@ -1,31 +1,34 @@
-//! Turbo Cruncher strategy implementation.
+//! Turbo Cruncher packer specification.
 
-use super::simple::SimplePacker;
-use super::{Packer, PackerInfo};
+use crate::state::types::TargetSystem;
 
-/// Detects Turbo Cruncher signature.
-#[must_use]
-pub fn detect(mem: &[u8], load_addr: u16) -> Option<Box<dyn Packer>> {
-    if mem.len() > 0x818 && load_addr <= 0x0801 {
-        let q = 0x080D;
-        if q >= load_addr as usize
-            && mem[q] == 0x78
-            && mem[q + 1] == 0xA9
-            && mem[q + 2] == 0x34
-            && mem[q + 3] == 0x85
-            && mem[q + 4] == 0x01
-            && mem[q + 5] == 0x20
-            && mem[q + 8] == 0x4C
-        {
-            return Some(Box::new(SimplePacker::new(PackerInfo {
-                name: "Turbo Cruncher",
-                dep_addr: Some(0x0100),
-                start_addr: Some(0x0801),
-                end_addr: None,
-                entry_point: None,
-                end_addr_ptr: None,
-            })));
-        }
-    }
-    None
-}
+use super::spec::{AddrSource, Anchor, Hints, PackerSpec, Signature, sig};
+
+const SIGNATURES: [Signature; 1] = [Signature {
+    anchor: Anchor::BasicStart { offset: 0x0C },
+    pattern: sig![0x78, 0xA9, 0x34, 0x85, 0x01, 0x20, __, __, 0x4C],
+}];
+
+/// Declarative specification for the Turbo Cruncher stub at `$080D`.
+pub static SPEC: PackerSpec = PackerSpec {
+    id: "turbo_cruncher",
+    name: "Turbo Cruncher",
+    priority: 210,
+    systems: &[TargetSystem::C64],
+    load_addr_max: Some(0x0801),
+    signatures: &SIGNATURES,
+    hints: Hints {
+        dep_addr: Some(AddrSource::Const(0x0100)),
+        start_addr: Some(AddrSource::BasicStart(0)),
+        ..Hints::NONE
+    },
+    patches: &[],
+    resolve: None,
+    hooks: None,
+    // 12 padding bytes ($0801..=$080C) + 9 signature bytes at $080D..=$0815.
+    fixture: &[
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x78, 0xA9, 0x34,
+        0x85, 0x01, 0x20, 0x00, 0x00, 0x4C,
+    ],
+    fixture_load_addr: 0x0801,
+};

@@ -1,30 +1,34 @@
-//! Time Cruncher strategy implementation.
+//! Time Cruncher packer specification.
 
-use super::simple::SimplePacker;
-use super::{Packer, PackerInfo};
+use crate::state::types::TargetSystem;
 
-/// Detects Time Cruncher signature.
-#[must_use]
-pub fn detect(mem: &[u8]) -> Option<Box<dyn Packer>> {
-    if mem.len() >= 0x0820
-        && mem[0x810] == 0x78
-        && mem[0x811] == 0xA9
-        && mem[0x812] == 0x34
-        && mem[0x813] == 0x85
-        && mem[0x814] == 0x01
-        && mem[0x815] == 0xA0
-        && mem[0x816] == 0xC4
-        && mem[0x817] == 0xB9
-    {
-        Some(Box::new(SimplePacker::new(PackerInfo {
-            name: "Time Cruncher",
-            dep_addr: Some(0x0100),
-            start_addr: Some(0x0801),
-            end_addr: None,
-            entry_point: None,
-            end_addr_ptr: None,
-        })))
-    } else {
-        None
-    }
-}
+use super::spec::{AddrSource, Anchor, Hints, PackerSpec, Signature, sig};
+
+const SIGNATURES: [Signature; 1] = [Signature {
+    anchor: Anchor::BasicStart { offset: 0x0F },
+    pattern: sig![0x78, 0xA9, 0x34, 0x85, 0x01, 0xA0, 0xC4, 0xB9],
+}];
+
+/// Declarative specification for the Time Cruncher stub at `$0810`.
+pub static SPEC: PackerSpec = PackerSpec {
+    id: "time_cruncher",
+    name: "Time Cruncher",
+    priority: 50,
+    systems: &[TargetSystem::C64],
+    load_addr_max: None,
+    signatures: &SIGNATURES,
+    hints: Hints {
+        dep_addr: Some(AddrSource::Const(0x0100)),
+        start_addr: Some(AddrSource::BasicStart(0)),
+        ..Hints::NONE
+    },
+    patches: &[],
+    resolve: None,
+    hooks: None,
+    // 15 padding bytes ($0801..=$080F) + 8 signature bytes at $0810..=$0817.
+    fixture: &[
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x78, 0xA9, 0x34, 0x85, 0x01, 0xA0, 0xC4, 0xB9,
+    ],
+    fixture_load_addr: 0x0801,
+};
