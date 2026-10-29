@@ -263,7 +263,7 @@ pub fn spawn_mcp_server_thread(
 /// On success, loads the unpacked binary into the application state, updates
 /// the status bar with a summary, and opens the import context dialog.
 /// On failure, displays the error in the status bar.
-fn handle_unpack_complete(
+pub fn handle_unpack_complete(
     result: Result<
         regenerator2000_core::unpacker::UnpackResult,
         regenerator2000_core::unpacker::UnpackError,
@@ -273,40 +273,26 @@ fn handle_unpack_complete(
 ) {
     match result {
         Ok(result) => {
-            let msg = format!(
-                "Unpacked: ${:04X}-${:04X}, entry=${:04X}, dep=${:04X} ({} instructions)",
-                result.start_addr,
-                result.end_addr,
-                result.entry_point,
-                result.dep_addr,
-                result.instructions_executed
+            let outcome = core.state.apply_unpack_result(&result);
+            regenerator2000_core::navigation::perform_jump_to_address_no_history(
+                &core.state,
+                &mut core.view,
+                outcome.entry_point,
             );
-            let entry = regenerator2000_core::state::Addr(result.entry_point);
-            let origin = regenerator2000_core::state::Addr(result.start_addr);
-            match core
-                .state
-                .load_unpacked_binary(origin, result.data, Some(entry))
-            {
-                Ok(_loaded_data) => {
-                    ui_state.set_status_message(msg);
-                    ui_state.core = core.view.clone();
-                    ui_state.sync_core_to_tui();
-                    // Show import context dialog for system/origin/entry setup
-                    ui_state.push_dialog(Box::new(
-                        crate::ui::dialog_import_context::ImportContextDialog::new(
-                            core.state.settings.system.as_str(),
-                            origin,
-                            Some(entry),
-                            None,
-                            None,
-                            Option::<String>::None,
-                        ),
-                    ));
-                }
-                Err(e) => {
-                    ui_state.set_status_message(format!("Failed to load unpacked data: {e}"));
-                }
-            }
+            ui_state.core = core.view.clone();
+            ui_state.sync_core_to_tui();
+            ui_state.set_status_message(outcome.summary);
+            // Show import context dialog for system/origin/entry setup
+            ui_state.push_dialog(Box::new(
+                crate::ui::dialog_import_context::ImportContextDialog::new(
+                    core.state.settings.system.as_str(),
+                    outcome.start_addr,
+                    Some(outcome.entry_point),
+                    None,
+                    None,
+                    Option::<String>::None,
+                ),
+            ));
         }
         Err(e) => {
             ui_state.set_status_message(format!("Unpack failed: {e}"));
@@ -1161,5 +1147,52 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
                 ui_state.bitmap_cursor_index = idx;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use regenerator2000_core::unpacker::{BoundSource, ExitReason, UnpackReport, UnpackResult};
+
+    // T4.3.3
+    #[test]
+    fn status_line_shows_packer_and_exit_reason() {
+        let mut core = Core::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let res = UnpackResult {
+            data: vec![0xA9, 0x01, 0x60],
+            start_addr: 0x080D,
+            end_addr: 0x080F,
+            entry_point: 0x080D,
+            dep_addr: 0x0334,
+            instructions_executed: 42,
+            packer: Some("byte_boozer2"),
+            packer_name: Some("ByteBoozer 2.0".to_string()),
+            report: UnpackReport {
+                exit_reason: ExitReason::WrittenCodeReached { pc: 0x080D },
+                find_depacker_instructions: 10,
+                decompress_instructions: 32,
+                start_source: BoundSource::WriteDiff,
+                end_source: BoundSource::PointerAfterRun { addr: 0x00AE },
+                entry_source: BoundSource::ExitPc,
+                trace_tail: Vec::new(),
+            },
+        };
+
+        handle_unpack_complete(Ok(res), &mut core, &mut ui_state);
+
+        let status = ui_state
+            .status_message
+            .as_deref()
+            .expect("status_message must be set");
+        assert!(
+            status.contains("ByteBoozer 2.0"),
+            "status message missing packer name: {status}"
+        );
+        assert!(
+            status.contains("written_code($080D)"),
+            "status message missing exit reason: {status}"
+        );
     }
 }

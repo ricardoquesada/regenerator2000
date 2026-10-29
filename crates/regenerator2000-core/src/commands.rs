@@ -8,7 +8,7 @@ use crate::state::{Addr, AppState, BlockType, EnumDefinition, ImmediateFormat, L
 use std::collections::BTreeMap;
 
 /// Represents an executable and undoable state mutation command.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
 pub enum Command {
     /// Sets the [`BlockType`] classification for a range of memory indices.
@@ -497,6 +497,7 @@ impl Command {
 }
 
 /// Stack manager for tracking applied commands and performing undo/redo state transitions.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UndoStack {
     /// History buffer of executed commands.
     commands: Vec<Command>,
@@ -618,6 +619,26 @@ impl UndoStack {
     #[must_use]
     pub fn get_pointer(&self) -> usize {
         self.pointer
+    }
+
+    /// Returns the slice of currently active (applied, non-undone) commands on the stack.
+    #[must_use]
+    pub fn active_commands(&self) -> &[Command] {
+        &self.commands[..self.pointer]
+    }
+
+    /// Removes and returns the top active command if it satisfies `predicate`.
+    pub(crate) fn pop_if_matches(
+        &mut self,
+        predicate: impl FnOnce(&Command) -> bool,
+    ) -> Option<Command> {
+        if self.pointer > 0 && predicate(&self.commands[self.pointer - 1]) {
+            self.pointer -= 1;
+            self.commands.truncate(self.pointer + 1);
+            self.commands.pop()
+        } else {
+            None
+        }
     }
 }
 

@@ -18,7 +18,7 @@ pub enum AddressingMode {
     Unknown,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Opcode {
     pub mnemonic: &'static str,
     pub mode: AddressingMode,

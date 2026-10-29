@@ -22,7 +22,7 @@ pub const LABEL_COLUMN_WIDTH: usize = 20;
 /// Must match `.cc.as .lb { min-width: 40ch }` in the HTML exporter CSS.
 pub const DEFINITION_COLUMN_WIDTH: usize = 40;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisassemblyLine {
     pub address: Addr,
     pub bytes: Vec<u8>,

@@ -6,7 +6,8 @@
 use crate::mcp::tools::common::{get_address, make_mcp_error};
 use crate::mcp::types::McpError;
 use crate::state::AppState;
-use crate::state::types::{Addr, BlockType};
+#[cfg(test)]
+use crate::state::types::Addr;
 use crate::view_state::CoreViewState;
 use serde_json::{Value, json};
 
@@ -120,47 +121,17 @@ fn unpack_binary_impl(
 
     match crate::unpacker::unpack(&raw_data, load_addr, &config, None) {
         Ok(result) => {
-            let origin = Addr(result.start_addr);
-            let entry = Addr(result.entry_point);
-            app_state
-                .load_unpacked_binary(origin, result.data, Some(entry))
-                .map_err(|e| {
-                    make_mcp_error(-32603, format!("Failed to load unpacked binary: {e}"))
-                })?;
-
-            let entry_addr = Addr(result.entry_point);
-            let ranges = crate::analyzer::flow_analyze(app_state, entry_addr);
-            for range in ranges {
-                for i in range.start..range.end {
-                    if i < app_state.block_types.len() {
-                        app_state.block_types[i] = BlockType::Code;
-                    }
-                }
-            }
-
-            if let Ok(cmd) = app_state.create_set_user_label_command(entry_addr, "start", false) {
-                cmd.apply(app_state);
-                app_state.push_command(cmd);
-            }
-
-            if app_state.settings.auto_analyze {
-                let (command, _msg) = app_state.perform_analysis();
-                app_state.push_command(command);
-            } else {
-                app_state.disassemble();
-            }
-
+            let outcome = app_state.apply_unpack_result(&result);
             crate::navigation::perform_jump_to_address_no_history(
-                app_state, view_state, entry_addr,
+                app_state,
+                view_state,
+                outcome.entry_point,
             );
 
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": format!(
-                        "Unpacked successfully: ${:04X}-${:04X}, entry=${:04X}, dep=${:04X} ({} instructions executed)",
-                        result.start_addr, result.end_addr, result.entry_point, result.dep_addr, result.instructions_executed
-                    )
+                    "text": outcome.summary
                 }]
             }))
         }
@@ -305,5 +276,56 @@ mod tests {
                 .contains("Redo:")
         );
         assert!(app_state.undo_stack.can_undo());
+    }
+
+    // T4.2.8
+    #[test]
+    fn mcp_unpack_binary_summary_contains_provenance() {
+        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/6502/c64_FppScroller.byte_boozer2.prg");
+        let mut app_state = AppState::new();
+        app_state.load_file(&fixture).expect("fixture should load");
+        let mut view_state = make_view_state();
+
+        let res = handle_call(
+            "r2000_unpack_binary",
+            &json!({}),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("handler should match r2000_unpack_binary")
+        .expect("unpack should succeed");
+
+        let text = res["content"][0]["text"]
+            .as_str()
+            .expect("response text must be a string");
+        assert!(text.contains("ByteBoozer"), "missing packer: {text}");
+        assert!(text.contains("exit="), "missing exit reason: {text}");
+        assert!(text.contains("start="), "missing start provenance: {text}");
+        assert!(text.contains("end="), "missing end provenance: {text}");
+        assert!(text.contains("entry="), "missing entry provenance: {text}");
+    }
+
+    // T4.2.9
+    #[test]
+    fn mcp_unpack_binary_error_mapping_unchanged() {
+        let mut app_state = AppState::new();
+        let mut view_state = make_view_state();
+
+        let err = handle_call(
+            "r2000_unpack_binary",
+            &json!({}),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("handler should match r2000_unpack_binary")
+        .expect_err("empty binary must fail to unpack");
+
+        assert_eq!(err.code, -32603);
+        assert!(
+            err.message.starts_with("Unpack failed:"),
+            "unexpected error message: {}",
+            err.message
+        );
     }
 }

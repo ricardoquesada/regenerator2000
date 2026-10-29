@@ -10,6 +10,73 @@ use crate::error::{CoreError, IoResultExt, ProjectError};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+/// Controls whether entry-point flow analysis and the `"start"` user label
+/// are applied when loading or importing a binary.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum EntryAnalysisMode {
+    /// Run flow analysis from the entry point, mark reachable ranges as
+    /// [`BlockType::Code`], and attach a `"start"` user label at the entry point.
+    #[default]
+    AnalyzeAndLabel,
+    /// Do not mark reachable ranges as code or attach a `"start"` user label.
+    SkipEntryAnalysis,
+}
+
+/// Type alias for [`EntryAnalysisMode`] used by unpack entry-point callers.
+pub type UnpackEntryMode = EntryAnalysisMode;
+
+/// Summary and metadata returned by [`AppState::apply_unpack_result`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnpackOutcome {
+    /// Human-readable summary suitable for the TUI status bar and MCP response.
+    pub summary: String,
+    /// Start address (origin) of the unpacked image.
+    pub start_addr: Addr,
+    /// End address (inclusive) of the unpacked image.
+    pub end_addr: Addr,
+    /// Entry point address of the unpacked image.
+    pub entry_point: Addr,
+    /// Detected packer display name, if any.
+    pub packer_name: Option<String>,
+    /// Why emulation stopped.
+    pub exit_reason: crate::unpacker::ExitReason,
+}
+
+impl UnpackOutcome {
+    /// Builds an [`UnpackOutcome`] from a completed [`crate::unpacker::UnpackResult`].
+    #[must_use]
+    pub fn from_result(result: &crate::unpacker::UnpackResult) -> Self {
+        let packer = result.packer_name.as_deref().unwrap_or("Generic");
+        let summary = format!(
+            "Unpacked [{packer}]: ${:04X}-${:04X} ({} bytes), entry=${:04X}, dep=${:04X}, exit={}, bounds=(start={}, end={}, entry={}), {} instructions",
+            result.start_addr,
+            result.end_addr,
+            result.data.len(),
+            result.entry_point,
+            result.dep_addr,
+            result.report.exit_reason,
+            result.report.start_source,
+            result.report.end_source,
+            result.report.entry_source,
+            result.instructions_executed,
+        );
+        Self {
+            summary,
+            start_addr: Addr(result.start_addr),
+            end_addr: Addr(result.end_addr),
+            entry_point: Addr(result.entry_point),
+            packer_name: result.packer_name.clone(),
+            exit_reason: result.report.exit_reason,
+        }
+    }
+}
+
+impl std::fmt::Display for UnpackOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.summary)
+    }
+}
+
 impl AppState {
     /// Loads a file into the application state.
     ///
@@ -240,6 +307,36 @@ impl AppState {
         })
     }
 
+    /// Resets binary data, block types, labels, annotations, and undo stack for an
+    /// unpacked binary while preserving existing document properties (such as
+    /// settings, file/project/export paths, enums, and user-excluded addresses).
+    fn reset_for_unpacked_binary(
+        &mut self,
+        origin: Addr,
+        data: Vec<u8>,
+        entry_point: Option<Addr>,
+    ) {
+        self.origin = origin;
+        self.raw_data = data;
+        self.entry_point = entry_point;
+        self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
+        let initial_block_type = if self.system_config.default_is_unexplored {
+            BlockType::Undefined
+        } else {
+            BlockType::Code
+        };
+        self.block_types = vec![initial_block_type; self.raw_data.len()];
+        self.undo_stack = crate::commands::UndoStack::new();
+        self.last_saved_pointer = 0;
+        self.labels.clear();
+        self.annotations.clear();
+        self.cross_refs.clear();
+        self.collapsed_blocks.clear();
+        self.splitters.clear();
+
+        self.load_system_assets();
+    }
+
     /// Loads unpacked binary data directly into the application state while preserving
     /// existing document properties (such as settings, project paths, and enums).
     ///
@@ -251,48 +348,265 @@ impl AppState {
         data: Vec<u8>,
         entry_point: Option<Addr>,
     ) -> Result<LoadedProjectData> {
-        let settings = self.settings.clone();
-        let file_path = self.file_path.clone();
-        let project_path = self.project_path.clone();
-        let export_asm_path = self.export_asm_path.clone();
-        let export_html_path = self.export_html_path.clone();
-        let enums = self.enums.clone();
-        let user_excluded_addresses = self.user_excluded_addresses.clone();
-
-        let last_import_labels_path = self.last_import_labels_path.clone();
-        let last_export_labels_filename = self.last_export_labels_filename.clone();
-        let last_save_as_filename = self.last_save_as_filename.clone();
-        let last_export_asm_filename = self.last_export_asm_filename.clone();
-        let last_export_html_filename = self.last_export_html_filename.clone();
-
-        let mut loaded_data = self.load_binary(origin, data)?;
-        self.entry_point = entry_point.or(self.entry_point);
-
-        self.settings = settings;
-        self.file_path = file_path;
-        self.project_path = project_path;
-        self.export_asm_path = export_asm_path;
-        self.export_html_path = export_html_path;
-        self.enums = enums;
-        self.user_excluded_addresses = user_excluded_addresses;
-
-        self.last_import_labels_path = last_import_labels_path;
-        self.last_export_labels_filename = last_export_labels_filename;
-        self.last_save_as_filename = last_save_as_filename;
-        self.last_export_asm_filename = last_export_asm_filename;
-        self.last_export_html_filename = last_export_html_filename;
-
-        self.load_system_assets();
-        self.disassemble();
-        self.load_system_assets();
-        self.disassemble();
+        let resolved_entry = entry_point.or(self.entry_point);
+        self.reset_for_unpacked_binary(origin, data, resolved_entry);
 
         if self.settings.auto_analyze {
             self.perform_analysis();
+        } else {
+            self.disassemble();
         }
 
-        loaded_data.suggested_system = Some(self.settings.system.clone());
-        Ok(loaded_data)
+        Ok(LoadedProjectData {
+            cursor_address: Some(origin),
+            hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
+            charset_cursor_address: None,
+            bitmap_cursor_address: None,
+            charset_multicolor_mode: false,
+            sprite_multicolor_mode: false,
+            bitmap_multicolor_mode: None,
+            hexdump_view_mode: HexdumpViewMode::default(),
+            blocks_view_cursor: None,
+            entropy_warning: self.check_entropy(),
+            suggested_entry_point: None,
+            suggested_system: Some(self.settings.system.clone()),
+            detected_packer: self.file_info().packer_name.map(String::from),
+        })
+    }
+
+    /// Applies an [`crate::unpacker::UnpackResult`] to the application state using
+    /// [`EntryAnalysisMode::AnalyzeAndLabel`].
+    ///
+    /// This loads the unpacked binary at [`crate::unpacker::UnpackResult::start_addr`],
+    /// runs flow analysis from [`crate::unpacker::UnpackResult::entry_point`] to mark
+    /// reachable ranges as [`BlockType::Code`], attaches a single `"start"` user label
+    /// at the entry point, and runs a single analysis or disassembly pass.
+    pub fn apply_unpack_result(&mut self, result: &crate::unpacker::UnpackResult) -> UnpackOutcome {
+        self.apply_unpack_result_with_mode(result, EntryAnalysisMode::AnalyzeAndLabel)
+    }
+
+    /// Applies an [`crate::unpacker::UnpackResult`] to the application state using
+    /// the specified [`EntryAnalysisMode`].
+    pub fn apply_unpack_result_with_mode(
+        &mut self,
+        result: &crate::unpacker::UnpackResult,
+        mode: EntryAnalysisMode,
+    ) -> UnpackOutcome {
+        let origin = Addr(result.start_addr);
+        let entry = Addr(result.entry_point);
+        self.reset_for_unpacked_binary(origin, result.data.clone(), None);
+        self.mark_entry_code_and_label(entry, mode);
+
+        if self.settings.auto_analyze {
+            let (command, _msg) = self.perform_analysis();
+            self.push_command(command);
+        } else {
+            self.disassemble();
+        }
+
+        UnpackOutcome::from_result(result)
+    }
+
+    #[must_use]
+    fn has_user_start_label_at(&self, addr: Addr) -> bool {
+        self.labels.get(&addr).is_some_and(|labels| {
+            labels
+                .iter()
+                .any(|l| l.name == "start" && l.kind == LabelKind::User)
+        })
+    }
+
+    #[must_use]
+    fn has_any_user_start_label(&self) -> bool {
+        self.labels.values().any(|labels| {
+            labels
+                .iter()
+                .any(|l| l.name == "start" && l.kind == LabelKind::User)
+        })
+    }
+
+    #[must_use]
+    fn is_entry_analyzed_and_labeled(&self, entry: Addr) -> bool {
+        if !self.has_user_start_label_at(entry) {
+            return false;
+        }
+        let ranges = crate::analyzer::flow_analyze(self, entry);
+        for range in ranges {
+            let end = range.end.min(self.block_types.len());
+            if range.start < end
+                && self.block_types[range.start..end]
+                    .iter()
+                    .any(|&bt| bt != BlockType::Code)
+            {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn rollback_entry_code_and_label(&mut self) {
+        let mut old_entries: Vec<Addr> = self
+            .labels
+            .iter()
+            .filter_map(|(&addr, labels)| {
+                labels
+                    .iter()
+                    .any(|l| l.name == "start" && l.kind == LabelKind::User)
+                    .then_some(addr)
+            })
+            .collect();
+        if let Some(prev_entry) = self.entry_point
+            && !old_entries.contains(&prev_entry)
+        {
+            old_entries.push(prev_entry);
+        }
+
+        if let Some(cmd) = self
+            .undo_stack
+            .pop_if_matches(|cmd| matches!(cmd, crate::commands::Command::SetAnalysisData { .. }))
+        {
+            cmd.undo(self);
+        }
+        if let Some(cmd) = self.undo_stack.pop_if_matches(|cmd| {
+            matches!(
+                cmd,
+                crate::commands::Command::SetLabel {
+                    new_label: Some(labels),
+                    ..
+                } if labels.iter().any(|l| l.name == "start" && l.kind == LabelKind::User)
+            )
+        }) {
+            cmd.undo(self);
+        }
+        while let Some(cmd) = self.undo_stack.pop_if_matches(|cmd| {
+            matches!(
+                cmd,
+                crate::commands::Command::SetBlockType {
+                    new_type: BlockType::Code,
+                    ..
+                }
+            )
+        }) {
+            cmd.undo(self);
+        }
+
+        let initial_block_type = if self.system_config.default_is_unexplored {
+            BlockType::Undefined
+        } else {
+            BlockType::Code
+        };
+        for old_entry in old_entries {
+            let ranges = crate::analyzer::flow_analyze(self, old_entry);
+            for range in ranges {
+                let end = range.end.min(self.block_types.len());
+                if range.start < end {
+                    self.block_types[range.start..end].fill(initial_block_type);
+                }
+            }
+        }
+
+        for labels in self.labels.values_mut() {
+            labels.retain(|l| {
+                !(l.kind == LabelKind::Auto || (l.name == "start" && l.kind == LabelKind::User))
+            });
+        }
+        self.labels.retain(|_, v| !v.is_empty());
+        self.cross_refs.clear();
+    }
+
+    /// Marks reachable code blocks from `entry` via flow analysis and attaches
+    /// the `"start"` user label when `mode` is [`EntryAnalysisMode::AnalyzeAndLabel`].
+    ///
+    /// This method is idempotent for an unchanged `(entry, mode)` pair and rolls back
+    /// previously applied entry code marks and `"start"` label if `entry` or `mode` changes.
+    pub fn mark_entry_code_and_label(&mut self, entry: Addr, mode: EntryAnalysisMode) {
+        if mode == EntryAnalysisMode::AnalyzeAndLabel
+            && self.entry_point == Some(entry)
+            && self.is_entry_analyzed_and_labeled(entry)
+        {
+            return;
+        }
+
+        if self.has_any_user_start_label() {
+            self.rollback_entry_code_and_label();
+        }
+
+        self.entry_point = Some(entry);
+
+        if mode == EntryAnalysisMode::SkipEntryAnalysis {
+            return;
+        }
+
+        let ranges = crate::analyzer::flow_analyze(self, entry);
+        for range in ranges {
+            let end = range.end.min(self.block_types.len());
+            for i in range.start..end {
+                self.block_types[i] = BlockType::Code;
+            }
+        }
+
+        if !self.has_user_start_label_at(entry)
+            && let Ok(cmd) = self.create_set_user_label_command(entry, "start", false)
+        {
+            cmd.apply(self);
+            self.push_command(cmd);
+        }
+    }
+
+    /// Applies the import context (target system, origin address, entry point,
+    /// and entry-analysis mode) to the current binary in a single analysis pass.
+    ///
+    /// When called after [`Self::apply_unpack_result`] with identical `(system, origin,
+    /// entry, mode)`, this method is idempotent: it does not create a duplicate `"start"`
+    /// label or push duplicate commands onto [`Self::undo_stack`]. When the entry point,
+    /// origin, or analysis mode changes, any previously auto-applied entry code marks
+    /// and `"start"` label are cleanly rolled back before the new entry context is applied.
+    pub fn apply_import_context(
+        &mut self,
+        system: System,
+        origin: Addr,
+        entry: Addr,
+        mode: EntryAnalysisMode,
+    ) {
+        let system_changed = self.settings.system != system;
+        let origin_changed = self.origin != origin;
+        let entry_already_applied = !origin_changed
+            && self.entry_point == Some(entry)
+            && match mode {
+                EntryAnalysisMode::AnalyzeAndLabel => self.is_entry_analyzed_and_labeled(entry),
+                EntryAnalysisMode::SkipEntryAnalysis => !self.has_any_user_start_label(),
+            };
+
+        if !system_changed
+            && !origin_changed
+            && entry_already_applied
+            && !self.disassembly.is_empty()
+        {
+            return;
+        }
+
+        if !entry_already_applied {
+            self.rollback_entry_code_and_label();
+        }
+
+        self.settings.system = system;
+        if origin_changed {
+            self.origin = origin;
+        }
+        self.load_system_assets();
+
+        if !entry_already_applied {
+            self.mark_entry_code_and_label(entry, mode);
+        }
+
+        if self.settings.auto_analyze {
+            let (command, _msg) = self.perform_analysis();
+            self.push_command(command);
+        } else {
+            self.disassemble();
+        }
     }
 
     pub(super) fn check_entropy(&self) -> Option<f32> {
@@ -1155,5 +1469,188 @@ mod vice_label_tests {
         assert!(!content.contains("CHROUT"));
 
         let _ = std::fs::remove_file(path);
+    }
+}
+
+#[cfg(test)]
+mod apply_unpack_result_tests {
+    use super::super::app_state::AppState;
+    use super::super::types::{Addr, BlockType, LabelKind, LabelType};
+    use super::{EntryAnalysisMode, UnpackEntryMode};
+    use crate::unpacker::{BoundSource, ExitReason, UnpackReport, UnpackResult};
+
+    fn synthetic_unpack_result() -> UnpackResult {
+        // $080D: LDA #$01 ($A9 $01); $080F: RTS ($60); $0810: .byte $EA (unreachable)
+        UnpackResult {
+            data: vec![0xA9, 0x01, 0x60, 0xEA],
+            start_addr: 0x080D,
+            end_addr: 0x0810,
+            entry_point: 0x080D,
+            dep_addr: 0x0334,
+            instructions_executed: 42,
+            packer: Some("byte_boozer2"),
+            packer_name: Some("ByteBoozer 2.0".to_string()),
+            report: UnpackReport {
+                exit_reason: ExitReason::WrittenCodeReached { pc: 0x080D },
+                find_depacker_instructions: 10,
+                decompress_instructions: 32,
+                start_source: BoundSource::WriteDiff,
+                end_source: BoundSource::PointerAfterRun { addr: 0x00AE },
+                entry_source: BoundSource::ExitPc,
+                trace_tail: Vec::new(),
+            },
+        }
+    }
+
+    // T4.2.1
+    #[test]
+    fn apply_unpack_result_loads_at_start() {
+        let mut state = AppState::new();
+        let res = UnpackResult {
+            data: vec![0xA9, 0x01, 0x60],
+            start_addr: 0x080D,
+            end_addr: 0x080F,
+            entry_point: 0x080D,
+            ..synthetic_unpack_result()
+        };
+
+        state.apply_unpack_result(&res);
+
+        assert_eq!(state.origin, Addr(0x080D));
+        assert_eq!(state.raw_data, vec![0xA9, 0x01, 0x60]);
+        assert_eq!(state.entry_point, Some(Addr(0x080D)));
+    }
+
+    // T4.2.2
+    #[test]
+    fn apply_unpack_result_marks_code_from_entry() {
+        let mut state = AppState::new();
+        let res = synthetic_unpack_result();
+
+        state.apply_unpack_result(&res);
+
+        let ranges = crate::analyzer::flow_analyze(&state, Addr(res.entry_point));
+        assert!(!ranges.is_empty());
+        for range in ranges {
+            for offset in range {
+                assert_eq!(
+                    state.block_types[offset],
+                    BlockType::Code,
+                    "expected Code at offset {offset:#x}"
+                );
+            }
+        }
+        // Unreachable trailing byte at $0810 (index 3) remains Undefined
+        assert_eq!(state.block_types[3], BlockType::Undefined);
+    }
+
+    // T4.2.3
+    #[test]
+    fn apply_unpack_result_sets_exactly_one_start_label() {
+        let mut state = AppState::new();
+        let res = synthetic_unpack_result();
+
+        state.apply_unpack_result(&res);
+        state.apply_unpack_result(&res);
+
+        let labels = state
+            .labels
+            .get(&Addr(0x080D))
+            .expect("labels at entry_point must exist");
+        let start_labels: Vec<_> = labels
+            .iter()
+            .filter(|l| {
+                l.name == "start"
+                    && l.kind == LabelKind::User
+                    && l.label_type == LabelType::UserDefined
+            })
+            .collect();
+        assert_eq!(start_labels.len(), 1);
+    }
+
+    // T4.2.4
+    #[test]
+    fn apply_unpack_result_runs_analysis_once() {
+        let mut state = AppState::new();
+        let res = synthetic_unpack_result();
+
+        AppState::reset_analysis_pass_count();
+        state.apply_unpack_result(&res);
+        assert_eq!(AppState::analysis_pass_count(), 1);
+    }
+
+    // T4.2.5
+    #[test]
+    fn apply_unpack_result_without_auto_analyze_disassembles() {
+        let mut state = AppState::new();
+        state.settings.auto_analyze = false;
+        let res = synthetic_unpack_result();
+
+        AppState::reset_analysis_pass_count();
+        state.apply_unpack_result(&res);
+
+        assert_eq!(AppState::analysis_pass_count(), 0);
+        assert!(!state.disassembly.is_empty());
+        assert_eq!(state.disassembly[0].address, Addr(res.start_addr));
+    }
+
+    // T4.2.6
+    #[test]
+    fn apply_unpack_result_outcome_summary() {
+        let mut state = AppState::new();
+        let res = synthetic_unpack_result();
+
+        let outcome = state.apply_unpack_result(&res);
+        let text = outcome.to_string();
+
+        assert_eq!(text, outcome.summary);
+        assert!(text.contains("ByteBoozer 2.0"), "missing packer: {text}");
+        assert!(text.contains("$080D-$0810"), "missing range: {text}");
+        assert!(text.contains("$080D"), "missing entry: {text}");
+        assert!(
+            text.contains("exit=written_code($080D)"),
+            "missing exit reason: {text}"
+        );
+        assert!(
+            text.contains("start=write_diff, end=pointer_after_run($00AE), entry=exit_pc"),
+            "missing bound provenance: {text}"
+        );
+
+        // Generic fallback when packer_name is None
+        let mut generic_res = res;
+        generic_res.packer = None;
+        generic_res.packer_name = None;
+        let generic_outcome = state.apply_unpack_result(&generic_res);
+        assert!(generic_outcome.summary.contains("Generic"));
+    }
+
+    // T4.2.7
+    #[test]
+    fn apply_unpack_result_entry_mode_variants() {
+        let mut state = AppState::new();
+        let res = synthetic_unpack_result();
+
+        state.apply_unpack_result_with_mode(&res, UnpackEntryMode::SkipEntryAnalysis);
+        assert!(
+            state
+                .block_types
+                .iter()
+                .all(|&bt| bt == BlockType::Undefined),
+            "SkipEntryAnalysis must leave block_types untouched"
+        );
+        let has_start = state
+            .labels
+            .values()
+            .any(|v| v.iter().any(|l| l.name == "start"));
+        assert!(!has_start, "SkipEntryAnalysis must create no 'start' label");
+
+        state.apply_unpack_result_with_mode(&res, EntryAnalysisMode::AnalyzeAndLabel);
+        assert_eq!(state.block_types[0], BlockType::Code);
+        assert!(
+            state
+                .labels
+                .get(&Addr(0x080D))
+                .is_some_and(|v| v.iter().any(|l| l.name == "start"))
+        );
     }
 }

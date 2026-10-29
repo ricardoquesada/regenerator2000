@@ -7,6 +7,11 @@ use crate::disassembler::{Disassembler, DisassemblyLine};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
+#[cfg(test)]
+thread_local! {
+    static ANALYSIS_PASS_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockItem {
     Block {
@@ -215,6 +220,9 @@ impl AppState {
     }
 
     pub fn perform_analysis(&mut self) -> (crate::commands::Command, String) {
+        #[cfg(test)]
+        ANALYSIS_PASS_COUNT.with(|c| c.set(c.get().saturating_add(1)));
+
         let result = crate::analyzer::analyze(self);
 
         // Capture old labels (more idiomatic with iterator)
@@ -236,6 +244,17 @@ impl AppState {
         command.apply(self);
         self.disassemble();
         (command, "Analysis Complete".to_string())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn reset_analysis_pass_count() {
+        ANALYSIS_PASS_COUNT.with(|c| c.set(0));
+    }
+
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn analysis_pass_count() -> usize {
+        ANALYSIS_PASS_COUNT.with(std::cell::Cell::get)
     }
 
     pub fn undo_last_command(&mut self) -> String {
@@ -300,17 +319,20 @@ impl AppState {
             mem[load_start..load_end].copy_from_slice(&self.raw_data[..copy_len]);
         }
 
-        let packer = crate::packers::detect_packer(
+        let load_end_inclusive = (load_start
+            .saturating_add(size)
+            .min(0x10000)
+            .saturating_sub(1)) as u16;
+        let image = crate::packers::LoadedImage::new(
             &mem,
             start_addr.0,
-            (load_start
-                .saturating_add(size)
-                .min(0x10000)
-                .saturating_sub(1)) as u16,
+            load_end_inclusive,
+            &self.settings.system,
         );
+        let sig_match = crate::packers::registry::detect(&image);
 
-        let (is_packed, packer_name, entry_point) = if let Some(ref p) = packer {
-            let info = p.info();
+        let (is_packed, packer_name, entry_point) = if let Some(ref m) = sig_match {
+            let info = crate::packers::PackerInfo::resolve(&image, m);
             (
                 true,
                 Some(info.name),
@@ -629,5 +651,116 @@ mod tests {
         assert!(!app_state.is_external(Addr(0x0000)));
         assert!(!app_state.is_external(Addr(0x0810)));
         assert!(!app_state.is_external(Addr(0xFFFF)));
+    }
+
+    // T3.0.49
+    #[test]
+    fn file_info_packer_name_unchanged_for_corpus_samples() {
+        use std::path::Path;
+
+        let samples: &[(&str, Option<&str>)] = &[
+            ("c64_mule.dali.prg", Some("Dali")),
+            ("c64_mule.exo3.prg", Some("Exomizer 3.0")),
+            ("c64_mule.pucrunch.prg", Some("PUCrunch")),
+            ("c64_mule.tscrunch_x.prg", Some("TSCrunch v1.3+")),
+            ("c64_CopperBooze.byte_boozer2.prg", Some("ByteBoozer")),
+            ("c64_traveller.tiny_crunch.prg", Some("TinyCrunch")),
+            ("c64_boo_alz64.prg", Some("ALZ64/Quiss")),
+            ("c64_8_bit_ball.meanteam_cruncher.prg", None),
+        ];
+
+        let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/6502");
+        for &(filename, expected_packer) in samples {
+            let prg = std::fs::read(fixture_dir.join(filename))
+                .unwrap_or_else(|e| panic!("{filename}: {e}"));
+            let load_addr = u16::from_le_bytes([prg[0], prg[1]]);
+            let mut app_state = AppState::new();
+            app_state.origin = Addr(load_addr);
+            app_state.raw_data = prg[2..].to_vec();
+
+            let info = app_state.file_info();
+            assert_eq!(
+                info.packer_name, expected_packer,
+                "{filename}: unexpected packer_name"
+            );
+            assert_eq!(
+                info.is_packed,
+                expected_packer.is_some(),
+                "{filename}: unexpected is_packed"
+            );
+        }
+    }
+
+    // T3.5.1
+    #[test]
+    fn file_info_does_not_allocate_per_spec() {
+        use std::alloc::{GlobalAlloc, Layout, System as StdAlloc};
+        use std::cell::Cell;
+
+        struct CountingAlloc;
+
+        thread_local! {
+            static TRACKING: Cell<bool> = const { Cell::new(false) };
+            static ALLOCS: Cell<usize> = const { Cell::new(0) };
+        }
+
+        // SAFETY: Delegates directly to `std::alloc::System`; only increments a thread-local
+        // `Cell<usize>` counter when `TRACKING` is enabled on the current thread.
+        unsafe impl GlobalAlloc for CountingAlloc {
+            unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+                TRACKING.with(|t| {
+                    if t.get() {
+                        ALLOCS.with(|a| a.set(a.get().saturating_add(1)));
+                    }
+                });
+                unsafe { StdAlloc.alloc(layout) }
+            }
+
+            unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+                unsafe { StdAlloc.dealloc(ptr, layout) }
+            }
+        }
+
+        #[global_allocator]
+        static GLOBAL: CountingAlloc = CountingAlloc;
+
+        fn count_allocations<F: FnOnce() -> R, R>(f: F) -> (R, usize) {
+            ALLOCS.with(|a| a.set(0));
+            TRACKING.with(|t| t.set(true));
+            let result = f();
+            TRACKING.with(|t| t.set(false));
+            let count = ALLOCS.with(Cell::get);
+            (result, count)
+        }
+
+        let spec_count = crate::packers::registry::PACKERS.len();
+        assert!(spec_count >= 21);
+
+        // 1. Direct `registry::detect` across all 21 specs on an unpacked 64 KB image performs
+        // zero heap allocations.
+        let mem = vec![0xEAu8; 0x10000];
+        let image =
+            crate::packers::LoadedImage::new(&mem, 0x0801, 0x2000, &crate::state::System::C64);
+        let (matched, detect_allocs) =
+            count_allocations(|| crate::packers::registry::detect(&image));
+        assert!(matched.is_none());
+        assert_eq!(
+            detect_allocs, 0,
+            "registry::detect across {spec_count} specs must perform 0 heap allocations"
+        );
+
+        // 2. `AppState::file_info()` allocates only the single 64 KB working buffer (1 allocation),
+        // and never allocates per spec.
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        app_state.raw_data = vec![0xEA; 512];
+        app_state.entropy = Some(app_state.entropy());
+
+        let (info, file_info_allocs) = count_allocations(|| app_state.file_info());
+        assert!(!info.is_packed);
+        assert!(
+            file_info_allocs <= 1,
+            "file_info() allocated {file_info_allocs} times (expected <= 1 across {spec_count} specs)"
+        );
     }
 }

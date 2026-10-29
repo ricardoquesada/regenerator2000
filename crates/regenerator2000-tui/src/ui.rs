@@ -47,7 +47,7 @@ pub(crate) mod view_debugger;
 pub(crate) mod view_disassembly;
 pub(crate) mod view_hexdump;
 pub(crate) mod view_sprites;
-pub(crate) mod widget;
+pub mod widget;
 
 use crate::ui::widget::Widget;
 

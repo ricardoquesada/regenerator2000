@@ -429,50 +429,23 @@ impl Widget for ImportContextDialog {
                                 .get(self.selected_system_idx)
                                 .cloned()
                                 .unwrap_or_default();
-
-                            // 1. Update System
-                            app_state.settings.system = crate::state::System::from(system_name);
-                            app_state.load_system_assets();
-
-                            // 2. Apply Origin & Entry
-                            app_state.origin = Addr(new_origin);
-                            app_state.entry_point = Some(Addr(new_start));
-
-                            // 3. Disassemble entry sequence if requested
-                            if self.disassemble_sequence {
-                                let entry_addr = Addr(new_start);
-                                let ranges = crate::analyzer::flow_analyze(app_state, entry_addr);
-                                for range in ranges {
-                                    for i in range.start..range.end {
-                                        if i < app_state.block_types.len() {
-                                            app_state.block_types[i] =
-                                                crate::state::BlockType::Code;
-                                        }
-                                    }
-                                }
-
-                                // Label the entry point as "start"
-                                if let Ok(cmd) = app_state
-                                    .create_set_user_label_command(entry_addr, "start", false)
-                                {
-                                    cmd.apply(app_state);
-                                    app_state.push_command(cmd);
-                                }
-                            }
-
-                            if app_state.settings.auto_analyze {
-                                let (command, _msg) = app_state.perform_analysis();
-                                app_state.push_command(command);
+                            let system = crate::state::System::from(system_name);
+                            let origin = Addr(new_origin);
+                            let entry_addr = Addr(new_start);
+                            let mode = if self.disassemble_sequence {
+                                regenerator2000_core::state::EntryAnalysisMode::AnalyzeAndLabel
                             } else {
-                                app_state.disassemble();
-                            }
-                            ui_state.set_status_message("Context applied");
+                                regenerator2000_core::state::EntryAnalysisMode::SkipEntryAnalysis
+                            };
 
-                            // Navigate cursor to Entry point
-                            if let Some(idx) = app_state.get_line_index_for_address(Addr(new_start))
-                            {
-                                ui_state.cursor_index = idx;
-                            }
+                            app_state.apply_import_context(system, origin, entry_addr, mode);
+                            regenerator2000_core::navigation::perform_jump_to_address_no_history(
+                                app_state,
+                                &mut ui_state.core,
+                                entry_addr,
+                            );
+                            ui_state.sync_core_to_tui();
+                            ui_state.set_status_message("Context applied");
 
                             WidgetResult::Close
                         } else {
@@ -504,6 +477,9 @@ impl Widget for ImportContextDialog {
 mod tests {
     use super::*;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use regenerator2000_core::commands::Command;
+    use regenerator2000_core::state::{BlockType, LabelKind};
+    use regenerator2000_core::unpacker::{BoundSource, ExitReason, UnpackReport, UnpackResult};
 
     #[test]
     fn test_import_context_dialog_new_packed_default_focus() {
@@ -643,5 +619,179 @@ mod tests {
             found_warning,
             "Warning message with [!] must be rendered in buffer"
         );
+    }
+
+    // T4.3.1
+    #[test]
+    fn import_dialog_confirm_after_apply_has_no_duplicate_start_label() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let res = UnpackResult {
+            data: vec![0xA9, 0x01, 0x60],
+            start_addr: 0x080D,
+            end_addr: 0x080F,
+            entry_point: 0x080D,
+            dep_addr: 0x0334,
+            instructions_executed: 12,
+            packer: None,
+            packer_name: None,
+            report: UnpackReport {
+                exit_reason: ExitReason::WrittenCodeReached { pc: 0x080D },
+                find_depacker_instructions: 4,
+                decompress_instructions: 8,
+                start_source: BoundSource::WriteDiff,
+                end_source: BoundSource::WriteDiff,
+                entry_source: BoundSource::ExitPc,
+                trace_tail: Vec::new(),
+            },
+        };
+
+        app_state.apply_unpack_result(&res);
+
+        let mut dialog = ImportContextDialog::new(
+            app_state.settings.system.as_str(),
+            Addr(res.start_addr),
+            Some(Addr(res.entry_point)),
+            None,
+            None,
+            Option::<String>::None,
+        );
+        let outcome = dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(outcome, WidgetResult::Close);
+
+        let start_labels: Vec<_> = app_state
+            .labels
+            .get(&Addr(0x080D))
+            .expect("labels at $080D must exist")
+            .iter()
+            .filter(|l| l.name == "start" && l.kind == LabelKind::User)
+            .collect();
+        assert_eq!(start_labels.len(), 1);
+
+        let set_label_cmds = app_state
+            .undo_stack
+            .active_commands()
+            .iter()
+            .filter(|cmd| {
+                matches!(
+                    cmd,
+                    Command::SetLabel {
+                        address: Addr(0x080D),
+                        new_label: Some(labels),
+                        ..
+                    } if labels.iter().any(|l| l.name == "start")
+                )
+            })
+            .count();
+        assert_eq!(set_label_cmds, 1);
+    }
+
+    // T4.3.2
+    #[test]
+    fn import_dialog_changed_entry_moves_label_and_code_marks() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        // 32-byte buffer starting at $0800:
+        // $0810 (offset 0x10): NOP ($EA), RTS ($60)
+        // $0820 (offset 0x20): LDA #$01 ($A9 $01), RTS ($60)
+        let mut data = vec![0x00; 0x30];
+        data[0x10] = 0xEA;
+        data[0x11] = 0x60;
+        data[0x20] = 0xA9;
+        data[0x21] = 0x01;
+        data[0x22] = 0x60;
+
+        let res = UnpackResult {
+            data,
+            start_addr: 0x0800,
+            end_addr: 0x082F,
+            entry_point: 0x0810,
+            dep_addr: 0x0334,
+            instructions_executed: 20,
+            packer: None,
+            packer_name: None,
+            report: UnpackReport {
+                exit_reason: ExitReason::WrittenCodeReached { pc: 0x0810 },
+                find_depacker_instructions: 5,
+                decompress_instructions: 15,
+                start_source: BoundSource::WriteDiff,
+                end_source: BoundSource::WriteDiff,
+                entry_source: BoundSource::ExitPc,
+                trace_tail: Vec::new(),
+            },
+        };
+
+        app_state.apply_unpack_result(&res);
+        assert_eq!(app_state.block_types[0x10], BlockType::Code);
+
+        let mut dialog = ImportContextDialog::new(
+            app_state.settings.system.as_str(),
+            Addr(0x0800),
+            Some(Addr(0x0810)),
+            None,
+            None,
+            Option::<String>::None,
+        );
+        dialog.start_input = "0820".to_string();
+        let outcome = dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(outcome, WidgetResult::Close);
+
+        // "start" label is now at $0820 and NOT at $0810
+        assert!(
+            !app_state
+                .labels
+                .get(&Addr(0x0810))
+                .is_some_and(|v| v.iter().any(|l| l.name == "start")),
+            "old entry $0810 must not retain 'start' label"
+        );
+        assert!(
+            app_state.labels.get(&Addr(0x0820)).is_some_and(|v| v
+                .iter()
+                .any(|l| l.name == "start" && l.kind == LabelKind::User)),
+            "new entry $0820 must have 'start' label"
+        );
+
+        // Code marks moved from $0810..=$0811 to $0820..=$0822
+        assert_eq!(app_state.block_types[0x10], BlockType::Undefined);
+        assert_eq!(app_state.block_types[0x11], BlockType::Undefined);
+        assert_eq!(app_state.block_types[0x20], BlockType::Code);
+        assert_eq!(app_state.block_types[0x21], BlockType::Code);
+        assert_eq!(app_state.block_types[0x22], BlockType::Code);
+    }
+
+    // T4.3.4
+    #[test]
+    fn test_import_context_dialog_confirm_populates_disassembly() {
+        let mut app_state = AppState::new();
+        app_state.settings.auto_analyze = false;
+        let _ = app_state.load_binary(Addr(0x0801), vec![0xA9, 0x00, 0x60]);
+        app_state.disassembly.clear();
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut dialog = ImportContextDialog::new(
+            "C64",
+            Addr(0x0801),
+            Some(Addr(0x0801)),
+            None,
+            None,
+            Option::<String>::None,
+        );
+
+        let res = dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(res, WidgetResult::Close);
+        assert!(!app_state.disassembly.is_empty());
+        assert_eq!(app_state.disassembly[0].address, Addr(0x0801));
     }
 }
