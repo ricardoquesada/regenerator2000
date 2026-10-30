@@ -34,7 +34,7 @@ flowchart TD
         DisasmEngine[Disassembly Pipeline<br/>symbols / data_blocks / handlers / formatter]
         Parsers[Parser Suite<br/>PRG / CRT / D64 / T64 / VSF / SourceGen]
         Exporters[Exporter Suite & Verify<br/>ASM / HTML / Roundtrip Diff]
-        UnpackerSandbox[6502 Emulation Sandbox<br/>bus / cia / engine / detector / 21 packers]
+        UnpackerSandbox[6502 Emulation Sandbox<br/>bus / cia / machine / engine / detector / 21 PackerSpecs]
         MCPServer[MCP Server Suite<br/>HTTP SSE / Stdio / handler / tools]
         ViceClient[VICE Monitor Client<br/>protocol / client / state / c64_hardware]
         AssetsConfig[Assets & Config<br/>system-*.toml / enum-*.toml / config.toml]
@@ -115,8 +115,8 @@ regenerator2000/
 │   │       ├── analyzer.rs                    # Control-flow & symbol heuristics
 │   │       ├── parser/                        # Binary container & snapshot parsers
 │   │       ├── exporter/                      # Multi-assembler, HTML & roundtrip verification
-│   │       ├── unpacker/                      # 6502 sandbox depacker engine
-│   │       ├── packers/                       # 21 binary packer detection strategies
+│   │       ├── unpacker/                      # 2-phase 6502 sandbox depacker engine
+│   │       ├── packers/                       # Declarative PackerSpec registry (21 packer families)
 │   │       ├── mcp/                           # Model Context Protocol server (HTTP & Stdio)
 │   │       ├── vice/                          # Live VICE binary monitor client
 │   │       ├── assets.rs                      # Embedded ROM definitions, system TOMLs & enums
@@ -127,7 +127,7 @@ regenerator2000/
 │   │       ├── utils.rs                       # Shared string & formatting utilities
 │   │       ├── view_state.rs                  # Frontend-agnostic CoreViewState
 │   │       └── bin/
-│   │           └── unpacker_compare_all.rs    # Depacker benchmarking & comparison tool
+│   │           └── unpacker_compare_all/      # Corpus oracle comparison & drift CLI (5 modules)
 │   └── regenerator2000-tui/                   # Terminal User Interface frontend
 │       ├── Cargo.toml
 │       └── src/
@@ -418,39 +418,38 @@ The parser modules load raw binaries, disk and tape containers, and symbol files
 
 ---
 
-### 3.9 6502 Sandbox Binary Unpacker & Packer Strategies ([`unpacker/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker) & [`packers/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers))
+### 3.9 6502 Sandbox Binary Unpacker & Declarative Packer Specs ([`unpacker/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker) & [`packers/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers))
 
-Regenerator 2000 embeds a 6502 emulation sandbox based on `unp64` heuristics to unpack compressed executables:
+Regenerator 2000 embeds a system-agnostic 2-phase 6502 emulation sandbox to unpack compressed executables across Commodore 8-bit targets:
 
 ```text
 [Packed Input PRG]
          │
          ▼
-[Packer Signature Scanner] ──► detect_packer() matches known signature
+[Declarative Signature Scanner] ──► match_packer() evaluates REGISTRY signatures & hints
          │
          ▼
-[Phase 1: Depacker Locator] ──► Emulate 6502 from SYS entry until PC < ReturnAddr
+[Phase 1: Phase1Searching] ────────► Emulate 6502 from SYS entry until PC enters depacker stub
          │
          ▼
-[Phase 2: Decompression Execution] ──► Emulate depacker stub until PC jumps back
+[Phase 2: Phase2Depacking] ────────► Clear WrittenBitmap; run stub until PC jumps to payload
          │
          ▼
-[Detector & Memory Diffing] ──► Snapshot diffing & trailing cluster trimming
+[Detector & Boundary Resolution] ──► Precedence: Hints > StepHook > WrittenBitmap > SnapshotDiff
          │
          ▼
-[Unpacked Output PRG + Entry Point]
+[UnpackedPrg + UnpackReport Telemetry]
 ```
 
--   **[`bus.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/bus.rs)**: `C64Bus` (`UnpackerMemory`) emulates the 64 KB address space, C64 `$00`/`$01` processor port banking, and ROM reads.
--   **[`cia.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/cia.rs)**: `CiaState` emulates MOS 6526 CIA 1 and CIA 2 timers for depackers that poll timer registers.
--   **[`engine.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/engine.rs)**: `UnpackEngine` runs the two-phase 6502 execution loop with step hooks and ROM traps.
--   **[`detector.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/detector.rs)**: Diffs post-emulation RAM against the initial memory snapshot to determine unpacked start/end boundaries and trim trailing depacker stubs.
--   **Packer Strategy Pattern ([`packers/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers))**: Implements the [`Packer`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/mod.rs#L62) trait (`info`, `pre_emulate`, `on_step`, and `post_emulate`) across **21 packer families** registered in `detect_packer()`:
-
-    -   `action_replay`, `alz64`, `antiram`, `byteboozer`, `card_cruncher`, `ccs`, `cruel_cruncher`, `dali`, `eagle`, `eca`, `exomizer`, `final_cartridge`, `mc_cracken`, `pucrunch`, `super_cruncher`, `tbc`, `time_cruncher`, `tiny_crunch`, `triad`, `tscrunch`, and `turbo_cruncher`.
-    -   `simple.rs` supplies the shared `SimplePacker` helper for signature-only packers. It is not a packer family.
-
--   **Benchmarking CLI ([`src/bin/unpacker_compare_all.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/bin/unpacker_compare_all.rs))**: Compares Regenerator 2000 unpacker output against `unp64` across test binaries.
+-   **[`bus.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/bus.rs)**: [`MemoryBus`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/bus.rs) emulates the 64 KB address space, C64 `$00`/`$01` processor port banking, ROM overlays, and dual write-tracking bitmaps (`DirtyBitmap` across both phases and `WrittenBitmap` reset at Phase 2 entry).
+-   **[`cia.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/cia.rs)**: [`CiaState`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/cia.rs) emulates MOS 6526 CIA 1 and CIA 2 timers for depackers that poll timer registers.
+-   **[`machine.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/machine.rs)**: [`Machine`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/machine.rs) encapsulates the 6502 register file (`RegFile`), `MemoryBus`, and `CiaState`, executing single instructions (`step_instruction`) independently of phase-transition policy.
+-   **[`engine.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/engine.rs)**: Drives the explicit 2-phase [`RunState`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/engine.rs) state machine (`Phase1Searching` $\rightarrow$ `Phase2Depacking` $\rightarrow$ `Completed` / `Aborted`), ROM traps (`$A659`/`$A68E`/`$A7AE`), and produces [`UnpackReport`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/mod.rs) telemetry (`Phase1Outcome`, `Phase2Outcome`, `BoundSource`).
+-   **[`detector.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/detector.rs)**: Resolves unpacked start/end boundaries using strict source precedence (`Hints` $>$ `StepHook` $>$ `WrittenBitmap` $>$ `SnapshotDiff`) and trims trailing depacker stubs.
+-   **Declarative Packer Specifications ([`packers/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers))**:
+    -   [`spec.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/spec.rs): Defines [`PackerSpec`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/spec.rs) with declarative [`Signature`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/spec.rs) patterns (`Anchor`, `sig!`), [`Hints`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/spec.rs) (`AddrSource`), [`MemoryPatch`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/spec.rs), optional `resolve` escape hatches, and stateful [`PackerHooks`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/spec.rs) (`StepContext`, `RefineContext`).
+    -   [`registry.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/registry.rs): Registers all **21 packer families** in deterministic `priority` order in [`REGISTRY`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/packers/registry.rs) (`action_replay`, `alz64`, `antiram`, `byteboozer`, `card_cruncher`, `ccs`, `cruel_cruncher`, `dali`, `eagle`, `eca`, `exomizer`, `final_cartridge`, `mc_cracken`, `pucrunch`, `super_cruncher`, `tbc`, `time_cruncher`, `tiny_crunch`, `triad`, `tscrunch`, and `turbo_cruncher`).
+-   **Corpus Oracle & Benchmarking CLI ([`src/bin/unpacker_compare_all/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/bin/unpacker_compare_all))**: Compares Regenerator 2000 unpacker output against `unp64` across the [`tests/6502/unpack_corpus.toml`](file:///Users/ricardoq/progs/regenerator2000/tests/6502/unpack_corpus.toml) manifest (`main.rs`, `manifest.rs`, `runner.rs`, `diff.rs`, and `report.rs`), supporting `--update` (record `unp64` reference expectations), `--check` (CI drift gate), and `--markdown` (classified comparison report).
 
 ---
 
@@ -617,24 +616,31 @@ The terminal user interface uses `ratatui` and `crossterm`:
 ### 4.3 Background Binary Unpacker Sandbox Lifecycle
 
 ```text
-1. Trigger: The user loads a packed binary or selects "Unpack Binary".
+1. Trigger: The user loads a packed binary or selects "Unpack Binary" (or an AI
+   agent invokes the "r2000_unpack_binary" MCP tool).
 2. Action Dispatch: Core emits CoreEvent::UnpackStarted with the binary buffer
    and UnpackConfig.
 3. Thread Spawn: The TUI menu action dispatcher (menu_action.rs) processes
    CoreEvent::UnpackStarted and spawns a background thread that runs
-   unpacker::unpack().
+   unpacker::unpack_with_progress() (MCP calls unpacker::unpack() directly).
 4. 6502 Emulation:
-   a. The signature scanner identifies the packer format (such as Exomizer).
-   b. Phase 1 emulates 6502 instructions from the SYS entry point until PC
-      reaches the depacker loop.
-   c. Phase 2 emulates the depacker loop until decompression completes.
-   d. The engine sends AppEvent::UnpackProgress events to update the status bar.
+   a. packers::match_packer() scans the priority-ordered REGISTRY of
+      PackerSpec definitions to resolve signatures, hints, and patches.
+   b. Phase 1 (RunState::Phase1Searching) steps Machine from the SYS entry
+      point until PC reaches the depacker stub.
+   c. Phase 2 (RunState::Phase2Depacking) resets WrittenBitmap and runs the
+      depacker stub until control transfers to the unpacked payload.
+   d. The engine sends AppEvent::UnpackProgress events to update the status bar
+      and records UnpackReport telemetry (BoundSource, Phase1/Phase2 outcomes).
 5. Completion Event: The background thread sends AppEvent::UnpackComplete(result)
    to the main event channel.
-6. Result Handling: The event loop calls handle_unpack_complete() and loads the
-   unpacked bytes into AppState.
-7. Context Dialog: The TUI opens ImportContextDialog so the user can confirm the
-   origin and entry point.
+6. Unified State Initialization: Both TUI (handle_unpack_complete) and MCP
+   (r2000_unpack_binary) call AppState::apply_unpacked_prg(&unpacked), which
+   resets project paths, reloads system assets, seeds Code at entry_point, runs
+   analyzer::analyze() + disassemble(), and clears UndoStack.
+7. Context Dialog: In the TUI, handle_unpack_complete() opens
+   ImportContextDialog so the user can review or adjust the target platform,
+   origin, and entry point.
 ```
 
 ### 4.4 Live VICE Monitor Synchronization
