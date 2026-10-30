@@ -5,229 +5,179 @@ description: Orchestrates full-program analysis by running block classification,
 
 # Analyze Program Workflow
 
-Use this skill when the user asks to "analyze this program", "analyze everything", "full analysis",
-or wants a complete end-to-end pass over the loaded binary — classifying blocks, documenting
-routines, and naming symbols.
+Use this skill when the user asks to "analyze this program", "analyze everything", "full analysis", or wants a complete pass over the loaded binary to classify blocks, document routines, and name symbols.
 
-This skill **orchestrates** the following existing skills in order:
+Execute the following skills in order:
 
-1. `r2000-analyze-blocks` — Classify all memory regions (code vs data vs text, etc.).
-2. `r2000-analyze-routine` — Analyze and document each subroutine.
-3. `r2000-analyze-symbol` — Analyze and name each data symbol.
+1.  `r2000-analyze-blocks` — Classify all memory regions (code, data, text, tables).
+2.  `r2000-analyze-routine` — Analyze and document each subroutine.
+3.  `r2000-analyze-symbol` — Analyze and name each data symbol.
 
 ---
 
-## Phase 0 — Gather Context & Entropy Unpack Check
+## Phase 0 — Gather Context and Check Binary Entropy
 
-Before starting or launching any subagents, you must gather context and check if the binary is packed/compressed.
+Before launching subagents, gather binary metadata and check whether the binary is packed.
 
-1. **Get Binary Info**: Call `r2000_get_binary_info`.
-   - Read the returned `"entropy"` value.
-   - Also read the description of the `r2000_get_binary_info` tool (e.g. from `tools/list`) to find the entropy threshold preference (e.g., `7.5`).
-   - If the binary's `entropy` is greater than or equal to the threshold (values above the threshold suggest the binary might be compressed):
-     - **Ask the user** (using regular text in chat) if they would like to unpack the binary before proceeding with the analysis.
-     - **If the user accepts**:
-       - Call the `r2000_unpack_binary` tool.
-       - Note: `r2000_unpack_binary` is a destructive action (clears existing comments/labels/blocks) and may take up to 10 seconds or more.
-       - **If `r2000_unpack_binary` returns an error**: The binary was not unpacked. Log the failure and continue the analysis on the current binary.
-       - **If it succeeds**: The binary has been unpacked and a new unpacked binary has been loaded in its place. **You must restart this phase (Phase 0) from scratch**, calling `r2000_get_binary_info` again to fetch the new unpacked binary's info and continue.
-     - **If the user declines**: Continue the analysis on the current binary.
+1.  **Get Binary Info:** Call `r2000_get_binary_info`.
+    *   Read the returned `"entropy"` value.
+    *   Read the `r2000_get_binary_info` tool description to find the entropy threshold (for example, `7.5`).
+    *   If `entropy` is greater than or equal to the threshold:
+        *   Ask the user in chat whether to unpack the binary before analysis.
+        *   **If the user accepts:**
+            *   Call `r2000_unpack_binary`. Note that `r2000_unpack_binary` clears existing comments, labels, and blocks, and can take 10 seconds or more.
+            *   **If `r2000_unpack_binary` returns an error:** Log the failure and continue analyzing the current binary.
+            *   **If `r2000_unpack_binary` succeeds:** Restart Phase 0 from the beginning and call `r2000_get_binary_info` on the unpacked binary.
+        *   **If the user declines:** Continue analyzing the current binary.
 
 ---
 
 ## Phase 1 — Classify Blocks (`r2000-analyze-blocks`)
 
-Block classification is a prerequisite for all subsequent analysis.
+Complete block classification before analyzing routines or symbols.
 
-1. Read the skill file at `.agent/skills/r2000-analyze-blocks/SKILL.md`.
-2. Execute the `r2000-analyze-blocks` workflow **directly** (not via a subagent — this is a single long-running pass over the entire binary that you perform yourself).
+1.  Read `.agent/agents/r2000_cbm_principal_swe.md` to adopt the `r2000-cbm-principal-swe` persona (unless you are already running as `r2000-cbm-principal-swe`).
+2.  Read `.agent/skills/r2000-analyze-blocks/SKILL.md`.
+3.  Execute the `r2000-analyze-blocks` workflow directly in the current session. Do not delegate Phase 1 to a subagent.
 
 ---
 
-## Phase 2 — Analyze Routines (parallel subagents)
+## Phase 2 — Analyze Routines (Parallel Subagents)
 
-**Goal**: For every subroutine that hasn't been analyzed yet, launch a subagent to analyze it.
+Launch a `r2000-cbm-principal-swe` subagent for each unanalyzed subroutine.
 
 ### 2.1 Identify Unanalyzed Subroutines
 
-A subroutine is considered **already analyzed** if its entry point has **any line comment** (the presence of a line comment indicates it has already been documented).
+Treat a subroutine as already analyzed if its entry point has a line comment.
 
-To build the candidate list:
+Build the candidate list as follows:
 
-1. Call `r2000_get_symbols` to get all labels (user + system), including external labels, and save the symbols since they will be used later.
-2. Call `r2000_get_comments` to get all the comments, and save the comments since they will be used later.
-3. Filter labels that represent subroutine entry points:
-   - Labels whose name starts with `s_` (auto-generated subroutine labels), OR
-   - Labels in a `Code` block that are the target of at least one `JSR` cross-reference, OR
-   - **Pointer-to-code labels** — any `p_XXXX` label that is inside a `Code` block. These are addresses referenced as pointers (via immediate lo/hi byte loads like `LDX #<addr` / `LDY #>addr`, or stored in address tables) and point to executable code. They are almost always one of:
-     - **Chained raster IRQ handlers**: In C64/C128 demos, multiple raster interrupts are "chained" — each handler sets the _next_ handler's address into the IRQ vector (`$0314`/`$0315`) via a helper routine. The pointer labels are created from the `LDX #<p_XXXX` / `LDY #>p_XXXX` immediate loads, not from direct vector writes. This is the most common case.
-     - **NMI/IRQ handlers** loaded directly into hardware vectors (`$FFFA`–`$FFFF`) or shadow vectors (`$0314`/`$0315`, `$0318`/`$0319`).
-     - **Jump table targets** or **callback pointers** stored via indirect addressing.
-     - Since all of these are code entry points that deserve analysis, treat **every `p_XXXX` label in a Code block** as a routine candidate. This avoids the need for fragile pattern-matching against specific vector addresses or instruction sequences.
-   - **Entry point label** — a label named exactly `start`. This is the program's entry point and is critical for understanding the overall program flow.
-4. For each candidate, check if it already has a line comment (from the refreshed `r2000_get_comments` data). If yes → **skip it** (already documented).
-5. The remaining list = **unanalyzed routines**.
-6. **Ordering**: If `start` is in the unanalyzed list, it must be placed **first** — it is the program entry point and should be analyzed before all other routines. This ensures that the entry-point context is available when analyzing subsequent routines.
+1.  Call `r2000_get_symbols` to retrieve all user, system, and external labels.
+2.  Call `r2000_get_comments` to retrieve all existing comments.
+3.  Select labels that represent subroutine entry points:
+    *   Labels that start with `s_` (auto-generated subroutine labels).
+    *   Labels in a `Code` block that have at least one `JSR` cross-reference.
+    *   Pointer-to-code labels (`p_XXXX` inside a `Code` block). These addresses are referenced as pointers (through immediate low/high loads such as `LDX #<addr` / `LDY #>addr` or address tables) and point to executable code, such as:
+        *   Chained raster IRQ handlers loaded into `$0314`/`$0315` (or `$0090`/`$0091` on PET) or `$FFFE`/`$FFFF`.
+        *   NMI or IRQ handlers loaded into `$FFFA`–`$FFFF`, `$0314`–`$0319`, or `$0090`–`$0095` (PET).
+        *   Jump table targets or indirect callback pointers.
+    *   The `start` entry-point label.
+4.  Skip any candidate that already has a line comment in `r2000_get_comments`.
+5.  Place `start` first in the unanalyzed queue so that entry-point context is established first.
 
 ### 2.2 Launch Parallel Subagents
 
-- **CRITICAL**: Always launch each subagent with an explicit target address (e.g., `$XXXX` or decimal `NNNNN`). **NEVER** use the "current cursor address" or rely on the active cursor location in the editor, as the cursor will change dynamically when running parallel subagents.
-- Use a **rolling window** of up to **7 concurrent subagents** (to avoid hitting rate limit quota errors like `RESOURCE_EXHAUSTED`).
-- For each subagent, provide this prompt:
+*   **Agent Type:** Invoke the **`r2000-cbm-principal-swe`** subagent (defined in `.agent/agents/r2000_cbm_principal_swe.md`) for each routine.
+*   **Explicit Target Address:** Pass an explicit address (such as `$XXXX` or decimal `NNNNN`) to each subagent. Never rely on the active editor cursor address.
+*   **Concurrency Limit:** Run a rolling window of at most **7 concurrent subagents** to avoid rate-limit errors (`RESOURCE_EXHAUSTED`).
+*   **Subagent Prompt:**
 
-  > Read the skill file at `.agent/skills/r2000-analyze-routine/SKILL.md` and follow its workflow.
-  >
-  > Analyze the routine at address `$XXXX` (decimal: NNNNN).
-  >
-  > Binary info: system = {system}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
-  >
-  > **Apply all changes automatically** — rename the label, add the header comment block, add side comments to key instructions, and apply low/high byte formatting (`r2000_set_immediate_format`) to any immediate pointer loads. Do NOT ask for user confirmation.
-  >
-  > When done, report: the new label name, a one-line summary of what the routine does, and any uncertain areas.
+    > Read `.agent/skills/r2000-analyze-routine/SKILL.md` and follow its workflow.
+    >
+    > Analyze the routine at address `$XXXX` (decimal: NNNNN).
+    >
+    > Binary info: system = {system}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
+    >
+    > Apply all changes automatically: rename the label, add the header comment block, add side comments to key instructions, and format immediate pointer loads with `r2000_set_immediate_format`. Do not ask for user confirmation.
+    >
+    > Report the new label name, a one-line summary of the routine, and any uncertain areas.
 
-- **Rolling window strategy**:
-  1. Launch the first 7 subagents (or fewer if the queue is smaller) to fill all slots.
-  2. When **any** subagent completes, immediately launch the **next** routine from the queue into the freed slot — do NOT wait for the entire batch to finish.
-  3. Continue until all routines in the queue have been launched and all subagents have completed.
-  4. This keeps utilization high — if one subagent is slow, the other 6 slots stay busy.
-  5. **Error Fallback**: If any subagent encounters a quota or model capacity error (e.g., `RESOURCE_EXHAUSTED` / Code 429), immediately catch the failure, log it, and queue the routine to be processed sequentially or directly by the parent orchestrator after a brief delay.
+*   **Rolling Window Execution:**
+    1.  Launch up to 7 subagents to fill the active slots.
+    2.  When any subagent finishes, immediately launch the next routine from the queue into the free slot. Do not wait for the entire batch to finish.
+    3.  Continue until all queued routines complete.
+    4.  If a subagent fails with a quota error (`RESOURCE_EXHAUSTED` / Code 429), log the failure and process that routine sequentially after a short delay.
 
-### 2.3 Post-Phase Refresh
+### 2.3 Save Progress
 
-After all routine subagents complete:
-
-- Call `r2000_save_project` to persist changes so far.
+After all routine subagents complete, call `r2000_save_project`.
 
 ---
 
-## Phase 3 — Analyze Symbols (parallel subagents)
+## Phase 3 — Analyze Symbols (Parallel Subagents)
 
-**Goal**: For every data symbol and external jump symbol (internal + external) that hasn't been analyzed yet, launch a subagent.
+Launch a `r2000-cbm-principal-swe` subagent for each unanalyzed data symbol and external jump symbol.
 
 ### 3.1 Identify Unanalyzed Symbols
 
-A symbol is considered **already analyzed** if:
+Treat a symbol as already analyzed if it has a user-defined name (not an auto-generated prefix `a_XXXX`, `f_XXXX`, `p_XXXX`, `zpa_XX`, `zpf_XX`, `zpp_XX`, `e_XXXX`) or if it is a known system register, KERNAL entry point, or OS variable.
 
-- It has a **user-defined** name (i.e., NOT an auto-generated prefix name like `a_XXXX`, `f_XXXX`, `p_XXXX`, `zpa_XX`, `zpf_XX`, `zpp_XX`, `e_XXXX`), OR
-- It is a well-known system address (hardware register, KERNAL entry point, OS variable).
+Build the candidate list as follows:
 
-To build the candidate list:
-
-1. Call `r2000_get_symbols` again (labels were renamed by subagents).
-2. From the refreshed `r2000_get_symbols` data, collect all labels whose name matches auto-generated patterns:
-   - `zpp_XX`, `zpf_XX` and `zpa_XX` — auto-generated pointers, fields and absolute addresses in the zero page.
-   - `p_XXXX`, `f_XXXX`, `a_XXXX` and `e_XXXX` — auto-generated pointers, fields, absolute addresses, and external ROM jump vectors outside the zero page.
-3. Do **NOT** include:
-   - `s_XXXX` labels — those were handled in Phase 2.
-   - `b_XXXX` labels — those are branch labels, not data symbols.
-   - `p_XXXX` labels that are inside a `Code` block — those were handled as routine candidates in Phase 2.
-4. The remaining list = **unanalyzed symbols**.
+1.  Call `r2000_get_symbols` to fetch the updated symbol list.
+2.  Collect labels that match auto-generated patterns:
+    *   `zpp_XX`, `zpf_XX`, `zpa_XX` (zero-page pointers, fields, and absolute addresses).
+    *   `p_XXXX`, `f_XXXX`, `a_XXXX`, `e_XXXX` (non-zero-page pointers, fields, absolute addresses, and external ROM jump targets).
+3.  Exclude the following labels:
+    *   `s_XXXX` subroutine labels (analyzed in Phase 2).
+    *   `b_XXXX` branch labels.
+    *   `p_XXXX` labels inside a `Code` block (analyzed in Phase 2).
 
 ### 3.2 Launch Parallel Subagents
 
-- **CRITICAL**: Always launch each subagent with an explicit target address (e.g., `$XXXX` or decimal `NNNNN`). **NEVER** use the "current cursor address" or rely on the active cursor location in the editor, as the cursor will change dynamically when running parallel subagents.
-- Up to **7 concurrent subagents** (to avoid hitting rate limit quota errors like `RESOURCE_EXHAUSTED`).
-- **Complete Queue Coverage**: Unlike the routine phase, the symbol queue can be large. You **MUST** run the rolling window continuously until the _entire_ remaining symbol queue is processed. Do not skip any unanalyzed custom symbols.
-- **NO PREMATURE HALTING**: The orchestrator **MUST NOT** truncate the candidate queue, skip custom symbols, or exit the rolling window phase early. Even if the custom symbol queue is very large (e.g., 50+ symbols), you must feed the queue continuously into the rolling window (replacing active slots immediately as subagents finish) until the entire list of unanalyzed custom symbols is fully processed. Halting early or classifying unanalyzed custom symbols as "skipped for review" is considered a workflow failure.
-- For each subagent, provide this prompt:
+*   **Agent Type:** Invoke the **`r2000-cbm-principal-swe`** subagent (defined in `.agent/agents/r2000_cbm_principal_swe.md`) for each symbol.
+*   **Explicit Target Address:** Pass an explicit address (`$XXXX` or decimal `NNNNN`) to each subagent. Never use the editor cursor position.
+*   **Concurrency Limit:** Run at most **7 concurrent subagents**.
+*   **Complete Queue Processing:** Process the entire unanalyzed symbol queue using the rolling window. Do not truncate the queue, skip custom symbols, or stop early.
+*   **Subagent Prompt:**
 
-  > Read the skill file at `.agent/skills/r2000-analyze-symbol/SKILL.md` and follow its workflow.
-  >
-  > Analyze the symbol at address `$XXXX` (decimal: NNNNN). Current label: `{current_label}`.
-  >
-  > Binary info: system = {system}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
-  >
-  > **Apply all changes automatically** — rename the label, add comments (line and/or side), and apply low/high byte formatting (`r2000_set_immediate_format`) to any instructions initializing the symbol. Do NOT ask for user confirmation.
-  >
-  > When done, report: the old label, the new label name, the classification (flag, counter, pointer, state variable, etc.), and any uncertain areas.
+    > Read `.agent/skills/r2000-analyze-symbol/SKILL.md` and follow its workflow.
+    >
+    > Analyze the symbol at address `$XXXX` (decimal: NNNNN). Current label: `{current_label}`.
+    >
+    > Binary info: system = {system}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
+    >
+    > Apply all changes automatically: rename the label, add line or side comments, and format immediate pointer loads with `r2000_set_immediate_format`. Do not ask for user confirmation.
+    >
+    > Report the old label, the new label name, the symbol classification (flag, counter, pointer, state variable), and any uncertain areas.
 
-- **Rolling window strategy**:
-  1. Launch the first 7 subagents (or fewer if the queue is smaller) to fill all slots.
-  2. When **any** subagent completes, immediately launch the **next** symbol from the queue into the freed slot — do NOT wait for the entire batch to finish.
-  3. Continue until all symbols in the queue have been launched and all subagents have completed.
-  4. This keeps utilization high — if one subagent is slow, the other 6 slots stay busy.
-  5. **Error Fallback**: If any subagent encounters a quota or model capacity error (e.g., `RESOURCE_EXHAUSTED` / Code 429), immediately catch the failure, log it, and queue the symbol to be processed sequentially or directly by the parent orchestrator after a brief delay.
+*   **Rolling Window Execution:**
+    1.  Launch up to 7 subagents to fill the active slots.
+    2.  When any subagent finishes, immediately launch the next symbol from the queue.
+    3.  Continue until all queued symbols complete.
+    4.  If a subagent fails with a quota error (`RESOURCE_EXHAUSTED` / Code 429), log the failure and process that symbol sequentially after a short delay.
 
-### 3.3 Post-Phase Refresh
+### 3.3 Save Progress
 
-After all symbol subagents complete:
-
-- Call `r2000_save_project` to persist all changes.
+After all symbol subagents complete, call `r2000_save_project`.
 
 ---
 
-## Phase 4 — Save & Report
+## Phase 4 — Save and Report
 
-1. Call `r2000_save_project` one final time to ensure everything is persisted.
-2. Create a **summary report** for the user, including:
+1.  Call `r2000_save_project` to persist all changes.
+2.  Present a summary report with the following sections:
 
 ### Blocks Summary
 
-- Total number of blocks classified, grouped by type (Code, Byte, Word, PETSCII, etc.).
-- Notable findings from block analysis (e.g., "Found 3 text strings at $1200", "Jump table at $0A00").
+*   Total blocks classified, grouped by type (Code, Byte, Word, PETSCII, Screencode, Address).
+*   Key findings from block classification (such as text tables or jump tables).
 
 ### Routines Summary
 
-- Total number of routines analyzed.
-- Table of results:
+*   Total routines analyzed and a summary table:
 
-  | Address | Old Label | New Label       | Summary                                 |
-  | ------- | --------- | --------------- | --------------------------------------- |
-  | `$C000` | `s_C000`  | `init_screen`   | Clears screen RAM and sets border color |
-  | `$C050` | `s_C050`  | `read_joystick` | Reads CIA1 port A for joystick 2 input  |
-  | ...     | ...       | ...             | ...                                     |
+    | Address | Old Label | New Label       | Summary                                 |
+    | ------- | --------- | --------------- | --------------------------------------- |
+    | `$C000` | `s_C000`  | `init_screen`   | Clears screen RAM and sets border color |
+    | `$C050` | `s_C050`  | `read_joystick` | Reads CIA1 port A for joystick 2 input  |
 
 ### Symbols Summary
 
-- Total number of symbols analyzed.
-- Table of results:
+*   Total symbols analyzed and a summary table:
 
-  | Address | Old Label | New Label       | Classification        |
-  | ------- | --------- | --------------- | --------------------- |
-  | `$02`   | `zpp_02`  | `ptr_screen`    | Pointer (ZP indirect) |
-  | `$0400` | `a_0400`  | `score_display` | Screencode buffer     |
-  | ...     | ...       | ...             | ...                   |
+    | Address | Old Label | New Label       | Classification        |
+    | ------- | --------- | --------------- | --------------------- |
+    | `$02`   | `zpp_02`  | `zp_ptr_screen` | Pointer (ZP indirect) |
+    | `$0400` | `a_0400`  | `score_display` | Screencode buffer     |
 
 ### Uncertain, Skipped, or Unanalyzed Items
 
-- **CRITICAL**: The final report **MUST** document and list all symbols and routines that were left unanalyzed or skipped during the process. This includes any symbols/routines that:
-  - Were skipped due to queue size constraints or orchestrator prioritization.
-  - Were bypassed to prevent API quota/capacity exhaustions.
-  - Were flagged as uncertain or undetermined by subagents.
-- You **MUST NEVER** report "no uncertain areas" or "0 errors/exhaustions" if there are any remaining unanalyzed auto-generated symbols (e.g. `f_XXXX`, `a_XXXX`) or unanalyzed subroutines in the queue. They must be explicitly listed as **Unanalyzed / Skipped Candidates** for manual human review.
+*   List every symbol and routine that remains unanalyzed, skipped, or uncertain.
+*   Never report "0 unanalyzed items" if any auto-generated labels (`f_XXXX`, `a_XXXX`, `s_XXXX`) remain unanalyzed.
 
-### Errors, Resource Quotas & Fallbacks
+### Errors, Resource Quotas, and Fallbacks
 
-- **CRITICAL**: Log any subagents that encountered errors, timeouts, or API capacity limits (e.g. `RESOURCE_EXHAUSTED` / Code 429) during analysis.
-- If the rolling queue was truncated or execution had to yield due to safe-guards (such as skipping a large queue of secondary data symbols), document this as a safety fallback.
-- Include a structured table detailing:
-  - The target address.
-  - The symbol/routine entry point name.
-  - The planned subagent analysis role.
-  - The specific error code/message encountered (e.g. `RESOURCE_EXHAUSTED (code 429)` or `Orchestration safe-guard skip`).
-  - The fallback handling mechanism used (e.g. "Resolved directly and sequentially by the parent orchestrator" or "Bypassed for manual human review due to queue limit").
-
----
-
-## Error Handling
-
-- If a subagent fails, times out, or hits a rate limit (e.g. `RESOURCE_EXHAUSTED` / Code 429), **log the failure**, cleanly terminate the background task if necessary, and fallback to direct sequential analysis of the failed target.
-- **CRITICAL**: Do NOT discard or ignore these failures. You **MUST** document all such failed subagent targets, their addresses, error codes/messages, and their fallback resolutions in the final summary report under the dedicated "Errors, Resource Quotas & Fallbacks" section.
-- If `r2000_save_project` fails, warn the user immediately.
-
----
-
-## Example Invocation
-
-The user says:
-
-> "Analyze this program"
-
-The agent:
-
-1. Reads this skill file.
-2. Gathers context (Phase 0).
-3. Classifies blocks (Phase 1) — this may take several minutes for large binaries.
-4. Identifies 8 unanalyzed subroutines → launches 7 subagents, and as each one finishes immediately launches the next from the remaining 0 (Phase 2).
-5. Identifies 70 unanalyzed symbols → launches 7 subagents, and as each one finishes immediately launches the next from the remaining 63 (Phase 3).
-6. Saves and produces the summary report (Phase 4).
+*   Document all subagent errors, timeouts, or rate-limit events (`RESOURCE_EXHAUSTED` / Code 429).
+*   For each event, list the target address, label name, subagent role, error message, and fallback resolution.
+*   If `r2000_save_project` fails, notify the user immediately.

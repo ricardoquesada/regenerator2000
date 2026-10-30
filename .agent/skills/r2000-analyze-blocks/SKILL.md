@@ -1,243 +1,176 @@
 ---
 name: r2000-analyze-blocks
-description: Analyzes memory regions of a disassembled binary and converts them to the correct block types (code, bytes, words, text, tables, etc.) using MOS 6502 and the target system's expertise.
+description: Analyzes memory regions of a disassembled binary and converts them to the correct block types (code, bytes, words, text, tables, etc.) using the r2000-cbm-principal-swe agent persona.
 ---
 
 # Analyze Blocks Workflow
 
-Use this skill when the user asks to "analyze blocks", "convert blocks", "identify data regions",
-"classify the program", or wants the AI to scan a range (or the entire binary) and mark regions
-with their correct block types.
+Use this skill when the user asks to "analyze blocks", "convert blocks", "identify data regions", or "classify the program".
+
+## Agent Persona (`r2000-cbm-principal-swe`)
+
+This skill uses the **`r2000-cbm-principal-swe`** agent persona for MOS 6502 instructions (including undocumented opcodes), Commodore hardware registers, KERNAL/BASIC ROM maps, and data structures.
+
+*   If you are not already running as the `r2000-cbm-principal-swe` agent, read `.agent/agents/r2000_cbm_principal_swe.md` first and follow its technical rules.
 
 ## Overview
 
-When a binary is loaded in Regenerator 2000, the auto-analyzer traces reachable code starting from
-the entry point and marks those regions as **Code**. Everything else remains **Undefined** — these
-are the blocks that have not yet been explored. The goal of this skill is to walk through the
-undefined/unexplored regions, identify what each one _actually_ is, and convert it to the
-appropriate block type. This is a fundamental step in reverse engineering — separating code from
-data, text from tables, and pointers from raw bytes.
+When Regenerator 2000 loads a binary, the auto-analyzer traces reachable code from the entry point and marks those regions as **Code**. All other regions remain **Undefined**. In this workflow, you inspect each Undefined region, identify its content, and set its block type.
 
 ## Block Types Reference
 
-Use `r2000_set_data_type` with the `data_type` enum value from the right column (except for **Code**, where you must use `r2000_disassemble`).
+Use `r2000_set_data_type` with the `data_type` value in the table below (except for **Code**, where you must call `r2000_disassemble`):
 
-| Block Type          | `data_type` value / Tool | When to Use                                                                                             |
-|---------------------|-------------------|---------------------------------------------------------------------------------------------------------|
-| **Code**            | Call `r2000_disassemble` | **Do NOT use `r2000_set_data_type`!** Instead, execute `r2000_disassemble` at the entry point address.  |
-| **Byte**            | `byte`            | Raw 8-bit data: sprite data, bitmap data, charset data, lookup tables, variables, or unknown data.      |
-| **Word**            | `word`            | 16-bit little-endian values: 16-bit variables, math constants, SID frequency values.                    |
-| **Address**         | `address`         | 16-bit little-endian pointers to memory locations. Creates cross-references. For jump tables & vectors. |
-| **PETSCII Text**    | `petscii`         | PETSCII-encoded strings: game messages, prompts, high score names, print routine data.                  |
-| **Screencode Text** | `screencode`      | Screen code text: data written directly to Screen RAM ($0400–$07E7).                                    |
-| **Lo/Hi Address**   | `lo_hi_address`   | Split address table: first half = low bytes, second half = high bytes. Even byte count required.        |
-| **Hi/Lo Address**   | `hi_lo_address`   | Split address table: first half = high bytes, second half = low bytes. Even byte count required.        |
-| **Lo/Hi Word**      | `lo_hi_word`      | Split word table: first half = low bytes, second half = high bytes. E.g., SID frequency tables.         |
-| **Hi/Lo Word**      | `hi_lo_word`      | Split word table: first half = high bytes, second half = low bytes.                                     |
-| **External File**   | `external_file`   | Large binary blobs: SID music files, raw bitmaps, character sets that should be exported as-is.         |
-| **Undefined**       | `undefined`       | Reset a region to unknown state. Use to undo a wrong classification.                                    |
+| Block Type          | `data_type` Value / Tool | When to Use                                                                                         |
+| ------------------- | ------------------------ | --------------------------------------------------------------------------------------------------- |
+| **Code**            | Call `r2000_disassemble` | **Do not use `r2000_set_data_type`.** Call `r2000_disassemble` at the code entry point address.     |
+| **Byte**            | `byte`                   | Raw 8-bit data: sprites, bitmaps, charsets, lookup tables, variables, or unknown data.              |
+| **Word**            | `word`                   | 16-bit little-endian values: 16-bit variables, constants, SID frequency values, or `RTS` (`addr-1`) entries. |
+| **Address**         | `address`                | 16-bit little-endian pointers to memory addresses. Creates cross-references for jump tables/vectors.|
+| **PETSCII Text**    | `petscii`                | PETSCII strings: messages, prompts, high-score names, or print routine data.                        |
+| **Screencode Text** | `screencode`             | Screen code text written directly to the active system's Screen RAM (`$0400` C64/C128, `$1E00`/`$1000` VIC-20, `$8000` PET, `$0C00` Plus/4). |
+| **Lo/Hi Address**   | `lo_hi_address`          | Split address table: low bytes in the first half, high bytes in the second half (even byte count).  |
+| **Hi/Lo Address**   | `hi_lo_address`          | Split address table: high bytes in the first half, low bytes in the second half (even byte count).  |
+| **Lo/Hi Word**      | `lo_hi_word`             | Split 16-bit word table: low bytes first, high bytes second (such as `PHA/PHA/RTS` `addr-1` tables).|
+| **Hi/Lo Word**      | `hi_lo_word`             | Split 16-bit word table: high bytes first, low bytes second.                                        |
+| **External File**   | `external_file`          | Large binary blocks: SID music, raw bitmaps, or character sets.                                     |
+| **Undefined**       | `undefined`              | Resets a region to the unknown state.                                                               |
 
 ## Step-by-Step Workflow
 
 ### 1. Determine Scope
 
-- Ask the user what range to analyze, or default to the **entire binary**.
-- Use `r2000_get_binary_info` to get the origin address, size, **system**, **description**, and *
-  *`may_contain_undocumented_opcodes`** hint.
-    - **CRITICAL**: The `system` field tells you the target computer (e.g., C64, VIC-20). You **MUST** become an expert
-      in that specific target computer's memory map, hardware registers, and KERNAL routines for the duration of the
-      analysis.
-    - **CONTEXT**: The `filename` field (e.g., "burnin_rubber.prg", "turrican.d64") and `description` (if provided by
-      the user) give you the specific software context. Use this to search for known memory maps, common drivers (music,
-      compression), and game-specific variables.
-    - **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, the binary may use illegal/undocumented
-      MOS 6502 opcodes (e.g., `LAX`, `SAX`, `SLO`, `DCP`, `ISC`). Do **NOT** misclassify these instructions as data —
-      they are valid code. This is a hint set by the user; it is not guaranteed, but you should be prepared to encounter
-      them.
-- Use `r2000_get_blocks` to see what has already been classified. **Focus on the Undefined blocks** — these are the
-  unexplored regions that need classification.
-- If the user says "the whole thing" or "entire binary", work in chunks of **~256–512 bytes** to avoid overwhelming
-  context windows.
+*   Use the address range requested by the user, or default to the entire binary.
+*   Call `r2000_get_binary_info` to read the origin address, size, `system`, `filename`, `description`, and `may_contain_undocumented_opcodes` hint.
+*   Call `r2000_get_blocks` to list all blocks and locate the **Undefined** regions.
+*   Process large Undefined regions in chunks of 256 to 512 bytes.
 
 ### 2. Plan the Analysis Order
 
-Process the **Undefined** blocks in **multiple passes**, in this order:
+Process the **Undefined** blocks in four passes:
 
-1. **Pass 1 — Identify provably-reachable code**: Perform control-flow disassembly at the entry point of the code region using `r2000_disassemble` **only** when there is concrete proof it is executed (do NOT use `r2000_set_data_type` for code). See the strict criteria in [Recognizing Code](#recognizing-code) below. **Do NOT** trigger disassembly for a region just because it "looks like" valid 6502 instructions — random data often disassembles into plausible-looking instruction sequences.
-2. **Pass 2 — Identify text strings**: Look for PETSCII or screencode strings within Undefined regions.
-3. **Pass 3 — Identify data tables**: Look for byte tables, word tables, address tables, and split (Lo/Hi) tables.
-4. **Pass 4 — Classify remaining Undefined regions**: Anything still Undefined — decide if it's data or leave it as
-   Undefined for human review. **Never** speculatively trigger disassembly in this pass.
+1.  **Pass 1 — Identify Reachable Code:** Call `r2000_disassemble` at a code entry point **only** when you have concrete proof that the CPU executes that address. Follow the rules in [Recognizing Code](#recognizing-code). Never disassemble a region only because the bytes look like valid 6502 instructions.
+2.  **Pass 2 — Identify Text Strings:** Locate PETSCII and screencode strings in Undefined regions.
+3.  **Pass 3 — Identify Data Tables:** Locate byte tables, word tables, address tables, and split (`Lo/Hi` or `Hi/Lo`) tables.
+4.  **Pass 4 — Classify Remaining Undefined Regions:** Convert remaining regions to data types (`byte`, `word`, `external_file`) or leave them as Undefined for manual review. Do not run speculative disassembly in Pass 4.
 
 ### 3. Read and Analyze Each Region
 
-For each chunk of the binary:
+For each chunk:
 
-- Use `r2000_read_region` (with `"view": "disasm"`) to see how it disassembles.
-- Use `r2000_read_region` (with `"view": "hexdump"`) to see raw byte patterns.
-- Apply the heuristics below to determine the block type.
+*   Call `r2000_read_region` with `"view": "disasm"` to inspect instruction decoding.
+*   Call `r2000_read_region` with `"view": "hexdump"` to inspect raw byte values and ASCII/PETSCII text.
+*   Apply the identification rules below to select the block type.
 
 ### 4. Apply Conversions
 
-- **For Code**: Call `r2000_disassemble` passing the entry point address. This will trace execution flow and automatically set the appropriate block regions to Code. **After performing `r2000_disassemble`, you MUST call `r2000_get_blocks` again** to read the newly created blocks.
-- **For Data**: Use `r2000_batch_execute` to apply multiple `r2000_set_data_type` calls at once for efficiency (e.g. for bytes, words, text, or address tables).
-- After each batch or disassembly operation, use `r2000_get_blocks` to verify the result and refresh block definitions.
-- If a conversion was wrong, use `r2000_undo` to revert.
-- Use `r2000_toggle_splitter` when you need to separate two adjacent regions of the same type (e.g., two separate byte
-  tables side by side).
+*   **For Code:** Call `r2000_disassemble` at the entry point address. Then call `r2000_get_blocks` immediately to refresh the block list.
+*   **For Data:** Call `r2000_batch_execute` to group multiple `r2000_set_data_type` operations into one call.
+*   Call `r2000_get_blocks` after each batch to verify the updated boundaries.
+*   Call `r2000_undo` if a conversion is incorrect.
+*   Call `r2000_toggle_splitter` at the boundary between two adjacent blocks of the same type so they do not merge.
 
 ### 5. Label and Document
 
-After classifying blocks, optionally:
+After classifying blocks:
 
-- Use `r2000_set_label_name` to name entry points, tables, and strings.
-- Use `r2000_set_comment` (type `"line"` or `"side"`) to add context (using conventions from the **r2000-analyze-routine
-  ** skill if documenting subroutines).
+*   Call `r2000_set_label_name` to name newly discovered entry points, tables, and strings.
+*   Call `r2000_set_comment` (`"line"` or `"side"`) to document table layouts and purpose.
 
 ---
 
-## Identification Heuristics
+## Identification Rules
 
 ### Recognizing Code
 
-> **CRITICAL**: Do NOT mark an Undefined region as Code just because it disassembles into valid-looking 6502
-> instructions. Random data frequently produces plausible instruction sequences. You **MUST** have at least one of the
-> following concrete proofs before converting to Code:
+> **IMPORTANT:** Do not mark an Undefined region as Code solely because it decodes into valid 6502 instructions. Require at least one of the following proofs before calling `r2000_disassemble`:
 
-A region should be marked as **Code** only when **at least one** of these conditions is met:
-
-- **It is a `JSR`/`JMP` target**: Existing analyzed code contains a `JSR $addr` or `JMP $addr` that lands in this
-  region. Check cross-references with `r2000_get_cross_references`.
-- **It is a branch target**: An already-analyzed branch instruction (`BNE`, `BEQ`, `BCC`, `BCS`, `BPL`, `BMI`, `BVC`,
-  `BVS`) targets this region.
-- **It is a vector/handler**: The region's address appears in a known vector table (e.g., NMI, IRQ/BRK vectors at
-  `$FFFA`–`$FFFF`), an Address or Lo/Hi Address block, or a jump table referenced by `JMP ($addr)`.
-- **It is explicitly identified by the user**: The user tells you this region is code.
-
-If none of these conditions are met, leave the region as **Undefined** or classify it as data — even if the bytes happen
-to disassemble into valid instructions.
+*   **`JSR` or `JMP` Target:** Analyzed code contains a `JSR $addr` or `JMP $addr` instruction targeting this address (verify with `r2000_get_cross_references`).
+*   **Branch Target:** An analyzed branch instruction (`BNE`, `BEQ`, `BCC`, `BCS`, `BPL`, `BMI`, `BVC`, `BVS`) targets this address.
+*   **Vector or Jump Table Target:** The address is stored in a hardware vector (`$FFFA–$FFFF`), software vector (`$0314–$0319` on C64/C128/VIC-20/Plus/4, or `$0090–$0095` on PET), pointer load (`LDA #<addr` / `LDA #>addr`), or jump table (`JMP ($addr)` or `PHA/PHA/RTS` table entry + 1).
+*   **Explicit User Instruction:** The user identifies the address as code.
 
 ### Recognizing Data Bytes
 
-A region is likely **Byte data** if:
+Classify a region as `byte` when:
 
-- It contains regular patterns that don't form valid instruction sequences.
-- It is referenced by `LDA addr,X` / `LDA addr,Y` patterns (table lookups).
-- Sprite data: exactly 63 bytes (padded to 64) per sprite, often grouped.
-- Bitmap data: regular repeating patterns, often 8 bytes per character cell.
-- Color data: values in range $00–$0F (C64 colors).
-- Random-looking bytes between two code blocks that produce nonsensical disassembly.
+*   Code reads it with indexed addressing (`LDA addr,X` or `LDA addr,Y`).
+*   It contains sprite data (63 bytes padded to 64 bytes per sprite).
+*   It contains bitmap or character data (8 bytes per character cell).
+*   It contains color values (such as `$00–$0F` nybbles on C64/C128/VIC-20, or `$00–$7F` luminance/color bytes on Plus/4).
+*   It lies between two code blocks, has no incoming code flow, and contains non-instruction data.
 
-### Recognizing Words (16-bit values)
+### Recognizing Words (16-Bit Values)
 
-A region is likely **Word data** if:
+Classify a region as `word` when:
 
-- Pairs of bytes that form meaningful 16-bit values (screen addresses, timer values).
-- Referenced by code that loads low/high bytes separately (`LDA addr` / `LDA addr+1`).
+*   Byte pairs form 16-bit little-endian numbers (such as timer reload values, screen offsets, or scores).
+*   Code reads the low byte at `addr` and the high byte at `addr + 1`.
 
-### Recognizing Address / Pointer Tables
+### Recognizing Address and Pointer Tables
 
-A region is likely an **Address table** if:
+Classify a region as `address` when:
 
-- It contains pairs of bytes that, when read as little-endian 16-bit values, point to valid addresses within the binary.
-- It is loaded via indirect addressing (`JMP ($addr)`) or indexed reads.
-- Common for jump tables, dispatch tables, and vector lists.
+*   Byte pairs form 16-bit little-endian addresses that point to valid targets in the binary or ROM.
+*   Code reads the table through `JMP ($addr)` or indexed pointer loads.
 
 ### Recognizing Lo/Hi or Hi/Lo Split Tables
 
-A region is likely a **Lo/Hi (or Hi/Lo) Address Table** if:
+Classify a region as `lo_hi_address`, `hi_lo_address`, `lo_hi_word`, or `hi_lo_word` when:
 
-- There are two equally-sized halves.
-- One half contains values that look like low bytes, the other like high bytes.
-- Code references them separately: `LDA lo_table,X` / `LDA hi_table,X`, then pushes to stack or stores to a pointer.
-- Common pattern: `LDA lo,X / STA ptr / LDA hi,X / STA ptr+1 / JMP (ptr)`.
-- The reassembled addresses (combining low and high halves) point to valid locations.
-- **Lo/Hi** = low bytes first, high bytes second (more common on 6502).
-- **Hi/Lo** = high bytes first, low bytes second.
-
-**Important**: When two split halves are in adjacent memory, use `r2000_toggle_splitter` at the boundary between the lo
-and hi halves to prevent the auto-merger from combining them into one block.
+*   Two equal-length byte arrays sit adjacent in memory (total byte count is even).
+*   One half holds low bytes and the other half holds high bytes.
+*   Code loads from both halves with the same index (`LDA lo_table,X` and `LDA hi_table,X`) and stores them to a pointer or pushes them to the stack.
+*   Use `lo_hi_word` or `hi_lo_word` when the table stores `target_address - 1` for `PHA / PHA / RTS` dispatch.
+*   Call `r2000_toggle_splitter` if needed to separate adjacent split tables.
 
 ### Recognizing PETSCII Text
 
-A region is likely **PETSCII text** if:
+Classify a region as `petscii` when:
 
-- Bytes are in the printable PETSCII range ($20–$7E for unshifted, $C0–$DF for shifted).
-- Contains recognizable ASCII-like text (PETSCII shares $20–$5F with ASCII).
-- Referenced by KERNAL print routines like `$FFD2` (CHROUT) or `$AB1E` (BASIC STROUT).
-- Terminated by a null byte ($00), a return ($0D), or high-bit-set sentinel ($80+).
-- Common in: game messages ("GAME OVER", "PRESS FIRE"), menus, credits.
+*   Bytes fall in printable PETSCII ranges (`$20–$7E` or `$C0–$DF`) with terminators such as `$00`, `$0D`, or `$80+`.
+*   Code passes the data to `$FFD2` (`CHROUT`) or a ROM string-output routine.
 
 ### Recognizing Screencode Text
 
-A region is likely **Screencode text** if:
+Classify a region as `screencode` when:
 
-- Bytes are screen codes ($00–$3F = uppercase, $00 = '@', $01 = 'A', etc.).
-- Referenced by code that copies directly to $0400–$07E7 (Screen RAM).
-- Patterns like `LDA data,X / STA $0400,X` strongly suggest screencode.
-- Full screen dumps are exactly 1000 bytes ($03E8).
+*   Bytes encode screen codes (`$00` = `@`, `$01–$1A` = `A–Z`, `$20` = space, `$30–$39` = `0–9`).
+*   Code copies the bytes directly to the active system's Screen RAM (`$0400–$07E7` on C64/C128, `$1E00–$1FFF` or `$1000–$11FF` on VIC-20, `$8000–$87CF` on PET, or `$0C00–$0FE7` on Plus/4).
 
-### Recognizing External Files (Binary Blobs)
+### Recognizing External Files
 
-A region is likely an **External File** if:
+Classify a region as `external_file` when:
 
-- It is a large contiguous block of non-code data (hundreds or thousands of bytes).
-- It matches a known format: SID header (`PSID`/`RSID`), bitmap, charset.
-- Charset data: 2048 bytes ($0800), 256 chars × 8 bytes each.
-- Sprite data blocks: multiples of 64 bytes.
-- The binary loads it to a hardware-mapped region (e.g., $D000 for charset, bitmap areas).
+*   It is a large binary asset such as a 2048-byte (`$0800`) character set, a bitmap, or an embedded SID module.
 
 ---
 
-## Batch Conversion Strategy
+## Batch Conversion Example
 
-When converting large ranges, use `r2000_batch_execute` to group `r2000_set_data_type` calls **for data blocks only**. Do NOT include `"code"` blocks in the batch calls! Instead, execute the batch of data blocks, then run the `r2000_disassemble` tool separately for any code regions.
+Group data-type changes in `r2000_batch_execute`, and run `r2000_disassemble` separately for code entry points:
 
-Example of a valid data-only batch:
-```
-r2000_batch_execute with calls:
-  - r2000_set_data_type: start=2304, end=2367, data_type="byte"
-  - r2000_set_data_type: start=2368, end=2431, data_type="petscii"
-```
-
-If you also have a code region starting at 2049 and another starting at 2432:
-1. Run `r2000_batch_execute` for the data blocks (2304–2431).
-2. Call `r2000_disassemble` with address `2049`.
-3. Call `r2000_disassemble` with address `2432`.
-4. Call `r2000_get_blocks` again to refresh block list.
-
-This avoids making dozens of individual round-trip tool calls for data, while correctly utilizing flow disassembly for code.
+1.  Call `r2000_batch_execute` with `r2000_set_data_type` calls for all data blocks (`byte`, `word`, `petscii`, `screencode`, `address`).
+2.  Call `r2000_disassemble` for each verified code entry point.
+3.  Call `r2000_get_blocks` to refresh the block list.
 
 ---
 
 ## Common Pitfalls
 
-1. **Speculative code conversion / disassembly**: This is the **most dangerous mistake**. Never trigger `r2000_disassemble` at a region unless you have
-   concrete proof it is executed (JSR/JMP/branch target, vector table entry, or user confirmation). Random data
-   routinely disassembles into plausible-looking instruction sequences — this does NOT make it code.
-2. **Using `r2000_set_data_type` with `"code"`**: **This is strictly forbidden.** Always use `r2000_disassemble` at the entry point of the code sequence instead.
-3. **Data misidentified as code**: Look for disassembly with nonsensical instruction sequences, impossible branches, or
-   `BRK` ($00) floods. These are data, not code.
-4. **Code misidentified as data**: If raw bytes form valid instruction sequences _and_ have incoming cross-references (
-   JSR/JMP targets), they are probably code even if they look odd.
-5. **Forgetting splitters**: Two adjacent byte tables will auto-merge into one. Use `r2000_toggle_splitter` at the
-   boundary.
-6. **Lo/Hi table half-size errors**: Lo/Hi and Hi/Lo tables _must_ have an even total byte count. Verify the halves are
-   equal-sized.
-7. **Text encoding confusion**: PETSCII ≠ Screencode. If copied to $0400, it's screencode. If passed to CHROUT ($FFD2),
-   it's PETSCII.
-8. **Undocumented opcodes**: Some programs use illegal/undocumented opcodes (e.g., `LAX`, `SAX`, `SLO`). Check the
-   `may_contain_undocumented_opcodes` hint from `r2000_get_binary_info`. If `true`, be extra cautious about classifying
-   unfamiliar instruction sequences as data — they may be valid code using undocumented opcodes. Even if `false`, some
-   programs still use them, so remain vigilant.
+1.  **Speculative Disassembly:** Never call `r2000_disassemble` without proof that execution reaches that address.
+2.  **Using `r2000_set_data_type` for Code:** Never pass `"code"` to `r2000_set_data_type`. Always call `r2000_disassemble`.
+3.  **Missing Splitters:** Use `r2000_toggle_splitter` between adjacent tables of the same type.
+4.  **Odd Byte Count in Split Tables:** Ensure `lo_hi_*` and `hi_lo_*` blocks have an even number of bytes.
+5.  **PETSCII vs. Screencode:** Bytes sent to `$FFD2` are `petscii`; bytes written to the active system's Screen RAM (`$0400` on C64/C128, `$1E00`/`$1000` on VIC-20, `$8000` on PET, `$0C00` on Plus/4) are `screencode`.
+6.  **Undocumented Opcodes:** Check `may_contain_undocumented_opcodes` from `r2000_get_binary_info`. Do not misclassify valid undocumented opcodes (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`) as raw data.
 
 ---
 
 ## Reporting Results
 
-After completing the analysis, provide a summary:
+After completing block analysis, report:
 
-- Total number of blocks identified, grouped by type.
-- Notable findings (e.g., "Found 3 text strings", "Found a Lo/Hi jump table at $1200").
-- Any uncertain/ambiguous regions that need human review.
-- Offer to save the project using `r2000_save_project`.
+*   Total blocks classified, grouped by type.
+*   Key discoveries (text strings, jump tables, sprite/charset buffers).
+*   Any ambiguous regions left for manual review.

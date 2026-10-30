@@ -1,87 +1,76 @@
 ---
 name: r2000-analyze-routine
-description: Analyzes a disassembly subroutine to determine its function by examining code, cross-references, and memory usage, leveraging target system expertise.
+description: Analyzes a disassembly subroutine to determine its function by examining code, cross-references, and memory usage using the r2000-cbm-principal-swe agent persona.
 ---
 
 # Analyze Routine Workflow
 
-Use this skill when the user asks to "analyze this routine" or "what does this function do?"
+Use this skill when the user asks to "analyze this routine" or "what does this function do?".
 
-## 1. Determine System & Context
+## Agent Persona (`r2000-cbm-principal-swe`)
 
-- Use `r2000_get_binary_info` to get the **system**, **filename**, **description**, and **`may_contain_undocumented_opcodes`** hint.
-- **CRITICAL**: The `system` field tells you the target computer (e.g., Commodore 64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines.
-- **CONTEXT**: The `filename` and `description` tell you the specific software being analyzed. Use this to identify standard libraries (e.g., "Hubbard music driver", "Exomizer decompressor") and to understand the likely purpose of routines based on the game's genre (e.g., "check_collision" in a shooter).
-- **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, expect illegal/undocumented MOS 6502 opcodes (e.g., `LAX`, `SAX`, `SLO`, `DCP`, `ISC`) within routines. These are valid instructions — do not treat them as disassembly errors.
+This skill uses the **`r2000-cbm-principal-swe`** agent persona for MOS 6502 instructions (including undocumented opcodes), Commodore hardware registers, KERNAL/BASIC ROM maps, and demoscene algorithms.
 
-## 2. Identify the Bounds
+*   If you are not already running as the `r2000-cbm-principal-swe` agent, read `.agent/agents/r2000_cbm_principal_swe.md` first and follow its technical rules.
 
-- If the user provides an address, start there.
-- If no address is given, call `r2000_get_disassembly_cursor` first — the routine starts at the cursor address.
-- Look for the start (entry point or label) and end (`RTS`, `JMP`, or `RTI`) of the routine.
-- **Note**: Some routines end with a `JMP` to a shared epilogue — that still marks the end of _this_ routine's body. Others fall through into the next routine with no explicit return; use cross-references and logic flow to determine the boundary.
+## 1. Determine System and Context
 
-## 3. Read the Code
+*   If binary metadata is not in your prompt, call `r2000_get_binary_info` to read `system`, `filename`, `description`, and `may_contain_undocumented_opcodes`.
 
-- Use `r2000_read_region` (with `"view": "disasm"`) to get the instructions.
-- Analyze the flow:
-  - Does it loop?
-  - Does it call other known routines or OS entry points?
-  - Does it access hardware registers?
-- Look for common routine patterns (generic 6502):
-  - `SEI` / `CLI` bracketing → IRQ setup/teardown.
-  - Loop with `LDA`/`STA` and `DEX`/`DEY`/`BNE` → Memory copy or fill.
-  - Bit-shifting, `ADC`/`SBC` chains → Math or decompressor.
-  - Reads a memory-mapped I/O address then branches → Hardware polling.
-- Use your knowledge of the **target system** (from `r2000_get_binary_info`) to recognize system-specific patterns:
-  - Calls to OS/KERNAL entry points → System service calls.
-  - Reads/writes to hardware register addresses → I/O, video, sound, or input handling.
-  - Writes to interrupt vector locations → IRQ/NMI setup.
-  - Writes to sound chip registers → Music/SFX driver tick.
-  - Reads input port registers → Joystick, keyboard, or controller polling.
+## 2. Identify the Routine Bounds
 
-## 4. Check Context
+*   Start at the address provided in the prompt. If no address is provided, call `r2000_get_disassembly_cursor` to get the cursor address.
+*   Locate the entry point and the terminating instruction (`RTS`, `JMP`, or `RTI`).
+*   Note that a routine can end with a tail-call `JMP` to another routine or fall through into the next labeled routine. Check cross-references to confirm the boundary.
 
-- Use `r2000_get_cross_references` on the entry point to see _who_ calls it.
-- This often provides a decisive hint:
-  - Called from an initialization block → likely a setup routine.
-  - Called from a main loop → likely a per-frame update.
-  - Called from an IRQ → must be fast; likely a music tick or raster update.
-  - No callers found → may be a dispatch target reached via a pointer/jump table.
+## 3. Read the Instructions
 
-## 5. Analyze Data Usage
+*   Call `r2000_read_region` with `"view": "disasm"` to read the instructions.
+*   Identify standard 6502 patterns:
+    *   `SEI` and `CLI` around vector/register writes -> Interrupt configuration.
+    *   `LDA` / `STA` loop with `DEX` / `DEY` / `BNE` -> Memory copy or fill.
+    *   Bit shifts (`ASL`, `LSR`, `ROL`, `ROR`) and `ADC` / `SBC` chains -> Arithmetic or decompression.
+    *   Reads from an I/O register followed by a conditional branch -> Hardware status polling.
+    *   Writes to `label + 1` or `label + 2` -> Self-modifying code (SMC) patching an instruction operand.
+*   Identify system-specific operations for the active `system`:
+    *   Calls to KERNAL or BASIC ROM addresses -> OS service calls.
+    *   Accesses to video, sound, timer/input, or banking registers (VIC-II/SID/CIA/`$01` on C64/C128; MMU/VDC on C128; VIC-I/VIA on VIC-20; PIA/VIA/CRTC on PET; TED/`$FF3E–$FF3F` on Plus/4; VIA1/VIA2 on 1541) -> Hardware control.
+    *   Writes to `$0314`/`$0315` (`$0090`/`$0091` on PET) or `$FFFE`/`$FFFF` -> Interrupt handler installation or raster IRQ chaining.
 
-- For each memory address accessed by the routine (e.g., `LDA $C000`, `STA $02`):
-  - Check whether it falls in the **target system's hardware register range**. Use your knowledge of the target system's memory map (hardware registers, OS variables, ROM entry points) based on the `system` value from `r2000_get_binary_info`.
-  - Otherwise, call `r2000_get_cross_references` on that address to understand:
-    - Is it written only once (init)? → likely a constant or config variable.
-    - Is it written _and_ read by multiple routines? → shared state / global variable.
-    - Is it in Zero Page (`$00–$FF`) and used with `($addr),Y`? → indirect pointer.
-  - **ENUM USAGE DETECTION**: Check if any accessed addresses or immediate values represent logical sets of states, flags, or values.
-    - Verify if an existing Project, Global, or System enum (e.g., `vic_registers`, `color_codes`) matches these values. If so, call `r2000_apply_enum_usage` to format the operands at the accessing instruction's address.
-    - If no matching enum exists but the values represent a clean logical set (e.g., state machine constants, joystick direction bits), define a new project enum using `r2000_create_project_enum` (with a detailed `description` summarizing its purpose) and then apply it using `r2000_apply_enum_usage` to all relevant instructions.
-  - **IMMEDIATE POINTER DETECTION**: Check if the routine loads immediate values representing the low and high bytes of a 16-bit address (e.g., to setup an interrupt vector, store a pointer in Zero Page, or pass an address argument).
-    - Typically, this looks like `LDA #<target` (low byte) followed by `STA ptr`, and `LDA #>target` (high byte) followed by `STA ptr+1`.
-    - If you find immediate loads corresponding to the low/high byte of a 16-bit target address (which could be a subroutine entry point, a data block, screen RAM, or another label):
-      - Call `r2000_set_immediate_format` on the low-byte instruction address with `"format": "low_byte"` and `"target_address": <decimal_target>`.
-      - Call `r2000_set_immediate_format` on the high-byte instruction address with `"format": "high_byte"` and `"target_address": <decimal_target>`.
+## 4. Check Callers and Cross-References
 
-## 6. Synthesize
+*   Call `r2000_get_cross_references` on the routine entry point:
+    *   Called once from `start` -> Initialization routine.
+    *   Called from a main loop -> Per-frame update routine.
+    *   Called from an ISR or referenced by `$0314`/`$0315` (`$0090`/`$0091` on PET) or `$FFFE`/`$FFFF` -> Interrupt routine.
+    *   Referenced in an address or word table -> Jump-table or `RTS`-dispatch target.
 
-Combine findings into a summary:
+## 5. Analyze Data and Operand Usage
 
-- **Purpose**: What does it do? (e.g., "Clears screen memory").
-- **Inputs**: Registers or memory locations used as arguments.
-- **Outputs**: Registers or memory locations modified.
-- **Side Effects**: Hardware changes, screen updates, etc.
+For each memory address accessed by the routine:
 
-> See **Step 7** for the exact comment block format to use when documenting your findings.
+*   Check whether the address is a hardware register, OS variable, or ROM entry point in the active `system`.
+*   Call `r2000_get_cross_references` on RAM addresses to see whether the address is a constant, global variable, or zero-page pointer (`($addr),Y`).
+*   **Apply Enums:** Check whether immediate values or memory accesses represent discrete states or bitflags:
+    *   If an existing enum matches, call `r2000_apply_enum_usage` on the instruction address.
+    *   If the values form a new state set or bitmask, create a project enum with `r2000_create_project_enum` and apply it with `r2000_apply_enum_usage`.
+*   **Format Immediate Pointers:** Check whether the routine loads the low and high bytes of a 16-bit target address (such as `LDA #<target : STA ptr` and `LDA #>target : STA ptr+1`):
+    *   Call `r2000_set_immediate_format` on the low-byte instruction with `"format": "low_byte"` and `"target_address": <decimal_target>`.
+    *   Call `r2000_set_immediate_format` on the high-byte instruction with `"format": "high_byte"` and `"target_address": <decimal_target>`.
 
-## 7. Document
+## 6. Summarize Routine Behavior
 
-Add a multi-line comment block on top of the routine, rename the label to a descriptive one, and add **side-comments** to key instructions to explain the logic flow.
+Determine the following four attributes:
 
-The multi-line comment block must be placed **above the first instruction** of the routine using `r2000_set_comment` with `"type": "line"`. It should follow this exact format — the separator line must be used as both the **first** and **last** line of the comment:
+*   **Purpose:** What the routine does in one concise sentence.
+*   **Inputs:** Registers or memory addresses read as parameters (or `None`).
+*   **Outputs:** Registers or memory addresses written as results (or `None`).
+*   **Side Effects:** Hardware register changes, screen updates, or stack changes (or `None`).
+
+## 7. Apply Documentation
+
+1.  Call `r2000_set_label_name` to give the routine a descriptive `snake_case` name.
+2.  Call `r2000_set_comment` with `"type": "line"` at the entry point using this exact format:
 
 ```
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -93,34 +82,24 @@ Side Effects: <hardware changes, screen updates, etc., or "None">
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 ```
 
-To document the routine, use:
-
-- `r2000_set_label_name` — to give the routine a descriptive name.
-- `r2000_set_comment` with `"type": "line"` — to add the multi-line comment block above the entry point.
-- `r2000_set_comment` with `"type": "side"` — to annotate key instructions within the routine body with short inline notes (e.g., explaining what a register holds, why a branch is taken, or what a memory address represents). **Crucial for making the code readable for others.**
-- `r2000_create_project_enum` — to define new project enums if needed.
-- `r2000_apply_enum_usage` — to apply enums to relevant instruction operands in the routine.
-- `r2000_set_immediate_format` — to format immediate low/high byte loads (`low_byte`/`high_byte`) of a target 16-bit address to make pointers and vector setups highly readable.
+3.  Call `r2000_set_comment` with `"type": "side"` on key instructions inside the routine to explain register state, branch conditions, and hardware operations.
 
 ---
 
 ## Common Pitfalls
 
-1. **Fall-through into next routine**: If there is no `RTS`/`JMP`/`RTI` at the apparent end, the routine may intentionally fall through. Check if the next label is also a valid entry point called independently.
-2. **Tail calls**: A `JMP sub_routine` at the end is a tail call — the routine _ends_ there. Do not include the target routine's body in this routine's analysis.
-3. **Shared epilogue**: Multiple routines may converge to a single `RTS`. The epilogue belongs to none of them specifically; note this in the comment.
-4. **Indirect dispatch targets**: A routine with no callers may still be active — it could be referenced by a pointer in a jump table. Check nearby data blocks for address tables.
-5. **Undocumented opcodes**: Some programs use illegal/undocumented opcodes (`LAX`, `SAX`, `SLO`, etc.). Check the `may_contain_undocumented_opcodes` hint from `r2000_get_binary_info`. If `true`, these are expected — don't stop disassembly at them. Even if `false`, remain aware of their existence.
-6. **IRQ re-entrancy confusion**: If an IRQ handler calls `JSR` routines, those routines may share Zero Page with the main program — context is IRQ-relative.
+1.  **Fall-Through Execution:** A routine without a trailing `RTS`, `JMP`, or `RTI` falls through into the next routine. Document the fall-through in the header comment.
+2.  **Tail Calls:** A `JMP other_routine` ends the current routine. Do not merge `other_routine` into the current routine's summary.
+3.  **Hardware vs. Software ISR Tails:** An ISR that jumps to the KERNAL interrupt tail (such as `JMP $EA31` or `JMP $EA81` on C64) runs via the software IRQ vector (`$0314`/`$0315`, or `$0090`/`$0091` on PET). An ISR that saves `A`/`X`/`Y` itself and ends with `RTI` runs via the `$FFFE`/`$FFFF` RAM hardware vector (with KERNAL ROM banked out).
+4.  **Undocumented Opcodes:** Treat valid undocumented opcodes (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`, `ANC`, `ALR`, `AXS`) as intentional instructions.
 
 ---
 
 ## Reporting Results
 
-After completing the analysis, report to the user:
+Report the following to the user or parent agent:
 
-- **Purpose**: One-sentence description of what the routine does.
-- **Inputs / Outputs / Side Effects**: As determined in Step 6.
-- **Evidence**: Key instructions or cross-references that led to the conclusion.
-- **Actions taken**: What was renamed, what line-comments were added, and which key instructions received **side-comments** for clarity.
-- **Uncertain areas**: Any instructions or addresses whose purpose is still unclear.
+*   **New Label Name** and **Purpose** (one-sentence summary).
+*   **Inputs, Outputs, and Side Effects**.
+*   **Actions Taken** (label rename, header comment, side comments, enums, and immediate formats applied).
+*   **Uncertain Areas** (any unresolved addresses or branches).

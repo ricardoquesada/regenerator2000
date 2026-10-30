@@ -1,139 +1,105 @@
 ---
 name: r2000-analyze-symbol
-description: Analyzes a specific memory address or label to determine its purpose (variable, flag, pointer, hardware register) by examining its cross-references and usage patterns.
+description: Analyzes a specific memory address or label to determine its purpose (variable, flag, pointer, hardware register) by examining its cross-references and usage patterns using the r2000-cbm-principal-swe agent persona.
 ---
 
 # Analyze Symbol Workflow
 
-Use this skill when the user asks to "analyze this label", "what is this variable?", or "trace this address". This skill focuses on **data flow**—understanding what a memory location _represents_ rather than just what code executes.
+Use this skill when the user asks to "analyze this label", "what is this variable?", or "trace this address".
 
-## 1. Determine Context & System
+## Agent Persona (`r2000-cbm-principal-swe`)
 
-- **Get the Target**: If the user provides a label or address, use that. If not, use `r2000_get_disassembly_cursor` or `r2000_get_address_details` to identify the address under the cursor.
-- **Get the System**: Use `r2000_get_binary_info`.
-  - **CRITICAL**: Knowing the system is essential for identifying hardware registers and OS/KERNAL addresses. You **MUST** use your knowledge of the specific target computer's memory map, hardware registers, and OS entry points.
-  - **CONTEXT**: Use the `filename` response and `description` (if provided) to identify the specific game or program. This allows you to infer domain-specific labels (e.g., "lap_counter" for a racing game, "lives" for a platformer) and look up known memory maps for popular titles.
-  - **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, the binary may use illegal/undocumented MOS 6502 opcodes. When tracing cross-references, be aware that instructions like `LAX`, `SAX`, `DCP`, etc. are valid and their read/write side effects must be considered in the data flow analysis.
+This skill uses the **`r2000-cbm-principal-swe`** agent persona for MOS 6502 instructions (including undocumented opcodes and their read/write side effects), Commodore hardware registers, KERNAL/BASIC ROM maps, and data structures.
 
-## 2. Gather Usage Data
+*   If you are not already running as the `r2000-cbm-principal-swe` agent, read `.agent/agents/r2000_cbm_principal_swe.md` first and follow its technical rules.
 
-- Use `r2000_get_cross_references` on the target address.
-  - This returns a list of _everywhere_ the address is used (read, write, or modify).
-  - **Note**: Pay attention to the instruction type at each reference.
-    - **Writes**: `STA`, `STX`, `STY`, `INC`, `DEC`, `ASL`, `LSR`, `ROR`, `ROL`.
-    - **Reads**: `LDA`, `LDX`, `LDY`, `BIT`, `CMP`, `CPX`, `CPY`, `ADC`, `SBC`.
-    - **Modify**: `INC`, `DEC`, `ASL`, `LSR`, `ROR`, `ROL` (read-modify-write).
-- **If `r2000_get_cross_references` returns zero results**:
-  - The symbol may be referenced **indirectly** via a pointer — check if the address is in Zero Page (`$00–$FF`) and whether nearby code uses `($addr),Y` or `($addr,X)` patterns.
-  - The symbol may be a well-known OS/KERNAL address that the disassembler doesn't generate an explicit cross-reference for — use your knowledge of the target system's memory map based on the `system` value from `r2000_get_binary_info`.
-  - It may be **dead code / an unused variable**. Note this in the report.
+## 1. Determine Context and System
 
-## 3. Analyze Patterns (Heuristics)
+*   **Identify Target Address:** Use the address or label provided in the prompt. If none is provided, call `r2000_get_disassembly_cursor` or `r2000_get_address_details`.
+*   **Read System Info:** If binary metadata is not in your prompt, call `r2000_get_binary_info` to read `system`, `filename`, `description`, and `may_contain_undocumented_opcodes`.
 
-### Is it a Hardware Register?
+## 2. Gather Cross-References
 
-- Check the address against the **target system's memory map**. Use your knowledge of the target system's hardware registers based on the `system` value from `r2000_get_binary_info`.
-- If it matches a known hardware register, rename it to the standard hardware name (e.g., the chip name + register, or the system's conventional name for that register).
+*   Call `r2000_get_cross_references` on the target address and inspect every instruction that accesses it:
+    *   **Writes:** `STA`, `STX`, `STY`, `SAX`.
+    *   **Reads:** `LDA`, `LDX`, `LDY`, `LAX`, `BIT`, `CMP`, `CPX`, `CPY`, `ADC`, `SBC`.
+    *   **Read-Modify-Write:** `INC`, `DEC`, `ASL`, `LSR`, `ROL`, `ROR`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`.
+*   If `r2000_get_cross_references` returns zero results:
+    *   Check whether the address is `$addr + 1` of a 16-bit zero-page pointer used with `($addr),Y` or `($addr,X)`.
+    *   Check whether the address is a hardware register, OS variable, or KERNAL routine in the active `system`.
+    *   Otherwise, note that the address is unreferenced.
 
-### Is it part of a Well-Known Global Block (e.g. Screen RAM or Color RAM)?
+## 3. Classify the Symbol
 
-- Check if the address falls within the target system's standard base video, screen, or color RAM blocks as defined by the system's active memory map.
-- If yes, do **NOT** skip it! Rename it systematically based on the base symbol and its offset (e.g. `<BASE_RAM>_ROWXX_COLYY`). This ensures that contiguous graphics and memory structures are cleanly documented rather than left as auto-generated offsets.
+### Hardware Register
 
-### Is it an External ROM or System Routine?
+*   Compare the address against the hardware register map of the active `system`.
+*   Rename matching registers using the standard chip and register name (such as `VIC_BORDER_COLOR` or `CIA1_ICR`).
 
-- Check if the symbol's name starts with `e_` or points to known system memory vectors (such as C64 KERNAL ROM space between `$E000` and `$FFFF`, or standard system shadow vectors).
-- If it matches a well-known system or KERNAL subroutine, rename it to its standard conventional KERNAL/OS API name (e.g. `$E544` -> `KERNAL_CLRCHN` or `SCREENCLEAR`, `$FFD2` -> `KERNAL_CHROUT`, `$EA31` -> `SYSTEM_IRQ_HANDLER`).
+### Screen RAM, Color RAM, or Global Buffer Offset
 
-### Is it a Pointer (16-bit)?
+*   If the address falls inside a known video, screen, or color RAM buffer, do not skip it.
+*   Rename it systematically by base buffer and offset (for example, `SCREEN_RAM_ROW05_COL10`).
 
-- Is it used in Zero Page (address < $100)?
-- Is it used for **Indirect Indexed** addressing `($xx),Y`?
-  - Example: `LDA ($FB),Y`
-- Is it used for **Indexed Indirect** addressing `($xx,X)`?
-- If so, it's a **Pointer**. Rename to something like `ptr_screen`, `ptr_data`, or `vec_irq`.
-  - Suggest generating a comment explaining what it points _to_.
-  - **IMMEDIATE POINTER FORMATTING**: Look at the write cross-references for this pointer. If it is initialized or updated using immediate loads of the low and high bytes of a 16-bit target address:
-    - Call `r2000_set_immediate_format` on the low-byte instruction address with `"format": "low_byte"` and `"target_address": <decimal_target>`.
-    - Call `r2000_set_immediate_format` on the high-byte instruction address with `"format": "high_byte"` and `"target_address": <decimal_target>`.
+### External ROM or KERNAL Routine
 
-### Is it a Flag (Boolean) or Bitmask?
+*   If the label starts with `e_` or points to ROM or vector space (such as `$E000–$FFFF` or `$0314–$0319`), rename it to its standard OS/KERNAL symbol name (such as `KERNAL_CHROUT` for `$FFD2`, `KERNAL_CLRSCR` for `$E544`, or `KERNAL_IRQ_ENTRY` for `$EA31`).
 
-- Is it only ever set to `0` or `1` (or `$00`/`$FF`)?
-- Is it checked with `BIT`, `LDA`/`BEQ`/`BNE`?
-- If so, it's likely a **Flag**.
-  - Rename to `is_active`, `has_collided`, `enable_music`, etc.
-- **ENUM/BITMASK SUPPORT**: If the values represent a bitmask where individual bits hold separate semantic meaning (e.g., bit 0 = ACTIVE, bit 1 = COLLIDED, bit 2 = VISIBLE):
-  - Define a new project enum mapping bit values (e.g., `$01 = ACTIVE`, `$02 = COLLIDED`, `$04 = VISIBLE`) using `r2000_create_project_enum`.
-  - Apply this enum to all relevant instructions using `r2000_apply_enum_usage` to make bitmask tests readable.
+### 16-Bit Pointer
 
-### Is it a Counter/Index?
+*   Check whether the address is in Zero Page (`$00–$FF`) and used with `($xx),Y` or `($xx,X)`, or whether it holds a 16-bit vector.
+*   Rename low and high bytes consistently (such as `zp_ptr_screen_lo` / `zp_ptr_screen_hi` or `zp_ptr_screen`).
+*   **Format Immediate Pointer Loads:** If code initializes the pointer with immediate low/high byte loads (`LDA #<target` and `LDA #>target`):
+    *   Call `r2000_set_immediate_format` on the low-byte instruction with `"format": "low_byte"` and `"target_address": <decimal_target>`.
+    *   Call `r2000_set_immediate_format` on the high-byte instruction with `"format": "high_byte"` and `"target_address": <decimal_target>`.
 
-- Is it incremented (`INC`) or decremented (`DEC`) inside a loop?
-- Is it compared (`CPX`, `CPY`, `CMP`) against a limit?
-- If so, it's a **Counter** or **Index**.
-  - Rename to `loop_idx`, `sprite_count`, `delay_timer`.
+### Self-Modifying Code (SMC) Operand
 
-### Is it a State Variable?
+*   If the symbol lies at `instruction_addr + 1` or `instruction_addr + 2` inside a `Code` block, it is a self-modified operand byte.
+*   Name it after the operation it controls (such as `smc_blit_src_lo` / `smc_blit_src_hi`).
 
-- Does it take multiple distinct values (e.g., 0=Init, 1=Title, 2=Game, 3=Over)?
-- Is it used in a jump table dispatch (e.g., `ASL` / `TAX` / `JMP (table,X)`)?
-- If so, it's a **State Machine Variable**.
-  - Rename to `game_state`, `current_mode`.
-  - **ENUM SUPPORT**: State machines are excellent candidates for enums.
-    - Look for an existing enum matching these states.
-    - If not present, define a new project-specific enum mapping these states (e.g., `0 = INIT`, `1 = TITLE`, `2 = GAMEPLAY`, `3 = GAME_OVER`) using `r2000_create_project_enum` (including a helpful `description`).
-    - Apply it using `r2000_apply_enum_usage` to all instructions reading or writing to this state variable.
+### Flag or Bitmask
 
-## 4. Synthesize & Action
+*   If code sets the address to `0`/`1` or `$00`/`$FF` and tests it with `BEQ`, `BNE`, `BPL`, `BMI`, or `BIT`, classify it as a flag or bitmask (such as `is_paused` or `zp_irq_ready`).
+*   If individual bits represent distinct flags, define an enum with `r2000_create_project_enum` and apply it with `r2000_apply_enum_usage`.
 
-1.  **Rename**: Use `r2000_set_label_name` to give it a meaningful, descriptive name based on your analysis.
-    Use the following naming conventions consistently:
+### Counter or Index
+
+*   If code increments (`INC`) or decrements (`DEC`) the address in a loop and compares it (`CMP`, `CPX`, `CPY`), classify it as a counter or index (such as `frame_counter` or `zp_sprite_idx`).
+
+### State Variable
+
+*   If the address holds discrete mode values or indexes a jump table, classify it as a state variable (such as `game_state`).
+*   Define a project enum with `r2000_create_project_enum` for the state values and apply it with `r2000_apply_enum_usage`.
+
+## 4. Rename and Document
+
+1.  **Rename the Symbol:** Call `r2000_set_label_name` using these naming conventions:
 
     | Symbol Kind         | Convention        | Example                             |
     | ------------------- | ----------------- | ----------------------------------- |
-    | Zero Page variable  | `zp_` prefix      | `zp_player_lives`, `zp_delay_timer` |
-    | Zero Page pointer   | `zp_ptr_` prefix  | `zp_ptr_screen`, `zp_ptr_dest`      |
+    | Zero-page variable  | `zp_` prefix      | `zp_player_lives`, `zp_delay_timer` |
+    | Zero-page pointer   | `zp_ptr_` prefix  | `zp_ptr_screen`, `zp_ptr_dest`      |
     | RAM variable        | `snake_case`      | `score_hi`, `current_level`         |
-    | Pointer / vector    | `ptr_` prefix     | `ptr_screen`, `vec_irq`             |
-    | Hardware register   | `UPPER_SNAKE`     | `VIC_SPR0_X`, `SID_FreqLo1`         |
-    | Constant / address  | `UPPER_SNAKE`     | `SCREEN_RAM`, `CHR_ROM_BASE`        |
+    | Pointer / vector    | `ptr_` / `vec_`   | `ptr_level_data`, `vec_irq_next`    |
+    | Hardware register   | `UPPER_SNAKE`     | `VIC_SPR0_X`, `SID_V1_FREQ_LO`      |
+    | Constant / buffer   | `UPPER_SNAKE`     | `SCREEN_RAM`, `COLOR_RAM`           |
     | Routine entry point | `snake_case`      | `init_screen`, `draw_sprite`        |
     | External ROM call   | `KERNAL_` / `OS_` | `KERNAL_CHROUT`, `KERNAL_CLRCHN`    |
 
-    > **Zero Page rule**: If the symbol's address is ≤ `$FF`, it **must** be prefixed with `zp_`.
-    > This applies to all categories above — a Zero Page pointer becomes `zp_ptr_`, a Zero Page flag
-    > becomes `zp_is_active`, and so on. Hardware registers and OS/KERNAL constants that live in Zero Page
-    > (e.g., C64 Zero Page OS variables) should also use `zp_` to make their addressing mode explicit.
+    > **Zero-Page Rule:** Prefix every symbol at address `<= $FF` with `zp_`.
 
-2.  **Document**:
-    - Use `r2000_set_comment` with `"type": "line"` at the definition (if it's a variable in memory) to explain its range, purpose, or bitfield layout.
-    - Use `r2000_set_comment` with `"type": "side"` at key usages to clarify _why_ it's being read or written (e.g., "Reset life counter", "Check for fire button").
-    - Define and apply enums where appropriate (using `r2000_create_project_enum` and `r2000_apply_enum_usage`) to formalize state values, mode types, or bitmask flags.
-    - Use `r2000_set_immediate_format` to format immediate low/high byte writes initializing the pointer to the target 16-bit address (using `"format": "low_byte"` / `"high_byte"` and `"target_address"`).
+2.  **Add Comments:**
+    *   Call `r2000_set_comment` with `"type": "line"` at the symbol's address (if it is inside the loaded binary) to document its purpose and valid values.
+    *   Call `r2000_set_comment` with `"type": "side"` at key read/write instructions to explain how the value is used.
 
 ---
 
-## Example Output
-
-If you analyze an IRQ vector address and see:
-
-- References: Written during init, read during IRQ handler.
-- Context: Target system's IRQ vector shadow location.
-- **Action**: Rename to `IRQ_VECTOR_LO`. Add comment: "Hardware IRQ vector shadow".
-
-If you analyze a Zero Page address (≤ `$FF`) and see:
-
-- References: `STA ($20),Y`.
-- Context: Zero Page.
-- **Action**: Rename to `zp_ptr_dest`. Add comment: "Destination pointer for memory copy".
-
 ## Reporting Results
 
-After completing the analysis, report to the user:
+Report the following to the user or parent agent:
 
-- **Address**: The address analyzed and its current label (if any).
-- **Classification**: What kind of symbol it is (flag, counter, pointer, hardware register, state variable, etc.).
-- **Evidence**: The key cross-references or usage patterns that led to the conclusion.
-- **Actions taken**: What was renamed or commented.
-- **Uncertain / no refs**: If `r2000_get_cross_references` returned nothing, explain the possibilities (indirect use, KERNAL address, or dead variable).
+*   **Address**, **Old Label**, and **New Label Name**.
+*   **Classification** (flag, counter, pointer, SMC operand, hardware register, state variable).
+*   **Evidence** (cross-references and instruction patterns).
+*   **Uncertain Areas** (if any).

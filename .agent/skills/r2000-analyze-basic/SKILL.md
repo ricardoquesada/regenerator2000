@@ -1,43 +1,49 @@
 ---
 name: r2000-analyze-basic
-description: Analyzes a sequence of memory containing Commodore BASIC tokens, formats address/word data types, and constructs side comments representing the plain BASIC commands.
+description: Analyzes a sequence of memory containing Commodore BASIC tokens, formats address/word data types, and constructs side comments representing the plain BASIC commands using the r2000-cbm-principal-swe agent persona.
 ---
 
 # Analyze BASIC Tokens Workflow
 
 Use this skill when the user asks to:
 
-- "analyze this BASIC code"
-- "decode basic commands from memory"
-- "create side comments for BASIC lines"
-- "parse basic pointer address and line number"
+*   "analyze this BASIC code"
+*   "decode BASIC commands from memory"
+*   "create side comments for BASIC lines"
+*   "parse BASIC pointer address and line number"
+
+## Agent Persona (`r2000-cbm-principal-swe`)
+
+This skill uses the **`r2000-cbm-principal-swe`** agent persona for Commodore BASIC header conventions (`SYS` entry points, memory layout) and 6502 context.
+
+*   If you are not already running as the `r2000-cbm-principal-swe` agent, read `.agent/agents/r2000_cbm_principal_swe.md` first and follow its technical rules.
 
 ## 1. Determine Memory Range
 
-Identify the starting and ending addresses of the Commodore BASIC sequence from the user's request or cross-references. If unspecified, prompt the user for clarification.
+Identify the start and end addresses of the Commodore BASIC sequence from the user's request or cross-references. If the range is not specified, ask the user for the start and end addresses.
 
 ## 2. Read Memory Buffer
 
-Invoke the `r2000_read_region` tool to read the requested sequence:
+Call `r2000_read_region` to read the byte sequence:
 
-- `start_address`: The sequence start address (decimal).
-- `end_address`: The sequence end address (decimal).
-- `view`: `"hexdump"`
+*   `start_address`: Start address (decimal).
+*   `end_address`: End address (decimal).
+*   `view`: `"hexdump"`
 
-## 3. Process BASIC Lines
+## 3. Decode BASIC Lines
 
-Commodore BASIC programs follow a strict structured sequence in memory. Iterate through the lines starting from the initial address, following the "Next Line Pointer" until you reach the end of the program.
+Iterate through the BASIC lines starting at the initial address. Follow each "Next Line Pointer" until you reach the `$00 $00` end-of-program marker.
 
-### Line Anatomy
+### Line Structure
 
-1.  **Bytes 0–1 (Next Line Pointer):** Pointer to the memory address where the **next** BASIC line begins, stored in Little Endian format (e.g., `24 04` $\rightarrow$ `$0424$).
-2.  **Bytes 2–3 (Line Number):** The BASIC line number as a 16-bit integer in Little Endian format (e.g., `0A 00` $\rightarrow$ `10`).
-3.  **Bytes 4–N (Tokens):** The tokenized BASIC command. This sequence of bytes continues until a `$00` (null) terminator is encountered.
-4.  **Termination:** The program ends when the "Next Line Pointer" (Bytes 0–1) of a line is `$00 $00`.
+1.  **Bytes 0–1 (Next Line Pointer):** 16-bit little-endian address of the next BASIC line (for example, `24 04` -> `$0424`).
+2.  **Bytes 2–3 (Line Number):** 16-bit little-endian integer line number (for example, `0A 00` -> `10`).
+3.  **Bytes 4–N (Tokens):** Tokenized BASIC statement bytes terminated by `$00`.
+4.  **End of Program:** A Next Line Pointer equal to `$00 $00` marks the end of the BASIC program.
 
-### Keyword Token Table (V2)
+### BASIC V2 Keyword Token Table
 
-Bytes in step 3 with the high-bit set (`$80` to `$CB`) are keyword tokens. Decode them against this table:
+Decode bytes in the range `$80` to `$CB` using this table:
 
 | Hex   | Keyword   | Hex   | Keyword  | Hex   | Keyword | Hex   | Keyword  |
 | ----- | --------- | ----- | -------- | ----- | ------- | ----- | -------- |
@@ -61,21 +67,22 @@ Bytes in step 3 with the high-bit set (`$80` to `$CB`) are keyword tokens. Decod
 | `$91` | `ON`      | `$A4` | `TO`     | `$B7` | `USR`   | `$CA` | `MID$`   |
 | `$92` | `WAIT`    | `$A5` | `FN`     | `$B8` | `FRE`   | `$CB` | `GO`     |
 
-_(Note: Bytes between `$20` and `$7F` are literal PETSCII text characters like strings, variables, and numbers)._
+Bytes between `$20` and `$7F` are literal PETSCII characters (strings, variable names, and numbers).
 
 ## 4. Apply Modifications
 
-Formulate a sequence of commands for `r2000_batch_execute` to apply the modifications for all decoded BASIC lines at once.
+Call `r2000_batch_execute` to apply the formatting and comments for all decoded BASIC lines in one batch.
 
 For each decoded line:
-1.  Use `r2000_set_data_type` on Bytes 0–1 with `"data_type": "address"`.
-2.  Use `r2000_set_data_type` on Bytes 2–3 with `"data_type": "word"`.
-3.  Use `r2000_set_data_type` from Byte 4 to the `$00` terminator (inclusive) with `"data_type": "byte"`.
-4.  Form a complete BASIC line string (e.g., `10 REM LODE RUNNER`).
-5.  Use `r2000_set_comment` to set this string as a `"side"` comment at the start of the line (Byte 0).
 
-Continue this process by jumping to the address specified in the "Next Line Pointer" until the pointer is `$00 $00`. Finally, mark the `$00 $00` terminator itself as `"word"`.
+1.  Call `r2000_set_data_type` on Bytes 0–1 with `"data_type": "address"`.
+2.  Call `r2000_set_data_type` on Bytes 2–3 with `"data_type": "word"`.
+3.  Call `r2000_set_data_type` from Byte 4 through the `$00` terminator with `"data_type": "byte"`.
+4.  Format the decoded BASIC statement string (for example, `10 SYS 2061`).
+5.  Call `r2000_set_comment` with `"type": "side"` at Byte 0 to attach the decoded BASIC statement.
+
+Repeat for each line until the Next Line Pointer equals `$00 $00`. Format the final `$00 $00` end-of-program marker as `"word"`.
 
 ## 5. Save Project
 
-When completed, invoke `r2000_save_project` to persist the comments and types.
+Call `r2000_save_project` to save the updated data types and comments.

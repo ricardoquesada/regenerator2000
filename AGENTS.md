@@ -75,15 +75,21 @@ The core disassembler and binary unpacker (`crates/regenerator2000-core/src/unpa
 - **Guard platform-specific features**: System-specific behavior (such as C64 PLA processor port `$01` banking or zero-page template copying) must be explicitly guarded (e.g. `if system.is_c64()`).
 - **Keep Documentation System-Agnostic**: When updating `docs/unpacker.md` or adding unpacker documentation, describe memory boundaries and zero-page setups in a system-agnostic way (referencing system RAM start `$0800` on C64, `$1C00` on C128, `$1000` on VIC-20, `$0400` on PET) rather than assuming C64 defaults globally.
 
-## AI Agent Skills (`.agent/skills/`)
+## AI Agent Skills & Subagents (`.agent/`)
 
-Specialized tools are available for common tasks. Invoke them via `activate_skill`:
+Specialized agents (`.agent/agents/`) and skills (`.agent/skills/`) are available for common tasks:
 
-- `r2000-analyze-basic`: Analyze BASIC programs and mark pointers.
-- `r2000-analyze-blocks`: Auto-detect and set block types (text, data).
-- `r2000-analyze-program`: Orchestrate full-program analysis using subagents for blocks, routines, and symbols.
-- `r2000-analyze-routine`: Trace a subroutine and mark code paths.
-- `r2000-analyze-symbol`: Find and label all references to a specific address.
+### Custom Agents (`.agent/agents/`)
+
+- `r2000-cbm-principal-swe`: Commodore 8-Bit (CBM) and MOS 6502 Principal Systems, Demo-Coding, and Reverse-Engineering agent (`r2000_cbm_principal_swe.md`). Used by the `r2000-analyze-*` skills and for 6502 assembly tasks.
+
+### Skills (`.agent/skills/`)
+
+- `r2000-analyze-basic`: Analyze BASIC programs and mark pointers (uses `r2000-cbm-principal-swe`).
+- `r2000-analyze-blocks`: Auto-detect and set block types (text, data) (uses `r2000-cbm-principal-swe`).
+- `r2000-analyze-program`: Orchestrate full-program analysis using `r2000-cbm-principal-swe` subagents for blocks, routines, and symbols.
+- `r2000-analyze-routine`: Trace a subroutine and mark code paths (uses `r2000-cbm-principal-swe`).
+- `r2000-analyze-symbol`: Find and label all references to a specific address (uses `r2000-cbm-principal-swe`).
 - `compare-unpacker`: Benchmark Regenerator 2000 unpacker against unp64 and generate comparison reports.
 - `add-mcp-tool`: Templates for adding new programmatic tools to the MCP server.
 - `bump-version`: Automate version bumping and changelog updates.
