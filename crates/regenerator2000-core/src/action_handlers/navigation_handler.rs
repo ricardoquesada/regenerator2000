@@ -276,6 +276,42 @@ fn perform_search(ctx: &mut ActionContext<'_>, forward: bool) {
                 ctx.events.push(CoreEvent::ViewChanged);
                 return;
             }
+
+            // Check collapsed content: collapsed blocks appear in `ctx.state.disassembly` as a
+            // single summary line at their starting offset (`pc`), hiding their constituent
+            // instructions/data lines. Inspecting `collapsed_blocks` via `search_collapsed_content`
+            // ensures both modal `Ctrl+F` search and inline `/` Vim search land on the collapsed
+            // block header when the query matches inside the collapsed range.
+            let pc = line.address.offset_from(ctx.state.origin);
+            if ctx
+                .state
+                .collapsed_blocks
+                .iter()
+                .find(|(s, _)| *s == pc)
+                .copied()
+                .is_some_and(|(start, end)| {
+                    search::search_collapsed_content(
+                        ctx.state,
+                        start,
+                        end,
+                        &query_lower,
+                        hex_pattern.as_deref(),
+                        regex.as_ref(),
+                        filters,
+                    )
+                })
+            {
+                ctx.view.navigation_history.push((
+                    ActivePane::Disassembly,
+                    crate::view_state::NavigationTarget::Index(ctx.view.cursor_index),
+                ));
+                ctx.view.cursor_index = idx;
+                ctx.view.sub_cursor_index = 0;
+                ctx.events
+                    .push(CoreEvent::StatusMessage(format!("Found '{query}'")));
+                ctx.events.push(CoreEvent::ViewChanged);
+                return;
+            }
         }
     }
 

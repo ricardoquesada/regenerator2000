@@ -198,7 +198,8 @@ impl AppAction {
         )
     }
 
-    /// Whether this action should close the dialog that produced it.
+    /// Whether this action should close the modal dialog that produced it and advance
+    /// any pending dialog in `UIState::dialog_queue`.
     #[must_use]
     pub fn closes_dialog(&self) -> bool {
         let action = match self {
@@ -217,6 +218,11 @@ impl AppAction {
                 | AppAction::ApplyComment { .. }
                 | AppAction::ApplyEnumUsage { .. }
                 | AppAction::Search
+                // Pressing `Enter` in `SearchDialog` dispatches `AppAction::FindNext` to execute
+                // unified search in `Core`, which must also dismiss `SearchDialog` and promote
+                // any queued dialog in `dialog_queue`.
+                | AppAction::FindNext
+                | AppAction::FindPrevious
                 | AppAction::ImportViceLabels
                 | AppAction::ExportViceLabels
                 | AppAction::ExportAsm

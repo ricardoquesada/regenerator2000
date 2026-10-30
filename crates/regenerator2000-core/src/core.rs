@@ -719,4 +719,148 @@ mod tests {
         assert_eq!(core.state.block_types[3], crate::state::BlockType::DataByte);
         assert_eq!(core.state.block_types[4], crate::state::BlockType::Code);
     }
+
+    /// Verifies that `apply_block_type` applies across a `Shift+Arrow` range selection
+    /// (`selection_start.is_some()` with `is_visual_mode == false`) and clears `selection_start`.
+    #[test]
+    fn test_apply_block_type_shift_selection_without_visual_mode() {
+        use crate::state::types::BlockType;
+
+        let mut core = Core::new();
+        core.state.load_binary(Addr(0x1000), vec![0xEA; 6]).unwrap();
+        core.state.block_types = vec![BlockType::Code; 6];
+        core.state.disassemble();
+
+        core.view.active_pane = ActivePane::Disassembly;
+        core.view.is_visual_mode = false;
+        core.view.selection_start = Some(0);
+        core.view.cursor_index = 2;
+
+        core.apply_action(AppAction::Byte);
+
+        assert_eq!(
+            &core.state.block_types[0..=2],
+            &[
+                BlockType::DataByte,
+                BlockType::DataByte,
+                BlockType::DataByte
+            ]
+        );
+        assert_eq!(
+            &core.state.block_types[3..6],
+            &[BlockType::Code, BlockType::Code, BlockType::Code]
+        );
+        assert_eq!(core.view.selection_start, None);
+        assert!(!core.view.is_visual_mode);
+    }
+
+    /// Verifies that when an address/word table conversion fails odd-byte validation,
+    /// the user's active range selection (`selection_start`) is preserved rather than cleared.
+    #[test]
+    fn test_apply_block_type_preserves_selection_on_odd_byte_error() {
+        use crate::state::types::BlockType;
+
+        let mut core = Core::new();
+        core.state.load_binary(Addr(0x1000), vec![0xEA; 3]).unwrap();
+        core.state.block_types = vec![BlockType::Code; 3];
+        core.state.disassemble();
+
+        core.view.active_pane = ActivePane::Disassembly;
+        core.view.is_visual_mode = false;
+        core.view.selection_start = Some(0);
+        core.view.cursor_index = 2;
+
+        let events = core.apply_action(AppAction::SetLoHiAddress);
+
+        assert!(
+            events.iter().any(
+                |e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("requires even number of bytes"))
+            ),
+            "Expected odd byte validation error message, got: {events:?}"
+        );
+        assert_eq!(core.view.selection_start, Some(0));
+    }
+
+    /// Verifies that `handle_add_scope` creates a scope spanning a `Shift+Arrow` range selection
+    /// even when persistent `Shift+V` visual mode is not active.
+    #[test]
+    fn test_handle_add_scope_shift_selection_without_visual_mode() {
+        use crate::state::types::BlockType;
+
+        let mut core = Core::new();
+        core.state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        core.state.block_types = vec![BlockType::Code; 4];
+        core.state.disassemble();
+
+        core.view.active_pane = ActivePane::Disassembly;
+        core.view.is_visual_mode = false;
+        core.view.selection_start = Some(0);
+        core.view.cursor_index = 2;
+
+        core.apply_action(AppAction::Scope);
+
+        assert_eq!(
+            core.state
+                .annotations
+                .get(Addr(0x1000))
+                .and_then(|e| e.scope),
+            Some(Addr(0x1002))
+        );
+        assert_eq!(core.view.selection_start, None);
+        assert!(!core.view.is_visual_mode);
+    }
+
+    /// Verifies that `AppAction::ToggleCollapsedBlock` resolves the target block from
+    /// `blocks_selected_index` when `ActivePane::Blocks` is focused.
+    #[test]
+    fn test_toggle_collapsed_block_from_blocks_pane() {
+        use crate::state::types::BlockType;
+
+        let mut core = Core::new();
+        core.state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        core.state.block_types = vec![
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::DataByte,
+            BlockType::DataByte,
+        ];
+        core.state.disassemble();
+
+        core.view.active_pane = ActivePane::Blocks;
+        core.view.cursor_index = 0;
+        core.view.blocks_selected_index = Some(1);
+
+        core.apply_action(AppAction::ToggleCollapsedBlock);
+        assert_eq!(core.state.collapsed_blocks, vec![(2, 3)]);
+
+        core.apply_action(AppAction::ToggleCollapsedBlock);
+        assert!(core.state.collapsed_blocks.is_empty());
+    }
+
+    /// Verifies that `navigation_handler::perform_search` searches inside collapsed blocks
+    /// via `search::search_collapsed_content` and lands on the collapsed block summary line.
+    #[test]
+    fn test_perform_search_matches_inside_collapsed_block() {
+        use crate::state::types::BlockType;
+
+        let mut core = Core::new();
+        core.state
+            .load_binary(Addr(0x1000), vec![0xEA, 0xA9, 0x42, 0x60])
+            .unwrap();
+        core.state.block_types = vec![BlockType::Code; 4];
+        core.state.collapsed_blocks.push((1, 2));
+        core.state.disassemble();
+
+        core.view.active_pane = ActivePane::Disassembly;
+        core.view.cursor_index = 0;
+        core.view.last_search_query = "42".to_string();
+
+        let events = core.apply_action(AppAction::FindNext);
+
+        assert_eq!(core.view.cursor_index, 1);
+        assert!(
+            events.contains(&CoreEvent::StatusMessage("Found '42'".to_string())),
+            "Expected Found '42' status message, got: {events:?}"
+        );
+    }
 }

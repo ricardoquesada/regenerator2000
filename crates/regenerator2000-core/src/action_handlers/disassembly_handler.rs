@@ -19,11 +19,17 @@ impl DisassemblyActionHandler {
     }
 }
 
+/// Applies `new_type` to the currently active line, range selection (`Shift+V` or `Shift+Arrows`),
+/// or selected block in `Blocks` view, and records an undoable batch command.
 fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockType) {
     let origin = ctx.state.origin.0;
     let selected_range = match ctx.view.active_pane {
         ActivePane::Disassembly => {
-            if ctx.view.is_visual_mode {
+            // Check both persistent visual mode (`Shift+V`, where `is_visual_mode` is true)
+            // and transient `Shift+Arrow` range selection (where `selection_start` is `Some`
+            // while `is_visual_mode` remains false) so block conversions apply across the
+            // entire selected range in both workflows.
+            if ctx.view.is_visual_mode || ctx.view.selection_start.is_some() {
                 let start_idx = ctx.view.selection_start.unwrap_or(ctx.view.cursor_index);
                 let end_idx = ctx.view.cursor_index;
                 let (min_idx, max_idx) = (start_idx.min(end_idx), start_idx.max(end_idx));
@@ -130,6 +136,9 @@ fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockTy
         let (cmd2, _) = c.state.perform_analysis();
         c.state
             .push_command(crate::commands::Command::Batch(vec![cmd1, cmd2]));
+        // Exit both visual mode and Shift+Arrow range selection once the conversion succeeds.
+        c.view.selection_start = None;
+        c.view.is_visual_mode = false;
     });
 
     ctx.events.push(CoreEvent::StatusMessage(format!(
@@ -139,8 +148,12 @@ fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockTy
     ctx.events.push(CoreEvent::ViewChanged);
 }
 
+/// Creates a lexical scope covering either the active multi-line selection (`Shift+V` or
+/// `Shift+Arrows`) or the subroutine starting at the cursor up to the next terminating control-flow
+/// instruction (`RTS`, `RTI`, or `JMP`).
 fn handle_add_scope(ctx: &mut ActionContext<'_>) {
-    let scope_range = if ctx.view.is_visual_mode {
+    // Support both persistent visual mode (`Shift+V`) and `Shift+Arrow` range selection.
+    let scope_range = if ctx.view.is_visual_mode || ctx.view.selection_start.is_some() {
         let start_idx = ctx.view.selection_start.unwrap_or(ctx.view.cursor_index);
         let end_idx = ctx.view.cursor_index;
         let (min_idx, max_idx) = (start_idx.min(end_idx), start_idx.max(end_idx));
@@ -229,6 +242,8 @@ fn handle_add_scope(ctx: &mut ActionContext<'_>) {
             let (analysis_cmd, _) = c.state.perform_analysis();
             let final_cmd = crate::commands::Command::Batch(vec![batch, analysis_cmd]);
             c.state.push_command(final_cmd);
+            c.view.selection_start = None;
+            c.view.is_visual_mode = false;
         });
 
         ctx.events.push(CoreEvent::StatusMessage(format!(
@@ -741,37 +756,55 @@ fn cycle_immediate_format(ctx: &mut ActionContext<'_>, forward: bool) {
     }
 }
 
+/// Toggles the collapsed state of the target block, resolving the block from
+/// `blocks_selected_index` when invoked from [`ActivePane::Blocks`] or from the disassembly
+/// cursor line otherwise.
 fn toggle_collapsed_block(ctx: &mut ActionContext<'_>) {
-    if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
-        let addr = line.address;
-        if let Some((start_addr, end_addr)) = ctx.state.get_block_range(addr) {
-            let origin = ctx.state.origin;
-            let start = start_addr.offset_from(origin);
-            let end = end_addr.offset_from(origin);
-            let range = (start, end);
-            let is_collapsed = ctx.state.collapsed_blocks.contains(&range);
-            let command = if is_collapsed {
-                crate::commands::Command::UncollapseBlock { range }
-            } else {
-                crate::commands::Command::CollapseBlock { range }
-            };
-            ctx.preserve_cursor(|c| {
-                command.apply(c.state);
-                c.state.push_command(command);
-                c.state.disassemble();
-            });
-            let action_str = if is_collapsed {
-                "Expanded"
-            } else {
-                "Collapsed"
-            };
-            ctx.events.push(CoreEvent::StatusMessage(format!(
-                "{action_str} block ${:04X}-${:04X}",
-                start_addr.0, end_addr.0
-            )));
-            ctx.events.push(CoreEvent::StateChanged);
-            ctx.events.push(CoreEvent::ViewChanged);
+    // When invoked from the Blocks pane (`Ctrl+K`), collapse/expand the block highlighted in
+    // `BlocksView` rather than the block under the DisassemblyView cursor, which may point to a
+    // different block if `sync_blocks_view` is disabled or the user navigated the Blocks list.
+    let block_range = if ctx.view.active_pane == ActivePane::Blocks {
+        let blocks = ctx.state.get_blocks_view_items();
+        let idx = ctx.view.blocks_selected_index.unwrap_or(0);
+        if let Some(crate::state::BlockItem::Block { start, end, .. }) = blocks.get(idx) {
+            Some((*start, *end))
+        } else {
+            None
         }
+    } else {
+        ctx.state
+            .disassembly
+            .get(ctx.view.cursor_index)
+            .and_then(|line| ctx.state.get_block_range(line.address))
+    };
+
+    if let Some((start_addr, end_addr)) = block_range {
+        let origin = ctx.state.origin;
+        let start = start_addr.offset_from(origin);
+        let end = end_addr.offset_from(origin);
+        let range = (start, end);
+        let is_collapsed = ctx.state.collapsed_blocks.contains(&range);
+        let command = if is_collapsed {
+            crate::commands::Command::UncollapseBlock { range }
+        } else {
+            crate::commands::Command::CollapseBlock { range }
+        };
+        ctx.preserve_cursor(|c| {
+            command.apply(c.state);
+            c.state.push_command(command);
+            c.state.disassemble();
+        });
+        let action_str = if is_collapsed {
+            "Expanded"
+        } else {
+            "Collapsed"
+        };
+        ctx.events.push(CoreEvent::StatusMessage(format!(
+            "{action_str} block ${:04X}-${:04X}",
+            start_addr.0, end_addr.0
+        )));
+        ctx.events.push(CoreEvent::StateChanged);
+        ctx.events.push(CoreEvent::ViewChanged);
     }
 }
 
