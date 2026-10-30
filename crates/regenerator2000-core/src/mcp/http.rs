@@ -1,9 +1,9 @@
 use rmcp::{
     ServerHandler,
     model::{
-        CallToolRequestParams, CallToolResult, InitializeRequestParams, InitializeResult,
-        ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
-        ReadResourceResult,
+        CallToolRequestParams, CallToolResponse, CallToolResult, InitializeRequestParams,
+        InitializeResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams,
+        ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult,
     },
     service::{RequestContext, RoleServer},
     transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService},
@@ -97,16 +97,22 @@ impl ServerHandler for RegeneratorOps {
         &self,
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> Result<CallToolResult, rmcp::ErrorData> {
+    ) -> Result<CallToolResponse, rmcp::ErrorData> {
         let params = serde_json::json!({
             "name": request.name,
             "arguments": request.arguments
         });
 
         match self.send_request("tools/call", params).await {
-            Ok(val) => serde_json::from_value(val).map_err(|e| {
-                rmcp::ErrorData::internal_error(format!("Failed to parse tool result: {e}"), None)
-            }),
+            Ok(val) => {
+                let result: CallToolResult = serde_json::from_value(val).map_err(|e| {
+                    rmcp::ErrorData::internal_error(
+                        format!("Failed to parse tool result: {e}"),
+                        None,
+                    )
+                })?;
+                Ok(CallToolResponse::Complete(result))
+            }
             Err(e) => Err(rmcp::ErrorData::internal_error(e, None)),
         }
     }
@@ -132,15 +138,18 @@ impl ServerHandler for RegeneratorOps {
         &self,
         request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResult, rmcp::ErrorData> {
+    ) -> Result<ReadResourceResponse, rmcp::ErrorData> {
         let params = serde_json::json!({ "uri": request.uri });
         match self.send_request("resources/read", params).await {
-            Ok(val) => serde_json::from_value(val).map_err(|e| {
-                rmcp::ErrorData::internal_error(
-                    format!("Failed to parse read resource result: {e}"),
-                    None,
-                )
-            }),
+            Ok(val) => {
+                let result: ReadResourceResult = serde_json::from_value(val).map_err(|e| {
+                    rmcp::ErrorData::internal_error(
+                        format!("Failed to parse read resource result: {e}"),
+                        None,
+                    )
+                })?;
+                Ok(ReadResourceResponse::Complete(result))
+            }
             Err(e) => Err(rmcp::ErrorData::internal_error(e, None)),
         }
     }

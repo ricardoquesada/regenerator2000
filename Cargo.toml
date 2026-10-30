@@ -50,7 +50,7 @@ serde_json = "1.0"
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
 ratatui = "0.30.0"
 crossterm = "0.29"
-base64 = "0.22.1"
+base64 = "0.23.1"
 log = "0.4.29"
 simplelog = "0.12.2"
 tokio = { version = "1.52", features = ["rt-multi-thread", "sync", "net", "macros"] }
