@@ -28,3 +28,7 @@ pub mod theme_file;
 pub mod ui;
 pub mod ui_state;
 pub mod utils;
+
+/// End-to-end 3-pillar keyboard shortcut verification suite.
+#[cfg(test)]
+mod keyboard_shortcuts_tests;
