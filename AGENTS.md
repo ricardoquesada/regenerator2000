@@ -87,7 +87,7 @@ Specialized agents (`.agent/agents/`) and skills (`.agent/skills/`) are availabl
 
 - `r2000-analyze-basic`: Analyze BASIC programs and mark pointers (uses `r2000-cbm-principal-swe`).
 - `r2000-analyze-blocks`: Auto-detect and set block types (text, data) (uses `r2000-cbm-principal-swe`).
-- `r2000-analyze-program`: Orchestrate full-program analysis using `r2000-cbm-principal-swe` subagents for blocks, routines, and symbols.
+- `r2000-analyze-program`: Orchestrate 2-tier MapReduce full-program analysis using `r2000-cbm-principal-swe` subagents across BASIC, blocks, routines, and symbols.
 - `r2000-analyze-routine`: Trace a subroutine and mark code paths (uses `r2000-cbm-principal-swe`).
 - `r2000-analyze-symbol`: Find and label all references to a specific address (uses `r2000-cbm-principal-swe`).
 - `compare-unpacker`: Benchmark Regenerator 2000 unpacker against unp64 and generate comparison reports.

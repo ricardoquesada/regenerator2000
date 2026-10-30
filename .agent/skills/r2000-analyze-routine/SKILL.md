@@ -11,7 +11,8 @@ Use this skill when the user asks to "analyze this routine" or "what does this f
 
 This skill uses the **`r2000-cbm-principal-swe`** agent persona for MOS 6502 instructions (including undocumented opcodes), Commodore hardware registers, KERNAL/BASIC ROM maps, and demoscene algorithms.
 
-*   If you are not already running as the `r2000-cbm-principal-swe` agent, read `.agent/agents/r2000_cbm_principal_swe.md` first and follow its technical rules.
+*   When spawned as the `r2000-cbm-principal-swe` subagent, the persona rules from `.agent/agents/r2000_cbm_principal_swe.md` are already loaded in your system prompt—**do not** read `.agent/agents/r2000_cbm_principal_swe.md` again.
+*   Only read `.agent/agents/r2000_cbm_principal_swe.md` if you are executing this skill directly inside the main agent session.
 
 ## 1. Determine System and Context
 
@@ -69,8 +70,14 @@ Determine the following four attributes:
 
 ## 7. Apply Documentation
 
-1.  Call `r2000_set_label_name` to give the routine a descriptive `snake_case` name.
-2.  Call `r2000_set_comment` with `"type": "line"` at the entry point using this exact format:
+1.  **Rename the Routine Entry Label (`r2000_set_label_name`):**
+    *   Give the target routine a descriptive `snake_case` name.
+    *   **Cross-Routine & Global Symbol Rename Prohibition:** **Only** rename the target routine's own entry label (and its own internal branch labels `b_XXXX` / `j_XXXX` within the routine's address bounds if necessary). **Never** rename other subroutines (`s_XXXX`) or global data/pointer/external symbols (`a_XXXX`, `f_XXXX`, `p_XXXX`, `e_XXXX`, `zpa_XX`, `zpf_XX`, `zpp_XX`, `a_00XX`, `f_00XX`, `p_00XX`), which are owned by sibling routine or symbol subagents.
+    *   **Duplicate Label Collision & System Label Protection:**
+        *   Never overwrite a valid `System` label (such as `KERNAL_CHROUT`, `VIC_BORDER_COLOR`, `CIA1_ICR`), and never reuse an existing `System` label name on another address.
+        *   If `r2000_set_label_name` fails with `"Label '<name>' already exists"` (because a concurrent subagent, user label, or system symbol already claimed `<name>`), disambiguate the name by appending the routine's hex address or a specific context suffix (for example, `delay_loop_c140` or `irq_handler_0840`) and retry `r2000_set_label_name`.
+2.  **Attach Header Comment (`r2000_set_comment`):**
+    Call `r2000_set_comment` with `"type": "line"` at the entry point using this exact format:
 
 ```
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -82,16 +89,18 @@ Side Effects: <hardware changes, screen updates, etc., or "None">
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 ```
 
-3.  Call `r2000_set_comment` with `"type": "side"` on key instructions inside the routine to explain register state, branch conditions, and hardware operations.
+3.  **Attach Side Comments:**
+    Call `r2000_set_comment` with `"type": "side"` on key instructions inside the routine to explain register state, branch conditions, and hardware operations.
 
 ---
 
 ## Common Pitfalls
 
-1.  **Fall-Through Execution:** A routine without a trailing `RTS`, `JMP`, or `RTI` falls through into the next routine. Document the fall-through in the header comment.
-2.  **Tail Calls:** A `JMP other_routine` ends the current routine. Do not merge `other_routine` into the current routine's summary.
-3.  **Hardware vs. Software ISR Tails:** An ISR that jumps to the KERNAL interrupt tail (such as `JMP $EA31` or `JMP $EA81` on C64) runs via the software IRQ vector (`$0314`/`$0315`, or `$0090`/`$0091` on PET). An ISR that saves `A`/`X`/`Y` itself and ends with `RTI` runs via the `$FFFE`/`$FFFF` RAM hardware vector (with KERNAL ROM banked out).
-4.  **Undocumented Opcodes:** Treat valid undocumented opcodes (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`, `ANC`, `ALR`, `AXS`) as intentional instructions.
+1.  **Renaming Out-of-Scope Symbols:** Never rename other subroutines (`s_XXXX`) or global data/zero-page symbols (`a_XXXX`, `f_XXXX`, `zpa_XX`, `zpp_XX`) accessed by the routine—leave them for their dedicated routine/symbol subagents.
+2.  **Fall-Through Execution:** A routine without a trailing `RTS`, `JMP`, or `RTI` falls through into the next routine. Document the fall-through in the header comment.
+3.  **Tail Calls:** A `JMP other_routine` ends the current routine. Do not merge `other_routine` into the current routine's summary.
+4.  **Hardware vs. Software ISR Tails:** An ISR that jumps to the KERNAL interrupt tail (such as `JMP $EA31` or `JMP $EA81` on C64) runs via the software IRQ vector (`$0314`/`$0315`, or `$0090`/`$0091` on PET). An ISR that saves `A`/`X`/`Y` itself and ends with `RTI` runs via the `$FFFE`/`$FFFF` RAM hardware vector (with KERNAL ROM banked out).
+5.  **Undocumented Opcodes:** Treat valid undocumented opcodes (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`, `ANC`, `ALR`, `AXS`) as intentional instructions.
 
 ---
 

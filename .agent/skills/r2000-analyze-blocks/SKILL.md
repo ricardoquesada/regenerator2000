@@ -11,7 +11,8 @@ Use this skill when the user asks to "analyze blocks", "convert blocks", "identi
 
 This skill uses the **`r2000-cbm-principal-swe`** agent persona for MOS 6502 instructions (including undocumented opcodes), Commodore hardware registers, KERNAL/BASIC ROM maps, and data structures.
 
-*   If you are not already running as the `r2000-cbm-principal-swe` agent, read `.agent/agents/r2000_cbm_principal_swe.md` first and follow its technical rules.
+*   When spawned as the `r2000-cbm-principal-swe` subagent, the persona rules from `.agent/agents/r2000_cbm_principal_swe.md` are already loaded in your system prompt—**do not** read `.agent/agents/r2000_cbm_principal_swe.md` again.
+*   Only read `.agent/agents/r2000_cbm_principal_swe.md` if you are executing this skill directly inside the main agent session.
 
 ## Overview
 
@@ -38,16 +39,17 @@ Use `r2000_set_data_type` with the `data_type` value in the table below (except 
 
 ## Step-by-Step Workflow
 
-### 1. Determine Scope
+### 1. Determine Scope (Strict Address Range Isolation)
 
-*   Use the address range requested by the user, or default to the entire binary.
-*   Call `r2000_get_binary_info` to read the origin address, size, `system`, `filename`, `description`, and `may_contain_undocumented_opcodes` hint.
-*   Call `r2000_get_blocks` to list all blocks and locate the **Undefined** regions.
+*   **Strict Address Range Isolation:** When an explicit address range `[start_address, end_address]` is passed in the prompt by the user or orchestrator (`r2000-analyze-program`), you must **only** inspect and classify `Undefined` blocks (or slices of `Undefined` blocks) within `[start_address, end_address]`. **Never** inspect, disassemble, or modify any blocks outside your assigned `[start_address, end_address]` range, as sibling subagents may be classifying adjacent ranges concurrently.
+*   Only default to the entire binary when no address range is specified in the prompt.
+*   If binary metadata is not already provided in your prompt, call `r2000_get_binary_info` to read the origin address, size, `system`, `filename`, `description`, and `may_contain_undocumented_opcodes` hint.
+*   Call `r2000_get_blocks` to list blocks and locate the **Undefined** regions within your assigned `[start_address, end_address]` scope.
 *   Process large Undefined regions in chunks of 256 to 512 bytes.
 
 ### 2. Plan the Analysis Order
 
-Process the **Undefined** blocks in four passes:
+Process the **Undefined** blocks within your assigned `[start_address, end_address]` scope in four passes:
 
 1.  **Pass 1 — Identify Reachable Code:** Call `r2000_disassemble` at a code entry point **only** when you have concrete proof that the CPU executes that address. Follow the rules in [Recognizing Code](#recognizing-code). Never disassemble a region only because the bytes look like valid 6502 instructions.
 2.  **Pass 2 — Identify Text Strings:** Locate PETSCII and screencode strings in Undefined regions.
@@ -56,7 +58,7 @@ Process the **Undefined** blocks in four passes:
 
 ### 3. Read and Analyze Each Region
 
-For each chunk:
+For each chunk within your assigned `[start_address, end_address]` scope:
 
 *   Call `r2000_read_region` with `"view": "disasm"` to inspect instruction decoding.
 *   Call `r2000_read_region` with `"view": "hexdump"` to inspect raw byte values and ASCII/PETSCII text.
@@ -65,16 +67,17 @@ For each chunk:
 ### 4. Apply Conversions
 
 *   **For Code:** Call `r2000_disassemble` at the entry point address. Then call `r2000_get_blocks` immediately to refresh the block list.
-*   **For Data:** Call `r2000_batch_execute` to group multiple `r2000_set_data_type` operations into one call.
+*   **For Data:** When you have `>= 5` independent `r2000_set_data_type` operations, call `r2000_batch_execute` to group them into one call (if fewer than 5 operations, call `r2000_set_data_type` directly).
+*   **Per-Item Error Checking (`r2000_batch_execute`):** Because `r2000_batch_execute` returns top-level `Ok` even if individual calls inside `calls` fail, always inspect the returned per-item `"status"` fields in the JSON response array and handle or retry any inner `"error"` entries.
 *   Call `r2000_get_blocks` after each batch to verify the updated boundaries.
 *   Call `r2000_undo` if a conversion is incorrect.
 *   Call `r2000_toggle_splitter` at the boundary between two adjacent blocks of the same type so they do not merge.
 
 ### 5. Label and Document
 
-After classifying blocks:
+After classifying blocks within your assigned `[start_address, end_address]` scope:
 
-*   Call `r2000_set_label_name` to name newly discovered entry points, tables, and strings.
+*   Call `r2000_set_label_name` to name newly discovered entry points, tables, and strings (never overwrite valid `System` labels; if `r2000_set_label_name` fails with `"Label '<name>' already exists"`, disambiguate by appending the hex address suffix, such as `str_title_1400`, and retry).
 *   Call `r2000_set_comment` (`"line"` or `"side"`) to document table layouts and purpose.
 
 ---
@@ -148,9 +151,9 @@ Classify a region as `external_file` when:
 
 ## Batch Conversion Example
 
-Group data-type changes in `r2000_batch_execute`, and run `r2000_disassemble` separately for code entry points:
+When you have `>= 5` independent data-type changes, group them in `r2000_batch_execute`, and run `r2000_disassemble` separately for code entry points:
 
-1.  Call `r2000_batch_execute` with `r2000_set_data_type` calls for all data blocks (`byte`, `word`, `petscii`, `screencode`, `address`).
+1.  Call `r2000_batch_execute` with `r2000_set_data_type` calls for `5+` data blocks (`byte`, `word`, `petscii`, `screencode`, `address`), and inspect the returned per-item `"status"` fields for any inner `"error"` entries.
 2.  Call `r2000_disassemble` for each verified code entry point.
 3.  Call `r2000_get_blocks` to refresh the block list.
 
@@ -160,10 +163,11 @@ Group data-type changes in `r2000_batch_execute`, and run `r2000_disassemble` se
 
 1.  **Speculative Disassembly:** Never call `r2000_disassemble` without proof that execution reaches that address.
 2.  **Using `r2000_set_data_type` for Code:** Never pass `"code"` to `r2000_set_data_type`. Always call `r2000_disassemble`.
-3.  **Missing Splitters:** Use `r2000_toggle_splitter` between adjacent tables of the same type.
-4.  **Odd Byte Count in Split Tables:** Ensure `lo_hi_*` and `hi_lo_*` blocks have an even number of bytes.
-5.  **PETSCII vs. Screencode:** Bytes sent to `$FFD2` are `petscii`; bytes written to the active system's Screen RAM (`$0400` on C64/C128, `$1E00`/`$1000` on VIC-20, `$8000` on PET, `$0C00` on Plus/4) are `screencode`.
-6.  **Undocumented Opcodes:** Check `may_contain_undocumented_opcodes` from `r2000_get_binary_info`. Do not misclassify valid undocumented opcodes (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`) as raw data.
+3.  **Violating Assigned Range:** When given an address range `[start_address, end_address]`, never modify or disassemble blocks outside `[start_address, end_address]`.
+4.  **Missing Splitters:** Use `r2000_toggle_splitter` between adjacent tables of the same type.
+5.  **Odd Byte Count in Split Tables:** Ensure `lo_hi_*` and `hi_lo_*` blocks have an even number of bytes.
+6.  **PETSCII vs. Screencode:** Bytes sent to `$FFD2` are `petscii`; bytes written to the active system's Screen RAM (`$0400` on C64/C128, `$1E00`/`$1000` on VIC-20, `$8000` on PET, `$0C00` on Plus/4) are `screencode`.
+7.  **Undocumented Opcodes:** Check `may_contain_undocumented_opcodes` from `r2000_get_binary_info`. Do not misclassify valid undocumented opcodes (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`) as raw data.
 
 ---
 
@@ -171,6 +175,6 @@ Group data-type changes in `r2000_batch_execute`, and run `r2000_disassemble` se
 
 After completing block analysis, report:
 
-*   Total blocks classified, grouped by type.
-*   Key discoveries (text strings, jump tables, sprite/charset buffers).
+*   Assigned address range `[start_address, end_address]` (or full binary) and total blocks classified, grouped by type.
+*   Key discoveries (code entry points, text strings, jump tables, sprite/charset buffers).
 *   Any ambiguous regions left for manual review.
