@@ -598,6 +598,25 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
 // Keyboard event handling
 // ---------------------------------------------------------------------------
 
+/// Processes a single [`KeyEvent`] synchronously through the full TUI input-routing pipeline
+/// (modal dialogs -> menu bar -> inline Vim search -> active view -> [`crate::ui::navigable::Navigable`] trait -> global shortcuts -> [`Core::apply_action`])
+/// and performs the per-frame view synchronization contract (`sync_views_before_render` and
+/// `UIState::sync_tui_to_core`).
+///
+/// This function provides a deterministic, headless entrypoint used by the 3-pillar keyboard
+/// shortcut verification suite to exercise the exact runtime key-handling pipeline without
+/// requiring a live terminal backend.
+pub fn process_key_event(core: &mut Core, ui_state: &mut UIState, key: KeyEvent) {
+    let (event_tx, _event_rx) = std::sync::mpsc::channel();
+    let mut should_render = false;
+    let _ = handle_key_event(key, core, ui_state, &event_tx, &mut should_render);
+    if should_render {
+        sync_views_before_render(&core.state, ui_state);
+        ui_state.sync_tui_to_core();
+        core.view = ui_state.core.clone();
+    }
+}
+
 fn handle_key_event(
     key: KeyEvent,
     core: &mut Core,
@@ -635,6 +654,11 @@ fn handle_key_event(
             crate::ui::widget::WidgetResult::Action(action) => {
                 if !action.closes_dialog() {
                     ui_state.active_dialog = Some(dialog);
+                } else if !ui_state.dialog_queue.is_empty() {
+                    // When an action closes the active dialog (e.g. `SearchDialog` returning
+                    // `AppAction::FindNext` on `Enter`), promote the next queued dialog just
+                    // like `WidgetResult::Close`.
+                    ui_state.active_dialog = Some(ui_state.dialog_queue.remove(0));
                 }
                 *should_render = true;
                 dispatch_menu_action(action, core, ui_state, event_tx, false);
@@ -656,9 +680,19 @@ fn handle_key_event(
                 ui_state.set_status_message("Ready");
             }
             KeyCode::Enter => {
+                // Commit the inline status-bar Vim search query (`'/'`) to `last_search_query`
+                // and delegate execution to `Core` via `AppAction::FindNext` so inline search
+                // and modal `Ctrl+F` search share the single `navigation_handler::perform_search`
+                // implementation (including collapsed-block matching).
                 ui_state.last_search_query = ui_state.vim_search_input.clone();
                 ui_state.vim_search_active = false;
-                crate::ui::dialog_search::perform_search(&mut core.state, ui_state, true);
+                dispatch_menu_action(
+                    crate::state::actions::AppAction::FindNext,
+                    core,
+                    ui_state,
+                    event_tx,
+                    false,
+                );
             }
             KeyCode::Backspace => {
                 ui_state.vim_search_input.pop();

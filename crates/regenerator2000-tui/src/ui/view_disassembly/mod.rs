@@ -162,30 +162,29 @@ impl Widget for DisassemblyView {
         }
 
         match key.code {
-            KeyCode::Down | KeyCode::Char('j')
-                if key.code == KeyCode::Down || key.modifiers.is_empty() =>
-            {
-                if key.modifiers == KeyModifiers::SHIFT || ui_state.is_visual_mode {
-                    if ui_state.selection_start.is_none() {
-                        ui_state.selection_start = Some(ui_state.cursor_index);
-                    }
-                } else {
-                    ui_state.selection_start = None;
+            // Unmodified `Up`/`Down`/`j`/`k` are already handled by `navigable::handle_nav_input`
+            // above. Restrict `Down` and `Up` here strictly to `KeyModifiers::SHIFT` so that:
+            // 1. `Shift+Down`/`Shift+Up` extend `ui_state.selection_start` across lines (preserving
+            //    `selection_start` across `move_cursor_down`/`move_cursor_up`, which otherwise clear
+            //    `selection_start` when `!ui_state.is_visual_mode`).
+            // 2. `Alt+Down` and `Alt+Up` are NOT shadowed and can reach `AppAction::NudgeScopeBoundary`
+            //    further down in this match.
+            KeyCode::Down if key.modifiers == KeyModifiers::SHIFT => {
+                if ui_state.selection_start.is_none() {
+                    ui_state.selection_start = Some(ui_state.cursor_index);
                 }
+                let selection_to_keep = ui_state.selection_start;
                 navigation::move_cursor_down(app_state, ui_state, 1);
+                ui_state.selection_start = selection_to_keep;
                 WidgetResult::Handled
             }
-            KeyCode::Up | KeyCode::Char('k')
-                if key.code == KeyCode::Up || key.modifiers.is_empty() =>
-            {
-                if key.modifiers == KeyModifiers::SHIFT || ui_state.is_visual_mode {
-                    if ui_state.selection_start.is_none() {
-                        ui_state.selection_start = Some(ui_state.cursor_index);
-                    }
-                } else {
-                    ui_state.selection_start = None;
+            KeyCode::Up if key.modifiers == KeyModifiers::SHIFT => {
+                if ui_state.selection_start.is_none() {
+                    ui_state.selection_start = Some(ui_state.cursor_index);
                 }
+                let selection_to_keep = ui_state.selection_start;
                 navigation::move_cursor_up(app_state, ui_state, 1);
+                ui_state.selection_start = selection_to_keep;
                 WidgetResult::Handled
             }
             KeyCode::F(3) => {
@@ -197,23 +196,31 @@ impl Widget for DisassemblyView {
                     WidgetResult::Ignored
                 }
             }
+            // `'/'` activates inline status-bar Vim search (`vim_search_active = true`), which is
+            // distinct from the modal `Ctrl+F` `SearchDialog`. When the user presses `Enter`,
+            // `events.rs` dispatches `AppAction::FindNext` so both search modes execute through Core.
             KeyCode::Char('/') if key.modifiers.is_empty() => {
                 ui_state.vim_search_active = true;
                 ui_state.vim_search_input.clear();
                 WidgetResult::Handled
             }
             KeyCode::Char('n') if key.modifiers.is_empty() => {
-                crate::ui::dialog_search::perform_search(app_state, ui_state, true);
-                WidgetResult::Handled
+                WidgetResult::Action(AppAction::FindNext)
             }
-            KeyCode::Char('N') if key.modifiers == KeyModifiers::SHIFT => {
-                crate::ui::dialog_search::perform_search(app_state, ui_state, false);
-                WidgetResult::Handled
+            // Uppercase single-letter shortcuts (`'N'`, `'V'`, `'E'`, `'I'`) accept both
+            // `KeyModifiers::NONE` and `KeyModifiers::SHIFT` because Crossterm may report
+            // uppercase characters with or without the `SHIFT` flag depending on the terminal.
+            KeyCode::Char('N')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
+                WidgetResult::Action(AppAction::FindPrevious)
             }
             KeyCode::Char('f') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(AppAction::Search)
             }
-            KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
+            KeyCode::Char('V')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 if !app_state.raw_data.is_empty() {
                     ui_state.is_visual_mode = !ui_state.is_visual_mode;
                     if ui_state.is_visual_mode {
@@ -288,7 +295,9 @@ impl Widget for DisassemblyView {
             KeyCode::Char('e') if key.modifiers.is_empty() => {
                 WidgetResult::Action(AppAction::ApplyEnumDialog)
             }
-            KeyCode::Char('E') if key.modifiers == KeyModifiers::SHIFT => {
+            KeyCode::Char('E')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 WidgetResult::Action(AppAction::SetExternalFile)
             }
             KeyCode::Enter if key.modifiers.is_empty() => {
@@ -300,7 +309,9 @@ impl Widget for DisassemblyView {
             KeyCode::Char('i') if key.modifiers.is_empty() => {
                 WidgetResult::Action(AppAction::NextImmediateFormat)
             }
-            KeyCode::Char('I') if key.modifiers == KeyModifiers::SHIFT => {
+            KeyCode::Char('I')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 WidgetResult::Action(AppAction::PreviousImmediateFormat)
             }
             KeyCode::Char('[') if key.modifiers.is_empty() => {
@@ -344,23 +355,7 @@ impl Widget for DisassemblyView {
             KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(AppAction::ToggleCollapsedBlock)
             }
-            _ => {
-                if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && let KeyCode::Char('b') = key.code
-                {
-                    if key.modifiers.contains(KeyModifiers::SHIFT) {
-                        return WidgetResult::Action(AppAction::ListBookmarks);
-                    }
-                    return WidgetResult::Action(AppAction::ToggleBookmark);
-                }
-
-                if key.modifiers.contains(KeyModifiers::ALT)
-                    && let KeyCode::Char('b') = key.code
-                {
-                    return WidgetResult::Action(AppAction::ListBookmarks);
-                }
-                WidgetResult::Ignored
-            }
+            _ => WidgetResult::Ignored,
         }
     }
 

@@ -4,12 +4,27 @@ use regenerator2000_core::Core;
 use regenerator2000_core::event::{CommentKind as DialogCommentKind, CoreEvent, DialogType};
 pub use regenerator2000_core::state::actions::AppAction;
 
+/// Dispatches an [`AppAction`] to [`Core::apply_action`] and translates the resulting
+/// [`CoreEvent`]s into TUI state mutations, modal dialogs, or background tasks.
+///
+/// # State Synchronization Contract
+/// Before invoking [`Core::apply_action`], this function synchronizes TUI-managed view fields
+/// (`UIState::sync_tui_to_core`) and clones `ui_state.core` into `core.view`. Without this pre-sync,
+/// view-local mutations performed immediately prior to returning `WidgetResult::Action(...)`
+/// (such as clearing `is_visual_mode` and selection anchors on `'b'` in `HexDumpView`,
+/// `SpritesView`, or `CharsetView`, or advancing the cursor between render frames) would be
+/// overwritten when `CoreEvent::ViewChanged` copies `core.view` back into `ui_state.core`.
 pub fn handle_menu_action(
     core: &mut Core,
     ui_state: &mut UIState,
     action: AppAction,
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
 ) {
+    // Synchronize TUI view state into Core before executing the action so Core operates on the
+    // latest cursor/selection state and does not clobber view-local changes on `CoreEvent::ViewChanged`.
+    ui_state.sync_tui_to_core();
+    core.view = ui_state.core.clone();
+
     // Dispatch to Core and handle results reactively
     let events = core.apply_action(action);
 

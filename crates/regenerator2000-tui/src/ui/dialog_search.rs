@@ -1,6 +1,6 @@
 use crate::state::AppState;
 // Theme import removed
-use crate::ui_state::{ActivePane, UIState};
+use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
@@ -235,7 +235,7 @@ impl Widget for SearchDialog {
     fn handle_input(
         &mut self,
         key: KeyEvent,
-        app_state: &mut AppState,
+        _app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
         // Alt+key shortcuts work in both input and filter mode
@@ -268,10 +268,13 @@ impl Widget for SearchDialog {
                 WidgetResult::Close
             }
             KeyCode::Enter => {
+                // Persist the query and filters into `UIState` and dispatch `AppAction::FindNext`
+                // so `Core` (`navigation_handler::perform_search`) acts as the single source of
+                // truth for search execution (including collapsed blocks) and closes this dialog
+                // via `AppAction::FindNext.closes_dialog()`.
                 ui_state.last_search_query = self.input_text();
                 ui_state.search_filters = self.filters.clone();
-                perform_search(app_state, ui_state, true);
-                WidgetResult::Close
+                WidgetResult::Action(crate::state::actions::AppAction::FindNext)
             }
             KeyCode::Tab | KeyCode::BackTab => {
                 self.editing_filters = !self.editing_filters;
@@ -308,147 +311,5 @@ impl Widget for SearchDialog {
                 WidgetResult::Handled
             }
         }
-    }
-}
-
-pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward: bool) {
-    let query = ui_state.last_search_query.clone();
-    if query.is_empty() {
-        ui_state.set_status_message("No search query");
-        return;
-    }
-
-    // Compile regex once up-front when regex mode is active.
-    let regex = if ui_state.search_filters.use_regex {
-        match search::compile_regex(&query) {
-            Ok(re) => Some(re),
-            Err(e) => {
-                ui_state.set_status_message(format!("Invalid regex: {e}"));
-                return;
-            }
-        }
-    } else {
-        None
-    };
-
-    let query_lower = query.to_lowercase();
-    let disassembly_len = app_state.disassembly.len();
-    if disassembly_len == 0 {
-        return;
-    }
-
-    let start_idx = ui_state.cursor_index;
-    let mut found_idx = None;
-    let mut found_sub_idx = 0;
-
-    // Hex-byte pattern parsing is a plain-text-only feature; skip in regex mode.
-    let hex_pattern = if !ui_state.search_filters.use_regex && ui_state.search_filters.hex_bytes {
-        search::parse_hex_pattern(&query)
-    } else {
-        None
-    };
-    let filters = &ui_state.search_filters;
-
-    // Check current line first for subsequent matches
-    if let Some(line) = app_state.disassembly.get(start_idx) {
-        let matches = search::get_line_matches(
-            line,
-            app_state,
-            &query_lower,
-            hex_pattern.as_deref(),
-            regex.as_ref(),
-            filters,
-        );
-
-        let candidate = if forward {
-            matches
-                .into_iter()
-                .find(|&sub| sub > ui_state.sub_cursor_index)
-        } else {
-            matches
-                .into_iter()
-                .rev()
-                .find(|&sub| sub < ui_state.sub_cursor_index)
-        };
-
-        if let Some(sub) = candidate {
-            ui_state.core.navigation_history.push((
-                ActivePane::Disassembly,
-                crate::ui_state::NavigationTarget::Index(ui_state.core.cursor_index),
-            ));
-            ui_state.sub_cursor_index = sub;
-            ui_state.set_status_message(format!("Found '{query}'"));
-            return;
-        }
-    }
-
-    // Iterate other lines
-    for i in 1..disassembly_len {
-        let idx = if forward {
-            (start_idx + i) % disassembly_len
-        } else {
-            // backward wrap
-            if i <= start_idx {
-                start_idx - i
-            } else {
-                disassembly_len - (i - start_idx)
-            }
-        };
-
-        if let Some(line) = app_state.disassembly.get(idx) {
-            let matches = search::get_line_matches(
-                line,
-                app_state,
-                &query_lower,
-                hex_pattern.as_deref(),
-                regex.as_ref(),
-                filters,
-            );
-            if !matches.is_empty() {
-                found_idx = Some(idx);
-                found_sub_idx = if forward {
-                    matches[0]
-                } else {
-                    matches[matches.len() - 1]
-                };
-                break;
-            }
-
-            // Check collapsed content
-            let pc = line.address.offset_from(app_state.origin);
-            if app_state
-                .collapsed_blocks
-                .iter()
-                .find(|(s, _)| *s == pc)
-                .copied()
-                .is_some_and(|(start, end)| {
-                    search::search_collapsed_content(
-                        app_state,
-                        start,
-                        end,
-                        &query_lower,
-                        hex_pattern.as_deref(),
-                        regex.as_ref(),
-                        filters,
-                    )
-                })
-            {
-                found_idx = Some(idx);
-                found_sub_idx = 0;
-                break;
-            }
-        }
-    }
-
-    if let Some(idx) = found_idx {
-        ui_state.core.navigation_history.push((
-            ActivePane::Disassembly,
-            crate::ui_state::NavigationTarget::Index(ui_state.core.cursor_index),
-        ));
-        ui_state.cursor_index = idx;
-        ui_state.sub_cursor_index = found_sub_idx;
-        ui_state.set_status_message(format!("Found '{query}'"));
-    } else {
-        ui_state.set_status_message(format!("'{query}' not found"));
     }
 }
