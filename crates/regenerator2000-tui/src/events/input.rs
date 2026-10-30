@@ -1,3 +1,9 @@
+//! Global keyboard shortcut fallback handler (Layer 1 of the keyboard shortcut architecture).
+//!
+//! Invoked by `events::handle_key_event_active_view` whenever the active pane's widget returns
+//! [`crate::ui::widget::WidgetResult::Ignored`]. Handles application-wide shortcuts (`Ctrl+*`,
+//! `Alt+*`, `F1`–`F10`, `Tab`, `Esc`, and global `u` Undo) across all 7 [`crate::ui_state::ActivePane`]s.
+
 use crate::events::AppEvent;
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -5,6 +11,15 @@ use regenerator2000_core::Core;
 
 use crate::ui::menu::handle_menu_action;
 
+/// Processes application-wide keyboard shortcuts that were not consumed by a modal dialog,
+/// active menu bar, inline Vim search bar, or the focused view's [`crate::ui::widget::Widget::handle_input`].
+///
+/// # Cross-Terminal Shifted Modifier Resilience
+/// Terminal emulators and keyboard protocols differ in how they report shifted modifier
+/// combinations (e.g. legacy ANSI `ESC G` vs. the Kitty keyboard protocol): some report
+/// `KeyCode::Char('g')` with `KeyModifiers::SHIFT`, while others report uppercase
+/// `KeyCode::Char('G')` with `KeyModifiers::SHIFT`. All `Ctrl+Shift+*` and `Alt+Shift+*` arms
+/// therefore match both lowercase and uppercase `KeyCode::Char` variants.
 pub fn handle_global_input(
     key: KeyEvent,
     core: &mut Core,
@@ -194,6 +209,8 @@ pub fn handle_global_input(
             );
         }
         // Global Shortcuts
+        // Match both lowercase and uppercase characters on `Ctrl+Shift+*` / `Alt+Shift+*`
+        // so shortcuts work regardless of whether the terminal sends `'o'` or `'O'` with `SHIFT`.
         KeyCode::Char('o') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
                 core,
@@ -202,7 +219,7 @@ pub fn handle_global_input(
                 event_tx,
             );
         }
-        KeyCode::Char('o')
+        KeyCode::Char('o' | 'O')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == KeyModifiers::ALT =>
         {
@@ -229,7 +246,7 @@ pub fn handle_global_input(
                 event_tx,
             );
         }
-        KeyCode::Char('s')
+        KeyCode::Char('s' | 'S')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == KeyModifiers::ALT =>
         {
@@ -248,7 +265,7 @@ pub fn handle_global_input(
                 event_tx,
             );
         }
-        KeyCode::Char('e')
+        KeyCode::Char('e' | 'E')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == KeyModifiers::ALT =>
         {
@@ -277,7 +294,7 @@ pub fn handle_global_input(
             );
         }
 
-        KeyCode::Char('d')
+        KeyCode::Char('d' | 'D')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == KeyModifiers::ALT =>
         {
@@ -285,6 +302,30 @@ pub fn handle_global_input(
                 core,
                 ui_state,
                 crate::state::actions::AppAction::DocumentSettings,
+                event_tx,
+            );
+        }
+
+        // Bookmark shortcuts (`Ctrl+B` and `Alt+B` / `Ctrl+Shift+B`) are handled globally
+        // so that users can toggle or list bookmarks from any pane (and never accidentally
+        // trigger view-local `'b'` byte conversions in `BitmapView`, `HexDumpView`, etc.).
+        KeyCode::Char('b') if key.modifiers == KeyModifiers::CONTROL => {
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::ToggleBookmark,
+                event_tx,
+            );
+        }
+        KeyCode::Char('b' | 'B')
+            if key.modifiers == KeyModifiers::ALT
+                || key.modifiers == (KeyModifiers::ALT | KeyModifiers::SHIFT)
+                || key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) =>
+        {
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::ListBookmarks,
                 event_tx,
             );
         }
@@ -375,7 +416,7 @@ pub fn handle_global_input(
                 event_tx,
             );
         }
-        KeyCode::Char('g')
+        KeyCode::Char('g' | 'G')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == (KeyModifiers::ALT | KeyModifiers::SHIFT) =>
         {
@@ -394,7 +435,9 @@ pub fn handle_global_input(
                 event_tx,
             );
         }
-        KeyCode::Char('n') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+        KeyCode::Char('n' | 'N')
+            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) =>
+        {
             handle_menu_action(
                 core,
                 ui_state,

@@ -607,7 +607,7 @@ impl Widget for CharsetView {
 
         let result = match key.code {
             // Escape cancels visual mode / selection
-            KeyCode::Esc => {
+            KeyCode::Esc if key.modifiers.is_empty() => {
                 if ui_state.charset_selection_start.is_some() || ui_state.is_visual_mode {
                     ui_state.charset_selection_start = None;
                     ui_state.is_visual_mode = false;
@@ -618,7 +618,9 @@ impl Widget for CharsetView {
                 }
             }
             // Visual mode toggle
-            KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
+            KeyCode::Char('V')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 if !app_state.raw_data.is_empty() {
                     ui_state.is_visual_mode = !ui_state.is_visual_mode;
                     if ui_state.is_visual_mode {
@@ -692,9 +694,9 @@ impl Widget for CharsetView {
                 ui_state.charset_selection_start = selection_to_keep;
                 WidgetResult::Handled
             }
-            KeyCode::Left | KeyCode::Char('h')
-                if key.modifiers.is_empty() || key.code == KeyCode::Left =>
-            {
+            // Guard `Left`/`Right`/`h`/`l` with `key.modifiers.is_empty()` so modified arrow keys
+            // (such as `Alt+Left`/`Alt+Right` or `Ctrl+Left`/`Ctrl+Right`) are not swallowed here.
+            KeyCode::Left | KeyCode::Char('h') if key.modifiers.is_empty() => {
                 ui_state.input_buffer.clear();
                 if ui_state.is_visual_mode {
                     if ui_state.charset_selection_start.is_none() {
@@ -708,9 +710,7 @@ impl Widget for CharsetView {
                 }
                 WidgetResult::Handled
             }
-            KeyCode::Right | KeyCode::Char('l')
-                if key.modifiers.is_empty() || key.code == KeyCode::Right =>
-            {
+            KeyCode::Right | KeyCode::Char('l') if key.modifiers.is_empty() => {
                 ui_state.input_buffer.clear();
                 if ui_state.is_visual_mode {
                     if ui_state.charset_selection_start.is_none() {
@@ -754,9 +754,12 @@ impl Widget for CharsetView {
                 let end_offset = (end_char_addr.saturating_sub(origin))
                     .min(app_state.raw_data.len().saturating_sub(1));
 
-                // Clear selection after action
+                // Clear all selection state (including `selection_start` synced to Core) before
+                // dispatching `SetBytesBlockByOffset` so `handle_menu_action` syncs the cleared
+                // visual/selection flags into `core.view`.
                 ui_state.charset_selection_start = None;
                 ui_state.is_visual_mode = false;
+                ui_state.selection_start = None;
 
                 if start_offset < app_state.raw_data.len() {
                     WidgetResult::Action(AppAction::SetBytesBlockByOffset {
@@ -767,7 +770,7 @@ impl Widget for CharsetView {
                     WidgetResult::Ignored
                 }
             }
-            KeyCode::Enter => {
+            KeyCode::Enter if key.modifiers.is_empty() => {
                 let origin = app_state.origin.0 as usize;
                 let base_alignment = 0x400;
                 let aligned_start_addr = (origin / base_alignment) * base_alignment;

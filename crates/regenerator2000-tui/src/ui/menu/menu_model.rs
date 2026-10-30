@@ -1,6 +1,7 @@
 use crate::state::actions::AppAction;
 use crate::ui_state::ActivePane;
 
+/// State of the top-level application menu bar (Layer 2 of the keyboard shortcut architecture).
 #[derive(Default)]
 pub struct MenuState {
     pub active: bool,
@@ -10,6 +11,10 @@ pub struct MenuState {
 }
 
 impl MenuState {
+    /// Constructs the canonical menu bar hierarchy with shortcut labels and [`AppAction`] bindings.
+    ///
+    /// Every shortcut declared here is verified against [`crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::get_shortcuts`]
+    /// and `docs/keyboard_shortcuts.md` by the Pillar 3 synchronization contract test.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -103,7 +108,11 @@ impl MenuState {
                             Some("S"),
                             Some(AppAction::ScreencodeText),
                         ),
-                        MenuItem::new("External File", Some("E"), Some(AppAction::SetExternalFile)),
+                        MenuItem::new(
+                            "External File",
+                            Some("Shift+E"),
+                            Some(AppAction::SetExternalFile),
+                        ),
                         MenuItem::new("Undefined", Some("?"), Some(AppAction::Undefined)),
                         MenuItem::separator(),
                         MenuItem::new(

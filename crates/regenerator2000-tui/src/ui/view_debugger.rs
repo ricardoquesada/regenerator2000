@@ -746,7 +746,8 @@ impl Widget for DebuggerView {
         _app_state: &mut AppState,
         _ui_state: &mut UIState,
     ) -> WidgetResult {
-        if key.code == crossterm::event::KeyCode::Char('m') {
+        // Require `key.modifiers.is_empty()` so `Ctrl+M` / `Alt+M` fall through to global handling.
+        if key.code == crossterm::event::KeyCode::Char('m') && key.modifiers.is_empty() {
             WidgetResult::Action(crate::state::actions::AppAction::ViceMemoryDumpDialog)
         } else {
             WidgetResult::Ignored

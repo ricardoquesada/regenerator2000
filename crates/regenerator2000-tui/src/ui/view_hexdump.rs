@@ -580,7 +580,7 @@ impl Widget for HexDumpView {
                 WidgetResult::Handled
             }
             // Escape cancels visual mode / selection
-            KeyCode::Esc => {
+            KeyCode::Esc if key.modifiers.is_empty() => {
                 if ui_state.hex_selection_start.is_some() || ui_state.is_visual_mode {
                     ui_state.hex_selection_start = None;
                     ui_state.is_visual_mode = false;
@@ -590,8 +590,11 @@ impl Widget for HexDumpView {
                     WidgetResult::Ignored
                 }
             }
-            // Visual mode toggle
-            KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
+            // Visual mode toggle (accepts both `KeyModifiers::NONE` and `KeyModifiers::SHIFT`
+            // for uppercase `'V'` across terminals).
+            KeyCode::Char('V')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 if !app_state.raw_data.is_empty() {
                     ui_state.is_visual_mode = !ui_state.is_visual_mode;
                     if ui_state.is_visual_mode {
@@ -662,7 +665,9 @@ impl Widget for HexDumpView {
             KeyCode::Char('m') if key.modifiers.is_empty() => {
                 WidgetResult::Action(AppAction::HexdumpViewModeNext)
             }
-            KeyCode::Char('M') if key.modifiers == KeyModifiers::SHIFT => {
+            KeyCode::Char('M')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 WidgetResult::Action(AppAction::HexdumpViewModePrev)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
@@ -724,7 +729,7 @@ impl Widget for HexDumpView {
                     WidgetResult::Ignored
                 }
             }
-            KeyCode::Enter => {
+            KeyCode::Enter if key.modifiers.is_empty() => {
                 let origin = app_state.origin.0 as usize;
                 let alignment_padding = origin % bytes_per_row;
                 let aligned_origin = origin - alignment_padding;

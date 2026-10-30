@@ -9,6 +9,8 @@ use ratatui::widgets::{Block, Clear, List, ListItem, ListState};
 
 use crate::ui::widget::{Widget, WidgetResult};
 
+/// Modal help dialog displaying all application keyboard shortcuts (Layer 3 of the keyboard
+/// shortcut architecture).
 pub struct ShortcutsDialog {
     pub scroll_offset: usize,
 }
@@ -20,12 +22,20 @@ impl Default for ShortcutsDialog {
 }
 
 impl ShortcutsDialog {
+    /// Creates a new [`ShortcutsDialog`] scrolled to the top.
     #[must_use]
     pub fn new() -> Self {
         Self { scroll_offset: 0 }
     }
 
-    fn get_shortcuts() -> Vec<(&'static str, &'static str)> {
+    /// Returns the canonical list of keyboard shortcut categories and `(key, description)` pairs
+    /// displayed in the Help -> Keyboard Shortcuts dialog.
+    ///
+    /// This table serves as Layer 3 of the 4-layer keyboard shortcut architecture and is
+    /// cross-checked against [`crate::ui::menu::MenuState::new`] and `docs/keyboard_shortcuts.md`
+    /// by the Pillar 3 synchronization contract test.
+    #[must_use]
+    pub fn get_shortcuts() -> Vec<(&'static str, &'static str)> {
         vec![
             ("General", ""),
             ("F10", "Activate Main Menu"),
@@ -86,12 +96,14 @@ impl ShortcutsDialog {
             ("d", "Disassemble Address (flow analysis)"),
             ("c", "Code"),
             ("r", "Add Scope"),
+            ("Alt+Up / Alt+Down", "Nudge Scope Boundary"),
             ("b", "Byte"),
             ("w", "Word"),
             ("a", "Address"),
             ("p", "Petscii Text"),
             ("s", "Screencode Text"),
-            ("e", "External File"),
+            ("e", "Apply Enum"),
+            ("Shift+e", "External File"),
             ("?", "Undefined"),
             ("i / I", "Next/Prev Immediate Mode Format"),
             ("[", "Pack Lo/Hi Address (Immediate Mode)"),

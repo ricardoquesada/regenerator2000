@@ -267,7 +267,7 @@ impl Widget for BlocksView {
         let blocks = app_state.get_blocks_view_items();
 
         match key.code {
-            // Enter to jump to address of block
+            // Enter (unmodified) jumps to the start address of the selected block in Disassembly.
             KeyCode::Enter if key.modifiers.is_empty() => {
                 let idx = ui_state.blocks_list_state.selected().unwrap_or(0);
                 if idx < blocks.len() {
@@ -298,6 +298,8 @@ impl Widget for BlocksView {
                 }
                 WidgetResult::Handled
             }
+            // Ctrl+k collapses/expands the block highlighted at `blocks_list_state.selected()`
+            // (synced to `core.view.blocks_selected_index` by `handle_menu_action`).
             KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(AppAction::ToggleCollapsedBlock)
             }

@@ -677,7 +677,7 @@ impl Widget for SpritesView {
 
         let result = match key.code {
             // Escape cancels visual mode / selection
-            KeyCode::Esc => {
+            KeyCode::Esc if key.modifiers.is_empty() => {
                 if ui_state.sprites_selection_start.is_some() || ui_state.is_visual_mode {
                     ui_state.sprites_selection_start = None;
                     ui_state.is_visual_mode = false;
@@ -688,7 +688,9 @@ impl Widget for SpritesView {
                 }
             }
             // Visual mode toggle
-            KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
+            KeyCode::Char('V')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 if !app_state.raw_data.is_empty() {
                     ui_state.is_visual_mode = !ui_state.is_visual_mode;
                     if ui_state.is_visual_mode {
@@ -761,9 +763,12 @@ impl Widget for SpritesView {
                 let end_offset_abs = end_addr.min(end_address.saturating_sub(1));
                 let end_offset = end_offset_abs.saturating_sub(origin);
 
-                // Clear selection after action
+                // Clear all selection state (including `selection_start` synced to Core) before
+                // dispatching `SetBytesBlockByOffset` so `handle_menu_action` syncs the cleared
+                // visual/selection flags into `core.view`.
                 ui_state.sprites_selection_start = None;
                 ui_state.is_visual_mode = false;
+                ui_state.selection_start = None;
 
                 if start_offset < app_state.raw_data.len() && start_offset <= end_offset {
                     WidgetResult::Action(AppAction::SetBytesBlockByOffset {
@@ -774,7 +779,7 @@ impl Widget for SpritesView {
                     WidgetResult::Ignored
                 }
             }
-            KeyCode::Enter => {
+            KeyCode::Enter if key.modifiers.is_empty() => {
                 let origin = app_state.origin.0 as usize;
                 let aligned_origin = (origin / 64) * 64;
                 let sprite_offset = ui_state.sprites_cursor_index * 64;

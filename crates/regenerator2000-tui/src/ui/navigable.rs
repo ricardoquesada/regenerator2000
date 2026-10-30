@@ -3,6 +3,8 @@ use crate::ui::widget::WidgetResult;
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+/// Shared cursor-navigation contract implemented by all scrollable/grid TUI views
+/// (`DisassemblyView`, `HexDumpView`, `SpritesView`, `CharsetView`, `BitmapView`, `BlocksView`).
 pub trait Navigable {
     fn len(&self, app_state: &AppState) -> usize;
     fn current_index(&self, app_state: &AppState, ui_state: &UIState) -> usize;
@@ -21,6 +23,12 @@ pub trait Navigable {
     fn item_name(&self) -> &str;
 }
 
+/// Processes standard navigation keys (`Up`/`Down`/`j`/`k`, `PageUp`/`PageDown`, `Ctrl+u`/`Ctrl+d`,
+/// `Home`/`End`, numeric prefix counts `0`–`9`, and `[N]G` / `Shift+G`) for any [`Navigable`] view.
+///
+/// Unmodified `Up` and `Down` are strictly guarded by `key.modifiers.is_empty()` so that modified
+/// arrow keys (`Shift+Up`/`Down` for selection extension and `Alt+Up`/`Down` for scope boundary
+/// nudging) fall through to the view-specific handler.
 pub fn handle_nav_input<T: Navigable>(
     target: &T,
     key: KeyEvent,
@@ -87,7 +95,9 @@ pub fn handle_nav_input<T: Navigable>(
             target.jump_to(app_state, ui_state, len.saturating_sub(1));
             WidgetResult::Handled
         }
-        KeyCode::Char('G') if key.modifiers == KeyModifiers::SHIFT => {
+        // Accept both `KeyModifiers::NONE` and `KeyModifiers::SHIFT` for uppercase `'G'` across
+        // different terminal backends while rejecting `Ctrl+Shift+G` / `Alt+Shift+G` (`JumpToLine`).
+        KeyCode::Char('G') if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT => {
             let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
             let is_buffer_empty = ui_state.input_buffer.is_empty();
             let active_pane = ui_state.active_pane;
@@ -120,6 +130,8 @@ pub fn handle_nav_input<T: Navigable>(
     }
 }
 
+/// Switches focus to [`crate::ui_state::ActivePane::Disassembly`] at the line containing
+/// `target_addr`, recording the caller pane and index in `navigation_history`.
 pub fn jump_to_disassembly_at_address(
     app_state: &AppState,
     ui_state: &mut UIState,
@@ -129,6 +141,8 @@ pub fn jump_to_disassembly_at_address(
     jump_to_disassembly_at_line_idx(ui_state, line_idx, target_addr)
 }
 
+/// Switches focus to [`crate::ui_state::ActivePane::Disassembly`] at `line_idx` (if `Some`),
+/// recording the previous pane's cursor position in `navigation_history` for `Backspace` navigation.
 pub fn jump_to_disassembly_at_line_idx(
     ui_state: &mut UIState,
     line_idx: Option<usize>,

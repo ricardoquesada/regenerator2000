@@ -1,7 +1,7 @@
 use crate::state::AppState;
 use crate::ui::graphics_common::VIC_II_RGB;
 use crate::ui_state::{ActivePane, AppAction, ScreenRamMode, UIState};
-use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use image::{DynamicImage, Rgb, RgbImage};
 use ratatui::{
     Frame,
@@ -331,8 +331,13 @@ impl Widget for BitmapView {
             return WidgetResult::Handled;
         }
 
+        // All view-local single-character and `Enter` bindings must explicitly guard on
+        // `key.modifiers.is_empty()` (or `NONE | SHIFT` for uppercase `'S'`) because
+        // `handle_key_event_active_view` delegates to the active pane BEFORE `handle_global_input`.
+        // Without these guards, `'s'`, `'x'`, and `'b'` would shadow global `Ctrl+S`/`Alt+S` (Save),
+        // `Ctrl+X` (Find References), and `Ctrl+B`/`Alt+B` (Bookmarks).
         match key.code {
-            KeyCode::Char('s') => {
+            KeyCode::Char('s') if key.modifiers.is_empty() => {
                 // Cycle forward through the 16 bank offsets
                 ui_state.bitmap_screen_ram_mode = match ui_state.bitmap_screen_ram_mode {
                     ScreenRamMode::AfterBitmap => ScreenRamMode::BankOffset(0),
@@ -342,7 +347,9 @@ impl Widget for BitmapView {
                 };
                 WidgetResult::Handled
             }
-            KeyCode::Char('S') => {
+            KeyCode::Char('S')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 // Cycle backward through the 16 bank offsets
                 ui_state.bitmap_screen_ram_mode = match ui_state.bitmap_screen_ram_mode {
                     ScreenRamMode::AfterBitmap => ScreenRamMode::BankOffset(15),
@@ -356,13 +363,15 @@ impl Widget for BitmapView {
                 };
                 WidgetResult::Handled
             }
-            KeyCode::Char('x') => {
+            KeyCode::Char('x') if key.modifiers.is_empty() => {
                 // Set to "After Bitmap" mode
                 ui_state.bitmap_screen_ram_mode = ScreenRamMode::AfterBitmap;
                 WidgetResult::Handled
             }
-            KeyCode::Char('m') => WidgetResult::Action(AppAction::ToggleBitmapMulticolor),
-            KeyCode::Char('b') => {
+            KeyCode::Char('m') if key.modifiers.is_empty() => {
+                WidgetResult::Action(AppAction::ToggleBitmapMulticolor)
+            }
+            KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert current bitmap to bytes block (8000 bytes per bitmap)
                 let origin = app_state.origin.0 as usize;
                 // Align to floor boundary to support partial bitmaps
@@ -390,7 +399,7 @@ impl Widget for BitmapView {
                     WidgetResult::Ignored
                 }
             }
-            KeyCode::Enter => {
+            KeyCode::Enter if key.modifiers.is_empty() => {
                 let origin = app_state.origin.0 as usize;
                 // Align to floor boundary to support partial bitmaps
                 let aligned_origin = (origin / 8192) * 8192;
