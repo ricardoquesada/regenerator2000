@@ -297,6 +297,62 @@ Each corpus case is evaluated by one of three explicit oracle rules:
 2. **Recorded `unp64` Reference (`[case.unp64]`)**: By default, cases without an original binary must match the range, entry point, length, and FNV-1a-64 payload hash recorded from `unp64` v2.42 (`cargo run -p regenerator2000-core --bin unpacker_compare_all -- --update`).
 3. **Reviewed Exceptions (`[case.accepted_divergence]` & `expected_fail`)**: Because `unp64` does not track memory writes or diff RAM snapshots (for example, defaulting its end address to `$FFFF` when no end scanner fires, or differing by 1 byte at the BASIC link/load boundary), any case where Regenerator 2000 differs from `unp64` must carry an explicit, reviewed `accepted_divergence` entry (or `expected_fail` marker). For every `accepted_divergence`, only the listed `fields` (`start`, `end`, `entry`) may differ, and the unpacked payload over the overlapping range (`[case.unp64.overlap]`) must still match `unp64` byte-for-byte.
 
+### Running `unpacker_compare_all` & Updating the Corpus
+
+#### 1. Live Comparison Against `unp64` (`unpacker_compare_all`)
+
+`unpacker_compare_all` runs both Regenerator 2000 and the external `unp64` binary (resolved from `$UNP64`, `PATH`, or `~/.local/bin/unp64`) over every `[[case]]` in `tests/6502/unpack_corpus.toml`:
+
+```bash
+# Print a Markdown comparison report (summary + per-case provenance table + action items)
+cargo run -p regenerator2000-core --bin unpacker_compare_all -- --markdown
+
+# Verify that the installed unp64 still matches the recorded [case.unp64] entries
+cargo run -p regenerator2000-core --bin unpacker_compare_all -- --check
+
+# Run --check and print the Markdown report in one pass
+cargo run -p regenerator2000-core --bin unpacker_compare_all -- --check --markdown
+
+# Record unp64's results into tests/6502/unpack_corpus.toml and propose unsigned exceptions
+cargo run -p regenerator2000-core --bin unpacker_compare_all -- --update
+```
+
+| Exit Code | Meaning |
+| :--- | :--- |
+| `0` | Success (no drift between `unp64` and `tests/6502/unpack_corpus.toml`) |
+| `1` | `--check` detected drift between `unp64` and the recorded `[case.unp64]` tables |
+| `2` | Usage error or tool failure (missing `unp64`, invalid manifest, or unrecordable output) |
+
+#### 2. Offline Corpus Test & Baseline Regeneration (`unpack_corpus`)
+
+The `unpack_corpus` integration test validates Regenerator 2000 against the recorded `unp64` hashes, ground-truth originals, and `tests/6502/unpack_baseline.toml` without requiring `unp64` to be installed:
+
+```bash
+# Run the full corpus oracle and baseline check
+cargo test -p regenerator2000-core --test unpack_corpus
+
+# Filter to a specific packer, filename substring, or ground-truth group
+CORPUS_FILTER=dali cargo test -p regenerator2000-core --test unpack_corpus
+CORPUS_FILTER=mule cargo test -p regenerator2000-core --test unpack_corpus
+
+# Regenerate tests/6502/unpack_baseline.toml after an intentional unpacker change
+UPDATE_UNPACK_BASELINE=1 cargo test -p regenerator2000-core --test unpack_corpus
+```
+
+| Environment Variable | Purpose |
+| :--- | :--- |
+| `UNP64=/path/to/unp64` | Overrides the `unp64` binary path used by `unpacker_compare_all` |
+| `CORPUS_FILTER=<pattern>` | Runs only cases or groups whose name contains `<pattern>` (groups always run whole) |
+| `UPDATE_UNPACK_BASELINE=1` | Rewrites `tests/6502/unpack_baseline.toml` from a full, unfiltered corpus run |
+| `UNPACK_CORPUS_TIME_LIMIT_SECS=<secs>` | Overrides the default wall-clock budget (`30` seconds) for the full corpus test |
+
+#### 3. Workflow to Add or Update Corpus Cases
+
+1. **Add the fixture**: Copy the `.prg` file into `tests/6502/` and append a `[[case]]` entry (`file = "<name>.prg"`, plus optional `group` or `max_instructions`) to `tests/6502/unpack_corpus.toml`.
+2. **Record `unp64` reference**: Run `cargo run -p regenerator2000-core --bin unpacker_compare_all -- --update`. This populates `[case.unp64]` and `[case.unp64.overlap]`, removes stale exceptions that now agree, and writes unsigned `[case.accepted_divergence]` proposals for benign range differences (`padding_byte`, `unp64_default_end`, `unp64_default_start`, `unp64_missing_opcode`, `unexplained`).
+3. **Review and sign exceptions**: Inspect any new `[case.accepted_divergence]` blocks in `tests/6502/unpack_corpus.toml` and add `reviewed_by = "<your name>"` (and a `reason`). Never accept `payload_mismatch` or `entry_mismatch` blindly.
+4. **Update the baseline and divergence table**: Run `UPDATE_UNPACK_BASELINE=1 cargo test -p regenerator2000-core --test unpack_corpus`, update the divergence table below if the set of divergent cases changed, and verify with `cargo test -p regenerator2000-core --test unpack_corpus`.
+
 ### Accepted Divergences & Expected Failures (`tests/6502/unpack_corpus.toml`)
 
 The table below lists every case in `tests/6502/unpack_corpus.toml` that carries an `accepted_divergence` or `expected_fail` marker (kept in sync with the manifest by test `docs_divergence_table_in_sync_with_manifest` in `crates/regenerator2000-core/tests/unpack_corpus.rs`):
