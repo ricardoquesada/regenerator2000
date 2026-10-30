@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.21] - 2026-10-29
+
+### Features
+
+- **Unpacker**: Add Antiram Packer, TSCrunch, 1001 Card Cruncher, and MC-Cracken unpacker support.
+- **Unpacker**: Add MOS 6526 CIA 1 & CIA 2 timer emulation and C64 `$00`/`$01` processor port banking with I/O write protection.
+- **Unpacker**: Add 3-tier unpacker corpus oracle (`unpack_corpus.toml` / `unpack_baseline.toml`) and rewrite `unpacker_compare_all` with `--update`, `--check`, and `--markdown` modes.
+- **State**: Add project schema versioning (`schema_version`) to `.regen2000proj` files.
+- **Tools**: Add `c64ref` (pagetable) to Regenerator 2000 asset converter utility.
+
+### Fixes
+
+- **Unpacker**: Fix Exomizer 3.02+ entry point detection, zero-page tracking, and timeouts.
+- **Unpacker**: Fix TSCrunch depacker output end address calculation.
+- **Unpacker**: Fix entry point override for direct machine code jumps.
+- **Parser**: Fix BASIC `SYS` line expression parsing and deduplicate `SYS` evaluation into `parser::basic`.
+- **Core**: Fix address bounds checking and metadata calculation for full 64 KiB binaries.
+- **UI**: Restore Disassembly View keyboard shortcuts and Jump to Operand.
+- **UI**: Fix double history push on address jump navigation.
+- **UI**: Fix Import Context dialog right border offset caused by emoji width.
+
+### Changes
+
+- **Analyzer**: Update default entropy warning threshold to `7.4`.
+
+### Refactor / Internal
+
+- **Unpacker**: Refactor 6502 unpacker to an explicit 2-phase `RunState` state machine (`Machine`, `MemoryBus` with `DirtyBitmap`/`WrittenBitmap`, and `BoundSource` boundary resolution) and declarative `PackerSpec` registry.
+- **Unpacker**: Make unpacker system-agnostic via `TargetSystem` methods and unify TUI and MCP post-unpack initialization in `AppState::apply_unpacked_prg`.
+- **Core**: Decompose `core.rs` into modular domain action handlers (`action_handlers/`) and `disassembler.rs` into a multi-module `disassembler/` subsystem.
+- **State**: Consolidate sparse per-address metadata into `AnnotationManager` and replace `System(String)` with a strongly-typed `TargetSystem` enum.
+- **Error Handling**: Standardize domain error hierarchy with `thiserror` (`CoreError`).
+- **MCP**: Re-categorize MCP tools into modular submodules under `mcp/tools/`.
+- **Testing & CI**: Add multi-assembler roundtrip verification tests, deterministic unpacker fuzz tests, and enforce `--all-targets` in Clippy.
+
+### Documentation
+
+- **Docs**: Rewrite `README.md` and `docs/` in ASD-STE100 Simplified Technical English and update `docs/architecture.md` and `docs/unpacker.md` for the declarative unpacker and `unpacker_compare_all` CLI workflow.
+
 ## [0.9.20] - 2026-07-11
 
 ### Features
