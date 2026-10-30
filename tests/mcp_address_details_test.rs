@@ -31,12 +31,11 @@ mod tests {
             panic!("Tool {} failed with McpError: {:?}", name, err);
         }
         let result = response.result.expect("Expected result");
-        if let Some(content) = result.get("content").and_then(|c| c.as_array()) {
-            let text = content[0]["text"].as_str().unwrap();
-            serde_json::from_str(text).unwrap()
-        } else {
-            result
-        }
+        let content = result["content"]
+            .as_array()
+            .expect("Expected CallToolResult content array");
+        let text = content[0]["text"].as_str().unwrap();
+        serde_json::from_str(text).unwrap()
     }
 
     #[test]

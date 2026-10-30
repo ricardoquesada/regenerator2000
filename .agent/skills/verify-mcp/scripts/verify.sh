@@ -1,6 +1,22 @@
 #!/bin/bash
 
 LOG_FILE=".agent/skills/verify-mcp/server.log"
+TEST_PROJECT_SRC="tests/6502/rq_intro_01.regen2000proj"
+TEMP_DIR=""
+SERVER_PID=""
+ALREADY_RUNNING=0
+
+cleanup() {
+    if [ "$ALREADY_RUNNING" -eq 0 ] && [ -n "$SERVER_PID" ]; then
+        echo "Stopping MCP Server (PID $SERVER_PID)..."
+        kill "$SERVER_PID" 2>/dev/null
+    fi
+    if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+        rm -rf "$TEMP_DIR"
+    fi
+    rm -f "$LOG_FILE"
+}
+trap cleanup EXIT
 
 # Function to check if port 3000 is open
 check_port() {
@@ -13,15 +29,24 @@ if check_port; then
     echo "MCP Server is already running."
     ALREADY_RUNNING=1
 else
-    echo "Starting MCP Server (logging to $LOG_FILE)..."
+    if [ ! -f "$TEST_PROJECT_SRC" ]; then
+        echo "Error: Test project not found at $TEST_PROJECT_SRC"
+        exit 1
+    fi
+
+    TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/verify_mcp.XXXXXX")"
+    TEMP_PROJECT="$TEMP_DIR/rq_intro_01.regen2000proj"
+    cp "$TEST_PROJECT_SRC" "$TEMP_PROJECT"
+
+    echo "Starting MCP Server with test project $TEST_PROJECT_SRC (logging to $LOG_FILE)..."
     # Build first to verify compilation and avoid timeout during run
     if ! cargo build; then
         echo "Build failed."
         exit 1
     fi
 
-    # Start server in background
-    cargo run -- --headless --mcp-server > "$LOG_FILE" 2>&1 &
+    # Start server in background using the isolated test project copy
+    cargo run -- --headless --mcp-server "$TEMP_PROJECT" > "$LOG_FILE" 2>&1 &
     SERVER_PID=$!
 
     # Wait for server to be ready (up to 30 seconds)
@@ -40,8 +65,6 @@ else
         echo "=== Server Log ==="
         cat "$LOG_FILE"
         echo "=================="
-        # Kill process if it's still running (unlikely if it crashed)
-        kill $SERVER_PID 2>/dev/null
         exit 1
     fi
     ALREADY_RUNNING=0
@@ -62,13 +85,5 @@ echo "Installing requirements..."
 echo "Running verification tests..."
 "$VENV_DIR/bin/python" tests/verify_mcp.py
 EXIT_CODE=$?
-
-# Cleanup
-if [ "$ALREADY_RUNNING" -eq 0 ]; then
-    echo "Stopping MCP Server (PID $SERVER_PID)..."
-    kill $SERVER_PID
-    # Optional: remove log file on success?
-    # rm "$LOG_FILE"
-fi
 
 exit $EXIT_CODE

@@ -116,14 +116,14 @@ pub fn convert_region(
     if start > end {
         return Err(make_mcp_error(
             -32602,
-            format!("Invalid address range: start (${start}) > end (${end})"),
+            format!("Invalid address range: start ({start}) > end ({end})"),
         ));
     }
 
     if app_state.is_external(start) || app_state.is_external(end) {
         return Err(make_mcp_error(
             -32602,
-            format!("Address range ${start}..=${end} is outside loaded binary range"),
+            format!("Address range {start}..={end} is outside loaded binary range"),
         ));
     }
 
@@ -144,8 +144,10 @@ pub fn convert_region(
     app_state.disassemble();
 
     Ok(serde_json::json!({
-        "status": "success",
-        "message": format!("Converted region ${start}..=${end} to {target_type:?}")
+        "content": [{
+            "type": "text",
+            "text": format!("Region {start}-{end} converted to {target_type:?}")
+        }]
     }))
 }
 

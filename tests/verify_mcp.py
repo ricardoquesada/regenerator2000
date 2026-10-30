@@ -313,6 +313,26 @@ REMOVED_TOOLS = {
 # Tests
 # ---------------------------------------------------------------------------
 
+BASE_ADDR = 0x0800
+
+
+def detect_base_address(client):
+    global BASE_ADDR
+    res = client.rpc("tools/call", {
+        "name": "r2000_get_binary_info",
+        "arguments": {}
+    })
+    if res and "result" in res:
+        content = res["result"].get("content", [])
+        text = content[0].get("text", "") if content else ""
+        try:
+            data = json.loads(text)
+            if isinstance(data.get("origin"), int) and data.get("size", 0) >= 256:
+                BASE_ADDR = data["origin"]
+        except Exception:
+            pass
+
+
 def test_list_tools(client):
     print("\nTesting tools/list...")
     res = client.rpc("tools/list")
@@ -340,7 +360,7 @@ def test_set_label(client):
     res = client.rpc("tools/call", {
         "name": "r2000_set_label_name",
         "arguments": {
-            "address": 4096,
+            "address": BASE_ADDR,
             "name": "TEST_LABEL"
         }
     })
@@ -363,7 +383,7 @@ def test_set_comment(client):
     res = client.rpc("tools/call", {
         "name": "r2000_set_comment",
         "arguments": {
-            "address": 0x1000,
+            "address": BASE_ADDR,
             "comment": "added by MCP test",
             "type": "line"
         }
@@ -383,7 +403,7 @@ def test_set_comment(client):
     res = client.rpc("tools/call", {
         "name": "r2000_set_comment",
         "arguments": {
-            "address": 0x1000,
+            "address": BASE_ADDR,
             "comment": "side comment by MCP test",
             "type": "side"
         }
@@ -403,18 +423,18 @@ def test_set_data_type(client):
     print("\nTesting r2000_set_data_type...")
 
     cases = [
-        ("code",          0x1000, 0x100F),
-        ("byte",          0x1010, 0x101F),
-        ("word",          0x1020, 0x102F),
-        ("address",       0x1030, 0x1033),
-        ("petscii",       0x1040, 0x104F),
-        ("screencode",    0x1050, 0x105F),
-        ("lo_hi_address", 0x1060, 0x1067),
-        ("hi_lo_address", 0x1068, 0x106F),
-        ("lo_hi_word",    0x1070, 0x1077),
-        ("hi_lo_word",    0x1078, 0x107F),
-        ("external_file", 0x1080, 0x10FF),
-        ("undefined",     0x1000, 0x10FF),  # reset everything at the end
+        ("code",          BASE_ADDR + 0x00, BASE_ADDR + 0x0F),
+        ("byte",          BASE_ADDR + 0x10, BASE_ADDR + 0x1F),
+        ("word",          BASE_ADDR + 0x20, BASE_ADDR + 0x2F),
+        ("address",       BASE_ADDR + 0x30, BASE_ADDR + 0x33),
+        ("petscii",       BASE_ADDR + 0x40, BASE_ADDR + 0x4F),
+        ("screencode",    BASE_ADDR + 0x50, BASE_ADDR + 0x5F),
+        ("lo_hi_address", BASE_ADDR + 0x60, BASE_ADDR + 0x67),
+        ("hi_lo_address", BASE_ADDR + 0x68, BASE_ADDR + 0x6F),
+        ("lo_hi_word",    BASE_ADDR + 0x70, BASE_ADDR + 0x77),
+        ("hi_lo_word",    BASE_ADDR + 0x78, BASE_ADDR + 0x7F),
+        ("external_file", BASE_ADDR + 0x80, BASE_ADDR + 0xFF),
+        ("undefined",     BASE_ADDR + 0x00, BASE_ADDR + 0xFF),  # reset everything at the end
     ]
 
     all_pass = True
@@ -450,8 +470,8 @@ def test_set_data_type(client):
     res = client.rpc("tools/call", {
         "name": "r2000_set_data_type",
         "arguments": {
-            "start_address": 0x1000,
-            "end_address": 0x1001,
+            "start_address": BASE_ADDR,
+            "end_address": BASE_ADDR + 1,
             "data_type": "invalid_type_xyz"
         }
     })
@@ -477,8 +497,8 @@ def test_read_region(client):
     res = client.rpc("tools/call", {
         "name": "r2000_read_region",
         "arguments": {
-            "start_address": 4096,
-            "end_address": 4112,
+            "start_address": BASE_ADDR,
+            "end_address": BASE_ADDR + 16,
             "view": "disasm"
         }
     })
@@ -496,8 +516,8 @@ def test_read_region(client):
     res = client.rpc("tools/call", {
         "name": "r2000_read_region",
         "arguments": {
-            "start_address": 4096,
-            "end_address": 4112,
+            "start_address": BASE_ADDR,
+            "end_address": BASE_ADDR + 16,
             "view": "hexdump"
         }
     })
@@ -515,8 +535,8 @@ def test_read_region(client):
     res = client.rpc("tools/call", {
         "name": "r2000_read_region",
         "arguments": {
-            "start_address": 4096,
-            "end_address": 4097
+            "start_address": BASE_ADDR,
+            "end_address": BASE_ADDR + 1
         }
     })
     if res and "result" in res:
@@ -571,8 +591,8 @@ def test_get_binary_info(client):
         text = content[0].get("text", "") if content else ""
         try:
             data = json.loads(text)
-            if "origin" in data and "size" in data and "platform" in data:
-                print(f"PASS: origin={data['origin']}, size={data['size']}, platform={data['platform']!r}")
+            if "origin" in data and "size" in data and "system" in data:
+                print(f"PASS: origin={data['origin']}, size={data['size']}, system={data['system']!r}")
             else:
                 print(f"FAIL: Missing fields: {list(data.keys())}")
         except json.JSONDecodeError:
@@ -596,7 +616,7 @@ def test_misc_tools(client):
     print("- r2000_get_cross_references")
     res = client.rpc("tools/call", {
         "name": "r2000_get_cross_references",
-        "arguments": {"address": 0x1000}
+        "arguments": {"address": BASE_ADDR}
     })
     print("  PASS" if res and "result" in res else f"  FAIL: {res}")
 
@@ -637,12 +657,12 @@ def test_misc_tools(client):
     print("- r2000_set_immediate_format")
     res = client.rpc("tools/call", {
         "name": "r2000_set_immediate_format",
-        "arguments": {"address": 0x1000, "format": "binary"}
+        "arguments": {"address": BASE_ADDR, "format": "binary"}
     })
     print("  PASS" if res and "result" in res else f"  FAIL: {res}")
 
-    # Save Project — expect error (no project loaded)
-    print("- r2000_save_project (expect error)")
+    # Save Project
+    print("- r2000_save_project")
     res = client.rpc("tools/call", {
         "name": "r2000_save_project",
         "arguments": {}
@@ -650,7 +670,7 @@ def test_misc_tools(client):
     if res and "error" in res:
         print(f"  PASS: expected error — {res['error']['message']}")
     elif res and "result" in res:
-        print("  PASS: saved (unexpected but valid)")
+        print("  PASS: saved project")
     else:
         print(f"  FAIL: {res}")
 
@@ -746,7 +766,7 @@ def test_list_resources(client):
         resources = res["result"]["resources"]
         uris = [r["uri"] for r in resources]
         print(f"Found {len(resources)} resources: {uris}")
-        if "disasm://main" in uris and "binary://main" in uris:
+        if "disassembly://current" in uris and "binary://main" in uris:
             print("PASS")
         else:
             print("FAIL: Missing expected resources")
@@ -782,10 +802,11 @@ def test_jump_to_address(client):
         text = res1["result"].get("content", [{}])[0].get("text", "?")
         print(f"  Current: {text}")
 
-    print("- Jumping to $1000 (4096)...")
+    expected_hex = f"${BASE_ADDR:04X}"
+    print(f"- Jumping to {expected_hex} ({BASE_ADDR})...")
     res2 = client.rpc("tools/call", {
         "name": "r2000_jump_to_address",
-        "arguments": {"address": 4096}
+        "arguments": {"address": BASE_ADDR}
     })
     if res2 and "result" in res2:
         res3 = client.rpc("tools/call", {
@@ -795,7 +816,7 @@ def test_jump_to_address(client):
         if res3 and "result" in res3:
             addr_text = res3["result"].get("content", [{}])[0].get("text", "")
             print(f"  New cursor: {addr_text}")
-            print("PASS" if "$1000" in addr_text else "FAIL: Cursor did not move to $1000")
+            print("PASS" if expected_hex in addr_text else f"FAIL: Cursor did not move to {expected_hex}")
         else:
             print("FAIL: Could not verify cursor after jump")
     elif res2 and "error" in res2:
@@ -810,15 +831,15 @@ def test_batch_execute(client):
     calls = [
         {
             "name": "r2000_set_label_name",
-            "arguments": {"address": 0x1005, "name": "BATCH_LABEL"}
+            "arguments": {"address": BASE_ADDR + 5, "name": "BATCH_LABEL"}
         },
         {
             "name": "r2000_set_comment",
-            "arguments": {"address": 0x1005, "comment": "Batch Comment", "type": "side"}
+            "arguments": {"address": BASE_ADDR + 5, "comment": "Batch Comment", "type": "side"}
         },
         {
             "name": "r2000_set_data_type",
-            "arguments": {"start_address": 0x1000, "end_address": 0x100F, "data_type": "code"}
+            "arguments": {"start_address": BASE_ADDR, "end_address": BASE_ADDR + 0x0F, "data_type": "code"}
         },
     ]
 
@@ -851,7 +872,7 @@ def test_toggle_splitter(client):
     print("\nTesting r2000_toggle_splitter...")
     res = client.rpc("tools/call", {
         "name": "r2000_toggle_splitter",
-        "arguments": {"address": 0x1010}
+        "arguments": {"address": BASE_ADDR + 0x10}
     })
     if res and "result" in res:
         content = res["result"].get("content", [])
@@ -870,7 +891,7 @@ def test_add_scope(client):
     print("\nTesting r2000_add_scope...")
     res = client.rpc("tools/call", {
         "name": "r2000_add_scope",
-        "arguments": {"start_address": 0x1000, "end_address": 0x1010}
+        "arguments": {"start_address": BASE_ADDR, "end_address": BASE_ADDR + 0x10}
     })
     if res and "result" in res:
         content = res["result"].get("content", [])
@@ -1218,11 +1239,11 @@ def test_project_enums_crud(client):
         return
 
     # 1b. Apply enum usage
-    print("- Applying enum 'my_test_enum' to $1000")
+    print(f"- Applying enum 'my_test_enum' to ${BASE_ADDR:04X}")
     res = client.rpc("tools/call", {
         "name": "r2000_apply_enum_usage",
         "arguments": {
-            "address": 0x1000,
+            "address": BASE_ADDR,
             "name": "my_test_enum"
         }
     })
@@ -1240,11 +1261,11 @@ def test_project_enums_crud(client):
         return
 
     # 1c. Clear enum usage
-    print("- Clearing enum usage at $1000")
+    print(f"- Clearing enum usage at ${BASE_ADDR:04X}")
     res = client.rpc("tools/call", {
         "name": "r2000_apply_enum_usage",
         "arguments": {
-            "address": 0x1000
+            "address": BASE_ADDR
         }
     })
 
@@ -1329,6 +1350,7 @@ def test_unpack_binary(client):
 if __name__ == "__main__":
     client = MCPClient()
     client.start()
+    detect_base_address(client)
 
     test_list_tools(client)
     test_list_resources(client)

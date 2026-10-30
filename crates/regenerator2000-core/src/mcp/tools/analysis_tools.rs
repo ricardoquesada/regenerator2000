@@ -242,31 +242,58 @@ pub fn handle_call(
 ) -> Option<Result<Value, McpError>> {
     match name {
         "r2000_get_binary_info" => Some(Ok(get_binary_info_impl(app_state))),
-        "r2000_get_comments" => {
-            Some(get_comments_impl(app_state, args).map(|c| json!({ "comments": c })))
-        }
+        "r2000_get_comments" => Some(get_comments_impl(app_state, args).map(|comments| {
+            json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&comments).unwrap_or_default()
+                }]
+            })
+        })),
         "r2000_get_blocks" => {
             let filter = args.get("block_type").and_then(|v| v.as_str());
             let blocks = get_blocks_impl(app_state, filter);
-            Some(Ok(json!({ "blocks": blocks })))
+            Some(Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&blocks).unwrap_or_default()
+                }]
+            })))
         }
         "r2000_get_address_details" => {
             let address = match get_address(args, "address") {
                 Ok(addr) => addr,
                 Err(err) => return Some(Err(err)),
             };
-            Some(get_address_details_impl(app_state, address))
+            Some(get_address_details_impl(app_state, address).map(|details| {
+                json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string_pretty(&details).unwrap_or_default()
+                    }]
+                })
+            }))
         }
-        "r2000_get_symbols" => {
-            Some(get_symbols_impl(app_state, args).map(|s| json!({ "symbols": s })))
-        }
+        "r2000_get_symbols" => Some(get_symbols_impl(app_state, args).map(|symbols| {
+            json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&symbols).unwrap_or_default()
+                }]
+            })
+        })),
         "r2000_get_cross_references" => {
             let address = match get_address(args, "address") {
                 Ok(addr) => addr,
                 Err(err) => return Some(Err(err)),
             };
             let refs = get_cross_references_impl(app_state, address);
-            Some(Ok(json!({ "address": address, "cross_references": refs })))
+            Some(Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&refs).unwrap_or_default()
+                }]
+            })))
         }
         "r2000_add_scope" => Some(add_scope_impl(app_state, args)),
         "r2000_search_memory" => Some(search_memory_impl(app_state, args)),
@@ -796,8 +823,10 @@ fn add_scope_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpEr
     app_state.disassemble();
 
     Ok(json!({
-        "status": "success",
-        "message": format!("Added scope covering ${start_addr}..=${end_addr}. {msg}")
+        "content": [{
+            "type": "text",
+            "text": format!("Added Scope from {start_addr} to {end_addr}. {msg}")
+        }]
     }))
 }
 
@@ -1258,6 +1287,13 @@ mod tests {
             e.user_line_comment = Some("Another comment".to_string());
         });
 
+        let parse_comments = |res: Value| -> Vec<Value> {
+            let text = res["content"][0]["text"]
+                .as_str()
+                .expect("Expected CallToolResult content text");
+            serde_json::from_str(text).expect("Expected JSON array of comments")
+        };
+
         // Test all comments via handle_call
         let res = handle_call(
             "r2000_get_comments",
@@ -1267,7 +1303,7 @@ mod tests {
         )
         .expect("Tool call should match")
         .expect("Call should succeed");
-        let comments = res["comments"].as_array().expect("comments array");
+        let comments = parse_comments(res);
         assert_eq!(comments.len(), 3);
 
         // Test line filter
@@ -1279,7 +1315,7 @@ mod tests {
         )
         .unwrap()
         .unwrap();
-        let line_comments = line_res["comments"].as_array().unwrap();
+        let line_comments = parse_comments(line_res);
         assert_eq!(line_comments.len(), 2);
         assert_eq!(line_comments[0]["comment"], "Header line comment");
 
@@ -1292,7 +1328,7 @@ mod tests {
         )
         .unwrap()
         .unwrap();
-        let side_comments = side_res["comments"].as_array().unwrap();
+        let side_comments = parse_comments(side_res);
         assert_eq!(side_comments.len(), 1);
         assert_eq!(side_comments[0]["comment"], "Inline side comment");
 
@@ -1305,7 +1341,7 @@ mod tests {
         )
         .unwrap()
         .unwrap();
-        let range_comments = range_res["comments"].as_array().unwrap();
+        let range_comments = parse_comments(range_res);
         assert_eq!(range_comments.len(), 2);
 
         // Test addresses array filter
@@ -1317,9 +1353,34 @@ mod tests {
         )
         .unwrap()
         .unwrap();
-        let addrs_comments = addrs_res["comments"].as_array().unwrap();
+        let addrs_comments = parse_comments(addrs_res);
         assert_eq!(addrs_comments.len(), 1);
         assert_eq!(addrs_comments[0]["comment"], "Another comment");
+    }
+
+    #[test]
+    fn test_analysis_tools_return_valid_call_tool_result() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let view_state = make_view_state();
+
+        for (tool_name, args) in [
+            ("r2000_get_binary_info", json!({})),
+            ("r2000_get_comments", json!({})),
+            ("r2000_get_blocks", json!({})),
+            ("r2000_get_address_details", json!({ "address": 0x1000 })),
+            ("r2000_get_symbols", json!({})),
+            ("r2000_get_cross_references", json!({ "address": 0x1000 })),
+            (
+                "r2000_add_scope",
+                json!({ "start_address": 0x1000, "end_address": 0x1010 }),
+            ),
+        ] {
+            let res = handle_call(tool_name, &args, &mut app_state, &view_state)
+                .expect("Tool call should match")
+                .expect("Tool call should succeed");
+            serde_json::from_value::<rmcp::model::CallToolResult>(res)
+                .unwrap_or_else(|e| panic!("{tool_name} did not return CallToolResult: {e}"));
+        }
     }
 
     #[test]

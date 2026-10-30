@@ -718,6 +718,10 @@ fn main() -> Result<()> {
     // Create Core and load the real system config from disk
     let mut core = regenerator2000_core::Core::new();
     core.state.system_config = regenerator2000_core::config::SystemConfig::load();
+    if headless {
+        core.state.system_config.config_path_override =
+            Some(std::env::temp_dir().join("regenerator2000_headless_config.toml"));
+    }
 
     // Load built-in and global enums
     core.state.builtin_enums = regenerator2000_core::assets::load_builtin_enums();
@@ -758,8 +762,8 @@ fn main() -> Result<()> {
                 }
             }
         }
-    } else {
-        // No file specified — try to load the most recent project
+    } else if !headless {
+        // No file specified in interactive TUI mode — try to load the most recent project
         initial_load_result = core.state.resolve_initial_load(None);
         if let Some(Err(e)) = &initial_load_result {
             eprintln!("Error loading file: {e}");
