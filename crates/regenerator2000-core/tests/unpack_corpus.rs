@@ -46,8 +46,9 @@ const UPDATE_BASELINE_VALUE: &str = "1";
 const TIME_LIMIT_ENV: &str = "UNPACK_CORPUS_TIME_LIMIT_SECS";
 
 /// Wall-clock limit of a full parallel corpus run. Today it takes about a
-/// second; exceeding the limit means something regressed badly.
-const CORPUS_TIME_LIMIT: Duration = Duration::from_secs(10);
+/// second locally; a 30s ceiling catches runaway regressions without flaking
+/// when multiple corpus tests run concurrently on shared 2-vCPU CI runners.
+const CORPUS_TIME_LIMIT: Duration = Duration::from_secs(30);
 
 /// Every fixture of the former `unpacker` unit tests that were migrated into
 /// the manifest and deleted in M1.3, deduplicated: 31 from the known-PRG
