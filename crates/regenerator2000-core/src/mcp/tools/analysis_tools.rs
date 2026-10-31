@@ -490,9 +490,8 @@ pub(crate) fn get_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec
             let start_addr = origin.wrapping_add(start_offset);
             let end_addr = origin.wrapping_add(end_offset);
 
-            let type_str = current_type.to_string();
             let should_include = match filter {
-                Some(f) => type_str.eq_ignore_ascii_case(f),
+                Some(f) => current_type.matches_filter(f),
                 None => true,
             };
 
@@ -500,7 +499,7 @@ pub(crate) fn get_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec
                 blocks.push(json!({
                     "start_address": start_addr,
                     "end_address": end_addr,
-                    "type": type_str
+                    "type": current_type.to_string()
                 }));
             }
 
@@ -514,9 +513,8 @@ pub(crate) fn get_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec
     let end_offset = u16::try_from(end_idx).unwrap_or(u16::MAX);
     let start_addr = origin.wrapping_add(start_offset);
     let end_addr = origin.wrapping_add(end_offset);
-    let type_str = current_type.to_string();
     let should_include = match filter {
-        Some(f) => type_str.eq_ignore_ascii_case(f),
+        Some(f) => current_type.matches_filter(f),
         None => true,
     };
 
@@ -524,7 +522,7 @@ pub(crate) fn get_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec
         blocks.push(json!({
             "start_address": start_addr,
             "end_address": end_addr,
-            "type": type_str
+            "type": current_type.to_string()
         }));
     }
 
@@ -1506,5 +1504,32 @@ mod tests {
             .expect_err("Should fail for missing query");
         assert_eq!(err.code, -32602);
         assert!(err.message.contains("Missing 'query'"));
+    }
+
+    #[test]
+    fn test_r2000_get_blocks_filter_aliases() {
+        let mut app_state = make_app_state(0x1000, 32);
+        app_state.block_types[0..8].fill(crate::state::BlockType::PetsciiText);
+        app_state.block_types[8..16].fill(crate::state::BlockType::ScreencodeText);
+        app_state.block_types[16..24].fill(crate::state::BlockType::LoHiAddress);
+        app_state.block_types[24..32].fill(crate::state::BlockType::Undefined);
+
+        for alias in ["PETSCII Text", "PETSCII", "petscii"] {
+            let blocks = get_blocks_impl(&app_state, Some(alias));
+            assert_eq!(blocks.len(), 1, "failed for alias {alias}");
+            assert_eq!(blocks[0]["type"], "PETSCII Text");
+        }
+
+        for alias in ["Screencode Text", "Screencode", "screencode"] {
+            let blocks = get_blocks_impl(&app_state, Some(alias));
+            assert_eq!(blocks.len(), 1, "failed for alias {alias}");
+            assert_eq!(blocks[0]["type"], "Screencode Text");
+        }
+
+        for alias in ["Lo/Hi Address", "lo_hi_address"] {
+            let blocks = get_blocks_impl(&app_state, Some(alias));
+            assert_eq!(blocks.len(), 1, "failed for alias {alias}");
+            assert_eq!(blocks[0]["type"], "Lo/Hi Address");
+        }
     }
 }

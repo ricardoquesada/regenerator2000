@@ -209,37 +209,63 @@ pub fn run_app<B: Backend>(
     Ok(())
 }
 
-/// Spawns the MCP HTTP server thread and returns a shutdown sender handle.
+/// Spawns the MCP HTTP server thread on default port `3000` and returns a shutdown sender handle.
 #[must_use]
 pub fn spawn_mcp_server_thread(
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
+) -> Option<tokio::sync::oneshot::Sender<()>> {
+    spawn_mcp_server_thread_on_port(event_tx, 3000)
+}
+
+/// Spawns the MCP HTTP server thread on `port` and returns a shutdown sender handle.
+///
+/// The background thread binds `127.0.0.1:{port}` **before** emitting [`AppEvent::McpServerStarted`].
+/// If binding fails (for example, `Address already in use` because another instance already holds
+/// the port), it emits only [`AppEvent::McpError`] and exits without emitting
+/// [`AppEvent::McpServerStopped`], ensuring the error message in the TUI status bar is never
+/// overwritten by a spurious "MCP Server stopped." message.
+#[must_use]
+pub fn spawn_mcp_server_thread_on_port(
+    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+    port: u16,
 ) -> Option<tokio::sync::oneshot::Sender<()>> {
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
     let (mcp_req_tx, mut mcp_req_rx) = tokio::sync::mpsc::channel(100);
     let mcp_bridge_tx = event_tx.clone();
     let started_tx = event_tx.clone();
     let stopped_tx = event_tx.clone();
-    let port = 3000;
 
     std::thread::spawn(move || {
         let Ok(rt) = tokio::runtime::Runtime::new() else {
+            let _ = mcp_bridge_tx.send(AppEvent::McpError(
+                "Failed to initialize Tokio runtime for MCP server".to_string(),
+            ));
             return;
         };
-        rt.block_on(async {
-            let error_tx = mcp_bridge_tx.clone();
-            tokio::spawn(async move {
-                if let Err(e) = regenerator2000_core::mcp::http::run_server_with_shutdown(
-                    port,
+        rt.block_on(async move {
+            let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+            let listener = match tokio::net::TcpListener::bind(addr).await {
+                Ok(listener) => listener,
+                Err(e) => {
+                    log::error!("Failed to bind MCP HTTP server on 127.0.0.1:{port}: {e}");
+                    let _ = mcp_bridge_tx.send(AppEvent::McpError(format!(
+                        "Failed to bind 127.0.0.1:{port}: {e}"
+                    )));
+                    return;
+                }
+            };
+
+            let bound_port = listener.local_addr().map_or(port, |a| a.port());
+            let server_handle = tokio::spawn(async move {
+                regenerator2000_core::mcp::http::serve_listener_with_shutdown(
+                    listener,
                     mcp_req_tx,
                     shutdown_rx,
                 )
                 .await
-                {
-                    let _ = error_tx.send(AppEvent::McpError(e.to_string()));
-                }
             });
 
-            let _ = started_tx.send(AppEvent::McpServerStarted { port });
+            let _ = started_tx.send(AppEvent::McpServerStarted { port: bound_port });
 
             while let Some(req) = mcp_req_rx.recv().await {
                 if mcp_bridge_tx.send(AppEvent::Mcp(req)).is_err() {
@@ -247,7 +273,15 @@ pub fn spawn_mcp_server_thread(
                 }
             }
 
-            let _ = stopped_tx.send(AppEvent::McpServerStopped);
+            match server_handle.await {
+                Ok(Err(e)) => {
+                    log::error!("MCP HTTP server error on 127.0.0.1:{bound_port}: {e}");
+                    let _ = stopped_tx.send(AppEvent::McpError(e.to_string()));
+                }
+                Ok(Ok(())) | Err(_) => {
+                    let _ = stopped_tx.send(AppEvent::McpServerStopped);
+                }
+            }
         });
     });
 
@@ -1227,6 +1261,67 @@ mod tests {
         assert!(
             status.contains("written_code($080D)"),
             "status message missing exit reason: {status}"
+        );
+    }
+
+    #[test]
+    fn mcp_server_bind_failure_emits_only_mcp_error_without_clobbering() {
+        // Hold an ephemeral port so `spawn_mcp_server_thread_on_port` fails with `Address already in use`.
+        let occupied =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port for test");
+        let port = occupied.local_addr().expect("local_addr").port();
+
+        let (event_tx, event_rx) = std::sync::mpsc::channel::<AppEvent>();
+        let _shutdown_tx = spawn_mcp_server_thread_on_port(&event_tx, port);
+        drop(event_tx);
+
+        let mut events = Vec::new();
+        while let Ok(ev) = event_rx.recv_timeout(std::time::Duration::from_secs(5)) {
+            events.push(ev);
+        }
+
+        assert_eq!(
+            events.len(),
+            1,
+            "Expected exactly 1 event (McpError) on port bind conflict, got {}",
+            events.len()
+        );
+        match &events[0] {
+            AppEvent::McpError(msg) => {
+                assert!(
+                    msg.contains(&format!("127.0.0.1:{port}")),
+                    "Expected error message to mention port {port}, got: {msg}"
+                );
+            }
+            _ => panic!("Expected AppEvent::McpError on port bind conflict"),
+        }
+    }
+
+    #[test]
+    fn mcp_server_clean_start_and_stop_lifecycle() {
+        let (event_tx, event_rx) = std::sync::mpsc::channel::<AppEvent>();
+        let shutdown_tx =
+            spawn_mcp_server_thread_on_port(&event_tx, 0).expect("shutdown_tx returned");
+        drop(event_tx);
+
+        let first = event_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("Expected McpServerStarted event");
+        match first {
+            AppEvent::McpServerStarted { port } => {
+                assert!(port > 0, "Expected non-zero bound ephemeral port");
+            }
+            _ => panic!("Expected AppEvent::McpServerStarted as first event"),
+        }
+
+        shutdown_tx.send(()).expect("send shutdown signal");
+
+        let second = event_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("Expected McpServerStopped event");
+        assert!(
+            matches!(second, AppEvent::McpServerStopped),
+            "Expected AppEvent::McpServerStopped after shutdown"
         );
     }
 }

@@ -806,6 +806,36 @@ impl std::fmt::Display for BlockType {
     }
 }
 
+impl BlockType {
+    /// Returns `true` if `filter` matches this [`BlockType`]'s display name, short tool-schema
+    /// name (`"PETSCII"`, `"Screencode"`), or `r2000_set_data_type` snake_case identifier
+    /// (`"lo_hi_address"`, `"external_file"`, etc.), ignoring ASCII case and surrounding whitespace.
+    #[must_use]
+    pub fn matches_filter(self, filter: &str) -> bool {
+        let f = filter.trim();
+        let aliases: &[&str] = match self {
+            BlockType::Code => &["Code"],
+            BlockType::DataByte => &["Byte", "DataByte", "data_byte"],
+            BlockType::DataWord => &["Word", "DataWord", "data_word"],
+            BlockType::Address => &["Address"],
+            BlockType::PetsciiText => &["PETSCII Text", "PETSCII", "PetsciiText", "petscii_text"],
+            BlockType::ScreencodeText => &[
+                "Screencode Text",
+                "Screencode",
+                "ScreencodeText",
+                "screencode_text",
+            ],
+            BlockType::LoHiAddress => &["Lo/Hi Address", "LoHiAddress", "lo_hi_address", "LoHi"],
+            BlockType::HiLoAddress => &["Hi/Lo Address", "HiLoAddress", "hi_lo_address", "HiLo"],
+            BlockType::LoHiWord => &["Lo/Hi Word", "LoHiWord", "lo_hi_word"],
+            BlockType::HiLoWord => &["Hi/Lo Word", "HiLoWord", "hi_lo_word"],
+            BlockType::ExternalFile => &["External File", "ExternalFile", "external_file"],
+            BlockType::Undefined => &["Undefined"],
+        };
+        aliases.iter().any(|alias| alias.eq_ignore_ascii_case(f))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LabelKind {
     User,
@@ -1165,5 +1195,35 @@ mod tests {
         let deserialized: TargetSystem =
             serde_json::from_str(&json_owned_str).expect("deserialize owned string");
         assert_eq!(deserialized, TargetSystem::C64);
+    }
+
+    #[test]
+    fn test_block_type_matches_filter() {
+        assert!(BlockType::Code.matches_filter("Code"));
+        assert!(BlockType::Code.matches_filter("code"));
+        assert!(BlockType::DataByte.matches_filter("Byte"));
+        assert!(BlockType::DataByte.matches_filter("data_byte"));
+        assert!(BlockType::DataWord.matches_filter("Word"));
+        assert!(BlockType::DataWord.matches_filter("data_word"));
+        assert!(BlockType::Address.matches_filter("address"));
+        assert!(BlockType::PetsciiText.matches_filter("PETSCII Text"));
+        assert!(BlockType::PetsciiText.matches_filter("PETSCII"));
+        assert!(BlockType::PetsciiText.matches_filter("petscii"));
+        assert!(BlockType::ScreencodeText.matches_filter("Screencode Text"));
+        assert!(BlockType::ScreencodeText.matches_filter("Screencode"));
+        assert!(BlockType::ScreencodeText.matches_filter("screencode"));
+        assert!(BlockType::LoHiAddress.matches_filter("Lo/Hi Address"));
+        assert!(BlockType::LoHiAddress.matches_filter("lo_hi_address"));
+        assert!(BlockType::HiLoAddress.matches_filter("Hi/Lo Address"));
+        assert!(BlockType::HiLoAddress.matches_filter("hi_lo_address"));
+        assert!(BlockType::LoHiWord.matches_filter("Lo/Hi Word"));
+        assert!(BlockType::LoHiWord.matches_filter("lo_hi_word"));
+        assert!(BlockType::HiLoWord.matches_filter("Hi/Lo Word"));
+        assert!(BlockType::HiLoWord.matches_filter("hi_lo_word"));
+        assert!(BlockType::ExternalFile.matches_filter("External File"));
+        assert!(BlockType::ExternalFile.matches_filter("external_file"));
+        assert!(BlockType::Undefined.matches_filter("Undefined"));
+        assert!(BlockType::Undefined.matches_filter("undefined"));
+        assert!(!BlockType::Code.matches_filter("Undefined"));
     }
 }

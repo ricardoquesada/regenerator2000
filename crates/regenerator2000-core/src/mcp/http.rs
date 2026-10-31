@@ -186,6 +186,24 @@ pub async fn run_server_with_shutdown(
     sender: Sender<McpRequest>,
     shutdown_rx: tokio::sync::oneshot::Receiver<()>,
 ) -> std::io::Result<()> {
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    serve_listener_with_shutdown(listener, sender, shutdown_rx).await
+}
+
+/// Serves the MCP HTTP router on an already-bound [`tokio::net::TcpListener`] with graceful shutdown support.
+///
+/// Separating socket binding from request serving allows callers (such as the TUI background
+/// server thread) to verify that the TCP port bound successfully before emitting a "server started"
+/// event, and enables deterministic ephemeral-port (`127.0.0.1:0`) testing without port collisions.
+///
+/// # Errors
+/// Returns an error if [`axum::serve`] encounters an I/O error while serving.
+pub async fn serve_listener_with_shutdown(
+    listener: tokio::net::TcpListener,
+    sender: Sender<McpRequest>,
+    shutdown_rx: tokio::sync::oneshot::Receiver<()>,
+) -> std::io::Result<()> {
     let handler = RegeneratorOps::new(sender);
     let handler_clone = handler.clone();
 
@@ -215,9 +233,12 @@ pub async fn run_server_with_shutdown(
     // Nest the MCP service into an Axum router
     let app = axum::Router::new().nest_service("/mcp", service);
 
-    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    log::info!("MCP Live Server active on http://127.0.0.1:{port}/mcp");
+    if let Ok(local_addr) = listener.local_addr() {
+        log::info!(
+            "MCP Live Server active on http://127.0.0.1:{}/mcp",
+            local_addr.port()
+        );
+    }
 
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
