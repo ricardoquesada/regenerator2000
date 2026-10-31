@@ -1,3 +1,10 @@
+//! Project file (`.regen2000proj`) serialization, payload compression, and block run-length encoding.
+//!
+//! This module defines the on-disk [`ProjectState`] schema, gzip + Base64 binary payload helpers
+//! ([`encode_raw_data_to_base64`] and [`decode_raw_data_from_base64`]), and conversion functions
+//! between per-byte [`BlockType`] vectors and run-length encoded [`Block`] spans
+//! ([`compress_block_types`] and [`expand_blocks`]).
+
 use super::settings::DocumentSettings;
 use super::types::{
     Addr, BlockType, EnumDefinition, HexdumpViewMode, LabelKind, LabelType, System,
@@ -19,63 +26,96 @@ fn default_project_version() -> u32 {
     1
 }
 
+/// A symbolic label attached to an [`Addr`] in [`AppState::labels`](super::app_state::AppState::labels).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Label {
+    /// Symbolic identifier rendered in disassembly output.
     pub name: String,
+    /// Semantic classification of the label (subroutine, branch target, pointer, etc.).
     pub label_type: LabelType,
+    /// Provenance of the label (`User`, `Auto`, or `System`).
     pub kind: LabelKind,
 }
 
+/// A run-length encoded contiguous region of bytes sharing a single [`BlockType`] and collapsed state.
+///
+/// Unlike [`BlockItem::Block`](super::app_state::BlockItem::Block) (which stores 16-bit [`Addr`] bounds),
+/// `start` and `end` here are **inclusive zero-based byte offsets** relative to `origin`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Block {
+    /// Inclusive starting byte offset relative to `origin`.
     pub start: usize,
+    /// Inclusive ending byte offset relative to `origin`.
     pub end: usize,
+    /// Interpretation [`BlockType`] applied to the byte range `start..=end`.
     pub type_: BlockType,
+    /// Whether the block is collapsed into a single summary line in the disassembly view.
     #[serde(default)]
     pub collapsed: bool,
 }
 
-// Note: We use BTreeMap instead of HashMap for all address-keyed collections
-// to ensure deterministic serialization order. This guarantees that the
-// project file content remains stable across save/load cycles.
+/// On-disk JSON representation of a saved `.regen2000proj` project file.
+///
+/// Uses [`BTreeMap`] and [`BTreeSet`] for all address- and name-keyed collections
+/// to guarantee deterministic serialization order across save/load cycles.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectState {
+    /// Schema format version (defaults to `1` for legacy project files without a `version` field).
     #[serde(default = "default_project_version")]
     pub version: u32,
+    /// Load address (origin) of the binary in 16-bit 6502 memory.
     pub origin: Addr,
+    /// Gzip-compressed, Base64-encoded raw binary bytes.
     #[serde(rename = "raw_data_base64")]
     pub raw_data: String,
+    /// Run-length encoded [`Block`] spans covering the binary payload.
     pub blocks: Vec<Block>,
+    /// Persisted user and auto-analyzed [`Label`]s keyed by [`Addr`].
     #[serde(default)]
     pub labels: BTreeMap<Addr, Vec<Label>>,
+    /// Persisted user annotations (comments, immediate formats, bookmarks, enums, and lexical scopes).
     #[serde(default, flatten)]
     pub annotations: super::annotations::AnnotationManager,
+    /// Document-level disassembly and target platform settings.
     #[serde(default)]
     pub settings: DocumentSettings,
+    /// Saved disassembly cursor [`Addr`].
     #[serde(default)]
     pub cursor_address: Option<Addr>,
+    /// Saved Hex Dump view cursor [`Addr`].
     #[serde(default)]
     pub hex_dump_cursor_address: Option<Addr>,
+    /// Saved Sprites view cursor [`Addr`].
     #[serde(default)]
     pub sprites_cursor_address: Option<Addr>,
+    /// Saved Charset view cursor [`Addr`].
     #[serde(default)]
     pub charset_cursor_address: Option<Addr>,
+    /// Name of the active right-hand companion pane, if visible.
     #[serde(default)]
     pub right_pane_visible: Option<String>,
+    /// Whether multicolor mode is enabled in the Sprites view.
     #[serde(default)]
     pub sprite_multicolor_mode: bool,
+    /// Whether multicolor mode is enabled in the Charset view.
     #[serde(default)]
     pub charset_multicolor_mode: bool,
+    /// Saved Bitmap view cursor [`Addr`].
     #[serde(default)]
     pub bitmap_cursor_address: Option<Addr>,
+    /// Whether multicolor mode is enabled in the Bitmap view.
     #[serde(default)]
     pub bitmap_multicolor_mode: bool,
+    /// Character encoding mode for the Hex Dump view (`PETSCII` or `Screencode`).
     #[serde(default)]
     pub hexdump_view_mode: HexdumpViewMode,
+    /// Addresses of user-defined manual block splitters.
     #[serde(default)]
     pub splitters: BTreeSet<Addr>,
+    /// Selected item index in the Blocks View list.
     #[serde(default)]
     pub blocks_view_cursor: Option<usize>,
+    /// Project-local enum definitions keyed by enum name.
     #[serde(default)]
     pub enums: BTreeMap<String, EnumDefinition>,
     /// Per-project user-excluded addresses: always excluded from symbolic
@@ -85,38 +125,67 @@ pub struct ProjectState {
     pub user_excluded_addresses: BTreeSet<Addr>,
 }
 
+/// Transient UI restoration metadata and load-time diagnostics returned when loading a binary or project file.
 #[derive(Debug)]
 pub struct LoadedProjectData {
+    /// Restored disassembly cursor [`Addr`].
     pub cursor_address: Option<Addr>,
+    /// Restored Hex Dump view cursor [`Addr`].
     pub hex_dump_cursor_address: Option<Addr>,
+    /// Restored Sprites view cursor [`Addr`].
     pub sprites_cursor_address: Option<Addr>,
+    /// Restored right-hand pane identifier, if any.
     pub right_pane_visible: Option<String>,
+    /// Restored Charset view cursor [`Addr`].
     pub charset_cursor_address: Option<Addr>,
+    /// Restored Bitmap view cursor [`Addr`].
     pub bitmap_cursor_address: Option<Addr>,
+    /// Restored Sprites view multicolor flag.
     pub sprite_multicolor_mode: bool,
+    /// Restored Charset view multicolor flag.
     pub charset_multicolor_mode: bool,
+    /// Restored Bitmap view multicolor flag, if specified by the project or loader.
     pub bitmap_multicolor_mode: Option<bool>,
+    /// Restored Hex Dump character encoding mode.
     pub hexdump_view_mode: HexdumpViewMode,
+    /// Restored selected item index in the Blocks View.
     pub blocks_view_cursor: Option<usize>,
+    /// High-entropy warning value if the loaded binary appears packed/compressed.
     pub entropy_warning: Option<f32>,
+    /// Suggested entry point [`Addr`] detected by the file parser or BASIC `SYS` stub.
     pub suggested_entry_point: Option<Addr>,
+    /// Suggested target [`System`] inferred from the container or load address.
     pub suggested_system: Option<System>,
+    /// Name of the detected binary packer from the packer registry, if any.
     pub detected_packer: Option<String>,
 }
 
+/// Snapshot of transient UI cursor and view settings captured when saving a `.regen2000proj` file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectSaveContext {
+    /// Current disassembly cursor [`Addr`].
     pub cursor_address: Option<Addr>,
+    /// Current Hex Dump view cursor [`Addr`].
     pub hex_dump_cursor_address: Option<Addr>,
+    /// Current Sprites view cursor [`Addr`].
     pub sprites_cursor_address: Option<Addr>,
+    /// Active right-hand pane identifier, if visible.
     pub right_pane_visible: Option<String>,
+    /// Current Charset view cursor [`Addr`].
     pub charset_cursor_address: Option<Addr>,
+    /// Current Bitmap view cursor [`Addr`].
     pub bitmap_cursor_address: Option<Addr>,
+    /// Whether Sprites view multicolor mode is enabled.
     pub sprite_multicolor_mode: bool,
+    /// Whether Charset view multicolor mode is enabled.
     pub charset_multicolor_mode: bool,
+    /// Whether Bitmap view multicolor mode is enabled.
     pub bitmap_multicolor_mode: bool,
+    /// Active Hex Dump character encoding mode.
     pub hexdump_view_mode: HexdumpViewMode,
+    /// Manual block splitter addresses.
     pub splitters: BTreeSet<Addr>,
+    /// Selected item index in the Blocks View list.
     pub blocks_view_cursor: Option<usize>,
 }
 
@@ -143,7 +212,11 @@ pub fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
     Ok(raw_data)
 }
 
-/// Compresses a slice of per-byte [`BlockType`]s and collapsed index ranges into contiguous [`Block`] spans.
+/// Compresses a slice of per-byte [`BlockType`]s and inclusive collapsed `(start_offset, end_offset)`
+/// ranges into contiguous [`Block`] spans.
+///
+/// `collapsed_ranges` may be unsorted, adjacent, or overlapping (with inverted `start > end`
+/// pairs ignored). Runs in `O(N)` when `collapsed_ranges` is empty and `O(N + C log C)` otherwise.
 #[must_use]
 pub fn compress_block_types(
     types: &[BlockType],
@@ -188,6 +261,10 @@ pub fn compress_block_types(
         .collect();
     sorted_collapsed.sort_unstable_by_key(|&(s, e)| (s, e));
 
+    // Monotonic single-cursor membership check for monotonically increasing `idx`.
+    // Even if a wider range `(10, 14)` encloses a narrower range `(11, 12)`, `range_cursor`
+    // stays anchored on `(10, 14)` until `idx == 15`, at which point the `while` loop advances
+    // past both `(10, 14)` and `(11, 12)` because both have `end < 15`.
     let mut range_cursor = 0;
     let mut is_collapsed = |idx: usize| -> bool {
         while range_cursor < sorted_collapsed.len() && sorted_collapsed[range_cursor].1 < idx {
@@ -224,6 +301,10 @@ pub fn compress_block_types(
     ranges
 }
 
+/// Expands run-length encoded [`Block`] spans into a per-byte [`BlockType`] vector of length `len`
+/// (defaulting uncovered indices to [`BlockType::Code`]) and a list of inclusive collapsed `(start, end)` offset ranges.
+///
+/// Any [`Block`] whose `end` exceeds `len - 1` is clamped to `len - 1`.
 #[must_use]
 pub fn expand_blocks(ranges: &[Block], len: usize) -> (Vec<BlockType>, Vec<(usize, usize)>) {
     let mut types = vec![BlockType::Code; len];

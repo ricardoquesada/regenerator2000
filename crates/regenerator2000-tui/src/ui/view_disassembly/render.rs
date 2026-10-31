@@ -1,6 +1,7 @@
 //! Disassembly view rendering, line formatting, and Ratatui list construction.
 //!
-//! This module handles the visual rendering of 6502 disassembly lines, arrows, comments,
+//! This module handles the visual rendering of 6502 disassembly lines, control-flow arrows,
+//! lexical scope gutter brackets (`┌─`, `│ `, `└─`), collapsed block summaries, comments,
 //! labels, VICE debugger indicators, breakpoints, and cursor selection highlights.
 
 use ratatui::Frame;
@@ -15,6 +16,7 @@ use regenerator2000_core::state::AppState;
 use super::layout::get_visual_line_count_for_instruction;
 use crate::ui_state::{ActivePane, UIState};
 
+/// Formats a byte slice as space-separated uppercase two-digit hexadecimal values (e.g. `"A9 00"`).
 fn hex_bytes(bytes: &[u8]) -> String {
     bytes
         .iter()
@@ -1061,11 +1063,13 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
         }
         parts.push(Line::from(inst_spans));
 
-        // Calculate Scope visual gutter connectors
+        // Calculate lexical scope visual gutter connectors (`┌─`, `│ `, `└─`).
         let mut is_scope_start = false;
         let mut is_scope_end = false;
         let mut is_in_scope = false;
 
+        // If the target assembler emits a dedicated closing directive (e.g. `.pend` in 64tass),
+        // that synthetic directive line closes the scope box with `└─`.
         if let Some(pend_str) = formatter.format_scope_end()
             && line.mnemonic == pend_str
         {
@@ -1079,6 +1083,10 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
                     && current_inst > 0
                     && app_state.disassembly[current_inst - 1].address == start
                 {
+                    // When multiple disassembly lines share the scope start address (e.g. a scope
+                    // header directive line followed by the first instruction at `start`), only
+                    // the first line at `start` draws the top corner (`┌─`); subsequent lines
+                    // at `start` draw the vertical continuation bar (`│ `).
                     is_in_scope = true;
                     break;
                 } else if line.address == start {
@@ -1089,9 +1097,13 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
                     && current_inst + 1 < app_state.disassembly.len()
                     && app_state.disassembly[current_inst + 1].address == end
                 {
+                    // Keep drawing the vertical bar (`│ `) on non-final lines sharing `end`.
                     is_in_scope = true;
                     break;
                 } else if line.address == end {
+                    // Assemblers with an explicit scope-end directive (e.g. `.pend`) close the box
+                    // on the trailing directive line (handled above), whereas assemblers without
+                    // one (e.g. ACME) close the box (`└─`) directly on the instruction at `end`.
                     if formatter.format_scope_end().is_some() {
                         is_in_scope = true;
                     } else {
@@ -1111,6 +1123,9 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
 
         // --- Emit processed parts ---
         for (idx, part) in parts.into_iter().enumerate() {
+            // Prefix sub-lines (`idx < prefix_parts_count`, such as blank separators and line
+            // comments above `start`) render outside the scope box (`"  "`), while the first
+            // label/instruction sub-line (`idx == prefix_parts_count`) opens the box (`"┌─"`).
             let current_scope_char = if is_scope_start {
                 if idx < prefix_parts_count {
                     "  "
@@ -1156,7 +1171,6 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
                 };
 
                 items.push(ListItem::new(manipulated_part).style(style));
-                // arrow_calc_offset_map.push(current_inst); // Not used in new logic
                 processed_visual_lines += 1;
 
                 if processed_visual_lines >= visible_height {

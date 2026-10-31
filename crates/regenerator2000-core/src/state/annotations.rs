@@ -1,40 +1,52 @@
+//! Sparse, address-keyed annotation storage and lexical scope indexing.
+//!
+//! This module defines [`AddressEntry`] and [`AnnotationManager`], which store per-address
+//! comments, formatting overrides, bookmarks, enum usages, and lexical symbol scopes.
+//! Empty or whitespace-only entries are automatically pruned from the underlying [`BTreeMap`]
+//! to guarantee deterministic `.regen2000proj` serialization, while secondary `scopes` and
+//! `scope_ends` indices provide `O(log S)` boundary lookups.
+
 use crate::state::types::{Addr, ImmediateFormat};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Returns `true` if `s` is `None`, empty (`""`), or contains only ASCII/Unicode whitespace.
 #[allow(clippy::unnecessary_map_or)]
 fn is_str_none_or_empty(s: &Option<String>) -> bool {
     s.as_deref().map_or(true, |st| st.trim().is_empty())
 }
 
-/// Compact sparse annotation entry storing user annotations & formatting overrides.
+/// Compact sparse annotation entry storing user annotations and formatting overrides for an [`Addr`].
+///
+/// Entries are managed via [`AnnotationManager::update`], which normalizes whitespace-only
+/// strings to `None` and prunes completely empty records from the map.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AddressEntry {
-    /// Auto-generated or system comment (loaded from system assets; not saved in project files).
+    /// Auto-generated or platform system comment (loaded dynamically from system assets; not saved in `.regen2000proj` files).
     #[serde(default, skip_serializing)]
     pub system_comment: Option<String>,
 
-    /// User-defined side (inline) comment.
+    /// User-defined side (inline) comment rendered at the end of a disassembly line.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_side_comment: Option<String>,
 
-    /// User-defined line (above instruction) comment.
+    /// User-defined full-line banner comment rendered above the instruction at this [`Addr`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_line_comment: Option<String>,
 
-    /// Specific formatting override for immediate operand values.
+    /// Specific [`ImmediateFormat`] override for immediate operand values at this [`Addr`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub immediate_format: Option<ImmediateFormat>,
 
-    /// User bookmark title or description.
+    /// User bookmark title or description attached to this [`Addr`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bookmark: Option<String>,
 
-    /// Local symbol scope boundary parent address.
+    /// Inclusive end [`Addr`] of the lexical symbol scope (`start..=end`) whose `start` is this entry's key in [`AnnotationManager`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<Addr>,
 
-    /// Named enumeration type usage.
+    /// Name of the enum definition applied to the operand at this [`Addr`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enum_usage: Option<String>,
 }
@@ -79,7 +91,7 @@ impl AddressEntry {
         }
     }
 
-    /// Returns true if all metadata fields are empty, None, or empty strings.
+    /// Returns `true` if all metadata fields (including `system_comment`) are `None`, empty, or whitespace-only.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         is_str_none_or_empty(&self.system_comment)
@@ -91,7 +103,9 @@ impl AddressEntry {
             && is_str_none_or_empty(&self.enum_usage)
     }
 
-    /// Returns true if the entry contains user-defined annotations that must be persisted to project files.
+    /// Returns `true` if the entry contains user-defined annotations that must be persisted to `.regen2000proj` files.
+    ///
+    /// Unlike [`AddressEntry::is_empty`], this excludes `system_comment` because platform comments are reloaded dynamically from system assets.
     #[must_use]
     pub fn is_persistent(&self) -> bool {
         !is_str_none_or_empty(&self.user_side_comment)
@@ -103,12 +117,15 @@ impl AddressEntry {
     }
 }
 
-/// Encapsulated manager guaranteeing deterministic BTreeMap node pruning on empty entries
-/// and maintaining secondary indices for lexical scopes.
+/// Encapsulated manager guaranteeing deterministic [`BTreeMap`] node pruning on empty entries
+/// and maintaining secondary `O(log S)` indices for lexical scopes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AnnotationManager {
+    /// Sparse primary storage of non-empty [`AddressEntry`] records keyed by [`Addr`].
     map: BTreeMap<Addr, AddressEntry>,
+    /// Secondary index mapping each lexical scope's inclusive `start` [`Addr`] to its inclusive `end` [`Addr`].
     scopes: BTreeMap<Addr, Addr>,
+    /// Secondary index of exclusive scope end addresses (`end.wrapping_add(1)`), used for `O(log S)` virtual-splitter boundary checks.
     scope_ends: BTreeSet<Addr>,
 }
 
@@ -133,14 +150,14 @@ impl serde::Serialize for AnnotationManager {
 }
 
 impl AnnotationManager {
-    /// Fetches an immutable reference to the annotation entry at `addr`, if present.
+    /// Fetches an immutable reference to the [`AddressEntry`] at `addr`, if present.
     #[must_use]
     pub fn get(&self, addr: Addr) -> Option<&AddressEntry> {
         self.map.get(&addr)
     }
 
-    /// Mutates an entry in-place, normalizes string fields, automatically prunes empty BTreeMap nodes,
-    /// and maintains the secondary lexical scope indices.
+    /// Mutates an [`AddressEntry`] at `addr` in-place, normalizes string fields, automatically
+    /// prunes empty [`BTreeMap`] nodes, and maintains the secondary lexical scope indices.
     pub fn update<F>(&mut self, addr: Addr, f: F)
     where
         F: FnOnce(&mut AddressEntry),
@@ -175,6 +192,10 @@ impl AnnotationManager {
             } else {
                 self.scopes.remove(&addr);
             }
+            // Rebuild `scope_ends` from `self.scopes.values()` rather than calling
+            // `self.scope_ends.remove(&old_end.wrapping_add(1))`: multiple scopes can
+            // share the same inclusive end address, so removing one scope must not
+            // delete the shared exclusive boundary while another scope still ends there.
             self.scope_ends = self.scopes.values().map(|e| e.wrapping_add(1)).collect();
         }
     }
@@ -191,19 +212,19 @@ impl AnnotationManager {
         }
     }
 
-    /// Returns an iterator over all non-empty address annotations.
+    /// Returns an iterator over all non-empty `(Addr, &AddressEntry)` pairs in ascending address order.
     pub fn iter(&self) -> impl Iterator<Item = (Addr, &AddressEntry)> {
         self.map.iter().map(|(&a, e)| (a, e))
     }
 
-    /// Clears all annotations and resets secondary scope indices.
+    /// Clears all annotations and resets the secondary `scopes` and `scope_ends` indices.
     pub fn clear(&mut self) {
         self.map.clear();
         self.scopes.clear();
         self.scope_ends.clear();
     }
 
-    /// Returns true if there are no annotations stored.
+    /// Returns `true` if there are no annotations stored.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
@@ -215,31 +236,37 @@ impl AnnotationManager {
         self.map.len()
     }
 
-    /// Returns an immutable reference to the indexed map of active scopes (`start -> end`).
+    /// Returns an immutable reference to the indexed [`BTreeMap`] of active lexical scopes,
+    /// mapping each scope's inclusive `start` [`Addr`] to its inclusive `end` [`Addr`].
     #[must_use]
     pub fn scopes(&self) -> &BTreeMap<Addr, Addr> {
         &self.scopes
     }
 
-    /// Returns an immutable reference to the set of addresses immediately following each scope end (`end.wrapping_add(1)`).
+    /// Returns an immutable reference to the [`BTreeSet`] of exclusive scope end addresses (`end.wrapping_add(1)`).
+    ///
+    /// Note that a scope ending at `$FFFF` inserts `$0000` into this set via 16-bit wrapping addition.
+    /// Prefer this zero-allocation accessor over [`AnnotationManager::scope_ends`] on hot paths.
     #[must_use]
     pub fn scope_ends_set(&self) -> &BTreeSet<Addr> {
         &self.scope_ends
     }
 
-    /// Returns a cloned set of addresses immediately following the end of each scope annotation.
+    /// Returns a cloned [`BTreeSet`] of exclusive scope end addresses (`end.wrapping_add(1)`).
+    ///
+    /// Prefer [`AnnotationManager::scope_ends_set`] when a borrowed reference suffices.
     #[must_use]
     pub fn scope_ends(&self) -> BTreeSet<Addr> {
         self.scope_ends.clone()
     }
 
-    /// Returns `true` if a lexical scope starts at `addr`.
+    /// Returns `true` if a lexical scope starts at `addr` (`O(log S)`).
     #[must_use]
     pub fn is_scope_start(&self, addr: Addr) -> bool {
         self.scopes.contains_key(&addr)
     }
 
-    /// Returns `true` if `addr` immediately follows the end of any lexical scope (`end.wrapping_add(1) == addr`).
+    /// Returns `true` if `addr` immediately follows the inclusive end of any lexical scope (`end.wrapping_add(1) == addr`, `O(log S)`).
     #[must_use]
     pub fn is_scope_end(&self, addr: Addr) -> bool {
         self.scope_ends.contains(&addr)
@@ -251,6 +278,10 @@ impl<'de> serde::Deserialize<'de> for AnnotationManager {
     where
         D: serde::Deserializer<'de>,
     {
+        // Supports three JSON representations for backward compatibility:
+        // 1. Flattened/direct map of `Addr -> AddressEntry` (`AnnotationsPayload::Direct`).
+        // 2. Structured object with an `annotations` (or `map`) field (`AnnotationsPayload::Structured`).
+        // 3. Legacy per-category maps (`user_side_comments`, `scopes`, etc.) inside `RawAnnotations`.
         #[derive(Deserialize)]
         #[serde(untagged)]
         enum AnnotationsPayload {
@@ -330,6 +361,8 @@ impl<'de> serde::Deserialize<'de> for AnnotationManager {
             }
         }
 
+        // Rebuild secondary scope indices unconditionally because `Direct` and `raw.annotations`
+        // insert directly into `manager.map` without calling `manager.update()`.
         manager.rebuild_scope_indices();
         Ok(manager)
     }

@@ -1,3 +1,11 @@
+//! Interactive Blocks View side-pane widget.
+//!
+//! This module implements [`BlocksView`], which renders the list of memory blocks, manual
+//! splitters, and lexical scopes produced by [`AppState::get_blocks_view_items`], and handles
+//! keyboard and mouse navigation to jump the disassembly view to selected blocks. Rendering
+//! is windowed to the visible viewport (`[render_start, render_end)`) with lightweight 1-line
+//! placeholder items outside the viewport to preserve [`ratatui::widgets::ListState`] scroll offsets.
+
 use crate::state::{AppState, BlockType};
 use crate::ui_state::{ActivePane, AppAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
@@ -13,6 +21,8 @@ use crate::ui::widget::{Widget, WidgetResult};
 
 use crate::ui::navigable::{Navigable, handle_nav_input};
 
+/// Side-pane widget displaying memory blocks, manual splitters, and lexical scopes,
+/// implementing [`Widget`] and [`Navigable`].
 pub struct BlocksView;
 
 impl Navigable for BlocksView {
@@ -162,7 +172,7 @@ impl Widget for BlocksView {
         let inner_area = block.inner(area);
         f.render_widget(block, area);
 
-        // Filter logic if needed? For now just list provided by AppState
+        // Fetch the ordered list of blocks, manual splitters, and lexical scopes from core state.
         let block_items = app_state.get_blocks_view_items();
         let total_items = block_items.len();
         let visible_height = inner_area.height as usize;
@@ -194,6 +204,10 @@ impl Widget for BlocksView {
             .saturating_add(1)
             .min(total_items);
 
+        // Track `current_scope_end` across all items (including off-screen items before the
+        // `if !is_visible` early return) so that when a `BlockItem::Scope` header is scrolled
+        // above `render_start`, visible `Block` and `Splitter` rows inside that scope still
+        // receive their 2-space (`"  "`) scope indentation.
         let mut current_scope_end: Option<crate::state::types::Addr> = None;
         let items: Vec<ListItem> = block_items
             .iter()
@@ -281,11 +295,7 @@ impl Widget for BlocksView {
             })
             .collect();
 
-        // The list handling is a bit specific because we use `ratatui::widgets::List`.
-        // It requires the state to be passed during render.
-        // However, `render_widget` takes `state` as `&mut ListState`.
-        // We have `ui_state.blocks_list_state` which is `ListState`.
-
+        // Render as a stateful widget so `ui_state.blocks_list_state` updates its scroll offset in place.
         let list = List::new(items)
             .highlight_style(
                 Style::default()

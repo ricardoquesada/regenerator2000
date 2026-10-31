@@ -1,3 +1,10 @@
+//! Central, UI-agnostic application state and core reverse-engineering domain model.
+//!
+//! This module defines [`AppState`], the single source of truth for a loaded binary and its
+//! reverse-engineering project metadata (raw memory, per-byte [`BlockType`] classifications,
+//! labels, [`AnnotationManager`], cross-references, enums, undo/redo history, and live VICE
+//! debugger state), along with supporting domain types [`BlockItem`] and [`FileInfo`].
+
 use super::annotations::AnnotationManager;
 use super::project::Label;
 use super::settings::DocumentSettings;
@@ -12,18 +19,29 @@ thread_local! {
     static ANALYSIS_PASS_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
+/// An item displayed in the Blocks View side pane, produced by [`AppState::get_blocks_view_items`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockItem {
+    /// A contiguous memory region sharing a single [`BlockType`] and collapsed state.
     Block {
+        /// Inclusive start [`Addr`] of the block.
         start: Addr,
+        /// Inclusive end [`Addr`] of the block.
         end: Addr,
+        /// Interpretation [`BlockType`] applied to the bytes in `start..=end`.
         type_: BlockType,
+        /// Whether the block is currently collapsed into a single summary line in the disassembly view.
         collapsed: bool,
     },
+    /// A user-defined manual splitter at the specified [`Addr`].
     Splitter(Addr),
+    /// A lexical symbol scope spanning the inclusive range `start..=end`.
     Scope {
+        /// Inclusive start [`Addr`] of the lexical scope.
         start: Addr,
+        /// Inclusive end [`Addr`] of the lexical scope.
         end: Addr,
+        /// Optional primary label name at `start`, if defined.
         name: Option<String>,
     },
 }
@@ -47,49 +65,87 @@ pub struct FileInfo {
     pub packer_name: Option<&'static str>,
 }
 
+/// Central, UI-agnostic state for a loaded binary and reverse-engineering project.
+///
+/// Both the TUI and MCP server consume and mutate `AppState` through shared methods
+/// and undoable [`Command`](crate::commands::Command)s.
 pub struct AppState {
+    /// Project schema version (see [`PROJECT_FORMAT_VERSION`](super::project::PROJECT_FORMAT_VERSION)).
     pub schema_version: u32,
+    /// Path to the source binary or disk/tape/cartridge image file, if loaded from disk.
     pub file_path: Option<PathBuf>,
+    /// Path to the `.regen2000proj` project file, if saved or loaded.
     pub project_path: Option<PathBuf>,
+    /// Last used destination path when exporting assembly source (`.asm`).
     pub export_asm_path: Option<PathBuf>,
+    /// Last used destination path when exporting HTML disassembly (`.html`).
     pub export_html_path: Option<PathBuf>,
+    /// Raw binary payload bytes loaded at [`AppState::origin`].
     pub raw_data: Vec<u8>,
+    /// Cached decoded [`DisassemblyLine`]s produced by the most recent [`AppState::disassemble`] pass.
     pub disassembly: Vec<DisassemblyLine>,
+    /// Cached control-flow branch/jump arrows aligned with [`AppState::disassembly`].
     pub cached_arrows: Vec<CachedArrow>,
+    /// Stateless 6502 disassembler engine instance.
     pub disassembler: Disassembler,
+    /// Load address (origin) of [`AppState::raw_data`] in 16-bit 6502 memory.
     pub origin: Addr,
+    /// Detected or user-configured entry point [`Addr`], if any.
     pub entry_point: Option<Addr>,
+    /// Cached Shannon entropy (`0.0..=8.0`) of [`AppState::raw_data`].
     pub entropy: Option<f32>,
 
     // Data Conversion State
+    /// Per-byte [`BlockType`] classification parallel to [`AppState::raw_data`].
     pub block_types: Vec<BlockType>,
+    /// Address-keyed map of user, auto-analyzed, and system [`Label`]s.
     pub labels: BTreeMap<Addr, Vec<Label>>,
+    /// Per-document configuration settings (target [`System`](super::types::System), [`Assembler`](super::types::Assembler), etc.).
     pub settings: DocumentSettings,
+    /// Sparse address-keyed annotations (comments, immediate formats, bookmarks, enums, and indexed lexical scopes).
     pub annotations: AnnotationManager,
+    /// Cross-reference map from target [`Addr`] to referencing instruction [`Addr`]s.
     pub cross_refs: BTreeMap<Addr, Vec<Addr>>,
 
     // Enums State
+    /// Project-local enum definitions keyed by enum name.
     pub enums: BTreeMap<String, EnumDefinition>,
+    /// User global enum definitions loaded from user configuration.
     pub user_global_enums: BTreeMap<String, EnumDefinition>,
+    /// Built-in platform enum definitions loaded from system assets.
     pub builtin_enums: BTreeMap<String, EnumDefinition>,
 
+    /// Global system/application configuration.
     pub system_config: SystemConfig,
 
+    /// Undo/redo command history stack.
     pub undo_stack: crate::commands::UndoStack,
+    /// Undo stack pointer recorded at the last project save, used by [`AppState::is_dirty`].
     pub last_saved_pointer: usize,
+    /// Effective set of addresses excluded from automatic label generation during analysis.
     pub excluded_addresses: std::collections::HashSet<Addr>,
     /// Per-project user-defined excluded addresses, always applied during analysis
     /// regardless of the `exclude_well_known_labels` document setting.
     pub user_excluded_addresses: BTreeSet<Addr>,
+    /// Inclusive `(start_offset, end_offset)` byte-offset ranges of collapsed blocks relative to [`AppState::origin`].
     pub collapsed_blocks: Vec<(usize, usize)>,
+    /// Addresses where manual block splitters (`{splitter}`) have been placed.
     pub splitters: BTreeSet<Addr>,
+    /// Last directory or file path used when importing VICE labels.
     pub last_import_labels_path: Option<PathBuf>,
+    /// Last filename used when exporting VICE labels.
     pub last_export_labels_filename: Option<String>,
+    /// Last filename used in the Save Project As dialog.
     pub last_save_as_filename: Option<String>,
+    /// Last filename used in the Export ASM dialog.
     pub last_export_asm_filename: Option<String>,
+    /// Last filename used in the Export HTML dialog.
     pub last_export_html_filename: Option<String>,
+    /// Live VICE binary monitor debugger state (registers, breakpoints, memory snapshot).
     pub vice_state: crate::vice::ViceState,
+    /// Active VICE binary monitor network client, if connected.
     pub vice_client: Option<crate::vice::ViceClient>,
+    /// Whether an HTTP or stdio MCP server is currently attached to this session.
     pub mcp_server_running: bool,
 }
 
@@ -100,6 +156,8 @@ impl Default for AppState {
 }
 
 impl AppState {
+    /// Creates a new, empty [`AppState`] initialized with default document settings and a safe
+    /// temporary configuration path that never overwrites the user's real configuration file.
     #[must_use]
     pub fn new() -> Self {
         // Use default config with a throwaway save path so that tests never
@@ -153,6 +211,8 @@ impl AppState {
         }
     }
 
+    /// Reloads platform-specific system labels, system comments, and excluded address lists
+    /// for the active [`DocumentSettings::system`], preserving user-defined labels and annotations.
     pub fn load_system_assets(&mut self) {
         // Clear existing system labels
         for labels in self.labels.values_mut() {
@@ -214,11 +274,16 @@ impl AppState {
         }
     }
 
+    /// Creates a syntax [`Formatter`](crate::disassembler::formatter::Formatter) for the currently configured [`DocumentSettings::assembler`].
     #[must_use]
     pub fn get_formatter(&self) -> Box<dyn crate::disassembler::formatter::Formatter> {
         Disassembler::create_formatter(self.settings.assembler)
     }
 
+    /// Runs auto-analysis over the loaded binary, applies a [`Command::SetAnalysisData`](crate::commands::Command::SetAnalysisData)
+    /// updating auto-generated labels and cross-references, and refreshes the disassembly.
+    ///
+    /// Returns the applied [`Command`](crate::commands::Command) and a status message.
     pub fn perform_analysis(&mut self) -> (crate::commands::Command, String) {
         #[cfg(test)]
         ANALYSIS_PASS_COUNT.with(|c| c.set(c.get().saturating_add(1)));
@@ -257,6 +322,7 @@ impl AppState {
         ANALYSIS_PASS_COUNT.with(std::cell::Cell::get)
     }
 
+    /// Undoes the most recent command on [`AppState::undo_stack`] and returns a human-readable status message.
     pub fn undo_last_command(&mut self) -> String {
         let mut stack = std::mem::take(&mut self.undo_stack);
         let msg = if let Some(msg) = stack.undo(self) {
@@ -268,6 +334,7 @@ impl AppState {
         msg
     }
 
+    /// Redoes the most recently undone command on [`AppState::undo_stack`] and returns a human-readable status message.
     pub fn redo_last_command(&mut self) -> String {
         let mut stack = std::mem::take(&mut self.undo_stack);
         let msg = if let Some(msg) = stack.redo(self) {
@@ -279,11 +346,13 @@ impl AppState {
         msg
     }
 
+    /// Returns `true` if `addr` lies outside the loaded binary range (`origin..origin + raw_data.len()`).
     #[must_use]
     pub fn is_external(&self, addr: Addr) -> bool {
         addr.offset_from(self.origin) >= self.raw_data.len()
     }
 
+    /// Returns `true` if the project has unsaved modifications since the last save or load.
     #[must_use]
     pub fn is_dirty(&self) -> bool {
         self.undo_stack.get_pointer() != self.last_saved_pointer
@@ -359,7 +428,11 @@ impl AppState {
     }
 
     /// Returns `true` if `addr` is a manual splitter or a lexical scope boundary
-    /// (either a scope start address or the address immediately following a scope end).
+    /// ([`AnnotationManager::is_scope_start`] or [`AnnotationManager::is_scope_end`]).
+    ///
+    /// Lexical scope start and exclusive end (`end.wrapping_add(1)`) addresses act as
+    /// virtual splitters: they partition contiguous [`BlockType`] regions at scope boundaries
+    /// without inserting a visual `{splitter}` pseudo-instruction into the disassembly.
     #[must_use]
     pub fn is_virtual_splitter(&self, addr: Addr) -> bool {
         if self.splitters.is_empty() && self.annotations.scopes().is_empty() {
@@ -370,6 +443,8 @@ impl AppState {
             || self.annotations.is_scope_end(addr)
     }
 
+    /// Pushes an already-applied [`Command`](crate::commands::Command) onto [`AppState::undo_stack`],
+    /// invalidating [`AppState::last_saved_pointer`] if the undo history was rewound past the saved state.
     pub fn push_command(&mut self, command: crate::commands::Command) {
         if self.undo_stack.get_pointer() < self.last_saved_pointer {
             self.last_saved_pointer = usize::MAX;

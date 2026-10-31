@@ -1,3 +1,10 @@
+//! Block range queries, splitter management, Blocks View item construction, and preamble generation.
+//!
+//! This module implements [`AppState`] methods for querying and mutating [`BlockType`] regions,
+//! toggling manual splitters, splicing manual and virtual (scope-boundary) splitters into
+//! [`BlockItem`] lists for the Blocks View, and generating synthetic preamble [`DisassemblyLine`]s
+//! for external label equates and enum definitions.
+
 use super::app_state::{AppState, BlockItem};
 use super::project::Block;
 use super::types::{Addr, BlockType, LabelType};
@@ -5,11 +12,15 @@ use crate::disassembler::DisassemblyLine;
 use std::collections::BTreeSet;
 
 impl AppState {
+    /// Compresses [`AppState::block_types`] and [`AppState::collapsed_blocks`] into contiguous [`Block`] spans.
     #[must_use]
     pub fn get_compressed_blocks(&self) -> Vec<Block> {
         super::project::compress_block_types(&self.block_types, &self.collapsed_blocks)
     }
 
+    /// Returns the inclusive `(start_addr, end_addr)` bounds of the contiguous [`BlockType`] sub-block
+    /// containing `address`, stopping at any boundary where [`AppState::is_virtual_splitter`] is `true`,
+    /// or `None` if `address` lies outside the loaded binary.
     #[must_use]
     pub fn get_block_range(&self, address: Addr) -> Option<(Addr, Addr)> {
         let origin = self.origin;
@@ -46,6 +57,12 @@ impl AppState {
         Some((start_addr, end_addr))
     }
 
+    /// Applies `new_type` to the byte region spanned by `selection_start..=cursor_index` (or the single
+    /// disassembly line at `cursor_index` when `selection_start` is `None`), refreshes the disassembly,
+    /// and returns the applied [`Command::SetBlockType`](crate::commands::Command::SetBlockType).
+    ///
+    /// Returns `None` if the selected disassembly lines contain no underlying binary bytes or fall
+    /// outside [`AppState::block_types`].
     pub fn set_block_type_region(
         &mut self,
         new_type: BlockType,
@@ -137,8 +154,8 @@ impl AppState {
         None
     }
 
+    /// Toggles a manual splitter at `address` in [`AppState::splitters`] and refreshes the disassembly.
     pub fn toggle_splitter(&mut self, address: Addr) {
-        // Toggle splitter for the generic address
         if self.splitters.contains(&address) {
             self.splitters.remove(&address);
         } else {
@@ -147,7 +164,13 @@ impl AppState {
         self.disassemble();
     }
 
-    /// Returns all items (`Block`, `Splitter`, `Scope`) for the Blocks View, sorted by start address.
+    /// Builds the ordered list of [`BlockItem`]s (`Scope`, `Splitter`, and `Block`) for the Blocks View.
+    ///
+    /// Compressed [`Block`] runs are partitioned at both manual splitters ([`AppState::splitters`])
+    /// and lexical scope boundaries (`scopes` starts and `scope_ends_set` exclusive ends), while
+    /// [`BlockItem::Splitter`] items are emitted only for manual splitters. Items are sorted by
+    /// start [`Addr`], with ties broken so [`BlockItem::Scope`] precedes [`BlockItem::Splitter`]
+    /// and [`BlockItem::Block`] at the same address.
     #[must_use]
     pub fn get_blocks_view_items(&self) -> Vec<BlockItem> {
         let compressed_blocks = self.get_compressed_blocks();
@@ -221,7 +244,9 @@ impl AppState {
             });
         }
 
-        // Sort items by start address
+        // Sort items by start address, breaking ties with `type_rank` (`Scope` = 0, `Splitter` = 1,
+        // `Block` = 2) so a `BlockItem::Scope` header always precedes any `Splitter` or `Block`
+        // starting at the same address, allowing `BlocksView` to indent them inside the scope.
         items.sort_by(|a, b| {
             let addr_a = match a {
                 BlockItem::Block { start, .. } => *start,
@@ -249,6 +274,12 @@ impl AppState {
         items
     }
 
+    /// Returns the index in [`AppState::get_blocks_view_items`] matching `address`.
+    ///
+    /// When `is_splitter` is `true`, matches a [`BlockItem::Splitter`] at `address` (or a
+    /// [`BlockItem::Scope`] spanning `address`). When `is_splitter` is `false`, matches the first
+    /// [`BlockItem::Scope`] or [`BlockItem::Block`] whose inclusive range `start..=end` contains
+    /// `address` (accounting for 16-bit wrap-around when `start > end`).
     #[must_use]
     pub fn get_block_index_for_address(&self, address: Addr, is_splitter: bool) -> Option<usize> {
         let items = self.get_blocks_view_items();
@@ -279,6 +310,9 @@ impl AppState {
         })
     }
 
+    /// Generates synthetic preamble [`DisassemblyLine`]s defining all external and [`BlockType::ExternalFile`]
+    /// labels, grouped with a prefix legend and annotated with comments and (when `include_xrefs` is `true`)
+    /// cross-reference summaries.
     #[must_use]
     pub fn get_external_label_definitions(&self, include_xrefs: bool) -> Vec<DisassemblyLine> {
         let mut candidates: Vec<(Addr, LabelType, &String)> = Vec::new();
