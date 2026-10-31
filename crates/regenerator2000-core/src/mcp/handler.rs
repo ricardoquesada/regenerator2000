@@ -12,9 +12,18 @@ use crate::state::AppState;
 use crate::view_state::CoreViewState;
 use serde_json::{Value, json};
 
+/// Canonical MCP server name advertised during initialization and discovery.
+pub const MCP_SERVER_NAME: &str = "regenerator2000-core-mcp";
+
+/// Human-readable description of the Regenerator 2000 MCP server.
+pub const MCP_SERVER_DESCRIPTION: &str = "An interactive disassembler for the MOS 6502 assembly.";
+
+/// System instructions provided to MCP clients connecting to Regenerator 2000.
+pub const MCP_SERVER_INSTRUCTIONS: &str = "You are an expert in MOS 6502 assembly programmer. Always assume the code is 6502 assembly unless stated otherwise.";
+
 /// Main request handler for processing incoming Model Context Protocol [`McpRequest`] calls.
 ///
-/// Handles `initialize`, `notifications/initialized`, `tools/list`, `resources/list`,
+/// Handles `initialize`, `notifications/initialized`, `ping`, `tools/list`, `resources/list`,
 /// `tools/call`, and `resources/read` request methods.
 ///
 /// # Arguments
@@ -33,20 +42,28 @@ pub fn handle_request(
     view_state: &mut CoreViewState,
 ) -> McpResponse {
     let result = match req.method.as_str() {
-        "initialize" => Ok(json!({
-            "protocolVersion": "2024-11-05",
-            "serverInfo": {
-                "name": "regenerator2000-core-mcp",
-                "version": env!("CARGO_PKG_VERSION"),
-                "description": "An interactive disassembler for the MOS 6502 assembly."
-            },
-            "instructions": "You are an expert in MOS 6502 assembly programmer. Always assume the code is 6502 assembly unless stated otherwise.",
-            "capabilities": {
-                "tools": {},
-                "resources": {}
-            }
-        })),
+        "initialize" => {
+            let protocol_version = req
+                .params
+                .get("protocolVersion")
+                .and_then(Value::as_str)
+                .unwrap_or("2024-11-05");
+            Ok(json!({
+                "protocolVersion": protocol_version,
+                "serverInfo": {
+                    "name": MCP_SERVER_NAME,
+                    "version": env!("CARGO_PKG_VERSION"),
+                    "description": MCP_SERVER_DESCRIPTION
+                },
+                "instructions": MCP_SERVER_INSTRUCTIONS,
+                "capabilities": {
+                    "tools": {},
+                    "resources": {}
+                }
+            }))
+        }
         "notifications/initialized" => Ok(json!(true)),
+        "ping" => Ok(json!({})),
         "tools/list" => list_tools(&app_state.system_config),
         "resources/list" => list_resources(),
         "tools/call" => handle_tool_call(&req.params, app_state, view_state),

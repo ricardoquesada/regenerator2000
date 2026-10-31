@@ -1,9 +1,10 @@
 use rmcp::{
     ServerHandler,
     model::{
-        CallToolRequestParams, CallToolResponse, CallToolResult, InitializeRequestParams,
-        InitializeResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams,
-        ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult,
+        CallToolRequestParams, CallToolResponse, CallToolResult, Implementation,
+        InitializeRequestParams, InitializeResult, ListResourcesResult, ListToolsResult,
+        PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResponse,
+        ReadResourceResult, ServerCapabilities, ServerConfig, SubscriptionFilter,
     },
     service::{RequestContext, RoleServer},
     transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService},
@@ -15,6 +16,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 
+use crate::mcp::handler::{MCP_SERVER_DESCRIPTION, MCP_SERVER_INSTRUCTIONS, MCP_SERVER_NAME};
 use crate::mcp::types::McpRequest;
 
 #[derive(Clone)]
@@ -54,29 +56,40 @@ impl RegeneratorOps {
 }
 
 impl ServerHandler for RegeneratorOps {
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_resources()
+                .build(),
+        )
+        .with_server_info(
+            Implementation::new(MCP_SERVER_NAME, env!("CARGO_PKG_VERSION"))
+                .with_description(MCP_SERVER_DESCRIPTION),
+        )
+        .with_instructions(MCP_SERVER_INSTRUCTIONS)
+    }
+
+    fn accepted_subscription_filter(
+        &self,
+        requested: &SubscriptionFilter,
+    ) -> Option<SubscriptionFilter> {
+        Some(requested.clone())
+    }
+
     async fn initialize(
         &self,
         request: InitializeRequestParams,
-        _context: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> Result<InitializeResult, rmcp::ErrorData> {
-        match self
-            .send_request(
-                "initialize",
-                serde_json::to_value(request).unwrap_or(Value::Null),
-            )
-            .await
-        {
-            Ok(val) => {
-                let result: InitializeResult = serde_json::from_value(val).map_err(|e| {
-                    rmcp::ErrorData::internal_error(
-                        format!("Failed to parse initialize result: {e}"),
-                        None,
-                    )
-                })?;
-                Ok(result)
-            }
-            Err(e) => Err(rmcp::ErrorData::internal_error(e, None)),
-        }
+        context.peer.set_peer_info(request.clone());
+        self.send_request(
+            "initialize",
+            serde_json::to_value(&request).unwrap_or(Value::Null),
+        )
+        .await
+        .map_err(|e| rmcp::ErrorData::internal_error(e, None))?;
+        self.negotiate_initialize(&request)
     }
 
     async fn list_tools(
@@ -213,4 +226,83 @@ pub async fn run_server_with_shutdown(
         .await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rmcp::model::{ClientCapabilities, DiscoverResult, ProtocolVersion};
+
+    fn dummy_ops() -> RegeneratorOps {
+        let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        RegeneratorOps::new(tx)
+    }
+
+    #[test]
+    fn get_info_advertises_tools_resources_and_metadata() {
+        let ops = dummy_ops();
+        let info = ops.get_info();
+
+        assert!(info.capabilities.tools.is_some());
+        assert!(info.capabilities.resources.is_some());
+        assert_eq!(info.server_info.name, MCP_SERVER_NAME);
+        assert_eq!(
+            info.server_info.description.as_deref(),
+            Some(MCP_SERVER_DESCRIPTION)
+        );
+        assert_eq!(info.instructions.as_deref(), Some(MCP_SERVER_INSTRUCTIONS));
+    }
+
+    #[test]
+    fn discover_result_from_server_info_preserves_capabilities() {
+        let ops = dummy_ops();
+        let discover = DiscoverResult::from_server_info(
+            ops.supported_protocol_versions().into_owned(),
+            ops.get_info(),
+        );
+
+        assert!(
+            discover
+                .supported_versions
+                .contains(&ProtocolVersion::V_2026_07_28)
+        );
+        assert!(discover.capabilities.tools.is_some());
+        assert!(discover.capabilities.resources.is_some());
+        assert_eq!(
+            discover.instructions.as_deref(),
+            Some(MCP_SERVER_INSTRUCTIONS)
+        );
+        let server_info = discover.server_info().expect("server_info in _meta");
+        assert_eq!(server_info.name, MCP_SERVER_NAME);
+    }
+
+    #[test]
+    fn negotiate_initialize_supports_legacy_protocol_versions() {
+        let ops = dummy_ops();
+        let req = InitializeRequestParams::new(
+            ClientCapabilities::default(),
+            Implementation::new("test-client", "1.0.0"),
+        )
+        .with_protocol_version(ProtocolVersion::V_2024_11_05);
+
+        let result = ops
+            .negotiate_initialize(&req)
+            .expect("negotiate_initialize should succeed");
+        assert_eq!(result.protocol_version, ProtocolVersion::V_2024_11_05);
+        assert!(result.capabilities.tools.is_some());
+        assert!(result.capabilities.resources.is_some());
+        assert_eq!(result.server_info.name, MCP_SERVER_NAME);
+    }
+
+    #[test]
+    fn accepted_subscription_filter_accepts_client_subscriptions() {
+        let ops = dummy_ops();
+        let mut filter = SubscriptionFilter::default();
+        filter.tools_list_changed = Some(true);
+
+        let accepted = ops
+            .accepted_subscription_filter(&filter)
+            .expect("subscriptions/listen must be accepted");
+        assert_eq!(accepted.tools_list_changed, Some(true));
+    }
 }

@@ -1347,7 +1347,102 @@ def test_unpack_binary(client):
         print(f"  FAIL: expected unpack to fail and return an error, got: {res}")
 
 
+def test_discover_and_subscriptions_2026_07_28():
+    print("\nTesting MCP 2026-07-28 server/discover & subscriptions/listen...")
+    req_meta = {
+        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+        "io.modelcontextprotocol/clientInfo": {
+            "name": "verify_mcp",
+            "version": "1.0"
+        },
+        "io.modelcontextprotocol/clientCapabilities": {}
+    }
+    headers = {
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+        "MCP-Protocol-Version": "2026-07-28"
+    }
+
+    # 1. Verify server/discover returns tools & resources capabilities and instructions
+    discover_payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "server/discover",
+        "params": {
+            "_meta": req_meta
+        }
+    }
+    resp = requests.post(
+        BASE_URL,
+        json=discover_payload,
+        headers={**headers, "Mcp-Method": "server/discover"},
+        stream=True,
+        timeout=5
+    )
+    resp.raise_for_status()
+    discover_msg = None
+    for line in resp.iter_lines():
+        if line:
+            decoded = line.decode("utf-8")
+            if decoded.startswith("data:"):
+                discover_msg = json.loads(decoded[5:].strip())
+                break
+    resp.close()
+
+    if not discover_msg or "result" not in discover_msg:
+        print(f"  FAIL: server/discover returned invalid response: {discover_msg}")
+        sys.exit(1)
+
+    res = discover_msg["result"]
+    caps = res.get("capabilities", {})
+    if "tools" not in caps or "resources" not in caps:
+        print(f"  FAIL: server/discover missing tools/resources capabilities: {caps}")
+        sys.exit(1)
+    if not res.get("instructions"):
+        print(f"  FAIL: server/discover missing instructions: {res}")
+        sys.exit(1)
+    print("  PASS: server/discover advertised tools, resources, and instructions")
+
+    # 2. Verify subscriptions/listen returns 200 OK SSE acknowledgement (not 404)
+    sub_payload = {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "subscriptions/listen",
+        "params": {
+            "_meta": req_meta,
+            "notifications": {
+                "toolsListChanged": True
+            }
+        }
+    }
+    sub_resp = requests.post(
+        BASE_URL,
+        json=sub_payload,
+        headers={**headers, "Mcp-Method": "subscriptions/listen"},
+        stream=True,
+        timeout=5
+    )
+    if sub_resp.status_code != 200:
+        print(f"  FAIL: subscriptions/listen returned HTTP {sub_resp.status_code}")
+        sys.exit(1)
+
+    ack_msg = None
+    for line in sub_resp.iter_lines():
+        if line:
+            decoded = line.decode("utf-8")
+            if decoded.startswith("data:"):
+                ack_msg = json.loads(decoded[5:].strip())
+                break
+    sub_resp.close()
+
+    if not ack_msg or ack_msg.get("method") != "notifications/subscriptions/acknowledged":
+        print(f"  FAIL: subscriptions/listen did not send acknowledgment notification: {ack_msg}")
+        sys.exit(1)
+    print("  PASS: subscriptions/listen acknowledged over SSE stream")
+
+
 if __name__ == "__main__":
+    test_discover_and_subscriptions_2026_07_28()
     client = MCPClient()
     client.start()
     detect_base_address(client)
