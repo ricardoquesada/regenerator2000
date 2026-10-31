@@ -1074,11 +1074,7 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
         }
 
         if !is_scope_end {
-            for (start, end) in app_state
-                .annotations
-                .iter()
-                .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
-            {
+            for (&start, &end) in app_state.annotations.scopes() {
                 if line.address == start
                     && current_inst > 0
                     && app_state.disassembly[current_inst - 1].address == start
@@ -1200,7 +1196,7 @@ mod tests {
     use crate::ui_state::UIState;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
-    use regenerator2000_core::state::{Addr, AppState};
+    use regenerator2000_core::state::{Addr, AppState, Assembler, BlockType};
 
     #[test]
     fn test_render_disassembly_fills_viewport() {
@@ -1244,7 +1240,7 @@ mod tests {
         let mut app_state = AppState::new();
         let code = vec![0xAD, 0x00, 0x10, 0x8D, 0x00, 0x20];
         app_state.load_binary(Addr(0x1000), code).unwrap();
-        app_state.block_types = vec![regenerator2000_core::state::BlockType::Code; 6];
+        app_state.block_types = vec![BlockType::Code; 6];
         app_state.disassemble();
 
         if let Some(line) = app_state.disassembly.get_mut(0) {
@@ -1318,5 +1314,59 @@ mod tests {
             long_lbl_inst_lower.contains("sta"),
             "Instruction mnemonic should be on line following long label"
         );
+    }
+
+    // T5.3: Verify scope gutter rendering (`┌─`, `│ `, `└─`) with indexed `app_state.annotations.scopes()`
+    #[test]
+    fn test_disassembly_render_scope_gutter_with_indexed_scopes() {
+        for assembler in [Assembler::Tass64, Assembler::Acme] {
+            let mut app_state = AppState::new();
+            app_state.load_binary(Addr(0x1000), vec![0xEA; 8]).unwrap();
+            app_state.block_types = vec![BlockType::Code; 8];
+            app_state.settings.assembler = assembler;
+            // Scope covering $1001..=$1003 with a line comment at $1001 (multi-part start)
+            app_state.annotations.update(Addr(0x1001), |e| {
+                e.scope = Some(Addr(0x1003));
+                e.user_line_comment = Some("scope header comment".to_string());
+            });
+            app_state.disassemble();
+
+            let mut ui_state = UIState::new(Theme::default());
+            let backend = TestBackend::new(100, 20);
+            let mut terminal = Terminal::new(backend).unwrap();
+
+            terminal
+                .draw(|f| {
+                    let area = Rect::new(0, 0, 100, 20);
+                    render_disassembly(f, area, &app_state, &mut ui_state);
+                })
+                .unwrap();
+
+            let buffer = terminal.backend().buffer();
+            let rendered_rows: Vec<String> = (1..19)
+                .map(|y| {
+                    (0..100)
+                        .map(|x| {
+                            buffer
+                                .cell((x, y))
+                                .map_or(String::new(), |c| c.symbol().to_string())
+                        })
+                        .collect()
+                })
+                .collect();
+
+            assert!(
+                rendered_rows.iter().any(|r| r.contains("┌─")),
+                "Expected scope start gutter '┌─' for assembler {assembler:?}, rows: {rendered_rows:#?}"
+            );
+            assert!(
+                rendered_rows.iter().any(|r| r.contains("│ ")),
+                "Expected scope middle gutter '│ ' for assembler {assembler:?}, rows: {rendered_rows:#?}"
+            );
+            assert!(
+                rendered_rows.iter().any(|r| r.contains("└─")),
+                "Expected scope end gutter '└─' for assembler {assembler:?}, rows: {rendered_rows:#?}"
+            );
+        }
     }
 }

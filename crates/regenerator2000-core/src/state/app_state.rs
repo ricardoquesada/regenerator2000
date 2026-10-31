@@ -358,22 +358,16 @@ impl AppState {
         }
     }
 
+    /// Returns `true` if `addr` is a manual splitter or a lexical scope boundary
+    /// (either a scope start address or the address immediately following a scope end).
     #[must_use]
     pub fn is_virtual_splitter(&self, addr: Addr) -> bool {
-        if self.splitters.contains(&addr) {
-            return true;
+        if self.splitters.is_empty() && self.annotations.scopes().is_empty() {
+            return false;
         }
-        if self.annotations.get(addr).and_then(|e| e.scope).is_some() {
-            return true;
-        }
-        for (_, entry) in self.annotations.iter() {
-            if let Some(end) = entry.scope
-                && end.wrapping_add(1) == addr
-            {
-                return true;
-            }
-        }
-        false
+        self.splitters.contains(&addr)
+            || self.annotations.is_scope_start(addr)
+            || self.annotations.is_scope_end(addr)
     }
 
     pub fn push_command(&mut self, command: crate::commands::Command) {

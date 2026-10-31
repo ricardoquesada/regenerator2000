@@ -147,10 +147,15 @@ impl AppState {
         self.disassemble();
     }
 
+    /// Returns all items (`Block`, `Splitter`, `Scope`) for the Blocks View, sorted by start address.
     #[must_use]
     pub fn get_blocks_view_items(&self) -> Vec<BlockItem> {
         let compressed_blocks = self.get_compressed_blocks();
         let mut items = Vec::new();
+
+        let mut virtual_splitters = self.splitters.clone();
+        virtual_splitters.extend(self.annotations.scopes().keys().copied());
+        virtual_splitters.extend(self.annotations.scope_ends_set().iter().copied());
 
         // Convert compressed blocks to our list, splicing in splitters
         for block in compressed_blocks {
@@ -158,44 +163,38 @@ impl AppState {
             let block_end = self.origin.wrapping_add(block.end as u16);
 
             let current_end_idx = block.end;
-
-            // Find all virtual splitters in this block range
-            let mut relevant_splitters = Vec::new();
-            for offset in block_start.0..=block_end.0 {
-                let addr = Addr(offset);
-                if self.is_virtual_splitter(addr) {
-                    relevant_splitters.push(addr);
-                }
-            }
-
             let origin = self.origin;
             let mut sub_block_start = block.start;
 
-            for splitter_addr in relevant_splitters {
-                // Convert splitter address to index
-                let splitter_idx = splitter_addr.offset_from(origin);
+            // Guard against address wrap-around past 0xFFFF where block_start > block_end
+            // so BTreeSet::range never panics.
+            if block_start <= block_end && !virtual_splitters.is_empty() {
+                for &splitter_addr in virtual_splitters.range(block_start..=block_end) {
+                    // Convert splitter address to index
+                    let splitter_idx = splitter_addr.offset_from(origin);
 
-                // If splitter is outside current bounds (shouldn't happen due to range filter), skip.
-                if splitter_idx < sub_block_start || splitter_idx > current_end_idx {
-                    continue;
+                    // If splitter is outside current bounds (shouldn't happen due to range filter), skip.
+                    if splitter_idx < sub_block_start || splitter_idx > current_end_idx {
+                        continue;
+                    }
+
+                    // If splitter is > sub_block_start, we have a chunk before the splitter.
+                    if splitter_idx > sub_block_start {
+                        items.push(BlockItem::Block {
+                            start: origin.wrapping_add(sub_block_start as u16),
+                            end: origin.wrapping_add((splitter_idx - 1) as u16),
+                            type_: block.type_,
+                            collapsed: block.collapsed,
+                        });
+                    }
+
+                    // Emit Splitter only if it's a manual splitter (not a virtual one)
+                    if self.splitters.contains(&splitter_addr) {
+                        items.push(BlockItem::Splitter(splitter_addr));
+                    }
+
+                    sub_block_start = splitter_idx;
                 }
-
-                // If splitter is > sub_block_start, we have a chunk before the splitter.
-                if splitter_idx > sub_block_start {
-                    items.push(BlockItem::Block {
-                        start: origin.wrapping_add(sub_block_start as u16),
-                        end: origin.wrapping_add((splitter_idx - 1) as u16),
-                        type_: block.type_,
-                        collapsed: block.collapsed,
-                    });
-                }
-
-                // Emit Splitter only if it's a manual splitter (not a virtual one)
-                if self.splitters.contains(&splitter_addr) {
-                    items.push(BlockItem::Splitter(splitter_addr));
-                }
-
-                sub_block_start = splitter_idx;
             }
 
             // Emit remainder
@@ -210,11 +209,7 @@ impl AppState {
         }
 
         // Add Scopes
-        for (start_addr, end_addr) in self
-            .annotations
-            .iter()
-            .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
-        {
+        for (&start_addr, &end_addr) in self.annotations.scopes() {
             let name = self
                 .labels
                 .get(&start_addr)
@@ -777,6 +772,274 @@ mod tests {
         assert!(
             !border_line_without.comment.contains("ref from:"),
             "Should NOT contain X-Ref info"
+        );
+    }
+
+    // T2.1
+    #[test]
+    fn test_is_virtual_splitter_manual_and_scopes() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+
+        // Empty state fast-path
+        assert!(!app_state.is_virtual_splitter(Addr(0x1005)));
+
+        // Manual splitter at $1005
+        app_state.splitters.insert(Addr(0x1005));
+        // Scope [$1010..=$101F], so exclusive end is $1020
+        app_state
+            .annotations
+            .update(Addr(0x1010), |e| e.scope = Some(Addr(0x101F)));
+
+        assert!(app_state.is_virtual_splitter(Addr(0x1005)));
+        assert!(app_state.is_virtual_splitter(Addr(0x1010)));
+        assert!(app_state.is_virtual_splitter(Addr(0x1020)));
+
+        assert!(!app_state.is_virtual_splitter(Addr(0x1000)));
+        assert!(!app_state.is_virtual_splitter(Addr(0x1004)));
+        assert!(!app_state.is_virtual_splitter(Addr(0x1015)));
+        assert!(!app_state.is_virtual_splitter(Addr(0x101F)));
+        assert!(!app_state.is_virtual_splitter(Addr(0x1021)));
+    }
+
+    // T2.2
+    #[test]
+    fn test_get_block_range_respects_scopes_and_splitters() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        app_state.raw_data = vec![0x00; 32];
+        app_state.block_types = vec![BlockType::DataByte; 32];
+
+        // Scope $1008..=$100F (virtual splitters at $1008 and $1010)
+        app_state
+            .annotations
+            .update(Addr(0x1008), |e| e.scope = Some(Addr(0x100F)));
+        // Manual splitter at $1018
+        app_state.splitters.insert(Addr(0x1018));
+
+        assert_eq!(
+            app_state.get_block_range(Addr(0x1002)),
+            Some((Addr(0x1000), Addr(0x1007)))
+        );
+        assert_eq!(
+            app_state.get_block_range(Addr(0x1008)),
+            Some((Addr(0x1008), Addr(0x100F)))
+        );
+        assert_eq!(
+            app_state.get_block_range(Addr(0x100F)),
+            Some((Addr(0x1008), Addr(0x100F)))
+        );
+        assert_eq!(
+            app_state.get_block_range(Addr(0x1010)),
+            Some((Addr(0x1010), Addr(0x1017)))
+        );
+        assert_eq!(
+            app_state.get_block_range(Addr(0x1018)),
+            Some((Addr(0x1018), Addr(0x101F)))
+        );
+    }
+
+    // T2.3
+    #[test]
+    fn test_get_blocks_view_items_splitter_positions_landmine_d() {
+        use super::super::app_state::BlockItem;
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        app_state.raw_data = vec![0x00; 10];
+        app_state.block_types = vec![BlockType::DataByte; 10];
+
+        // 1. Splitter at block start ($1000)
+        app_state.splitters.insert(Addr(0x1000));
+        // 2. Adjacent splitters in the middle ($1004, $1005)
+        app_state.splitters.insert(Addr(0x1004));
+        app_state.splitters.insert(Addr(0x1005));
+        // 3. Splitter at block end ($1009)
+        app_state.splitters.insert(Addr(0x1009));
+        // 4. Out-of-bounds splitter outside binary ($2000)
+        app_state.splitters.insert(Addr(0x2000));
+
+        let items = app_state.get_blocks_view_items();
+        assert_eq!(
+            items,
+            vec![
+                BlockItem::Splitter(Addr(0x1000)),
+                BlockItem::Block {
+                    start: Addr(0x1000),
+                    end: Addr(0x1003),
+                    type_: BlockType::DataByte,
+                    collapsed: false,
+                },
+                BlockItem::Splitter(Addr(0x1004)),
+                BlockItem::Block {
+                    start: Addr(0x1004),
+                    end: Addr(0x1004),
+                    type_: BlockType::DataByte,
+                    collapsed: false,
+                },
+                BlockItem::Splitter(Addr(0x1005)),
+                BlockItem::Block {
+                    start: Addr(0x1005),
+                    end: Addr(0x1008),
+                    type_: BlockType::DataByte,
+                    collapsed: false,
+                },
+                BlockItem::Splitter(Addr(0x1009)),
+                BlockItem::Block {
+                    start: Addr(0x1009),
+                    end: Addr(0x1009),
+                    type_: BlockType::DataByte,
+                    collapsed: false,
+                },
+            ]
+        );
+    }
+
+    // T2.4
+    #[test]
+    fn test_get_blocks_view_items_with_scopes_and_labels() {
+        use super::super::app_state::BlockItem;
+        use super::super::project::Label;
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        app_state.raw_data = vec![0xEA; 32];
+        app_state.block_types = vec![BlockType::Code; 32];
+
+        // Scope $1008..=$100F with label "my_scope" and manual splitter at $1008
+        app_state
+            .annotations
+            .update(Addr(0x1008), |e| e.scope = Some(Addr(0x100F)));
+        app_state.labels.insert(
+            Addr(0x1008),
+            vec![Label {
+                name: "my_scope".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        app_state.splitters.insert(Addr(0x1008));
+
+        let items = app_state.get_blocks_view_items();
+        assert_eq!(
+            items,
+            vec![
+                BlockItem::Block {
+                    start: Addr(0x1000),
+                    end: Addr(0x1007),
+                    type_: BlockType::Code,
+                    collapsed: false,
+                },
+                BlockItem::Scope {
+                    start: Addr(0x1008),
+                    end: Addr(0x100F),
+                    name: Some("my_scope".to_string()),
+                },
+                BlockItem::Splitter(Addr(0x1008)),
+                BlockItem::Block {
+                    start: Addr(0x1008),
+                    end: Addr(0x100F),
+                    type_: BlockType::Code,
+                    collapsed: false,
+                },
+                BlockItem::Block {
+                    start: Addr(0x1010),
+                    end: Addr(0x101F),
+                    type_: BlockType::Code,
+                    collapsed: false,
+                },
+            ]
+        );
+    }
+
+    // T2.5
+    #[test]
+    fn test_get_blocks_view_items_address_wrap_around_landmine_c() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0xFFFE);
+        app_state.raw_data = vec![0xEA; 4];
+        app_state.block_types = vec![BlockType::Code; 4];
+        app_state.splitters.insert(Addr(0xFFFF));
+        app_state
+            .annotations
+            .update(Addr(0xFFFE), |e| e.scope = Some(Addr(0xFFFF)));
+
+        // Must not panic when block_start ($FFFE) > block_end ($0001)
+        let items = app_state.get_blocks_view_items();
+        assert!(!items.is_empty());
+    }
+
+    // T2.6
+    #[test]
+    fn test_get_blocks_view_items_full_64k_boundary() {
+        use super::super::app_state::BlockItem;
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0000);
+        app_state.raw_data = vec![0xEA; 65536];
+        app_state.block_types = vec![BlockType::Code; 65536];
+        app_state.splitters.insert(Addr(0x0000));
+        app_state.splitters.insert(Addr(0x8000));
+        app_state.splitters.insert(Addr(0xFFFF));
+        app_state
+            .annotations
+            .update(Addr(0xC000), |e| e.scope = Some(Addr(0xFFFF)));
+
+        let items = app_state.get_blocks_view_items();
+        assert!(items.contains(&BlockItem::Splitter(Addr(0x0000))));
+        assert!(items.contains(&BlockItem::Splitter(Addr(0x8000))));
+        assert!(items.contains(&BlockItem::Splitter(Addr(0xFFFF))));
+        assert!(items.contains(&BlockItem::Scope {
+            start: Addr(0xC000),
+            end: Addr(0xFFFF),
+            name: None,
+        }));
+    }
+
+    // T4.1
+    #[test]
+    fn test_performance_64k_blocks_view_and_block_range_with_2000_annotations() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0000);
+        app_state.raw_data = vec![0xEA; 65536];
+        app_state.block_types = vec![BlockType::Code; 65536];
+
+        // Populate 2,000 system comments across the 64 KB address space
+        for i in 0..2000u16 {
+            let addr = Addr(i.wrapping_mul(31));
+            app_state
+                .annotations
+                .update(addr, |e| e.system_comment = Some(format!("sys_{i}")));
+        }
+
+        // Populate 10 user scopes and 10 manual splitters
+        for i in 0..10u16 {
+            let start = Addr(0x1000 + i * 0x0400);
+            let end = Addr(0x1000 + i * 0x0400 + 0x00FF);
+            app_state.annotations.update(start, |e| e.scope = Some(end));
+            app_state.splitters.insert(Addr(0x2000 + i * 0x0400));
+        }
+
+        // Populate 5 unsorted collapsed blocks
+        app_state.collapsed_blocks = vec![
+            (50000, 50100),
+            (10000, 10200),
+            (30000, 30050),
+            (100, 200),
+            (40000, 40500),
+        ];
+
+        let start_time = std::time::Instant::now();
+        for _ in 0..10 {
+            let items = app_state.get_blocks_view_items();
+            assert!(!items.is_empty());
+            let range = app_state.get_block_range(Addr(0x8000));
+            assert!(range.is_some());
+        }
+        let elapsed = start_time.elapsed();
+        assert!(
+            elapsed.as_millis() < 200,
+            "10x get_blocks_view_items + 10x get_block_range on 64KB with 2000 annotations took {elapsed:?} (expected < 200ms)"
         );
     }
 }

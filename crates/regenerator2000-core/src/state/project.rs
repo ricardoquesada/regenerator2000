@@ -26,7 +26,7 @@ pub struct Label {
     pub kind: LabelKind,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Block {
     pub start: usize,
     pub end: usize,
@@ -143,6 +143,7 @@ pub fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
     Ok(raw_data)
 }
 
+/// Compresses a slice of per-byte [`BlockType`]s and collapsed index ranges into contiguous [`Block`] spans.
 #[must_use]
 pub fn compress_block_types(
     types: &[BlockType],
@@ -152,12 +153,49 @@ pub fn compress_block_types(
         return Vec::new();
     }
 
-    let is_collapsed =
-        |idx: usize| -> bool { collapsed_ranges.iter().any(|(s, e)| idx >= *s && idx <= *e) };
-
     let mut ranges = Vec::new();
     let mut start = 0;
     let mut current_type = types[0];
+
+    // Fast-path when no blocks are collapsed (common case).
+    if collapsed_ranges.is_empty() {
+        for (i, &t) in types.iter().enumerate().skip(1) {
+            if t != current_type {
+                ranges.push(Block {
+                    start,
+                    end: i - 1,
+                    type_: current_type,
+                    collapsed: false,
+                });
+                start = i;
+                current_type = t;
+            }
+        }
+        ranges.push(Block {
+            start,
+            end: types.len() - 1,
+            type_: current_type,
+            collapsed: false,
+        });
+        return ranges;
+    }
+
+    // Sort valid collapsed ranges by (start, end) so we can advance a single cursor in O(N + C log C).
+    let mut sorted_collapsed: Vec<(usize, usize)> = collapsed_ranges
+        .iter()
+        .copied()
+        .filter(|&(s, e)| s <= e)
+        .collect();
+    sorted_collapsed.sort_unstable_by_key(|&(s, e)| (s, e));
+
+    let mut range_cursor = 0;
+    let mut is_collapsed = |idx: usize| -> bool {
+        while range_cursor < sorted_collapsed.len() && sorted_collapsed[range_cursor].1 < idx {
+            range_cursor += 1;
+        }
+        range_cursor < sorted_collapsed.len() && idx >= sorted_collapsed[range_cursor].0
+    };
+
     let mut current_collapsed = is_collapsed(0);
 
     for (i, t) in types.iter().enumerate().skip(1) {
@@ -232,6 +270,77 @@ mod serialization_tests {
         assert_eq!(ranges[2].start, 4);
         assert_eq!(ranges[2].end, 4);
         assert_eq!(ranges[2].type_, BlockType::Code);
+    }
+
+    // T3.1
+    #[test]
+    fn test_compress_block_types_unsorted_collapsed_ranges_landmine_e() {
+        let types = vec![BlockType::DataByte; 20];
+        let unsorted = vec![(12, 15), (2, 5)];
+        let sorted = vec![(2, 5), (12, 15)];
+
+        let blocks_unsorted = compress_block_types(&types, &unsorted);
+        let blocks_sorted = compress_block_types(&types, &sorted);
+
+        assert_eq!(blocks_unsorted, blocks_sorted);
+        assert_eq!(
+            blocks_unsorted,
+            vec![
+                Block {
+                    start: 0,
+                    end: 1,
+                    type_: BlockType::DataByte,
+                    collapsed: false,
+                },
+                Block {
+                    start: 2,
+                    end: 5,
+                    type_: BlockType::DataByte,
+                    collapsed: true,
+                },
+                Block {
+                    start: 6,
+                    end: 11,
+                    type_: BlockType::DataByte,
+                    collapsed: false,
+                },
+                Block {
+                    start: 12,
+                    end: 15,
+                    type_: BlockType::DataByte,
+                    collapsed: true,
+                },
+                Block {
+                    start: 16,
+                    end: 19,
+                    type_: BlockType::DataByte,
+                    collapsed: false,
+                },
+            ]
+        );
+    }
+
+    // T3.2
+    #[test]
+    fn test_compress_block_types_adjacent_and_overlapping_collapsed_ranges() {
+        let types = vec![BlockType::DataByte; 16];
+        // Adjacent (0..=3, 4..=7), overlapping (10..=14, 11..=12, 12..=15), and duplicate (0..=3)
+        let collapsed = vec![(12, 15), (0, 3), (11, 12), (4, 7), (10, 14), (0, 3)];
+
+        let blocks = compress_block_types(&types, &collapsed);
+
+        // Verify against reference per-byte linear scan
+        for (idx, _) in types.iter().enumerate() {
+            let expected_collapsed = collapsed.iter().any(|(s, e)| idx >= *s && idx <= *e);
+            let actual_block = blocks
+                .iter()
+                .find(|b| idx >= b.start && idx <= b.end)
+                .unwrap();
+            assert_eq!(
+                actual_block.collapsed, expected_collapsed,
+                "Mismatch at index {idx}"
+            );
+        }
     }
 
     #[test]
