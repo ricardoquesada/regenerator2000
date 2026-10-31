@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.22] - 2026-10-31
+
+### Features
+
+- **MCP**: Add support for MCP `2026-07-28` server discovery (`server/discover`) and subscription lifecycle (`subscriptions/listen`) in `rmcp` 3.8.0.
+- **MCP**: Add block type filter aliases (`PETSCII`, `Screencode`, and snake_case identifiers) to `r2000_get_blocks`.
+- **Agents & Skills**: Add `r2000-cbm-principal-swe` Commodore 8-bit / MOS 6502 reverse-engineering agent and refactor `r2000-analyze-program` into a 2-tier MapReduce coordinator.
+
+### Fixes
+
+- **Core**: Fix `Shift+Up` / `Shift+Down` range selection conversion and scoping, Blocks pane collapse target resolution, and search matching inside collapsed blocks.
+- **UI**: Unify TUI search dispatch through `AppAction::FindNext` / `AppAction::FindPrevious`, sync `UIState` before action execution, and fix Disassembly View shortcuts (`Alt+Up`/`Alt+Down`, `'N'`, `'V'`, `'E'`, `'I'`).
+- **UI**: Fix `Ctrl+*` / `Alt+*` modifier shadowing across views and synchronize keyboard shortcut metadata across menus, dialogs, and documentation.
+- **MCP**: Bind TCP listener before emitting `McpServerStarted` so port-bind conflicts are preserved in the TUI status bar.
+- **MCP**: Wrap analysis and modification tool responses in MCP `CallToolResult` payloads, remove duplicate `$` address prefixes, and isolate `--headless` mode from user config state.
+
+### Refactor / Internal
+
+- **Performance**: Index scope boundaries (`BTreeMap`/`BTreeSet`) in `AnnotationManager` for `O(log S)` lookups, optimize `compress_block_types`, and window `BlocksView` rendering to the visible viewport.
+- **Testing**: Add 3-pillar end-to-end keyboard shortcut verification suite in `regenerator2000-tui`.
+- **Dependencies**: Upgrade `rmcp` to `3.8.0`, `mos6502` to `0.10.1`, `base64` to `0.23.1`, and `opener` to `0.9.0`.
+
+### Documentation
+
+- **Docs**: Add comprehensive rustdoc module overviews, item documentation, and algorithmic invariant comments across `state/`, `view_blocks.rs`, and `view_disassembly/render.rs`.
+
 ## [0.9.21] - 2026-10-29
 
 ### Features
