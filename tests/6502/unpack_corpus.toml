@@ -112,7 +112,7 @@ fnv64 = "42839c5dfde0a310"
 kind = "unexplained"
 fields = ["start", "entry"]
 reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
-note = "ruling R17 hypothesis: unp64 dumps after the first layer (returns to $080D, saved $0400-$FEFF), while R2000 continues to the inner stage at $EFB0 ($0801-$FEFF), so start, entry and the overlap payload (61303 bytes, first at $0803) all differ; the expected_fail marker masks only the payload"
+note = "unp64 dumps after the first layer (returns to $080D, saved $0400-$FEFF), while R2000 continues to the inner stage at $EFB0 ($0801-$FEFF), so start, entry and the overlap payload (61303 bytes, first at $0803) all differ; the expected_fail marker masks only the payload"
 
 [[case]]
 file = "c64_Layers.exo3.prg"
@@ -201,7 +201,7 @@ fnv64 = "3e82eeb108e201eb"
 kind = "unexplained"
 fields = ["start", "end"]
 reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
-note = "M3.6b exact_return resolved the 1927-byte payload mismatch (overlap $2A78-$4D3B matches unp64 100%); R2000 dumps $0801-$4D3C (ALZ64 start $080B clamped to BASIC SYS at $0801, plus $00CF end pointer +1 padding byte) while unp64 dumps $2A78-$4D3B"
+note = "ALZ64/Quiss overlap $2A78-$4D3B matches unp64 100%; R2000 dumps $0801-$4D3C (ALZ64 start $080B clamped to BASIC SYS at $0801, plus $00CF end pointer +1 padding byte) while unp64 dumps $2A78-$4D3B"
 
 [[case]]
 file = "c64_chiller.antiram_packer.prg"

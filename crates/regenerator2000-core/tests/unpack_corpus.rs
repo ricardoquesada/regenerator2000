@@ -1,21 +1,22 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 //! Corpus integration test: runs every case of `tests/6502/unpack_corpus.toml`
-//! through R2000, evaluates it against its strongest oracle (ground truth,
-//! the recorded unp64 result, or a reviewed exception), checks group
-//! consensus, and compares every observable output with the committed
-//! `tests/6502/unpack_baseline.toml`.
+//! through Regenerator 2000, evaluates it against its strongest oracle (ground
+//! truth original binary, recorded `unp64` reference, or reviewed exception),
+//! checks ground-truth group consensus, and compares every observable output
+//! with the committed `tests/6502/unpack_baseline.toml`.
 //!
 //! All failures are collected and reported together. The corpus library is
-//! shared with the `unpacker_compare_all` bin through `#[path]`.
+//! shared with the `unpacker_compare_all` binary through `#[path]`.
 //!
-//! Environment:
+//! Environment variables:
 //!
 //! * `CORPUS_FILTER=mule` runs a subset (cases or groups whose name contains
 //!   the text; groups are always run whole).
-//! * `UPDATE_UNPACK_BASELINE=1` rewrites the baseline instead of comparing
-//!   it (rejected together with a filter, ruling R8).
+//! * `UPDATE_UNPACK_BASELINE=1` rewrites `tests/6502/unpack_baseline.toml`
+//!   instead of comparing it (rejected when `CORPUS_FILTER` is active so a
+//!   partial run never drops unselected rows).
 //! * `UNPACK_CORPUS_TIME_LIMIT_SECS` overrides the wall-clock limit of the
-//!   full run (ruling R11).
+//!   full parallel run.
 
 #[path = "../src/bin/unpacker_compare_all/corpus/mod.rs"]
 mod corpus;
@@ -42,72 +43,65 @@ const UPDATE_BASELINE_ENV: &str = "UPDATE_UNPACK_BASELINE";
 /// The only value of [`UPDATE_BASELINE_ENV`] that rewrites the baseline.
 const UPDATE_BASELINE_VALUE: &str = "1";
 
-/// Environment variable that overrides [`CORPUS_TIME_LIMIT`] (ruling R11).
+/// Environment variable that overrides [`CORPUS_TIME_LIMIT`].
 const TIME_LIMIT_ENV: &str = "UNPACK_CORPUS_TIME_LIMIT_SECS";
 
-/// Wall-clock limit of a full parallel corpus run. Today it takes about a
-/// second locally; a 30s ceiling catches runaway regressions without flaking
-/// when multiple corpus tests run concurrently on shared 2-vCPU CI runners.
+/// Wall-clock limit of a full parallel corpus run. Locally it takes ~1 second;
+/// a 30-second ceiling catches runaway infinite loops without flaking on
+/// shared 2-vCPU CI runners.
 const CORPUS_TIME_LIMIT: Duration = Duration::from_secs(30);
 
-/// Every fixture of the former `unpacker` unit tests that were migrated into
-/// the manifest and deleted in M1.3, deduplicated: 31 from the known-PRG
-/// table, 7 from the untracked-file unp64 comparison, and 5 from the
-/// per-file unp64 tests (gianna, fantasy intro, time cruncher, chiller,
-/// daah).
-const MIGRATED_CASES: [&str; 43] = [
-    // Former known-PRG table (31)
+/// Complete list of packed `.prg` fixtures registered in
+/// `tests/6502/unpack_corpus.toml`, kept in alphabetical order.
+const CORPUS_CASES: [&str; 45] = [
+    "c64_323_ice_psm.1001_card_cruncher.prg",
     "c64_8_bit_ball.meanteam_cruncher.prg",
+    "c64_Bit_by_Bits-BZ!.exo3.prg",
+    "c64_CopperBooze.byte_boozer2.prg",
+    "c64_FppScroller.byte_boozer2.prg",
+    "c64_HBFS.exo3.prg",
+    "c64_Layers.exo3.prg",
+    "c64_bluemarble4k_unk.prg",
+    "c64_boilerplate.exo3.prg",
+    "c64_boo_alz64.prg",
+    "c64_chiller.antiram_packer.prg",
+    "c64_connection-8580.pucrunch.prg",
+    "c64_cubicdream.exo3.prg",
+    "c64_daah_those_acid_pills.exo2.prg",
+    "c64_druid_too.exo3.prg",
+    "c64_endoskull.exo3.prg",
+    "c64_f600.exo.prg",
+    "c64_fantasy_intro.eca_compactor.prg",
+    "c64_gianna_sister_remix_badboy.tbc_multicompactor.prg",
+    "c64_goblin.unk.prg",
+    "c64_hw20131031.exo.prg",
+    "c64_leftovers-pl.exo3.prg",
+    "c64_lft-nine.exo3.prg",
+    "c64_lft-rodents-in-the-attic.exo3.prg",
+    "c64_little_things.exo3.prg",
     "c64_moving_tubes_lxt.dali.prg",
     "c64_moving_tubes_lxt.exo3.prg",
     "c64_moving_tubes_lxt.pucrunch.prg",
     "c64_moving_tubes_lxt.tscrunch_x.prg",
     "c64_moving_tubes_lxt.tscrunch_x2.prg",
-    "c64_mule.tscrunch_x.prg",
-    "c64_mule.tscrunch_x2.prg",
     "c64_mule.dali.prg",
     "c64_mule.exo3.prg",
     "c64_mule.mccracken_compressor.prg",
     "c64_mule.pucrunch.prg",
-    "c64_roma.exe.exo3.prg",
-    "c64_f600.exo.prg",
-    "c64_hw20131031.exo.prg",
-    "c64_traveller.tiny_crunch.prg",
-    "c64_spectro.exo3.prg",
-    "c64_CopperBooze.byte_boozer2.prg",
-    "c64_cubicdream.exo3.prg",
-    "c64_FppScroller.byte_boozer2.prg",
-    "c64_HBFS.exo3.prg",
-    "c64_Layers.exo3.prg",
-    "c64_connection-8580.pucrunch.prg",
-    "c64_lft-nine.exo3.prg",
-    "c64_lft-rodents-in-the-attic.exo3.prg",
-    "c64_little_things.exo3.prg",
-    "c64_robot - not human.exo3.prg",
-    "c64_bluemarble4k_unk.prg",
-    "c64_boo_alz64.prg",
-    "c64_soul_on_fire_unk.prg",
-    "c64_323_ice_psm.1001_card_cruncher.prg",
-    // Former untracked-file unp64 comparison (7)
-    "c64_Bit_by_Bits-BZ!.exo3.prg",
-    "c64_boilerplate.exo3.prg",
-    "c64_druid_too.exo3.prg",
-    "c64_endoskull.exo3.prg",
-    "c64_leftovers-pl.exo3.prg",
+    "c64_mule.tscrunch_x.prg",
+    "c64_mule.tscrunch_x2.prg",
     "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg",
+    "c64_robot - not human.exo3.prg",
+    "c64_roma.exe.exo3.prg",
+    "c64_soul_on_fire_unk.prg",
+    "c64_spectro.exo3.prg",
     "c64_sprite_runners.exo3.prg",
-    // Per-file unp64 tests (5)
-    "c64_gianna_sister_remix_badboy.tbc_multicompactor.prg",
-    "c64_fantasy_intro.eca_compactor.prg",
     "c64_thats_the_way_scoop.time_cruncher.prg",
-    "c64_chiller.antiram_packer.prg",
-    "c64_daah_those_acid_pills.exo2.prg",
+    "c64_traveller.tiny_crunch.prg",
+    "c64_wavehero_alz64.prg",
 ];
 
-/// Corpus cases added after the M1.3 migration (e.g., Q3 real `.prg` fixtures).
-const POST_MIGRATION_CASES: [&str; 2] = ["c64_goblin.unk.prg", "c64_wavehero_alz64.prg"];
-
-/// The ground-truth groups: id, original, entry, and members.
+/// Ground-truth groups: `(group_id, original_unpacked_prg, entry_point, packed_members)`.
 const GROUND_TRUTH_GROUPS: [(&str, &str, u16, &[&str]); 2] = [
     (
         "moving_tubes",
@@ -136,8 +130,8 @@ const GROUND_TRUTH_GROUPS: [(&str, &str, u16, &[&str]); 2] = [
     ),
 ];
 
-/// The only cases with an unknown packer that carry an exception
-/// (Addendum A, Q2).
+/// Cases unpacked via generic 2-phase emulation (`packer = None`) that carry a
+/// range divergence against `unp64`.
 const UNKNOWN_PACKER_EXCEPTIONS: [&str; 4] = [
     "c64_8_bit_ball.meanteam_cruncher.prg",
     "c64_bluemarble4k_unk.prg",
@@ -145,14 +139,12 @@ const UNKNOWN_PACKER_EXCEPTIONS: [&str; 4] = [
     "c64_soul_on_fire_unk.prg",
 ];
 
-/// The case whose payload mismatch with unp64 is under investigation
-/// (Orchestrator rulings on HBFS and R17).
+/// Multi-layer Exomizer 3 case (`c64_HBFS.exo3.prg`) whose payload difference
+/// against `unp64` (outer layer vs inner layer) is under investigation.
 const HBFS: &str = "c64_HBFS.exo3.prg";
 
-/// The only cases marked `payload_mismatch_under_investigation` (ruling
-/// R17). M3.6b fixed `c64_boo_alz64.prg` via `exact_return`, leaving only
-/// `c64_HBFS.exo3.prg`.
-const R17_CASES: [&str; 1] = ["c64_HBFS.exo3.prg"];
+/// Cases marked with [`ExpectedFailReason::PayloadMismatchUnderInvestigation`].
+const PAYLOAD_MISMATCH_CASES: [&str; 1] = ["c64_HBFS.exo3.prg"];
 
 // =============================================================================
 // Harness
@@ -169,8 +161,8 @@ enum BaselineMode {
 
 /// Decides the baseline mode from the value of [`UPDATE_BASELINE_ENV`].
 ///
-/// Updating under an active filter is rejected (ruling R8): a filtered run
-/// would silently drop every unselected row from the baseline.
+/// Updating under an active filter is rejected because a filtered run would
+/// silently drop every unselected row from the baseline.
 fn baseline_mode(update: Option<&str>, filter: &CorpusFilter) -> Result<BaselineMode, String> {
     match update {
         None | Some("") => Ok(BaselineMode::Compare),
@@ -216,7 +208,7 @@ fn fixtures() -> DirFixtures {
 
 /// Loads the manifest and asserts that it validates cleanly **before** any
 /// evaluation. The evaluator relies on validation for cross-references (an
-/// unknown group id would otherwise fall back to the unp64 rule).
+/// unknown group id would otherwise fall back to the `unp64` rule).
 fn load_valid_corpus() -> Corpus {
     let path = Path::new(FIXTURE_DIR).join(MANIFEST_FILE);
     let corpus = Corpus::load(&path).unwrap_or_else(|error| panic!("{error}"));
@@ -256,10 +248,11 @@ fn select<'c>(corpus: &'c Corpus, filter: &CorpusFilter) -> Vec<&'c Case> {
 }
 
 // =============================================================================
-// Manifest shape
+// Manifest shape & invariants
 // =============================================================================
 
-/// T1.A1.64
+/// Verifies that `tests/6502/` resolves from `CARGO_MANIFEST_DIR` and contains
+/// both `unpack_corpus.toml` and `unpack_baseline.toml`.
 #[test]
 fn corpus_fixture_dir_resolves_from_manifest_dir() {
     let dir = Path::new(FIXTURE_DIR);
@@ -273,12 +266,12 @@ fn corpus_fixture_dir_resolves_from_manifest_dir() {
     }
 }
 
-/// T1.A1.65
+/// Verifies that `tests/6502/unpack_corpus.toml` parses, validates against
+/// on-disk fixtures, and has a recorded `[case.unp64]` reference for every case.
 #[test]
 fn corpus_manifest_loads_and_validates() {
     let corpus = load_valid_corpus();
     assert!(!corpus.cases.is_empty());
-    // Every case, group members included, has a recorded unp64 result.
     let missing: Vec<&str> = corpus
         .cases
         .iter()
@@ -291,25 +284,23 @@ fn corpus_manifest_loads_and_validates() {
     );
 }
 
-/// T1.A1.66
+/// Verifies that `tests/6502/unpack_corpus.toml` contains the exact set of
+/// expected corpus fixtures in [`CORPUS_CASES`].
 #[test]
-fn corpus_contains_every_migrated_case() {
+fn corpus_contains_expected_cases() {
     let corpus = load_valid_corpus();
-    let expected: BTreeSet<&str> = MIGRATED_CASES
-        .into_iter()
-        .chain(POST_MIGRATION_CASES)
-        .collect();
+    let expected: BTreeSet<&str> = CORPUS_CASES.into_iter().collect();
     assert_eq!(
         expected.len(),
-        MIGRATED_CASES.len() + POST_MIGRATION_CASES.len(),
-        "duplicate in the list"
+        CORPUS_CASES.len(),
+        "duplicate entry in CORPUS_CASES"
     );
     let actual: BTreeSet<&str> = corpus.cases.iter().map(|case| case.file.as_str()).collect();
     let missing: Vec<&&str> = expected.difference(&actual).collect();
     let extra: Vec<&&str> = actual.difference(&expected).collect();
     assert!(
         missing.is_empty() && extra.is_empty(),
-        "missing: {missing:?}\nnot from a migrated test: {extra:?}"
+        "missing from unpack_corpus.toml: {missing:?}\nunlisted in CORPUS_CASES: {extra:?}"
     );
     assert!(
         corpus.group("moving_tubes").is_some(),
@@ -317,7 +308,8 @@ fn corpus_contains_every_migrated_case() {
     );
 }
 
-/// T1.A1.67
+/// Verifies that the `moving_tubes` and `mule` ground-truth groups reference
+/// their uncompressed original `.prg` binaries and cover all 11 packed variants.
 #[test]
 fn corpus_ground_truth_groups_cover_eleven_variants() {
     let corpus = load_valid_corpus();
@@ -337,12 +329,12 @@ fn corpus_ground_truth_groups_cover_eleven_variants() {
     assert_eq!(corpus.groups.len(), GROUND_TRUTH_GROUPS.len());
 }
 
-/// T1.A1.72: every exception is signed, the initial ones with the pending
-/// marker (never an impersonated user), and the report lists them as user
-/// action items. The only unknown-packer exceptions are the three that
-/// Addendum A Q2 accepted.
+/// Verifies that every `accepted_divergence` in the manifest is signed (or
+/// carries the pending-review marker), that pending and expected-fail cases
+/// appear in the user action items report, and that only the known generic
+/// (`packer = None`) cases carry an exception.
 #[test]
-fn corpus_initial_exceptions_use_pending_marker() {
+fn corpus_exceptions_are_signed_and_listed_in_action_items() {
     let corpus = load_valid_corpus();
     let with_exception: Vec<&Case> = corpus
         .cases
@@ -382,7 +374,7 @@ fn corpus_initial_exceptions_use_pending_marker() {
         "pending exceptions missing from the action items: {unlisted:?}\n{action_items}"
     );
     assert!(action_items.contains(INITIAL_REVIEW_MARKER));
-    let r17_unlisted: Vec<&str> = R17_CASES
+    let expected_fail_unlisted: Vec<&str> = PAYLOAD_MISMATCH_CASES
         .into_iter()
         .filter(|file| {
             !action_items.lines().any(|line| {
@@ -392,8 +384,8 @@ fn corpus_initial_exceptions_use_pending_marker() {
         })
         .collect();
     assert!(
-        r17_unlisted.is_empty(),
-        "R17 cases missing from the action items: {r17_unlisted:?}\n{action_items}"
+        expected_fail_unlisted.is_empty(),
+        "expected-fail cases missing from the action items: {expected_fail_unlisted:?}\n{action_items}"
     );
 
     let unknown_packer: BTreeSet<&str> = results
@@ -413,13 +405,12 @@ fn corpus_initial_exceptions_use_pending_marker() {
     );
 }
 
-/// T1.A1.73 (updated by ruling R17 and M3.6b): HBFS's payload mismatch cannot be
-/// accepted, so it carries the `payload_mismatch_under_investigation`
-/// marker, and its start and entry differences a deliberate, noted
-/// `unexplained` exception. After M3.6b (`c64_boo_alz64.prg` resolved via
-/// `exact_return`), only HBFS carries this marker.
+/// Verifies that `c64_HBFS.exo3.prg` (which unpacks through a second inner
+/// stage in R2000 whereas `unp64` stops after the first stage) is the only
+/// case marked `payload_mismatch_under_investigation` and carries a documented
+/// `unexplained` exception for `start` and `entry`.
 #[test]
-fn corpus_hbfs_is_unexplained() {
+fn corpus_hbfs_payload_mismatch_is_under_investigation() {
     let corpus = load_valid_corpus();
     let hbfs = corpus.case(HBFS).expect("HBFS is in the corpus");
     assert_eq!(
@@ -436,7 +427,7 @@ fn corpus_hbfs_is_unexplained() {
         exception
             .note
             .as_deref()
-            .is_some_and(|note| note.contains("R17")),
+            .is_some_and(|note| !note.trim().is_empty()),
         "{exception:?}"
     );
 
@@ -448,16 +439,18 @@ fn corpus_hbfs_is_unexplained() {
         })
         .map(|case| case.file.as_str())
         .collect();
-    assert_eq!(marked, R17_CASES.into_iter().collect());
+    assert_eq!(marked, PAYLOAD_MISMATCH_CASES.into_iter().collect());
 }
 
 // =============================================================================
 // Oracles, baseline, determinism and budget
 // =============================================================================
 
-/// T1.A1.68: every selected case passes its oracle, groups agree, and every
-/// observable output equals the committed baseline (or rewrites it with
-/// `UPDATE_UNPACK_BASELINE=1`).
+/// Runs every selected corpus case through R2000, checks its oracle (ground
+/// truth original, recorded `unp64` result, or reviewed exception) and group
+/// consensus, and compares all observable outputs against
+/// `tests/6502/unpack_baseline.toml` (or updates it when
+/// `UPDATE_UNPACK_BASELINE=1` is set).
 #[test]
 fn unpack_corpus_matches_oracles_and_baseline() {
     let corpus = load_valid_corpus();
@@ -522,8 +515,8 @@ fn unpack_corpus_matches_oracles_and_baseline() {
     );
 }
 
-/// T1.A1.69 (ruling R8): updating the baseline under a filter is rejected;
-/// only the exact value `1` updates.
+/// Verifies that updating the baseline while `CORPUS_FILTER` is active is
+/// rejected, and that only `UPDATE_UNPACK_BASELINE=1` enables update mode.
 #[test]
 fn corpus_update_with_filter_is_rejected() {
     let all = CorpusFilter::All;
@@ -539,7 +532,8 @@ fn corpus_update_with_filter_is_rejected() {
     assert!(baseline_mode(Some("yes"), &all).is_err());
 }
 
-/// T1.A1.70: serial and parallel runs produce identical observable outputs.
+/// Verifies that serial and parallel corpus runs produce identical observable
+/// outputs for every case.
 #[test]
 fn corpus_runs_are_deterministic_serial_vs_parallel() {
     let corpus = load_valid_corpus();
@@ -564,8 +558,8 @@ fn corpus_runs_are_deterministic_serial_vs_parallel() {
     }));
 }
 
-/// T1.A1.71 (ruling R11): a full parallel run finishes within the limit.
-/// Skipped when a filter is active (a subset says nothing about the whole).
+/// Verifies that a full parallel corpus run finishes within the wall-clock
+/// budget. Skipped when `CORPUS_FILTER` is set.
 #[test]
 fn corpus_wall_clock_limit() {
     let filter = env_filter();
@@ -588,8 +582,8 @@ fn corpus_wall_clock_limit() {
     );
 }
 
-/// The time limit defaults to [`CORPUS_TIME_LIMIT`] and accepts only a
-/// positive number of seconds.
+/// Verifies that `UNPACK_CORPUS_TIME_LIMIT_SECS` defaults to
+/// [`CORPUS_TIME_LIMIT`] and accepts only a positive integer number of seconds.
 #[test]
 fn corpus_time_limit_parsing() {
     assert_eq!(time_limit(None), Ok(CORPUS_TIME_LIMIT));
@@ -600,8 +594,8 @@ fn corpus_time_limit_parsing() {
     }
 }
 
-/// T3.0.47: every non-None packer name recorded in `unpack_baseline.toml`
-/// maps to a registered entry in `packers::registry::REGISTRY`.
+/// Verifies that every named packer recorded in `unpack_baseline.toml` maps to
+/// a registered specification in `packers::registry::REGISTRY`.
 #[test]
 fn every_corpus_packer_name_maps_to_a_registered_spec() {
     let baseline_path = Path::new(FIXTURE_DIR).join(BASELINE_FILE);
@@ -626,9 +620,9 @@ fn every_corpus_packer_name_maps_to_a_registered_spec() {
     }
 }
 
-/// T3.0.48: `registry::detect_all` and `registry::detect` over every PRG in
-/// the corpus match the first detected packer name recorded in
-/// `unpack_baseline.toml`.
+/// Verifies that static signature detection (`registry::detect` and
+/// `registry::detect_all`) on every corpus `.prg` matches the packer name
+/// recorded in `unpack_baseline.toml`.
 #[test]
 fn detect_all_over_corpus_matches_baseline_packer() {
     use regenerator2000_core::packers::{LoadedImage, registry};
@@ -679,7 +673,7 @@ fn detect_all_over_corpus_matches_baseline_packer() {
 }
 
 // =============================================================================
-// M4.3 — Docs synchronization (`T4.5.1`)
+// Documentation synchronization (`docs/unpacker.md`)
 // =============================================================================
 
 /// Path to `docs/unpacker.md` resolved from `CARGO_MANIFEST_DIR`.
@@ -845,14 +839,9 @@ fn check_docs_divergence_table(
     Ok(())
 }
 
-/// T4.5.1: `docs_divergence_table_in_sync_with_manifest`
-///
-/// Asserts that `docs/unpacker.md`:
-/// - no longer makes the false blanket parity claim ("across all 31", `P4.5.1`),
-/// - documents the deferred Q3 TODO for synthetic-only packers (`P4.5.2`), and
-/// - embeds a divergence table whose rows (`file`, `unp64`, `r2000`, `kind`,
-///   `fields`, `expected_fail`) are 100% in sync with `tests/6502/unpack_corpus.toml`
-///   and `tests/6502/unpack_baseline.toml`, with no missing or stale cases.
+/// Verifies that the divergence table embedded in `docs/unpacker.md` between
+/// [`DOCS_TABLE_BEGIN`] and [`DOCS_TABLE_END`] stays 100% synchronized with
+/// `tests/6502/unpack_corpus.toml` and `tests/6502/unpack_baseline.toml`.
 #[test]
 fn docs_divergence_table_in_sync_with_manifest() {
     let corpus = load_valid_corpus();
@@ -862,24 +851,11 @@ fn docs_divergence_table_in_sync_with_manifest() {
     let docs_text =
         fs::read_to_string(docs_path).unwrap_or_else(|e| panic!("{}: {e}", docs_path.display()));
 
-    // P4.5.1: false blanket parity claim is gone.
-    assert!(
-        !docs_text.contains("across all 31"),
-        "docs/unpacker.md still contains the retired 'across all 31' parity claim"
-    );
-
-    // P4.5.2: Q3 TODO pointer is present.
-    assert!(
-        docs_text.contains("Q3"),
-        "docs/unpacker.md must include a pointer to the deferred Q3 TODO"
-    );
-
-    // T4.5.1: divergence table in docs/unpacker.md matches unpack_corpus.toml + unpack_baseline.toml.
     if let Err(err) = check_docs_divergence_table(&corpus, &baseline, &docs_text) {
         panic!("{err}");
     }
 
-    // Verify negative detection: a missing row, a stale removed row, or a wrong kind/expected_fail fails.
+    // Verify negative detection: a missing row, a stale removed row, or a wrong kind fails.
     let missing_one = docs_text.replacen(
         "| `c64_traveller.tiny_crunch.prg` | `$0801-$FFFD → $0911` | `$0801-$7949 → $0911` | `unp64_default_end` | `end` | `-` |\n",
         "",

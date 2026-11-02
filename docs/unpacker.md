@@ -150,8 +150,8 @@ Packer detection and lifecycle hooks live under [`crates/regenerator2000-core/sr
 | 210 | `turbo_cruncher` | `Turbo Cruncher` | Static `PackerSpec` |
 
 > [!NOTE]
-> **Deferred Q3 TODO — Sourcing Real `.prg` Corpus Fixtures:**
-> Every spec in `REGISTRY` embeds a synthetic `fixture` verified by the registry self-tests (`every_spec_matches_its_own_fixture` and `no_fixture_is_claimed_by_a_higher_priority_spec`). However, eight registered packers currently have **no** real packed `.prg` binary in `tests/6502/` (**Action Replay**, **CCS**, **Cruel Cruncher**, **Eagle**, **Final Cartridge III**, **Super Cruncher**, **Triad**, and **Turbo Cruncher**), and **Card Cruncher** covers only its ACM variant (`c64_323_ice_psm.1001_card_cruncher.prg`, not v4), alongside uncovered sub-variants of Exomizer (`v3.02+`, `1.x`). Sourcing real packed `.prg` fixtures for these packers and recording their `unp64` reference entries with `unpacker_compare_all --update` is tracked as the deferred **Q3 TODO** (Design Doc Addendum A, §Q3).
+> **Future Corpus Coverage — Sourcing Real `.prg` Fixtures:**
+> Every spec in `REGISTRY` embeds a synthetic `fixture` verified by the registry self-tests (`every_spec_matches_its_own_fixture` and `no_fixture_is_claimed_by_a_higher_priority_spec`). However, eight registered packers currently have **no** real packed `.prg` binary in `tests/6502/` (**Action Replay**, **CCS**, **Cruel Cruncher**, **Eagle**, **Final Cartridge III**, **Super Cruncher**, **Triad**, and **Turbo Cruncher**), and **Card Cruncher** covers only its ACM variant (`c64_323_ice_psm.1001_card_cruncher.prg`, not v4), alongside uncovered sub-variants of Exomizer (`v3.02+`, `1.x`). When real packed `.prg` fixtures for these packers are sourced, add them to `tests/6502/unpack_corpus.toml` and record their `unp64` reference entries with `unpacker_compare_all --update`.
 
 ---
 

@@ -43,18 +43,18 @@ const ADDRESS_SPACE_SIZE: usize = 0x1_0000;
 const INITIAL_STACK_POINTER: u8 = 0xF6;
 
 /// Minimum global instruction count (`> 10`) required before a packer's
-/// `known_entry` hint is allowed to end [`Phase::Decompress`] (Invariant 3).
+/// `known_entry` hint is allowed to end [`Phase::Decompress`].
 const MIN_INSTRUCTIONS_BEFORE_KNOWN_ENTRY: u64 = 10;
 
 /// Instruction interval between invocations of the optional progress callback.
 const PROGRESS_CALLBACK_INTERVAL: u64 = 30_000;
 
 /// Maximum forward slack (in bytes) past the current `end_addr` within which a
-/// packer's `end_addr_ptr` hint is accepted (Invariant 5).
+/// packer's `end_addr_ptr` hint is accepted.
 const END_PTR_SLACK: u16 = 512;
 
 /// Minimum valid entry point address (`$0200`, above zero page and stack page)
-/// allowed to clamp `start_addr` downward in [`finish`] (Invariant 5).
+/// allowed to clamp `start_addr` downward in [`finish`].
 const MIN_VALID_ENTRY_ADDR: u16 = 0x0200;
 
 /// Maximum number of recent program counter values retained in [`UnpackReport::trace_tail`]
@@ -129,11 +129,11 @@ pub enum BoundSource {
     EntryClamp,
     /// Forced via [`UnpackConfig`] or a packer's `forced_entry` hint.
     Forced,
-    /// Entry point taken directly from the CPU program counter at Phase 2 exit (Ruling R6).
+    /// Entry point taken directly from the CPU program counter at Phase 2 exit.
     ExitPc,
-    /// Entry point recovered from the pre-emulation snapshot via `find_entry_in_snapshot` (Ruling R6).
+    /// Entry point recovered from the pre-emulation snapshot via `find_entry_in_snapshot`.
     SnapshotEntry,
-    /// Entry point resolved from a BASIC `SYS` line at `basic_start` (Ruling R6).
+    /// Entry point resolved from a BASIC `SYS` line at `basic_start`.
     SysLineLookup,
 }
 
@@ -279,7 +279,7 @@ struct EmulationState<'a> {
     hooks: Option<Box<dyn PackerHooks>>,
     /// Stable identifier of the matched [`PackerSpec`], if any.
     packer_id: Option<PackerId>,
-    /// Packer metadata hints resolved once at detection time (`P2.3.2`).
+    /// Packer metadata hints resolved once at detection time.
     hints: Option<PackerInfo>,
     /// Declarative [`Hints`] from the matched [`PackerSpec`], if any.
     raw_hints: Option<Hints>,
@@ -289,7 +289,7 @@ struct EmulationState<'a> {
     phase: Phase,
     dep_addr: u16,
     getin_index: usize,
-    /// Single global instruction counter across both phases (Invariant 4).
+    /// Single global instruction counter across both phases.
     total_instructions: u64,
     /// Instructions executed in [`Phase::FindDepacker`].
     find_depacker_instructions: u64,
@@ -318,7 +318,7 @@ impl<'a> EmulationState<'a> {
 
     /// Initializes [`EmulationState`] using the provided `specs` registry slice.
     ///
-    /// Strictly enforces the M3.6a initialization order (`P3.6.1`):
+    /// Strictly enforces the pre-emulation initialization order:
     /// 1. `init_zero_page(&mut memory, ...)`
     /// 2. `registry::detect_spec_in(specs, &LoadedImage::new(&memory.mem, load_addr, load_end, &system))`
     /// 3. Entry resolution (`config.forced_entry` > `spec.forced_entry` > `find_sys_address`)
@@ -368,16 +368,16 @@ impl<'a> EmulationState<'a> {
         }
 
         // 1. Initialize zero-page and system area before detection so `Anchor::BasicStart`
-        //    and spec resolvers see initialized zero-page pointers (`T3.6a.4`).
+        //    and spec resolvers see initialized zero-page pointers.
         init_zero_page(&mut memory, load_addr, data_len as u16, basic_start);
 
         let ret_addr = config
             .forced_ret_addr
             .unwrap_or_else(|| load_addr.min(system.ram_start()));
-        // Note: `load_end` wraps to `$0000` when `load_addr + data_len == 0x1_0000` (pinned by T2.0.15).
+        // Note: `load_end` wraps to `$0000` when `load_addr + data_len == 0x1_0000`.
         let load_end = load_addr.wrapping_add(data_len as u16);
 
-        // 2. Detect packer spec against the zero-page-initialized image (`P3.5.3`, `P3.6.1`).
+        // 2. Detect packer spec against the zero-page-initialized image.
         let detected = {
             let image = LoadedImage::new(&memory.mem, load_addr, load_end, &system);
             registry::detect_spec_in(specs, &image).map(|(spec, sig_match)| {
@@ -392,7 +392,7 @@ impl<'a> EmulationState<'a> {
             })
         };
 
-        // 3. Resolve entry point: user `config.forced_entry` > spec `forced_entry` > BASIC `SYS` (`T3.6.12`).
+        // 3. Resolve entry point: user `config.forced_entry` > spec `forced_entry` > BASIC `SYS`.
         let spec_forced_entry = detected.as_ref().and_then(|(_, _, fe, _)| *fe);
         let entry_was_forced = config.forced_entry.is_some() || spec_forced_entry.is_some();
         let entry = if let Some(forced) = config.forced_entry {
@@ -405,7 +405,7 @@ impl<'a> EmulationState<'a> {
                 .ok_or(UnpackError::NoEntryPoint)?
         };
 
-        // 4. Apply pre-emulation patches to `memory.mem` before capturing `snapshot` (`P3.6.1`).
+        // 4. Apply pre-emulation patches to `memory.mem` before capturing `snapshot`.
         let (packer_id, hints, raw_hints, hooks) =
             if let Some((info, sig_match, _, hooks)) = detected {
                 for patch in sig_match.resolved.patches {
@@ -520,13 +520,13 @@ impl<'a> EmulationState<'a> {
 
     /// Executes one iteration of [`Phase::FindDepacker`].
     fn step_find_depacker(&mut self) -> Step {
-        // Invariant 4 (Global instruction budget): Checked at the top of each step
+        // Global instruction budget: checked at the top of each step
         // against the single `total_instructions` counter.
         if self.total_instructions >= self.config.max_instructions {
             return Step::Timeout(Phase::FindDepacker);
         }
 
-        // Invariant 2 (Hook order): In `Phase::FindDepacker`, capture `pc` and update
+        // Hook order: in `Phase::FindDepacker`, capture `pc` and update
         // `current_pc` BEFORE invoking `hooks.on_step`. The depacker-entry check below
         // evaluates the pre-hook `pc` (though `on_step` may set `in_phase2`).
         let pc = self.cpu.registers.program_counter;
@@ -537,7 +537,7 @@ impl<'a> EmulationState<'a> {
             hooks.on_step(&mut ctx);
         }
 
-        // Invariant 1 (Bus phase flag): `C64Bus::set_byte` sets `in_phase2 = true` when
+        // Bus phase flag: `C64Bus::set_byte` sets `in_phase2 = true` when
         // code executing below `ram_start` writes at or above `ram_start`. Read `in_phase2`
         // from the bus here alongside the PC threshold check.
         let is_dep_addr = self.cpu.memory.in_phase2
@@ -565,7 +565,7 @@ impl<'a> EmulationState<'a> {
         ) {
             RomAction::Continue => {}
             RomAction::Handled => {
-                // Invariant 4: ROM `Handled` steps increment `total_instructions` by 1
+                // ROM `Handled` steps increment `total_instructions` by 1
                 // and skip `single_step` (and the progress callback).
                 self.record_executed_instruction(pc);
                 return Step::Continue;
@@ -583,13 +583,13 @@ impl<'a> EmulationState<'a> {
 
     /// Executes one iteration of [`Phase::Decompress`].
     fn step_decompress(&mut self) -> Step {
-        // Invariant 4 (Global instruction budget): Uses the same `total_instructions`
+        // Global instruction budget: uses the same `total_instructions`
         // counter as `Phase::FindDepacker`, without resetting at the phase transition.
         if self.total_instructions >= self.config.max_instructions {
             return Step::Timeout(Phase::Decompress);
         }
 
-        // Invariant 2 (Hook order): In `Phase::Decompress`, invoke `hooks.on_step`
+        // Hook order: in `Phase::Decompress`, invoke `hooks.on_step`
         // BEFORE reading `pc = cpu.registers.program_counter`. This is deliberately reversed
         // relative to `Phase::FindDepacker`: `TSCrunch` clears `written[reloc..]` inside
         // `on_step` when PC enters `$0021..=$0090` or `$0121..=$0190`, which must happen
@@ -610,7 +610,7 @@ impl<'a> EmulationState<'a> {
             || (self.system.is_in_io(pc) && io_mapped)
             || (is_in_kernal_rom(pc, &self.system) && kernal_mapped);
 
-        // Invariant 3 (`known_entry` 10-instruction guard) and `exact_return` (unp64 `RtAFrc`):
+        // Known-entry 10-instruction guard and `exact_return` (unp64 `RtAFrc`):
         // - A packer's `known_entry` triggers a `Decompress` exit only when the global
         //   `total_instructions` counter exceeds `MIN_INSTRUCTIONS_BEFORE_KNOWN_ENTRY` (10),
         //   preventing premature exit during initial stub setup.
@@ -669,7 +669,7 @@ impl<'a> EmulationState<'a> {
         ) {
             RomAction::Continue => {}
             RomAction::Handled => {
-                // Invariant 4: ROM `Handled` steps increment `total_instructions` by 1
+                // ROM `Handled` steps increment `total_instructions` by 1
                 // and skip `single_step` (and the progress callback).
                 self.record_executed_instruction(pc);
                 return Step::Continue;
@@ -689,7 +689,7 @@ impl<'a> EmulationState<'a> {
     /// and firing the progress callback at multiples of [`PROGRESS_CALLBACK_INTERVAL`].
     fn execute_instruction(&mut self) -> Step {
         let pc = self.cpu.registers.program_counter;
-        // Invariant 4: Emulated illegal opcodes count as 1 instruction and skip
+        // Emulated illegal opcodes count as 1 instruction and skip
         // `single_step` (and the progress callback).
         if emulate_illegal_opcode(&mut self.cpu) {
             self.record_executed_instruction(pc);
@@ -1053,8 +1053,7 @@ struct FinishContext<'a> {
     trace_tail: Vec<u16>,
     /// Stable identifier of the matched [`PackerSpec`], if any.
     packer_id: Option<PackerId>,
-    /// Effective BASIC start address for the loaded binary (renamed from the misleading
-    /// `load_addr` parameter of `finish_unpack`; `T2.3.15`).
+    /// Effective BASIC start address for the loaded binary.
     basic_start: u16,
     /// Optional lifecycle hooks from the detected [`PackerSpec`].
     hooks: Option<&'a dyn PackerHooks>,
@@ -1071,7 +1070,7 @@ struct FinishContext<'a> {
 /// Finalizes an unpack run by detecting the output address range and applying
 /// packer overrides, post-emulation hooks, and entry/range clamps in a fixed order.
 ///
-/// # Invariant 5 (`finish` override order)
+/// # Bound and Entry Override Order
 ///
 /// The bounds and entry point are resolved in this exact 10-step sequence:
 /// 1. [`detect_output_range`] over `mem`, `snapshot`, and `written` ([`UnpackError::NothingWritten`] if `None`).
@@ -1079,7 +1078,7 @@ struct FinishContext<'a> {
 /// 3. `hints.end_addr` override.
 /// 4. `hints.end_addr_ptr` override, guarded against the *already overridden* `end_addr`
 ///    (`reported_end > start_addr && reported_end.saturating_sub(1) <= end_addr.saturating_add(END_PTR_SLACK)`)
-///    using `ea_ptr.wrapping_add(1)` for the high byte (Ruling R19, `T2.3.9`).
+///    using `ea_ptr.wrapping_add(1)` for the high byte.
 /// 5. `hints.entry_point` override.
 /// 6. `hints.dep_addr` override.
 /// 7. Post-emulation refinement (`PointerGuard::McCrackenEndOfProgram` + `PackerHooks::refine`).
@@ -1137,7 +1136,7 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
         }
         // 4. Packer end_addr_ptr override, guarded against the already overridden `end_addr`.
         // Uses `wrapping_add(1)` so a pointer at `$FFFF` wraps its high byte to `$0000`
-        // without panicking in debug builds (Ruling R19).
+        // without panicking in debug builds.
         if let Some(ea_ptr) = info.end_addr_ptr {
             let lo = mem[usize::from(ea_ptr)];
             let hi = mem[usize::from(ea_ptr.wrapping_add(1))];
@@ -1201,7 +1200,7 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
             entry_point,
         };
         h.refine(&refine_ctx, &mut bounds);
-        // Ruling R6: only update the bound's source to `PackerRefine` when `refine`
+        // Only update the bound's source to `PackerRefine` when `refine`
         // actually changed that bound; unchanged bounds keep their previous source.
         if bounds.start_addr != start_addr {
             start_addr = bounds.start_addr;
@@ -1284,14 +1283,8 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
 // ===========================================================================
 #[cfg(test)]
 mod tests {
-    //! Characterization tests (Test Plan T2.0.9–T2.0.16, Orchestrator ruling
-    //! R18).
-    //!
-    //! They were written and green against the engine *before* the ROM traps
-    //! moved into the machine profile, and pin the engine's observable
-    //! behavior so that move is provably behavior-preserving on every
-    //! `TargetSystem`, not only on the C64 files the corpus baseline covers.
-    //! The single adaptation point to the trap API is `invoke_trap`.
+    //! Unit tests for the 2-phase decompression engine, ROM traps, state-machine
+    //! transitions, and post-emulation range finalization.
 
     use super::*;
     use crate::state::types::TargetSystem;
@@ -1412,7 +1405,7 @@ mod tests {
         assert_eq!(result.packer_name, None);
     }
 
-    /// T2.0.9 (Invariant 4): a ROM-trapped step counts as one instruction.
+    /// Verifies that a ROM-trapped step counts as one instruction:
     /// `JSR $FFD2` adds the `JSR` plus the trapped CHROUT step.
     #[test]
     fn engine_rom_trapped_steps_count_as_instructions() {
@@ -1434,7 +1427,7 @@ mod tests {
         );
     }
 
-    /// T2.0.10: an emulated illegal opcode (`$AB`, LAX #imm) counts as one
+    /// Verifies that an emulated illegal opcode (`$AB`, LAX #imm) counts as one
     /// instruction.
     #[test]
     fn engine_illegal_opcode_steps_count_as_instructions() {
@@ -1455,7 +1448,7 @@ mod tests {
         );
     }
 
-    /// T2.0.11: the progress callback fires after a CPU step whenever the
+    /// Verifies that the progress callback fires after a CPU step whenever the
     /// global count is a multiple of 30 000.
     #[test]
     fn engine_progress_callback_cadence() {
@@ -1478,7 +1471,7 @@ mod tests {
         assert_eq!(*calls.borrow(), vec![30_000, 60_000, 90_000, 120_000]);
     }
 
-    /// T2.0.12: a program that never leaves stage 1 times out in phase 1.
+    /// Verifies that a program that never leaves stage 1 times out in phase 1.
     #[test]
     fn engine_jmp_self_returns_phase1_timeout() {
         let [lo, hi] = SYS_ENTRY.to_le_bytes();
@@ -1489,8 +1482,8 @@ mod tests {
         );
     }
 
-    /// T2.0.13: one instruction counter spans both stages. A budget that only
-    /// covers stage 1 plus one step times out in phase 2 right away.
+    /// Verifies that one instruction counter spans both stages: a budget that
+    /// only covers stage 1 plus one step times out in phase 2 right away.
     #[test]
     fn engine_budget_is_global_across_stages() {
         let raw = unpacker_program(&[]);
@@ -1507,7 +1500,7 @@ mod tests {
         }
     }
 
-    /// T2.0.14: the two early errors.
+    /// Verifies the early `EmptyData` and `NoEntryPoint` errors.
     #[test]
     fn engine_empty_data_and_no_entry_errors() {
         let config = budget(TIMEOUT_BUDGET);
@@ -1522,7 +1515,7 @@ mod tests {
         );
     }
 
-    /// T2.0.15: for a file that reaches `$FFFF`, the phase-2 `load_end` wraps
+    /// Verifies that for a file reaching `$FFFF`, the phase-2 `load_end` wraps
     /// to `$0000`, so *every* written address at or above RAM start counts as
     /// "outside the loaded region". The same program one byte shorter keeps
     /// running inside its region and times out.
@@ -1557,7 +1550,7 @@ mod tests {
         );
     }
 
-    /// T2.0.16: the engine's handling of a ROM exit vector and a BASIC RUN
+    /// Verifies the engine's handling of a ROM exit vector and a BASIC RUN
     /// trap in each stage. ROM entries are replaced by the SYS address.
     #[test]
     fn engine_rom_exit_vector_and_basic_run_paths() {
@@ -1624,7 +1617,7 @@ mod tests {
         }
     }
 
-    /// R18.3: on every system the engine looks for the SYS line at
+    /// Verifies that on every system the engine looks for the SYS line at
     /// `load + 1` for loads at `$0800` and `$07C0`, and at the load address
     /// otherwise. With a zero budget a found entry surfaces as
     /// `Phase1Timeout`, a missing one as `NoEntryPoint`.
@@ -1690,7 +1683,7 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // ROM trap matrix (ruling R18): every system, representative addresses
+    // ROM trap matrix: every system, representative addresses
     // -----------------------------------------------------------------------
 
     /// Where the forced `RTS` lands: one past the return address that the
@@ -1815,7 +1808,7 @@ mod tests {
             sp: START_SP + 2,
             ..untouched.clone()
         };
-        // Ruling R5: trapped screen clears fill only on the C64.
+        // Trapped screen clears fill only on the C64.
         let cleared = if system.is_c64() {
             [0x20, 0x20, 0x00]
         } else {
@@ -1900,7 +1893,7 @@ mod tests {
         ]
     }
 
-    /// R18.3: trap outcome per representative address, phase and system,
+    /// Verifies the trap outcome per representative address, phase, and system,
     /// with the ROMs mapped and nothing written at `pc`.
     #[test]
     fn engine_rom_trap_outcomes_per_system() {
@@ -2023,7 +2016,7 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // M2.2 state-machine & `finish` unit tests (Test Plan T2.3.2–T2.3.15)
+    // State-machine & `finish` unit tests
     // -----------------------------------------------------------------------
 
     use super::super::machine::CARD_CRUNCHER_LOAD_ADDR;
@@ -2117,7 +2110,7 @@ mod tests {
         }
     }
 
-    /// T2.3.2 (Invariant 1): `step_find_depacker` reads `cpu.memory.in_phase2` to transition
+    /// Verifies that `step_find_depacker` reads `cpu.memory.in_phase2` to transition
     /// into [`Phase::Decompress`] even when the PC condition alone (`pc == known_dep` or
     /// `pc < ret_addr`) would not trigger.
     #[test]
@@ -2182,7 +2175,7 @@ mod tests {
         assert_eq!(hook_state.total_instructions, 0);
     }
 
-    /// T2.3.3 (Invariant 2): in [`Phase::FindDepacker`], `pc` and `cpu.memory.current_pc` are
+    /// Verifies that in [`Phase::FindDepacker`], `pc` and `cpu.memory.current_pc` are
     /// captured *before* `hooks.on_step` runs, and the depacker check uses that
     /// pre-hook `pc`.
     #[test]
@@ -2234,7 +2227,7 @@ mod tests {
         assert_eq!(state_b.cpu.registers.program_counter, SYS_ENTRY + 1);
     }
 
-    /// T2.3.4 (Invariant 2): in [`Phase::Decompress`], `hooks.on_step` runs
+    /// Verifies that in [`Phase::Decompress`], `hooks.on_step` runs
     /// *before* `cpu.memory.current_pc` is updated and before exit checks inspect
     /// `written`.
     #[test]
@@ -2293,7 +2286,7 @@ mod tests {
         assert_eq!(state_b.total_instructions, 0);
     }
 
-    /// T2.3.5 (Invariant 3): a packer's `known_entry` triggers an exit in [`Phase::Decompress`]
+    /// Verifies that a packer's `known_entry` triggers an exit in [`Phase::Decompress`]
     /// only when `total_instructions > MIN_INSTRUCTIONS_BEFORE_KNOWN_ENTRY` (`10`), whereas
     /// `is_written_code` exits regardless of the instruction count.
     #[test]
@@ -2345,7 +2338,7 @@ mod tests {
         );
     }
 
-    /// T2.3.6 (Invariant 4): ROM `Handled` steps increment `total_instructions` by 1 in both
+    /// Verifies that ROM `Handled` steps increment `total_instructions` by 1 in both
     /// [`Phase::FindDepacker`] and [`Phase::Decompress`], and do not fire the progress callback.
     #[test]
     fn rom_handled_steps_count_in_both_stages() {
@@ -2405,7 +2398,7 @@ mod tests {
         v
     }
 
-    /// T2.3.7 (Invariant 5): `hints.end_addr` overrides `end_addr` *before* `hints.end_addr_ptr`
+    /// Verifies that `hints.end_addr` overrides `end_addr` *before* `hints.end_addr_ptr`
     /// evaluates the `<= end_addr.saturating_add(END_PTR_SLACK)` guard.
     #[test]
     fn finish_override_order_end_ptr_uses_overridden_end() {
@@ -2444,7 +2437,7 @@ mod tests {
         assert_eq!(res_rejected.end_addr, 0x2000);
     }
 
-    /// T2.3.8: `end_addr_ptr` is accepted iff `reported_end > start_addr` and
+    /// Verifies that `end_addr_ptr` is accepted iff `reported_end > start_addr` and
     /// `reported_end - 1 <= end_addr + END_PTR_SLACK` (`512`).
     #[test]
     fn finish_end_ptr_guard_rejects_out_of_slack_or_below_start() {
@@ -2484,7 +2477,7 @@ mod tests {
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
-    /// T2.3.9 (Ruling R19): when `end_addr_ptr == Some(0xFFFF)`, `finish` reads the high byte
+    /// Verifies that when `end_addr_ptr == Some(0xFFFF)`, `finish` reads the high byte
     /// from `0xFFFFu16.wrapping_add(1)` (`$0000`) without panicking on integer overflow.
     #[test]
     fn finish_end_ptr_at_ffff_does_not_panic() {
@@ -2504,7 +2497,7 @@ mod tests {
         assert_eq!(res.end_addr, 0x2050);
     }
 
-    /// T2.3.10: `hints.dep_addr` overrides `FinishContext::dep_addr` (including a
+    /// Verifies that `hints.dep_addr` overrides `FinishContext::dep_addr` (including a
     /// `forced_dep_addr` captured at phase transition).
     #[test]
     fn finish_packer_dep_addr_wins() {
@@ -2531,7 +2524,7 @@ mod tests {
         assert_eq!(res_kept.dep_addr, 0x0333);
     }
 
-    /// T2.3.11 (Invariant 5): `hooks.refine` runs *after* `start_addr`, `end_addr`,
+    /// Verifies that `hooks.refine` runs *after* `start_addr`, `end_addr`,
     /// `end_addr_ptr`, and `entry_point` hints are applied, and *before* the BASIC `SYS`
     /// line clamp.
     #[test]
@@ -2581,7 +2574,7 @@ mod tests {
         assert_eq!(res.entry_point, SYS_ENTRY);
     }
 
-    /// T2.3.12 (Invariant 5): when a BASIC `SYS` line exists at `basic_start`, `finish`
+    /// Verifies that when a BASIC `SYS` line exists at `basic_start`, `finish`
     /// lowers `start_addr` to `basic_start` if `start_addr > basic_start`, leaves a lower
     /// `start_addr` untouched, and does not clamp when no `SYS` line is present.
     #[test]
@@ -2623,7 +2616,7 @@ mod tests {
         assert_eq!(res_no_sys.start_addr, 0x1000);
     }
 
-    /// T2.3.13 (Invariant 5): `finish` clamps `start_addr` down to `entry_point` when
+    /// Verifies that `finish` clamps `start_addr` down to `entry_point` when
     /// `entry_point >= MIN_VALID_ENTRY_ADDR` (`$0200`), clamps `end_addr` up to `entry_point`
     /// when `entry_point > end_addr`, and returns [`UnpackError::InvalidAddressRange`] when
     /// `entry_point < $0200` lies below `start_addr`.
@@ -2665,7 +2658,7 @@ mod tests {
         assert_eq!(res_high_clamp.end_addr, 0x2500);
     }
 
-    /// T2.3.14 (Invariant 5): in `finish`, an `entry_point` inside a currently mapped BASIC
+    /// Verifies that in `finish`, an `entry_point` inside a currently mapped BASIC
     /// or KERNAL ROM (or equal to `basic_start`) is replaced by the `SYS` target address from
     /// `basic_start`, whereas an unmapped ROM address is kept as RAM code.
     #[test]
@@ -2706,7 +2699,7 @@ mod tests {
         }
     }
 
-    /// T2.3.15: [`FinishContext`] names the BASIC start field `basic_start` (not `load_addr`),
+    /// Verifies that [`FinishContext`] names the BASIC start field `basic_start` (not `load_addr`),
     /// and a padded load (`CARD_CRUNCHER_LOAD_ADDR`, where `basic_start == load_addr + 1`)
     /// resolves its `SYS` line and start clamp against `basic_start`.
     #[test]
@@ -2794,9 +2787,9 @@ mod tests {
         );
     }
 
-    // ═══════════════════════ M3.6a tests (T3.6a.4, T3.6.12) ═══════════════════════
+    // ═══════════════════════ Packer spec & patch integration tests ═══════════════════════
 
-    /// T3.6a.4: a test-only [`PackerSpec`] whose signature requires the zero-page template
+    /// Verifies that a test-only [`PackerSpec`] whose signature requires the zero-page template
     /// bytes `$00 = $2F, $01 = $37` matches during [`EmulationState::new_with_specs`],
     /// proving that packer detection runs *after* `init_c64_zero_page`.
     #[test]
@@ -2872,7 +2865,7 @@ mod tests {
         assert!(!state.cpu.memory.written[usize::from(SYS_ENTRY)]);
     }
 
-    /// T3.6.12: entry-point precedence in [`EmulationState::new_with_specs`] is strictly:
+    /// Verifies that entry-point precedence in [`EmulationState::new_with_specs`] is strictly:
     /// user [`UnpackConfig::forced_entry`] > spec [`Hints::forced_entry`] > BASIC `SYS` line.
     #[test]
     fn engine_entry_precedence_user_over_spec_over_sys() {
@@ -2979,7 +2972,7 @@ mod tests {
         assert_eq!(state_sys.cpu.registers.program_counter, SYS_ENTRY);
     }
 
-    /// T3.6.4: pre-emulation [`MemoryPatch`] writes directly to `memory.mem` and never marks
+    /// Verifies that pre-emulation [`MemoryPatch`] writes directly to `memory.mem` and never marks
     /// any byte in `memory.written`.
     #[test]
     fn patch_does_not_mark_written() {
@@ -3019,7 +3012,7 @@ mod tests {
         );
     }
 
-    /// T3.6.5: pre-emulation patches are applied *before* `snapshot = memory.mem.clone()`,
+    /// Verifies that pre-emulation patches are applied *before* `snapshot = memory.mem.clone()`,
     /// so `snapshot` records the post-patch bytes and `detect_output_range` compares `end_addr`
     /// against the patched snapshot.
     #[test]
@@ -3085,7 +3078,7 @@ mod tests {
         assert_eq!(result.entry_point, OUTPUT_ADDR);
     }
 
-    /// T3.6.6: BASIC `SYS` entry-point parsing runs *before* spec patches are applied (`P3.6.1`),
+    /// Verifies that BASIC `SYS` entry-point parsing runs *before* spec patches are applied,
     /// so a patch that overwrites the BASIC `SYS` token (`$9E`) or stub header does not break
     /// `SYS` entry resolution.
     #[test]
@@ -3125,7 +3118,7 @@ mod tests {
         assert_eq!(state.snapshot[usize::from(SYS_TOKEN_ADDR)], 0x00);
     }
 
-    /// T3.6.11: when [`Hints::exact_return`] is `true`, [`EmulationState::step_decompress`]
+    /// Verifies that when [`Hints::exact_return`] is `true`, [`EmulationState::step_decompress`]
     /// ignores intermediate jumps to written or out-of-region addresses (`$3000`) and stops
     /// only when `pc` equals the exact target (`known_entry.unwrap_or(ret_addr)`).
     #[test]
@@ -3265,9 +3258,9 @@ mod tests {
         );
     }
 
-    // ═══════════════════════ M4.1 tests (T4.1.1–T4.1.11) ═══════════════════════
+    // ═══════════════════════ UnpackReport & BoundSource tests ═══════════════════════
 
-    /// T4.1.1: `UnpackReport::exit_reason` records the exact [`ExitReason`] variant (and `pc`
+    /// Verifies that `UnpackReport::exit_reason` records the exact [`ExitReason`] variant (and `pc`
     /// where applicable) for all five exit conditions.
     #[test]
     fn report_records_exit_reason_for_every_variant() {
@@ -3340,9 +3333,9 @@ mod tests {
         assert_eq!(basic_run_res.report.exit_reason, ExitReason::BasicRun);
     }
 
-    /// T4.1.2: `UnpackReport` splits `find_depacker_instructions` and `decompress_instructions`
+    /// Verifies that `UnpackReport` splits `find_depacker_instructions` and `decompress_instructions`
     /// such that their sum equals `instructions_executed` while preserving the single global
-    /// instruction budget (Invariant 4).
+    /// instruction budget.
     #[test]
     fn report_splits_phase1_and_phase2_instructions() {
         let result = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
@@ -3357,7 +3350,7 @@ mod tests {
         );
     }
 
-    /// T4.1.3: `UnpackReport::trace_tail` is empty by default (`config.trace == false`) and
+    /// Verifies that `UnpackReport::trace_tail` is empty by default (`config.trace == false`) and
     /// bounded by [`TRACE_TAIL_CAPACITY`] (`32`) when `config.trace == true`, ending with the
     /// PC of the last executed instruction before exit.
     #[test]
@@ -3384,7 +3377,7 @@ mod tests {
         );
     }
 
-    /// T4.1.4: a generic unpack without packer hints or clamps reports [`BoundSource::WriteDiff`]
+    /// Verifies that a generic unpack without packer hints or clamps reports [`BoundSource::WriteDiff`]
     /// for both `start_source` and `end_source`.
     #[test]
     fn bound_source_generic_is_write_diff() {
@@ -3402,7 +3395,7 @@ mod tests {
         assert_eq!(result.packer, None);
     }
 
-    /// T4.1.5: static [`Hints`] (`start_addr`, `end_addr`, `entry_point`) from a [`PackerSpec`]
+    /// Verifies that static [`Hints`] (`start_addr`, `end_addr`, `entry_point`) from a [`PackerSpec`]
     /// report [`BoundSource::PackerSpec`] with that spec's `id`.
     #[test]
     fn bound_source_packer_spec_override() {
@@ -3451,7 +3444,7 @@ mod tests {
         );
     }
 
-    /// T4.1.6: [`AddrSource::PointerAfterRun`] sets `end_source = BoundSource::PointerAfterRun`
+    /// Verifies that [`AddrSource::PointerAfterRun`] sets `end_source = BoundSource::PointerAfterRun`
     /// when the pointer guard accepts and preserves the prior `end_source` when the guard rejects.
     #[test]
     fn bound_source_pointer_after_run_accepted_and_rejected() {
@@ -3511,7 +3504,7 @@ mod tests {
         );
     }
 
-    /// T4.1.7 (Ruling R6): [`PackerHooks::refine`] sets `BoundSource::PackerRefine` only for
+    /// Verifies that [`PackerHooks::refine`] sets `BoundSource::PackerRefine` only for
     /// bounds it actually modifies and preserves the previous [`BoundSource`] for unchanged bounds.
     #[test]
     fn bound_source_refine() {
@@ -3566,7 +3559,7 @@ mod tests {
         assert_eq!(res_unchanged.report.entry_source, BoundSource::ExitPc);
     }
 
-    /// T4.1.8: BASIC `SYS` line clamping sets `start_source = BoundSource::SysLineClamp` when
+    /// Verifies that BASIC `SYS` line clamping sets `start_source = BoundSource::SysLineClamp` when
     /// `start_addr > basic_start`, and `BasicRun` / `RomExitVector` exits that resolve the entry
     /// from the `SYS` line set `entry_source = BoundSource::SysLineLookup`.
     #[test]
@@ -3597,7 +3590,7 @@ mod tests {
         assert_eq!(rom_exit_res.report.entry_source, BoundSource::SysLineLookup);
     }
 
-    /// T4.1.9: Step 9 entry clamps set `start_source = BoundSource::EntryClamp` when
+    /// Verifies that Step 9 entry clamps set `start_source = BoundSource::EntryClamp` when
     /// `entry_point < start_addr` (`>= $0200`) and `end_source = BoundSource::EntryClamp`
     /// when `entry_point > end_addr`.
     #[test]
@@ -3623,7 +3616,7 @@ mod tests {
         assert_eq!(high_clamp.report.end_source, BoundSource::EntryClamp);
     }
 
-    /// T4.1.10 (Ruling R6): forced entry reports [`BoundSource::Forced`], a plain exit PC
+    /// Verifies that forced entry reports [`BoundSource::Forced`], a plain exit PC
     /// reports [`BoundSource::ExitPc`], and an entry recovered from `find_entry_in_snapshot`
     /// reports [`BoundSource::SnapshotEntry`].
     #[test]
@@ -3652,7 +3645,7 @@ mod tests {
         assert_eq!(snap_res.report.entry_source, BoundSource::SnapshotEntry);
     }
 
-    /// T4.1.11: when multiple steps in [`finish`] write to the same bound (`WriteDiff` →
+    /// Verifies that when multiple steps in [`finish`] write to the same bound (`WriteDiff` →
     /// `PackerSpec` → `PointerAfterRun` → `PackerRefine` → `SysLineClamp` → `EntryClamp`),
     /// each bound's [`BoundSource`] records the **last** step that wrote it.
     #[test]

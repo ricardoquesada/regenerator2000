@@ -434,7 +434,7 @@ mod tests {
         }
     }
 
-    /// T2.0.1: Pins the 256-byte ceiling-proximity boundary in `detect_output_range`.
+    /// Pins the 256-byte ceiling-proximity boundary in `detect_output_range`.
     #[test]
     fn detector_ceiling_proximity_boundary() {
         // Case A: Level 0 ceiling on C64 ($9FFF). A trailing zero-fill extends from
@@ -490,7 +490,7 @@ mod tests {
         assert_eq!(run_level1(0xCEFF), Some((0x0801, 0xDF13)));
     }
 
-    /// T2.0.2: Pins the `0x2000` high-region escalation window in `detect_output_range`.
+    /// Pins the `0x2000` high-region escalation window in `detect_output_range`.
     #[test]
     fn detector_high_region_window_0x2000() {
         // On C64, Level 0 boundary is $9FFF (`0x9FFF - 0x2000 = 0x7FFF`).
@@ -517,7 +517,7 @@ mod tests {
         assert_eq!(run_case(0x7FFF), Some((0x0801, 0xB013)));
     }
 
-    /// T2.0.3: Pins the 4-byte minimum high-region diff threshold in `detect_output_range`.
+    /// Pins the 4-byte minimum high-region diff threshold in `detect_output_range`.
     #[test]
     fn detector_min_high_region_bytes_boundary() {
         // Setup 1: Level 0 boundary ($9FFF) with `trimmed_end = 0x9EFE` (not near ceiling,
@@ -577,7 +577,7 @@ mod tests {
         assert_eq!(run_io_split_above(4), Some((0x0801, 0xE003)));
     }
 
-    /// T2.0.4: Pins the 512-byte maximum forward zero-fill extension in `scan_hybrid_range`.
+    /// Pins the 512-byte maximum forward zero-fill extension in `scan_hybrid_range`.
     #[test]
     fn detector_zero_fill_extension_limit() {
         let run_with_zero_fill = |zero_fill_len: usize| -> Option<(u16, u16, u16, bool)> {
@@ -618,7 +618,7 @@ mod tests {
         );
     }
 
-    /// T2.0.5: Pins the pre-RAM diff count (`< 64`) and gap (`> 128`) thresholds in `scan_hybrid_range`.
+    /// Pins the pre-RAM diff count (`< 64`) and gap (`> 128`) thresholds in `scan_hybrid_range`.
     #[test]
     fn detector_hybrid_scan_thresholds() {
         // Part 1: `diffs_below < 64` boundary when `gap_before_ram > 128` (start = $0400,
@@ -712,7 +712,7 @@ mod tests {
         );
     }
 
-    /// T2.0.6: Pins all cluster-size, gap-length, and address-ceiling thresholds in `trim_trailing_clusters`.
+    /// Pins all cluster-size, gap-length, and address-ceiling thresholds in `trim_trailing_clusters`.
     #[test]
     fn detector_trim_trailing_clusters_thresholds() {
         let run_cluster = |main_end: usize, gap_len: usize, cluster_len: usize| -> usize {
@@ -773,7 +773,7 @@ mod tests {
         );
     }
 
-    /// T2.0.7: Verifies that untouched memory returns `None` and pins fallback scan paths.
+    /// Verifies that untouched memory returns `None` and pins fallback scan paths.
     #[test]
     fn detector_nothing_written_returns_none() {
         let (mem, snapshot, written) = blank_state();
@@ -812,7 +812,7 @@ mod tests {
         );
     }
 
-    /// T2.0.8: Pins `find_entry_in_snapshot` offsets (`+0x300`, `+0x400`), `< 0x8000` ceiling, and lowest-target selection.
+    /// Pins `find_entry_in_snapshot` offsets (`+0x300`, `+0x400`), `< 0x8000` ceiling, and lowest-target selection.
     #[test]
     fn find_entry_in_snapshot_cases() {
         let ret_addr: u16 = 0x080D;
@@ -888,7 +888,7 @@ mod tests {
         );
     }
 
-    /// T2.4.2: Pins the exact values of every named threshold constant in `detector.rs`.
+    /// Pins the exact values of every named threshold constant in `detector.rs`.
     #[test]
     fn detector_constants_have_expected_values() {
         assert_eq!(CEILING_PROXIMITY, 256);

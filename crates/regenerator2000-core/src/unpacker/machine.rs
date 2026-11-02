@@ -14,7 +14,7 @@
 //! # Behavior contract
 //!
 //! The tables reproduce the engine's historical behavior exactly, for every
-//! [`System`] (Orchestrator rulings R4, R5, R7 and R18). In particular, the
+//! [`System`]. In particular, the
 //! generic KERNAL traps apply to every system, including the drives and
 //! `Custom` systems, and the BASIC start convention does not depend on the
 //! system. Any system-specific improvement is a deliberate, separately
@@ -240,7 +240,7 @@ pub struct RomTrapTable {
     /// ([`Phase::Decompress`] only).
     pub irq_handler: Option<RangeInclusive<u16>>,
     /// Whether the clear-screen traps fill [`System::screen_ram`] with
-    /// [`SCREEN_CODE_SPACE`]. Only the C64 table does (ruling R5).
+    /// [`SCREEN_CODE_SPACE`]. Only the C64 table does.
     pub clears_screen_ram: bool,
 }
 
@@ -249,7 +249,7 @@ pub struct RomTrapTable {
 /// and LOAD `$FFD5` (exit vector).
 ///
 /// The engine has always trapped these on every system whose KERNAL range
-/// contains them, which is every [`System`] (ruling R18).
+/// contains them, which is every [`System`].
 pub const GENERIC_KERNAL_TRAPS: [KernalTrapEntry; 5] = [
     KernalTrapEntry {
         addr: 0xFFE4,
@@ -346,7 +346,7 @@ impl RomTrapTable {
     /// bus and the engine use for C64 banking. Every other system, including
     /// the drives and `Custom` systems (even one named like the C64), gets
     /// the generic profile ([`GENERIC_KERNAL_TRAPS`]), because the engine has
-    /// always trapped those addresses on every system (ruling R18).
+    /// always trapped those addresses on every system.
     #[must_use]
     pub fn for_system(system: &System) -> &'static RomTrapTable {
         if system.is_c64() {
@@ -416,21 +416,21 @@ impl RomTrapTable {
 // BASIC start
 // ===========================================================================
 
-/// Load address of the Card Cruncher convention (ruling R7): a PRG loaded at
+/// Load address of the Card Cruncher convention: a PRG loaded at
 /// `$07C0` starts its BASIC line one byte later, at `$07C1`.
 pub const CARD_CRUNCHER_LOAD_ADDR: u16 = 0x07C0;
 
 /// The BASIC start of a PRG loaded at `load_addr`.
 ///
 /// This is the single source of truth for the BASIC start. The engine uses
-/// it, and so does the corpus classifier's `padding_byte` rule (ruling R16).
+/// it, and so does the corpus classifier's `padding_byte` rule.
 ///
 /// A PRG loaded one byte below the C64's default BASIC start (the `$0800`
 /// padding byte, derived from [`System::default_basic_start`] of the C64), or
 /// at [`CARD_CRUNCHER_LOAD_ADDR`], starts its BASIC line at the next byte. Any
 /// other PRG starts it at its load address.
 ///
-/// The convention is the same for every target system (ruling R18): the
+/// The convention is the same for every target system: the
 /// engine has always applied it regardless of the system, so, for example, a
 /// C128 load at `$1C00` gives `$1C00`, not the C128's `$1C01`. A
 /// system-aware BASIC start is a recorded follow-up, not part of this
@@ -511,7 +511,8 @@ mod tests {
         ])
     }
 
-    /// T2.1.1: exactly the nine BASIC RUN entries, and nothing next to them.
+    /// Verifies that the C64 profile contains the exact nine BASIC RUN entries
+    /// and nothing next to them.
     #[test]
     fn c64_basic_run_entries_exact() {
         let c64 = RomTrapTable::for_system(&TargetSystem::C64);
@@ -527,8 +528,8 @@ mod tests {
         assert_eq!(all, expected_sorted);
     }
 
-    /// T2.1.2: the BASIC exit is `$A57C..=$A659`, `$A660` and `$A68E`, only
-    /// while decompressing, and nothing else.
+    /// Verifies that the BASIC exit is `$A57C..=$A659`, `$A660` and `$A68E`,
+    /// only while decompressing, and nothing else.
     #[test]
     fn c64_basic_exit_covers_range_and_singletons() {
         let c64 = RomTrapTable::for_system(&TargetSystem::C64);
@@ -544,8 +545,9 @@ mod tests {
         );
     }
 
-    /// T2.1.3: GETIN, clear screen, CHROUT, SETNAM, IOINIT, RESTOR, the
-    /// LOAD and reset exits, and the IRQ range (decompress only), exactly.
+    /// Verifies that the C64 table traps GETIN, clear screen, CHROUT, SETNAM,
+    /// IOINIT, RESTOR, the LOAD and reset exits, and the IRQ range (decompress
+    /// only), exactly.
     #[test]
     fn c64_kernal_traps_exact() {
         let c64 = RomTrapTable::for_system(&TargetSystem::C64);
@@ -585,7 +587,7 @@ mod tests {
         }
     }
 
-    /// T2.1.4: on every non-C64 system only the five generic KERNAL traps
+    /// Verifies that on every non-C64 system only the five generic KERNAL traps
     /// apply, in both phases, with no BASIC traps and no screen fill.
     #[test]
     fn non_c64_trap_table_matches_todays_guards() {
@@ -606,7 +608,7 @@ mod tests {
         }
     }
 
-    /// T2.1.5: the C64 profile follows `is_c64()`, not `PartialEq`.
+    /// Verifies that the C64 profile follows `is_c64()`, not `PartialEq`.
     #[test]
     fn for_system_uses_is_c64_predicate() {
         let c64 = RomTrapTable::for_system(&TargetSystem::C64);
@@ -625,7 +627,7 @@ mod tests {
         ));
     }
 
-    /// T2.1.6 (ruling R18): the drives and `Custom` systems get the generic
+    /// Verifies that the drives and `Custom` systems get the generic
     /// table, not an empty one, because the engine has always trapped the
     /// generic KERNAL addresses there.
     #[test]
@@ -648,7 +650,7 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Clear-screen effects (ruling R5)
+    // Clear-screen effects
     // -----------------------------------------------------------------------
 
     const START_A: u8 = 0x93;
@@ -687,7 +689,7 @@ mod tests {
             .unwrap_or_default()
     }
 
-    /// T2.1.7: on the C64 the clear-screen trap fills exactly
+    /// Verifies that on the C64 the clear-screen trap fills exactly
     /// `system.screen_ram()` with spaces and clears A, X and Y.
     #[test]
     fn clear_screen_trap_fills_system_screen_ram_on_c64() {
@@ -710,7 +712,7 @@ mod tests {
         );
     }
 
-    /// T2.1.8 (ruling R5): the C128 has screen RAM, but its trap does not
+    /// Verifies that the C128 has screen RAM, but its trap does not
     /// fill it; neither does any other non-C64 system's. Registers are
     /// still cleared.
     #[test]
@@ -729,8 +731,8 @@ mod tests {
         }
     }
 
-    /// T2.1.9: CHROUT clears the screen only for A = `$93`, and never touches
-    /// the registers.
+    /// Verifies that CHROUT clears the screen only for A = `$93`, and never
+    /// touches the registers.
     #[test]
     fn chrout_clear_screen_only_for_a_equals_93() {
         let screen = screen_addrs(&TargetSystem::C64);
@@ -753,10 +755,10 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // BASIC start (rulings R7, R18)
+    // BASIC start
     // -----------------------------------------------------------------------
 
-    /// T2.1b.1: the C64 cases, including the explicit Card Cruncher load.
+    /// Verifies the C64 BASIC start cases, including the Card Cruncher load address.
     #[test]
     fn basic_start_c64_cases() {
         let cases = [
@@ -778,7 +780,7 @@ mod tests {
         assert_eq!(TargetSystem::C64.ram_start(), 0x0800);
     }
 
-    /// T2.1b.2 (ruling R18): the convention does not depend on the system.
+    /// Verifies that the BASIC start convention does not depend on the system.
     /// Loads at each system's RAM start and default BASIC start keep their
     /// historical BASIC start; only `$0800` and `$07C0` are padded. Example:
     /// a C128 load at `$1C00` stays `$1C00` (a system-aware `$1C01` is a
@@ -807,8 +809,8 @@ mod tests {
         }
     }
 
-    /// T2.1b.3: the drives have a default BASIC start of `$0000`; the
-    /// derivation neither underflows nor wraps at either end of memory.
+    /// Verifies that for drive systems (whose default BASIC start is `$0000`),
+    /// the derivation neither underflows nor wraps at either end of memory.
     #[test]
     fn basic_start_drive_systems_no_underflow() {
         for system in [

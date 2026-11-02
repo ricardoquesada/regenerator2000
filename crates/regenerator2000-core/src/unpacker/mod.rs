@@ -125,9 +125,10 @@ pub fn find_sys_address(mem: &[u8], basic_start: u16) -> Option<u16> {
 mod tests {
     use super::*;
 
-    /// T1.A3.1: the `.d64` container path. The fixture is resolved from
-    /// `CARGO_MANIFEST_DIR` so the test does not depend on the working
-    /// directory, and a missing fixture fails the test instead of skipping it.
+    /// Verifies unpacking PRG entries extracted from a `.d64` disk image. The
+    /// fixture is resolved from `CARGO_MANIFEST_DIR` so the test does not depend
+    /// on the working directory, and a missing fixture fails the test instead of
+    /// skipping it.
     #[test]
     fn test_unpack_moving_tubes_d64() {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -289,9 +290,8 @@ mod tests {
 
         assert_eq!(result.dep_addr, 0x0003, "Depacker address should be $0003");
         assert_eq!(result.entry_point, 0x2E00, "Entry point should be $2E00");
-        // T1.B.2: the output starts at the original load address, one byte
-        // below the packed load address, so it keeps the original's first
-        // byte (Design Doc Open Question 1).
+        // The unpacked output starts at the original $0800 load address, one byte
+        // below the packed $0801 load address, preserving the original's first byte.
         assert_eq!(result.start_addr, 0x0800, "Start address should be $0800");
         assert_eq!(result.end_addr, 0x31FF, "End address should be $31FF");
 
@@ -349,7 +349,7 @@ mod tests {
         println!("Test 2: X={:02X}, Carry={}", cpu.registers.index_x, carry2);
     }
 
-    /// T4.1.13: [`UnpackResult`], [`UnpackReport`], [`BoundSource`], and [`ExitReason`]
+    /// Verifies that [`UnpackResult`], [`UnpackReport`], [`BoundSource`], and [`ExitReason`]
     /// implement `Send + Clone + Debug`, and `UnpackResult::packer` carries `Option<PackerId>`.
     #[test]
     fn unpack_result_is_send_clone_debug() {

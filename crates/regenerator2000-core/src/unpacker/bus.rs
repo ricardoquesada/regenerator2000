@@ -179,7 +179,7 @@ impl Bus for C64Bus {
         self.mem[a] = val;
         self.written[a] = true;
 
-        // Invariant 1 (Bus-driven stage flip): When code executing below `ram_start`
+        // Bus-driven stage flip: when code executing below `ram_start`
         // (e.g. a zero-page, stack, or low-memory depacker stub) writes at or above
         // `ram_start`, the bus latches `in_phase2 = true` and tracks the write in
         // `written_phase2`. The engine's `FindDepacker` step reads `in_phase2` to
@@ -258,7 +258,7 @@ mod tests {
         assert!(!mem.written[0xD020]); // Write not tracked
     }
 
-    /// T2.3.1 (Invariant 1): writing at or above `system.ram_start()` while
+    /// Verifies that writing at or above `system.ram_start()` while
     /// `current_pc < system.ram_start()` flips `in_phase2` to `true` and marks
     /// `written_phase2`. Writes from high PC or to addresses below `ram_start`
     /// leave `in_phase2` false.
