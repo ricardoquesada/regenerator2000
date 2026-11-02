@@ -273,3 +273,48 @@ fn test_format_text_escaping() {
     assert_eq!(lines[1].1, "$5c");
     assert_eq!(lines[2].1, "\"dos\"");
 }
+
+#[test]
+fn test_ca65_format_file_directives_and_header() {
+    use regenerator2000_core::disassembler::formatter::{FileDirective, Formatter};
+    use regenerator2000_core::disassembler::formatter_ca65::Ca65Formatter;
+
+    let formatter = Ca65Formatter;
+    let directives = formatter.format_file_directives();
+    assert_eq!(
+        directives,
+        vec![FileDirective {
+            directive: ".macpack cbm".to_string(),
+            comment: Some("adds support for scrcode".to_string()),
+        }]
+    );
+
+    let header_std = formatter.format_file_header("test", false);
+    assert!(header_std.contains("; Assemble with:"));
+    assert!(header_std.contains(";   cl65 -t c64 -C c64-asm.cfg test.asm -o test.prg"));
+    assert!(
+        !header_std.contains(".macpack cbm"),
+        "Header comment string must not contain .macpack cbm"
+    );
+
+    let header_illegal = formatter.format_file_header("test", true);
+    assert!(header_illegal.contains("; Assemble with:"));
+    assert!(
+        header_illegal.contains(";   cl65 -t c64 --cpu 6502X -C c64-asm.cfg test.asm -o test.prg")
+    );
+    assert!(
+        !header_illegal.contains(".macpack cbm"),
+        "Header comment string must not contain .macpack cbm"
+    );
+}
+
+#[test]
+fn test_default_format_file_directives_empty() {
+    for assembler in [Assembler::Tass64, Assembler::Acme, Assembler::Kick] {
+        let formatter = Disassembler::create_formatter(assembler);
+        assert!(
+            formatter.format_file_directives().is_empty(),
+            "Expected empty file directives for {assembler:?}"
+        );
+    }
+}

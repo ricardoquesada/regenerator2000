@@ -7,6 +7,16 @@ pub enum TextFragment {
     Byte(u8),
 }
 
+/// A top-level assembler directive emitted after the file header banner and before
+/// symbol/enum definitions (e.g. `.macpack cbm` in `ca65`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FileDirective {
+    /// The directive text (e.g. `".macpack cbm"`).
+    pub directive: String,
+    /// Optional side comment explaining the directive (e.g. `"adds support for scrcode"`).
+    pub comment: Option<String>,
+}
+
 pub struct FormatContext<'a> {
     pub opcode: &'a Opcode,
     pub operands: &'a [u8],
@@ -115,6 +125,13 @@ pub trait Formatter {
         let _ = use_illegal_opcodes;
         String::new()
     }
+
+    /// Returns top-level assembler setup directives to emit after the file header banner
+    /// and before external label or enum definitions.
+    fn format_file_directives(&self) -> Vec<FileDirective> {
+        Vec::new()
+    }
+
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String;
     fn format_relative_label(&self, name: &str, offset: usize) -> String {
         format!("{} =*+${:02x}", self.format_label(name), offset)

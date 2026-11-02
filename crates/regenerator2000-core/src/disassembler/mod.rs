@@ -15,12 +15,19 @@ pub mod symbols;
 pub use context::{DisassemblyContext, HandleArgs, format_cross_references};
 pub use symbols::{resolve_label, resolve_label_name};
 
+/// Column width reserved for inline labels before the instruction mnemonic column.
+/// Labels with formatted length `>= LABEL_COLUMN_WIDTH` (`20` characters) wrap onto their own
+/// preceding line. Must match `.cc .il { width: 20ch }` and `.cc > .mn:first-child { padding-left: 20ch }`
+/// in the HTML exporter CSS.
 pub const LABEL_COLUMN_WIDTH: usize = 20;
 /// Column width for the `name = $value` portion of equate / external-label
 /// definition lines. All renderers (TUI, ASM exporter, HTML exporter) pad
 /// to this width so that trailing comments (x-refs) start at the same column.
 /// Must match `.cc.as .lb { min-width: 40ch }` in the HTML exporter CSS.
 pub const DEFINITION_COLUMN_WIDTH: usize = 40;
+/// Column width for the `label + mnemonic + operand` portion of instruction lines
+/// before trailing side comments.
+pub const INSTRUCTION_COLUMN_WIDTH: usize = 40;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisassemblyLine {
@@ -159,5 +166,17 @@ impl Disassembler {
     #[must_use]
     pub fn disassemble_ctx(&self, ctx: &DisassemblyContext) -> Vec<DisassemblyLine> {
         pipeline::disassemble_ctx(&self.opcodes, ctx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_instruction_column_width_constant() {
+        assert_eq!(INSTRUCTION_COLUMN_WIDTH, 40);
+        assert_eq!(DEFINITION_COLUMN_WIDTH, 40);
+        assert_eq!(LABEL_COLUMN_WIDTH, 20);
     }
 }

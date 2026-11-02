@@ -409,9 +409,14 @@ impl Formatter for Ca65Formatter {
             ";   cl65 -t c64 {cpu_flag}-C c64-asm.cfg {file_name}.asm -o {file_name}.prg\n"
         ));
         s.push_str(";\n");
-        s.push_str("\n.macpack cbm                            ; adds support for scrcode\n");
-        s.push('\n');
         s
+    }
+
+    fn format_file_directives(&self) -> Vec<super::formatter::FileDirective> {
+        vec![super::formatter::FileDirective {
+            directive: ".macpack cbm".to_string(),
+            comment: Some("adds support for scrcode".to_string()),
+        }]
     }
 
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String {

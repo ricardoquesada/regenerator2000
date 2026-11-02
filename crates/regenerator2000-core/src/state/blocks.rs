@@ -311,10 +311,22 @@ impl AppState {
     }
 
     /// Generates synthetic preamble [`DisassemblyLine`]s defining all external and [`BlockType::ExternalFile`]
-    /// labels, grouped with a prefix legend and annotated with comments and (when `include_xrefs` is `true`)
-    /// cross-reference summaries.
+    /// labels using the project's configured assembler formatter.
     #[must_use]
     pub fn get_external_label_definitions(&self, include_xrefs: bool) -> Vec<DisassemblyLine> {
+        let formatter = self.get_formatter();
+        self.get_external_label_definitions_with_formatter(include_xrefs, formatter.as_ref())
+    }
+
+    /// Generates synthetic preamble [`DisassemblyLine`]s defining all external and [`BlockType::ExternalFile`]
+    /// labels using the supplied `formatter`, grouped with a prefix legend and annotated with comments
+    /// and (when `include_xrefs` is `true`) cross-reference summaries.
+    #[must_use]
+    pub fn get_external_label_definitions_with_formatter(
+        &self,
+        include_xrefs: bool,
+        formatter: &dyn crate::disassembler::formatter::Formatter,
+    ) -> Vec<DisassemblyLine> {
         let mut candidates: Vec<(Addr, LabelType, &String)> = Vec::new();
 
         for (addr, labels) in &self.labels {
@@ -401,7 +413,6 @@ impl AppState {
             return lines;
         }
 
-        let formatter = self.get_formatter();
         let cp = formatter.comment_prefix();
 
         // Build legend lines for every prefix type that appears in the data.
@@ -583,9 +594,21 @@ impl AppState {
         lines
     }
 
-    /// Returns the list of disassembly lines defining all enums used in the project.
+    /// Returns the list of disassembly lines defining all enums used in the project
+    /// using the project's configured assembler formatter.
     #[must_use]
     pub fn get_enum_definition_lines(&self) -> Vec<DisassemblyLine> {
+        let formatter = self.get_formatter();
+        self.get_enum_definition_lines_with_formatter(formatter.as_ref())
+    }
+
+    /// Returns the list of disassembly lines defining all enums used in the project
+    /// formatted with the supplied `formatter`.
+    #[must_use]
+    pub fn get_enum_definition_lines_with_formatter(
+        &self,
+        formatter: &dyn crate::disassembler::formatter::Formatter,
+    ) -> Vec<DisassemblyLine> {
         let mut lines = Vec::new();
 
         // Find unique used enums
@@ -602,7 +625,6 @@ impl AppState {
             return lines;
         }
 
-        let formatter = self.get_formatter();
         let cp = formatter.comment_prefix();
 
         // Header: "ENUMS"
@@ -1074,6 +1096,165 @@ mod tests {
         assert!(
             elapsed.as_millis() < 200,
             "10x get_blocks_view_items + 10x get_block_range on 64KB with 2000 annotations took {elapsed:?} (expected < 200ms)"
+        );
+    }
+
+    #[test]
+    fn test_get_external_label_definitions_with_formatter_all_assemblers() {
+        use super::super::project::Label;
+        use crate::disassembler::Disassembler;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        state.raw_data = vec![0xEA, 0xEA];
+        state.block_types = vec![BlockType::Code, BlockType::ExternalFile];
+        state.settings.assembler = Assembler::Tass64;
+        state.settings.max_xref_count = 5;
+
+        // External ZP label ($0002 -> zpf_02)
+        state.labels.insert(
+            Addr(0x0002),
+            vec![Label {
+                name: "zpf_02".to_string(),
+                kind: LabelKind::Auto,
+                label_type: LabelType::ZeroPageField,
+            }],
+        );
+        // External 16-bit label ($D020 -> f_d020)
+        state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "f_d020".to_string(),
+                kind: LabelKind::Auto,
+                label_type: LabelType::Field,
+            }],
+        );
+        // ExternalFile label ($1001 -> ext_data)
+        state.labels.insert(
+            Addr(0x1001),
+            vec![Label {
+                name: "ext_data".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+
+        state.annotations.update(Addr(0x0002), |e| {
+            e.user_side_comment = Some("ZP temp".to_string());
+        });
+        state.cross_refs.insert(Addr(0x0002), vec![Addr(0x2000)]);
+
+        for assembler in [
+            Assembler::Tass64,
+            Assembler::Acme,
+            Assembler::Ca65,
+            Assembler::Kick,
+        ] {
+            let formatter = Disassembler::create_formatter(assembler);
+            let lines =
+                state.get_external_label_definitions_with_formatter(true, formatter.as_ref());
+
+            if assembler == Assembler::Kick {
+                assert!(lines.iter().any(|l| l.mnemonic == "// EXTERNAL LABELS"));
+                let zp_line = lines
+                    .iter()
+                    .find(|l| l.external_label_address == Some(Addr(0x0002)))
+                    .unwrap();
+                assert_eq!(zp_line.mnemonic, ".const zpf_02 = $02");
+                assert_eq!(zp_line.comment, "ZP temp // x-ref: $2000");
+                let ext_line = lines
+                    .iter()
+                    .find(|l| l.external_label_address == Some(Addr(0x1001)))
+                    .unwrap();
+                assert_eq!(ext_line.mnemonic, ".const ext_data = $1001");
+            } else {
+                assert!(lines.iter().any(|l| l.mnemonic == "; EXTERNAL LABELS"));
+                let zp_line = lines
+                    .iter()
+                    .find(|l| l.external_label_address == Some(Addr(0x0002)))
+                    .unwrap();
+                assert_eq!(zp_line.mnemonic, "zpf_02 = $02");
+                assert_eq!(zp_line.comment, "ZP temp ; x-ref: $2000");
+            }
+        }
+
+        // Verify state.settings.assembler was never mutated and delegation matches Tass64
+        assert_eq!(state.settings.assembler, Assembler::Tass64);
+        let tass_formatter = Disassembler::create_formatter(Assembler::Tass64);
+        assert_eq!(
+            state.get_external_label_definitions(true),
+            state.get_external_label_definitions_with_formatter(true, tass_formatter.as_ref())
+        );
+    }
+
+    #[test]
+    fn test_get_enum_definition_lines_with_formatter_all_assemblers() {
+        use crate::disassembler::Disassembler;
+        use std::collections::BTreeMap;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        state.raw_data = vec![0xA9, 0x00];
+        state.block_types = vec![BlockType::Code; 2];
+        state.settings.assembler = Assembler::Tass64;
+
+        let mut variants = BTreeMap::new();
+        variants.insert(0, "BLACK".to_string());
+        variants.insert(1, "WHITE".to_string());
+        state.enums.insert(
+            "Colors".to_string(),
+            EnumDefinition {
+                name: "Colors".to_string(),
+                description: None,
+                variants,
+                source_file: None,
+            },
+        );
+        state.annotations.update(Addr(0x1000), |e| {
+            e.enum_usage = Some("Colors".to_string());
+        });
+
+        for assembler in [
+            Assembler::Tass64,
+            Assembler::Acme,
+            Assembler::Ca65,
+            Assembler::Kick,
+        ] {
+            let formatter = Disassembler::create_formatter(assembler);
+            let lines = state.get_enum_definition_lines_with_formatter(formatter.as_ref());
+            let mnemonics: Vec<&str> = lines.iter().map(|l| l.mnemonic.as_str()).collect();
+
+            match assembler {
+                Assembler::Tass64 => {
+                    assert!(mnemonics.contains(&"; ENUMS"));
+                    assert!(mnemonics.contains(&"Colors .block"));
+                    assert!(mnemonics.contains(&"    BLACK = $00"));
+                    assert!(mnemonics.contains(&".bend"));
+                }
+                Assembler::Acme => {
+                    assert!(mnemonics.contains(&"; ENUMS"));
+                    assert!(mnemonics.contains(&"Colors_BLACK = $00"));
+                }
+                Assembler::Ca65 => {
+                    assert!(mnemonics.contains(&"; ENUMS"));
+                    assert!(mnemonics.contains(&".enum Colors"));
+                    assert!(mnemonics.contains(&"    BLACK = $00"));
+                    assert!(mnemonics.contains(&".endenum"));
+                }
+                Assembler::Kick => {
+                    assert!(mnemonics.contains(&"// ENUMS"));
+                    assert!(mnemonics.contains(&".namespace Colors {"));
+                    assert!(mnemonics.contains(&"    .label BLACK = $00"));
+                    assert!(mnemonics.contains(&"}"));
+                }
+            }
+        }
+
+        assert_eq!(state.settings.assembler, Assembler::Tass64);
+        let tass_formatter = Disassembler::create_formatter(Assembler::Tass64);
+        assert_eq!(
+            state.get_enum_definition_lines(),
+            state.get_enum_definition_lines_with_formatter(tass_formatter.as_ref())
         );
     }
 }

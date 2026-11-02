@@ -826,7 +826,7 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
                         {
                             name = format!("{}{}", p, name);
                         }
-                        let label_def = format!("{} =*+${:02x}", name, offset);
+                        let label_def = formatter.format_relative_label(&name, offset);
                         let mut spans = vec![
                             Span::styled(gutter, gutter_style),
                             Span::styled(
@@ -1382,5 +1382,89 @@ mod tests {
                 "Expected scope end gutter '└─' for assembler {assembler:?}, rows: {rendered_rows:#?}"
             );
         }
+    }
+
+    #[test]
+    fn test_render_disassembly_mid_instruction_label_uses_formatter() {
+        use regenerator2000_core::state::{Label, LabelKind, LabelType};
+
+        let mut app_state = AppState::new();
+        // 3-byte instruction JMP $1001 (4C 01 10) at $1000
+        app_state
+            .load_binary(Addr(0x1000), vec![0x4C, 0x01, 0x10])
+            .unwrap();
+        app_state.block_types = vec![BlockType::Code; 3];
+        app_state.labels.insert(
+            Addr(0x1001),
+            vec![Label {
+                name: "rel1".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+
+        // 1. KickAssembler: expects `.label rel1 = * + 1`
+        app_state.settings.assembler = Assembler::Kick;
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        let backend = TestBackend::new(100, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|f| {
+                let area = Rect::new(0, 0, 100, 20);
+                render_disassembly(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        let kick_rows: Vec<String> = (1..19)
+            .map(|y| {
+                (0..100)
+                    .map(|x| {
+                        buffer
+                            .cell((x, y))
+                            .map_or(String::new(), |c| c.symbol().to_string())
+                    })
+                    .collect()
+            })
+            .collect();
+        assert!(
+            kick_rows.iter().any(|r| r.contains(".label rel1 = * + 1")),
+            "Expected KickAssembler mid-instruction label '.label rel1 = * + 1', got: {kick_rows:#?}"
+        );
+        assert!(
+            !kick_rows.iter().any(|r| r.contains("rel1 =*+$01")),
+            "KickAssembler should not render 'rel1 =*+$01'"
+        );
+
+        // 2. 64tass: expects `rel1 =*+$01`
+        app_state.settings.assembler = Assembler::Tass64;
+        app_state.disassemble();
+
+        terminal
+            .draw(|f| {
+                let area = Rect::new(0, 0, 100, 20);
+                render_disassembly(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        let tass_rows: Vec<String> = (1..19)
+            .map(|y| {
+                (0..100)
+                    .map(|x| {
+                        buffer
+                            .cell((x, y))
+                            .map_or(String::new(), |c| c.symbol().to_string())
+                    })
+                    .collect()
+            })
+            .collect();
+        assert!(
+            tass_rows.iter().any(|r| r.contains("rel1 =*+$01")),
+            "Expected 64tass mid-instruction label 'rel1 =*+$01', got: {tass_rows:#?}"
+        );
     }
 }
