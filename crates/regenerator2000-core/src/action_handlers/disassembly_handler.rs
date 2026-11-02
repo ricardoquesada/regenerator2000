@@ -444,32 +444,9 @@ fn handle_apply_comment(
     text: String,
     kind: CommentKind,
 ) {
-    let command = match kind {
-        CommentKind::Side => {
-            let old_comment = ctx
-                .state
-                .annotations
-                .get(address)
-                .and_then(|e| e.user_side_comment.clone());
-            crate::commands::Command::SetUserSideComment {
-                address,
-                new_comment: if text.is_empty() { None } else { Some(text) },
-                old_comment,
-            }
-        }
-        CommentKind::Line => {
-            let old_comment = ctx
-                .state
-                .annotations
-                .get(address)
-                .and_then(|e| e.user_line_comment.clone());
-            crate::commands::Command::SetUserLineComment {
-                address,
-                new_comment: if text.is_empty() { None } else { Some(text) },
-                old_comment,
-            }
-        }
-    };
+    let command = ctx
+        .state
+        .create_set_comment_command(address, Some(&text), kind);
     ctx.preserve_cursor(|c| {
         command.apply(c.state);
         c.state.push_command(command);

@@ -464,14 +464,14 @@ Searches binary memory for a byte sequence or text string and returns all matchi
 
 ### `r2000_set_comment`
 
-Sets or clears a comment at a specific address. A `'line'` comment appears on a dedicated line before the instruction and supports multiple lines. A `'side'` comment appears inline next to the instruction.
+Sets or clears a comment at a specific address. A `'line'` comment appears on a dedicated line before the instruction and supports multiple lines. A `'side'` comment appears inline next to the instruction. Pass an empty string (or omit `comment`) to remove an existing comment.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
 | `address` | `integer` | Target memory address in decimal (for example, `4096` for `$1000`). | Yes |
-| `comment` | `string` | Comment text without a leading `;` character. | Yes |
+| `comment` | `string` | Comment text without a leading `;` character, or an empty string to remove the existing comment. | No |
 | `type` | `string` | Comment placement: `'line'` (above instruction) or `'side'` (inline). | Yes |
 
 ### `r2000_set_data_type`
@@ -507,7 +507,7 @@ Assigns or removes a user-defined label at a specific 6502 memory address.
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
 | `address` | `integer` | Target memory address in decimal (for example, `4096` for `$1000`). | Yes |
-| `name` | `string` | Label identifier (for example, `'init_screen'` or `'loop_start'`). | Yes |
+| `name` | `string` | Label identifier (for example, `'init_screen'` or `'loop_start'`), or an empty string to remove an existing user label. | Yes |
 
 ### `r2000_toggle_splitter`
 

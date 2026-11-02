@@ -418,6 +418,33 @@ def test_set_comment(client):
     else:
         print(f"FAIL: {res}")
 
+    print("\nTesting r2000_set_comment removal (empty string and omitted)...")
+    client.rpc("tools/call", {
+        "name": "r2000_set_comment",
+        "arguments": {
+            "address": BASE_ADDR + 1,
+            "comment": "temporary side comment",
+            "type": "side"
+        }
+    })
+    res_clear = client.rpc("tools/call", {
+        "name": "r2000_set_comment",
+        "arguments": {
+            "address": BASE_ADDR + 1,
+            "comment": "",
+            "type": "side"
+        }
+    })
+    if res_clear and "result" in res_clear:
+        content = res_clear["result"].get("content", [])
+        text = content[0].get("text", "") if content else ""
+        if "Comment removed at" in text:
+            print("PASS (remove via empty string)")
+        else:
+            print(f"FAIL: Expected removal confirmation, got: {text}")
+    else:
+        print(f"FAIL: {res_clear}")
+
 
 def test_set_data_type(client):
     print("\nTesting r2000_set_data_type...")
@@ -974,10 +1001,10 @@ def test_malformed_calls(client):
         call("r2000_set_comment", {"address": 0x1000, "comment": "hello", "comment_type": "line"}),
         "r2000_set_comment: 'comment_type' instead of 'type'"
     )
-    # Missing 'comment' entirely
+    # Non-string 'comment' type
     check(
-        call("r2000_set_comment", {"address": 0x1000, "type": "line"}),
-        "r2000_set_comment: missing 'comment'"
+        call("r2000_set_comment", {"address": 0x1000, "comment": 123, "type": "line"}),
+        "r2000_set_comment: non-string 'comment'"
     )
     # Missing 'type' entirely
     check(

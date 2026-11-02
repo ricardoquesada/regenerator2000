@@ -7,7 +7,7 @@
 use crate::mcp::tools::common::{convert_region, get_address, make_mcp_error};
 use crate::mcp::types::McpError;
 use crate::state::AppState;
-use crate::state::types::{Addr, BlockType, EnumDefinition, ImmediateFormat};
+use crate::state::types::{Addr, BlockType, CommentKind, EnumDefinition, ImmediateFormat};
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
@@ -34,31 +34,31 @@ pub fn tool_schemas() -> Vec<Value> {
         }),
         json!({
             "name": "r2000_set_label_name",
-            "description": "Sets a user-defined label at a specific MOS 6502 memory address. Use this to name functions, variables, or jump targets to make the disassembly more readable.",
+            "description": "Sets or removes a user-defined label at a specific MOS 6502 memory address. Use this to name functions, variables, or jump targets to make the disassembly more readable.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "address": { "type": "integer", "description": "The memory address where the label should be set (decimal, e.g. 4096 for $1000)." },
-                    "name": { "type": "string", "description": "The label name (e.g. 'init_screen', 'loop_start')." }
+                    "name": { "type": "string", "description": "The label name (e.g. 'init_screen', 'loop_start'), or an empty string to remove an existing user label." }
                 },
                 "required": ["address", "name"]
             }
         }),
         json!({
             "name": "r2000_set_comment",
-            "description": "Adds a comment at a specific address. 'line' comments appear on their own line before the instruction (supports multi-line). 'side' comments appear inline on the same line as the instruction.",
+            "description": "Sets or removes a comment at a specific address. 'line' comments appear on their own line before the instruction (supports multi-line). 'side' comments appear inline on the same line as the instruction. Pass an empty string (or omit 'comment') to remove an existing comment.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "address": { "type": "integer", "description": "The memory address for the comment (decimal, e.g. 4096 for $1000)." },
-                    "comment": { "type": "string", "description": "The comment text. Do not include the ';' prefix." },
+                    "comment": { "type": "string", "description": "The comment text (do not include the ';' prefix), or an empty string to remove the existing comment." },
                     "type": {
                         "type": "string",
                         "enum": ["line", "side"],
                         "description": "'line' = comment on its own line before the instruction. 'side' = inline comment on the same line."
                     }
                 },
-                "required": ["address", "comment", "type"]
+                "required": ["address", "type"]
             }
         }),
         json!({
@@ -292,51 +292,46 @@ fn set_label_name_impl(app_state: &mut AppState, args: &Value) -> Result<Value, 
     Ok(json!({ "content": [{ "type": "text", "text": format!("Label set at ${address:04X}") }] }))
 }
 
-/// Private helper to set line or side comments at a memory address [`Addr`].
+/// Private helper to set or remove line or side comments at a memory address [`Addr`].
 ///
 /// # Arguments
 ///
 /// * `app_state` - Mutable reference to application state [`AppState`].
-/// * `args` - JSON [`Value`] containing `address`, `comment`, and `type`.
+/// * `args` - JSON [`Value`] containing `address`, optional `comment`, and `type`.
 ///
 /// # Returns
 ///
-/// A JSON [`Value`] notification text confirming comment update.
+/// A JSON [`Value`] notification text confirming comment update or removal.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if parameters are missing or `type` is unrecognized.
+/// Returns [`McpError`] if parameters are missing or invalid, or `type` is unrecognized.
 fn set_comment_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpError> {
     let address = get_address(args, "address")?;
-    let comment = args
-        .get("comment")
-        .and_then(|v| v.as_str())
-        .map(String::from)
-        .ok_or_else(|| {
-            make_mcp_error(-32602, "Missing or invalid 'comment' (expected a string)")
-        })?;
+    if args.get("text").is_some() {
+        return Err(make_mcp_error(
+            -32602,
+            "Unexpected parameter 'text': use 'comment' instead",
+        ));
+    }
+    let comment = match args.get("comment") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(s)) => Some(s.as_str()),
+        Some(_) => {
+            return Err(make_mcp_error(
+                -32602,
+                "Invalid 'comment' (expected a string)",
+            ));
+        }
+    };
     let comment_type = args
         .get("type")
         .and_then(|v| v.as_str())
         .ok_or_else(|| make_mcp_error(-32602, "Missing 'type' (expected \"line\" or \"side\")"))?;
 
-    let command = match comment_type {
-        "side" => crate::commands::Command::SetUserSideComment {
-            address,
-            new_comment: Some(comment),
-            old_comment: app_state
-                .annotations
-                .get(address)
-                .and_then(|e| e.user_side_comment.clone()),
-        },
-        "line" => crate::commands::Command::SetUserLineComment {
-            address,
-            new_comment: Some(comment),
-            old_comment: app_state
-                .annotations
-                .get(address)
-                .and_then(|e| e.user_line_comment.clone()),
-        },
+    let kind = match comment_type {
+        "side" => CommentKind::Side,
+        "line" => CommentKind::Line,
         other => {
             return Err(make_mcp_error(
                 -32602,
@@ -345,10 +340,27 @@ fn set_comment_impl(app_state: &mut AppState, args: &Value) -> Result<Value, Mcp
         }
     };
 
+    let command = app_state.create_set_comment_command(address, comment, kind);
+    let is_clearing = matches!(
+        &command,
+        crate::commands::Command::SetUserSideComment {
+            new_comment: None,
+            ..
+        } | crate::commands::Command::SetUserLineComment {
+            new_comment: None,
+            ..
+        }
+    );
+
     command.apply(app_state);
     app_state.push_command(command);
     app_state.disassemble();
-    Ok(json!({ "content": [{ "type": "text", "text": format!("Comment set at ${address:04X}") }] }))
+    let msg = if is_clearing {
+        format!("Comment removed at ${address:04X}")
+    } else {
+        format!("Comment set at ${address:04X}")
+    };
+    Ok(json!({ "content": [{ "type": "text", "text": msg }] }))
 }
 
 /// Private helper to set data block type classification for a memory region.
@@ -916,6 +928,87 @@ mod tests {
         assert_eq!(
             annotation.user_side_comment.as_deref(),
             Some("Inline comment")
+        );
+    }
+
+    #[test]
+    fn test_r2000_set_comment_remove() {
+        let mut app_state = make_app_state(0x1000, 256);
+
+        // 1. Remove side comment via empty string ""
+        set_comment_impl(
+            &mut app_state,
+            &json!({ "address": 0x1000, "comment": "Inline comment", "type": "side" }),
+        )
+        .unwrap();
+        let res_empty = set_comment_impl(
+            &mut app_state,
+            &json!({ "address": 0x1000, "comment": "", "type": "side" }),
+        )
+        .unwrap();
+        assert!(
+            res_empty["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("Comment removed at $1000")
+        );
+        assert!(app_state.annotations.get(Addr(0x1000)).is_none());
+        assert_eq!(app_state.disassembly[0].comment, "");
+
+        // 2. Remove side comment via whitespace-only string "   "
+        set_comment_impl(
+            &mut app_state,
+            &json!({ "address": 0x1000, "comment": "Inline comment", "type": "side" }),
+        )
+        .unwrap();
+        let res_ws = set_comment_impl(
+            &mut app_state,
+            &json!({ "address": 0x1000, "comment": "   ", "type": "side" }),
+        )
+        .unwrap();
+        assert!(
+            res_ws["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("Comment removed at $1000")
+        );
+        assert!(app_state.annotations.get(Addr(0x1000)).is_none());
+        assert_eq!(app_state.disassembly[0].comment, "");
+
+        // 3. Remove line comment by omitting 'comment'
+        set_comment_impl(
+            &mut app_state,
+            &json!({ "address": 0x1000, "comment": "Header comment", "type": "line" }),
+        )
+        .unwrap();
+        let res_omit = set_comment_impl(
+            &mut app_state,
+            &json!({ "address": 0x1000, "type": "line" }),
+        )
+        .unwrap();
+        assert!(
+            res_omit["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("Comment removed at $1000")
+        );
+        assert!(app_state.annotations.get(Addr(0x1000)).is_none());
+        assert_eq!(app_state.disassembly[0].line_comment, None);
+
+        // 4. Reject legacy 'text' parameter and non-string 'comment'
+        assert!(
+            set_comment_impl(
+                &mut app_state,
+                &json!({ "address": 0x1000, "text": "hello", "type": "side" })
+            )
+            .is_err()
+        );
+        assert!(
+            set_comment_impl(
+                &mut app_state,
+                &json!({ "address": 0x1000, "comment": 123, "type": "side" })
+            )
+            .is_err()
         );
     }
 

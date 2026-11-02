@@ -8,7 +8,7 @@
 use super::annotations::AnnotationManager;
 use super::project::Label;
 use super::settings::DocumentSettings;
-use super::types::{Addr, BlockType, CachedArrow, EnumDefinition, LabelKind};
+use super::types::{Addr, BlockType, CachedArrow, CommentKind, EnumDefinition, LabelKind};
 use crate::config::SystemConfig;
 use crate::disassembler::{Disassembler, DisassemblyLine};
 use std::collections::{BTreeMap, BTreeSet};
@@ -522,6 +522,40 @@ impl AppState {
         })
     }
 
+    /// Creates a [`SetUserSideComment`](crate::commands::Command::SetUserSideComment) or
+    /// [`SetUserLineComment`](crate::commands::Command::SetUserLineComment) command at `address`.
+    ///
+    /// If `comment` is `None`, empty (`""`), or contains only whitespace, `new_comment` is set to
+    /// `None` so the existing comment is removed cleanly from [`AnnotationManager`].
+    #[must_use]
+    pub fn create_set_comment_command(
+        &self,
+        address: Addr,
+        comment: Option<&str>,
+        kind: CommentKind,
+    ) -> crate::commands::Command {
+        let new_comment = comment.filter(|s| !s.trim().is_empty()).map(String::from);
+
+        match kind {
+            CommentKind::Side => crate::commands::Command::SetUserSideComment {
+                address,
+                new_comment,
+                old_comment: self
+                    .annotations
+                    .get(address)
+                    .and_then(|e| e.user_side_comment.clone()),
+            },
+            CommentKind::Line => crate::commands::Command::SetUserLineComment {
+                address,
+                new_comment,
+                old_comment: self
+                    .annotations
+                    .get(address)
+                    .and_then(|e| e.user_line_comment.clone()),
+            },
+        }
+    }
+
     /// Validates a proposed name for a new enum.
     /// Ensures the name is non-empty, alphanumeric/underscores, and does not clash
     /// with existing local, global, or built-in system enums.
@@ -831,5 +865,36 @@ mod tests {
             file_info_allocs <= 1,
             "file_info() allocated {file_info_allocs} times (expected <= 1 across {spec_count} specs)"
         );
+    }
+
+    #[test]
+    fn test_create_set_comment_command() {
+        let mut app_state = AppState::new();
+        let addr = Addr(0x1000);
+
+        let set_cmd =
+            app_state.create_set_comment_command(addr, Some("side note"), CommentKind::Side);
+        assert_eq!(
+            set_cmd,
+            crate::commands::Command::SetUserSideComment {
+                address: addr,
+                new_comment: Some("side note".to_string()),
+                old_comment: None,
+            }
+        );
+        set_cmd.apply(&mut app_state);
+
+        // Clearing via empty or whitespace-only string normalizes `new_comment` to `None`
+        let clear_cmd = app_state.create_set_comment_command(addr, Some("   "), CommentKind::Side);
+        assert_eq!(
+            clear_cmd,
+            crate::commands::Command::SetUserSideComment {
+                address: addr,
+                new_comment: None,
+                old_comment: Some("side note".to_string()),
+            }
+        );
+        clear_cmd.apply(&mut app_state);
+        assert!(app_state.annotations.get(addr).is_none());
     }
 }
