@@ -10,19 +10,19 @@ The system enforces a **unidirectional data flow** and separates the headless co
 
 ```mermaid
 flowchart TB
-    subgraph bin_crate ["1. CLI Application Crate (regenerator2000)"]
+    subgraph bin_crate ["Tier 1 — CLI Application Crate (regenerator2000)"]
         Main["main.rs<br/>CLI Parsing, File Init & Thread Spawning"]
     end
 
-    subgraph frontends ["2. User Interface & External Clients"]
+    subgraph frontends ["Tier 2 — User Interface & External Clients"]
         direction TB
         EventLoop["TUI Event Loop & Input Router<br/>regenerator2000-tui (events.rs / input.rs)"]
         WidgetUI["Widgets, UIState & Ratatui Renderer<br/>Widget Trait · CoreViewState Deref · Theme Engine"]
-        ExtClients["External Clients & Tools<br/>MCP AI Agents (HTTP SSE / Stdio)<br/>& VICE Emulator (Binary Monitor :6502)"]
+        ExtClients["External Clients & Tools<br/>MCP AI Agents (HTTP SSE / Stdio)<br/>& VICE Emulator (Binary Monitor Port 6502)"]
         EventLoop -->|Routes Input & Drives Render Frame| WidgetUI
     end
 
-    subgraph core_dispatch ["3. Headless Core Hub & State (regenerator2000-core)"]
+    subgraph core_dispatch ["Tier 3 — Headless Core Hub & State (regenerator2000-core)"]
         direction TB
         Core["Core Hub & Action Handlers<br/>core.rs / action_handlers/<br/>(File, Disassembly, Debug, Navigation)"]
         Bridges["External Protocol Bridges<br/>MCP Server (mcp/) & VICE Client (vice/)"]
@@ -30,11 +30,11 @@ flowchart TB
         AppState["AppState, AnnotationManager & CoreViewState<br/>Memory · Labels · CrossRefs · Settings · Sparse Metadata"]
     end
 
-    subgraph core_engines ["4. Core Processing Pipelines (regenerator2000-core)"]
+    subgraph core_engines ["Tier 4 — Core Processing Pipelines (regenerator2000-core)"]
         direction TB
-        Ingest["1. Ingest & 6502 Unpacker Sandbox<br/>parser/ (.prg, .crt, .d64, .t64, .vsf)<br/>unpacker/ & packers/ (21 PackerSpecs)"]
-        AnalysisDisasm["2. Analyzer & Disassembly Pipeline<br/>analyzer.rs · cpu.rs · disassembler/<br/>(64tass, ACME, ca65, KickAss)"]
-        ExportVerify["3. 3-Stage Exporter & Roundtrip Verify<br/>exporter/ (IR Lowering, ASM, HTML)<br/>& External Assembler Diff Check"]
+        Ingest["Stage 1 — Ingest & 6502 Unpacker Sandbox<br/>parser/ (.prg, .crt, .d64, .t64, .vsf)<br/>unpacker/ & packers/ (21 PackerSpecs)"]
+        AnalysisDisasm["Stage 2 — Analyzer & Disassembly Pipeline<br/>analyzer.rs · cpu.rs · disassembler/<br/>(64tass, ACME, ca65, KickAss)"]
+        ExportVerify["Stage 3 — 3-Stage Exporter & Roundtrip Verify<br/>exporter/ (IR Lowering, ASM, HTML)<br/>& External Assembler Diff Check"]
         Ingest -->|Populates Raw Binary & Entry Point| AnalysisDisasm
         AnalysisDisasm -->|Provides Decoded Lines & Symbols| ExportVerify
     end
@@ -231,7 +231,7 @@ flowchart TB
     CodePath["Code Instruction Decoder<br/>pipeline.rs / handlers.rs / symbols.rs<br/>(Opcode lookup & 13 addressing modes)"]
     DataPath["Data Block Formatter<br/>data_blocks.rs<br/>(Bytes, Words, Text, Lo/Hi tables, Fill runs)"]
     Fmt["Formatter Trait (formatter.rs)<br/>64tass · ACME · ca65 · KickAss"]
-    Out["Vec#lt;DisassemblyLine#gt;<br/>(Renderable TUI rows & Exportable IR input)"]
+    Out["DisassemblyLine Rows<br/>(Renderable TUI rows & Exportable IR input)"]
 
     Inputs --> Ctx
     Ctx --> Loop
@@ -308,11 +308,11 @@ The analyzer scans the binary memory buffer to discover subroutines, jump target
 ```mermaid
 flowchart TB
     Mem["Raw Program Memory & Block Types"]
-    Trace["1. Recursive Control-Flow Tracing<br/>Walks JSR, Bxx, JMP, RTS & RTI instruction graph"]
-    Classify["2. Operand Symbol Classification<br/>Resolves usage counts & semantic address roles"]
-    Labels["3. Auto-Label Generation<br/>Assigns deterministic prefixes (s_, j_, b_, r_, p_, zpp_, f_, etc.)"]
-    XRefs["4. Cross-Reference Construction<br/>Builds inverted index (target Addr → Vec#lt;referencing Addr#gt;)"]
-    Fill["5. Fill Run Detection<br/>Identifies consecutive identical byte sequences ≥ threshold"]
+    Trace["Step 1 — Recursive Control-Flow Tracing<br/>Walks JSR, Bxx, JMP, RTS & RTI instruction graph"]
+    Classify["Step 2 — Operand Symbol Classification<br/>Resolves usage counts & semantic address roles"]
+    Labels["Step 3 — Auto-Label Generation<br/>Assigns deterministic prefixes (s_, j_, b_, r_, p_, zpp_, f_, etc.)"]
+    XRefs["Step 4 — Cross-Reference Construction<br/>Builds inverted index (target Addr → referencing Addr list)"]
+    Fill["Step 5 — Fill Run Detection<br/>Identifies consecutive identical byte sequences ≥ threshold"]
 
     Mem --> Trace --> Classify --> Labels --> XRefs --> Fill
 ```
@@ -359,7 +359,7 @@ The exporter subsystem separates semantic lowering, text rendering, and disk per
 ```mermaid
 flowchart TB
     Input["&AppState + &ExportOptions"]
-    Stage1["Stage 1: Semantic Lowering (exporter/ir.rs)<br/>build_export_document() → ExportDocument<br/>(ExportHeader + Vec#lt;ExportRow#gt; + Vec#lt;ExportSidecar#gt;)"]
+    Stage1["Stage 1: Semantic Lowering (exporter/ir.rs)<br/>build_export_document() → ExportDocument<br/>(ExportHeader + ExportRow List + ExportSidecar List)"]
     Stage2A["Stage 2A: Pure ASM Backend (exporter/asm.rs)<br/>render_asm_document() → ExportBundle (in-memory)"]
     Stage2B["Stage 2B: Pure HTML Backend (exporter/html.rs)<br/>render_html_document() → ExportBundle (in-memory)"]
     Verify["Roundtrip Verification (exporter/verify.rs)<br/>verify_roundtrip() — Zero AppState clone<br/>Assembles in temp dir & diffs bytes against raw_data"]
@@ -396,7 +396,7 @@ flowchart TB
     Scanner["Declarative Signature Scanner (packers/)<br/>match_packer() evaluates priority-ordered REGISTRY<br/>(Signatures, Hints, MemoryPatches & PackerHooks)"]
     Phase1["Phase 1: RunState::Phase1Searching (unpacker/engine.rs)<br/>Steps 6502 Machine from SYS entry point until PC enters depacker stub"]
     Phase2["Phase 2: RunState::Phase2Depacking (unpacker/engine.rs)<br/>Resets WrittenBitmap & runs stub until control jumps to unpacked payload"]
-    Detector["Detector & Boundary Resolution (unpacker/detector.rs)<br/>Precedence: Hints #gt; StepHook #gt; WrittenBitmap #gt; SnapshotDiff"]
+    Detector["Detector & Boundary Resolution (unpacker/detector.rs)<br/>Precedence: Hints → StepHook → WrittenBitmap → SnapshotDiff"]
     Output["UnpackedPrg + UnpackReport Telemetry<br/>(Phase1Outcome, Phase2Outcome, BoundSource)"]
 
     Input --> Scanner --> Phase1 --> Phase2 --> Detector --> Output
@@ -602,8 +602,8 @@ sequenceDiagram
     Core-->>Caller: Emit CoreEvent::UnpackStarted (buffer + UnpackConfig)
     Caller->>Sandbox: Spawn thread → unpack_with_progress() / unpack()
     Sandbox->>Sandbox: packers::match_packer() scans priority-ordered REGISTRY
-    Sandbox->>Sandbox: Phase 1 (Phase1Searching): Step Machine to depacker stub
-    Sandbox->>Sandbox: Phase 2 (Phase2Depacking): Reset WrittenBitmap & run stub
+    Sandbox->>Sandbox: Phase 1 (Phase1Searching) — Step Machine to depacker stub
+    Sandbox->>Sandbox: Phase 2 (Phase2Depacking) — Reset WrittenBitmap & run stub
     Sandbox--)Caller: Stream AppEvent::UnpackProgress & UnpackReport telemetry
     Sandbox-->>Caller: Send AppEvent::UnpackComplete(UnpackedPrg)
     Caller->>State: AppState::apply_unpacked_prg() (analyze + disassemble)
@@ -629,7 +629,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    participant VICE as VICE Emulator (:6502)
+    participant VICE as VICE Emulator (Port 6502)
     participant Client as ViceClient (Reader Thread)
     participant Loop as TUI Event Loop (events.rs)
     participant View as ViceState & DebuggerView
