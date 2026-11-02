@@ -10,28 +10,14 @@ Enums map numeric literals (such as color indices or state constants) to text id
 
 Regenerator 2000 uses a three-tier model to manage enum definitions. You can reuse common hardware definitions across multiple disassemblies and define project-specific names where necessary.
 
-```
-  ┌─────────────────────────────────────────────────────────┐
-  │ 1. Project-Specific Enums                               │
-  │    - Stored in .regen2000proj                           │
-  │    - Supports Undo/Redo                                 │
-  │    - Local overrides                                    │
-  └───────────┬─────────────────────────────────────────────┘
-              │ (precedes)
-              ▼
-  ┌─────────────────────────────────────────────────────────┐
-  │ 2. Global Custom Enums                                  │
-  │    - Persistent across projects                         │
-  │    - Stored in config folder                            │
-  │    - Saved as TOML files                                │
-  └───────────┬─────────────────────────────────────────────┘
-              │ (precedes)
-              ▼
-  ┌─────────────────────────────────────────────────────────┐
-  │ 3. Built-in System Enums                                │
-  │    - Curated for target machine (e.g. VIC-II, PETSCII)  │
-  │    - Read-only, embedded in the application             │
-  └─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Tier1["Tier 1 — Project-Specific Enums<br/>• Stored in .regen2000proj<br/>• Supports Undo/Redo<br/>• Local overrides"]
+    Tier2["Tier 2 — Global Custom Enums<br/>• Persistent across projects<br/>• Stored in config folder<br/>• Saved as TOML files"]
+    Tier3["Tier 3 — Built-in System Enums<br/>• Curated for target machine (e.g. VIC-II, PETSCII)<br/>• Read-only, embedded in the application"]
+
+    Tier1 -->|"Precedes"| Tier2
+    Tier2 -->|"Precedes"| Tier3
 ```
 
 ### 1. Project-Specific Enums
@@ -146,13 +132,15 @@ Dump the built-in system enums to use them as templates for your own global enum
 During export, Regenerator 2000 translates enums into the syntax required by your target assembler:
 
 === "64tass"
-Uses named `.block` scopes to group variants:
-```asm
-Colors .block
-    BLACK = $00
-    WHITE = $01
-    RED = $02
-.bend
+
+    Uses named `.block` scopes to group variants:
+
+    ```asm
+    Colors .block
+        BLACK = $00
+        WHITE = $01
+        RED = $02
+    .bend
 
     ; Usage
     lda #Colors.BLACK
@@ -160,13 +148,15 @@ Colors .block
     ```
 
 === "ca65"
-Uses `.enum` blocks and double-colon (`::`) scope namespaces:
-```asm
-.enum Colors
-    BLACK = $00
-    WHITE = $01
-    RED = $02
-.endenum
+
+    Uses `.enum` blocks and double-colon (`::`) scope namespaces:
+
+    ```asm
+    .enum Colors
+        BLACK = $00
+        WHITE = $01
+        RED = $02
+    .endenum
 
     ; Usage
     lda #Colors::BLACK
@@ -174,13 +164,15 @@ Uses `.enum` blocks and double-colon (`::`) scope namespaces:
     ```
 
 === "KickAssembler"
-Uses `.namespace` blocks with `.label` definitions and dot (`.`) member access:
-```asm
-.namespace Colors {
-    .label BLACK = $00
-    .label WHITE = $01
-    .label RED = $02
-}
+
+    Uses `.namespace` blocks with `.label` definitions and dot (`.`) member access:
+
+    ```asm
+    .namespace Colors {
+        .label BLACK = $00
+        .label WHITE = $01
+        .label RED = $02
+    }
 
     // Usage
     lda #Colors.BLACK
@@ -188,11 +180,13 @@ Uses `.namespace` blocks with `.label` definitions and dot (`.`) member access:
     ```
 
 === "ACME"
-Because ACME does not support namespaces or enum blocks, Regenerator 2000 flattens enum names with an underscore (`_`) separator:
-```asm
-Colors_BLACK = $00
-Colors_WHITE = $01
-Colors_RED = $02
+
+    Because ACME does not support namespaces or enum blocks, Regenerator 2000 flattens enum names with an underscore (`_`) separator:
+
+    ```asm
+    Colors_BLACK = $00
+    Colors_WHITE = $01
+    Colors_RED = $02
 
     ; Usage
     lda #Colors_BLACK
