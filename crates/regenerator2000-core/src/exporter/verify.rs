@@ -1,14 +1,26 @@
-use super::asm::export_asm;
+//! Roundtrip assembly verification (**Stage 3** of the exporter pipeline).
+//!
+//! [`verify_roundtrip`] and [`verify_all_assemblers`] export [`crate::state::AppState`] to a
+//! temporary `.asm` bundle via [`ExportOptions::for_assembler`] and [`render_asm_with_options`]
+//! (with zero [`crate::state::AppState`] cloning, preserving all project, global, and built-in
+//! enum definitions), invoke the external cross-assembler binary, and compare the reassembled
+//! payload byte-for-byte against `state.raw_data`.
 
-/// Result of a roundtrip verification for a single assembler
+use super::asm::render_asm_with_options;
+use super::ir::ExportOptions;
+
+/// Result of a roundtrip verification for a single cross-assembler.
 #[derive(Debug)]
 pub struct VerifyResult {
+    /// Target cross-assembler that was verified.
     pub assembler: crate::state::Assembler,
+    /// `true` if the reassembled binary matches `state.raw_data` byte-for-byte.
     pub success: bool,
+    /// Diagnostic message when `success` is `false` (empty on success).
     pub message: String,
-    /// Number of bytes that differ (0 = identical)
+    /// Number of bytes that differ (`0` = identical).
     pub diff_count: usize,
-    /// Total bytes compared
+    /// Total bytes compared against `state.raw_data`.
     pub total_bytes: usize,
 }
 
@@ -26,26 +38,24 @@ impl std::fmt::Display for VerifyResult {
     }
 }
 
-/// Perform export → assemble → diff roundtrip for a specific assembler.
+/// Performs an export → assemble → byte-diff roundtrip for a specific [`crate::state::Assembler`].
 ///
-/// Returns a `VerifyResult` indicating whether the assembled output is
+/// Returns a [`VerifyResult`] indicating whether the assembled output is
 /// byte-identical to the original binary.
 ///
 /// The function:
-/// 1. Temporarily sets the assembler in state settings
-/// 2. Exports ASM to a temp file
-/// 3. Runs the appropriate assembler
-/// 4. Compares the assembled output (the raw bytes after the PRG load-address header)
-///    against `state.raw_data`
-/// 5. Cleans up temp files
+/// 1. Constructs [`ExportOptions::for_assembler`] without cloning [`crate::state::AppState`].
+/// 2. Renders and writes `.asm` (and any `.bin` sidecars) to a unique temporary directory via
+///    [`render_asm_with_options`] and [`super::ir::ExportBundle::write_to_disk`].
+/// 3. Invokes the external assembler (`64tass`, `acme`, `cl65`, or `KickAss.jar`).
+/// 4. Compares the assembled output (the raw bytes after the 2-byte PRG load-address header)
+///    against `state.raw_data`.
+/// 5. Cleans up the temporary directory.
+#[must_use]
 pub fn verify_roundtrip(
     state: &crate::state::AppState,
     assembler: crate::state::Assembler,
 ) -> VerifyResult {
-    // We need a mutable clone of settings to change the assembler
-    let mut state_clone = clone_state_for_verify(state);
-    state_clone.settings.assembler = assembler;
-
     // Use a unique subdirectory per invocation to avoid parallel test conflicts
     static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let unique_id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -64,13 +74,14 @@ pub fn verify_roundtrip(
     let _ = std::fs::remove_file(&asm_file);
     let _ = std::fs::remove_file(&prg_file);
 
-    // 1. Export ASM
-    if let Err(e) = export_asm(&state_clone, &asm_file) {
+    // 1. Export ASM using ExportOptions::for_assembler (zero AppState cloning)
+    let options = ExportOptions::for_assembler(state, &asm_file, assembler);
+    if let Err(e) = render_asm_with_options(state, &asm_file, &options).write_to_disk() {
         let _ = std::fs::remove_dir_all(&dir);
         return VerifyResult {
             assembler,
             success: false,
-            message: format!("export failed: {e}"),
+            message: format!("Export failed: {e}"),
             diff_count: 0,
             total_bytes: state.raw_data.len(),
         };
@@ -90,7 +101,7 @@ pub fn verify_roundtrip(
             return VerifyResult {
                 assembler,
                 success: false,
-                message: e.clone(),
+                message: e,
                 diff_count: 0,
                 total_bytes: state.raw_data.len(),
             };
@@ -221,6 +232,7 @@ fn run_assembler(
     let output = match assembler {
         Assembler::Tass64 => {
             let mut cmd = Command::new("64tass");
+            cmd.arg("-C");
             if use_illegal_opcodes {
                 cmd.arg("-i");
             }
@@ -305,23 +317,6 @@ fn run_assembler(
     }
 }
 
-/// Create a lightweight clone of `AppState` suitable for roundtrip verification.
-/// Only copies the fields needed for `export_asm`.
-fn clone_state_for_verify(state: &crate::state::AppState) -> crate::state::AppState {
-    let mut clone = crate::state::AppState::new();
-    clone.origin = state.origin;
-    clone.raw_data = state.raw_data.clone();
-    clone.block_types = state.block_types.clone();
-    clone.labels = state.labels.clone();
-    clone.settings = state.settings.clone();
-    clone.annotations = state.annotations.clone();
-    clone.cross_refs = state.cross_refs.clone();
-    clone.collapsed_blocks = state.collapsed_blocks.clone();
-    clone.splitters = state.splitters.clone();
-    clone.disassembly = state.disassembly.clone();
-    clone
-}
-
 fn count_diffs(a: &[u8], b: &[u8]) -> usize {
     let min_len = a.len().min(b.len());
     let mut diffs = 0;
@@ -333,4 +328,106 @@ fn count_diffs(a: &[u8], b: &[u8]) -> usize {
     // Bytes beyond the shorter slice count as diffs
     diffs += a.len().abs_diff(b.len());
     diffs
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::{Addr, AppState, Assembler, BlockType, EnumDefinition};
+    use std::collections::BTreeMap;
+    use std::path::Path;
+
+    #[test]
+    fn test_verify_roundtrip_preserves_enums_without_cloning_state() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // LDA #$00; LDX #$01; LDY #$02; RTS
+        state.raw_data = vec![0xA9, 0x00, 0xA2, 0x01, 0xA0, 0x02, 0x60];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
+        state.settings.assembler = Assembler::Tass64;
+
+        // 1. Project enum (`state.enums`) at $1000
+        let mut proj_variants = BTreeMap::new();
+        proj_variants.insert(0, "PROJ_BLACK".to_string());
+        state.enums.insert(
+            "ProjectColors".to_string(),
+            EnumDefinition {
+                name: "ProjectColors".to_string(),
+                description: None,
+                variants: proj_variants,
+                source_file: None,
+            },
+        );
+        state.annotations.update(Addr(0x1000), |e| {
+            e.enum_usage = Some("ProjectColors".to_string());
+        });
+
+        // 2. User global enum (`state.user_global_enums`) at $1002
+        let mut global_variants = BTreeMap::new();
+        global_variants.insert(1, "MODE_PLAY".to_string());
+        state.user_global_enums.insert(
+            "GlobalModes".to_string(),
+            EnumDefinition {
+                name: "GlobalModes".to_string(),
+                description: None,
+                variants: global_variants,
+                source_file: None,
+            },
+        );
+        state.annotations.update(Addr(0x1002), |e| {
+            e.enum_usage = Some("GlobalModes".to_string());
+        });
+
+        // 3. Builtin enum (`state.builtin_enums`) at $1004
+        let mut builtin_variants = BTreeMap::new();
+        builtin_variants.insert(2, "FLAG_ACTIVE".to_string());
+        state.builtin_enums.insert(
+            "BuiltinFlags".to_string(),
+            EnumDefinition {
+                name: "BuiltinFlags".to_string(),
+                description: None,
+                variants: builtin_variants,
+                source_file: None,
+            },
+        );
+        state.annotations.update(Addr(0x1004), |e| {
+            e.enum_usage = Some("BuiltinFlags".to_string());
+        });
+
+        let dummy_path = Path::new("verify_enums.asm");
+
+        for &asm in Assembler::all() {
+            // Verify in-memory rendering preserves all three enum pools without mutating `state`
+            let options = ExportOptions::for_assembler(&state, dummy_path, asm);
+            let bundle = render_asm_with_options(&state, dummy_path, &options);
+            assert!(
+                bundle.primary_content.contains("PROJ_BLACK"),
+                "{asm} rendered output missing ProjectColors::PROJ_BLACK:\n{}",
+                bundle.primary_content
+            );
+            assert!(
+                bundle.primary_content.contains("MODE_PLAY"),
+                "{asm} rendered output missing GlobalModes::MODE_PLAY:\n{}",
+                bundle.primary_content
+            );
+            assert!(
+                bundle.primary_content.contains("FLAG_ACTIVE"),
+                "{asm} rendered output missing BuiltinFlags::FLAG_ACTIVE:\n{}",
+                bundle.primary_content
+            );
+            assert_eq!(state.settings.assembler, Assembler::Tass64);
+
+            // Verify actual roundtrip assembly when assembler binary is installed
+            let result = verify_roundtrip(&state, asm);
+            if result.message.contains("not found in PATH") {
+                continue;
+            }
+            assert!(
+                result.success,
+                "{asm} roundtrip failed for binary with enums: {}",
+                result.message
+            );
+            assert_eq!(result.diff_count, 0);
+        }
+    }
 }

@@ -33,7 +33,7 @@ flowchart TD
         Analyzer[Control-Flow Analyzer<br/>analyzer.rs]
         DisasmEngine[Disassembly Pipeline<br/>symbols / data_blocks / handlers / formatter]
         Parsers[Parser Suite<br/>PRG / CRT / D64 / T64 / VSF / SourceGen]
-        Exporters[Exporter Suite & Verify<br/>ASM / HTML / Roundtrip Diff]
+        Exporters[Exporter Pipeline & Verify<br/>IR Lowering / ASM / HTML / Roundtrip Diff]
         UnpackerSandbox[6502 Emulation Sandbox<br/>bus / cia / machine / engine / detector / 21 PackerSpecs]
         MCPServer[MCP Server Suite<br/>HTTP SSE / Stdio / handler / tools]
         ViceClient[VICE Monitor Client<br/>protocol / client / state / c64_hardware]
@@ -66,6 +66,7 @@ flowchart TD
     AppState -->|Triggers Analysis| Analyzer
     AppState -->|Provides Data| DisasmEngine
     DisasmEngine -->|Generates Formatted Lines| AppState
+    AppState -->|Lowers via Exporter IR| Exporters
 
     %% Rendering Flow
     CoreViewState -.->|Embedded via Deref| UIState
@@ -114,7 +115,7 @@ regenerator2000/
 │   │       ├── commands.rs                    # Command pattern & UndoStack
 │   │       ├── analyzer.rs                    # Control-flow & symbol heuristics
 │   │       ├── parser/                        # Binary container & snapshot parsers
-│   │       ├── exporter/                      # Multi-assembler, HTML & roundtrip verification
+│   │       ├── exporter/                      # 3-stage Exporter IR pipeline, ASM/HTML backends & roundtrip verify
 │   │       ├── unpacker/                      # 2-phase 6502 sandbox depacker engine
 │   │       ├── packers/                       # Declarative PackerSpec registry (21 packer families)
 │   │       ├── mcp/                           # Model Context Protocol server (HTTP & Stdio)
@@ -294,17 +295,18 @@ pipeline.rs / handlers.rs              data_blocks.rs
        Vec<DisassemblyLine> (Renderable & Exportable rows)
 ```
 
+-   **[`mod.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs)**: Exports [`DisassemblyLine`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs#L33) and the shared column-alignment constants [`LABEL_COLUMN_WIDTH`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs#L22) (`20`), [`DEFINITION_COLUMN_WIDTH`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs#L27) (`40`), and [`INSTRUCTION_COLUMN_WIDTH`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs#L30) (`40`) consumed by the TUI renderer, ASM exporter, and HTML exporter.
 -   **[`context.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/context.rs)**: [`DisassemblyContext`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/context.rs#L7) holds references to memory buffers, block types, labels, cross-references, settings, and annotations. It pre-computes `scope_ends` into a `BTreeSet`. `is_virtual_splitter()` treats user splitters, scope starts, and scope ends as section breaks with $$O(\log S)$$ lookups.
 -   **[`pipeline.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/pipeline.rs)**: Drives the main disassembly loop, emits label header lines, and decodes instructions via `disassemble_code_instruction`.
 -   **[`symbols.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/symbols.rs)**: Resolves symbol precedence (`LabelKind::User` > `LabelKind::System` > `LabelKind::Auto`), formats local labels, computes scope paths (`compute_scope_names`), and resolves operand target addresses.
 -   **[`data_blocks.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/data_blocks.rs)**: Formats non-code blocks including byte tables (`.byte`), 16-bit words (`.word`), address tables, PETSCII and Screencode strings, split Lo/Hi and Hi/Lo tables, external binary includes (`.incbin`), and fill runs (`.fill`).
 -   **[`handlers.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/handlers.rs)**: Decodes instruction operands across all 13 MOS 6502 addressing modes.
--   **[`formatter.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter.rs)** and Assembler Formatters:
+-   **[`formatter.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter.rs)** and Assembler Formatters: Defines the [`Formatter`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter.rs#L22) trait, file-level preamble directives via [`FileDirective`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter.rs#L13) and [`Formatter::format_file_directives()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter.rs#L131), and mid-instruction relative label definitions via [`Formatter::format_relative_label()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter.rs#L136):
 
-    -   [`formatter_64tass.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_64tass.rs): Formats 64tass syntax (`.byte`, `.word`, `.text`, `.fill`, `.binary`, `* = $ADDR`).
-    -   [`formatter_acme.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_acme.rs): Formats ACME syntax (`!byte`, `!word`, `!text`, `!fill`, `!binary`, `* = $ADDR`).
-    -   [`formatter_ca65.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_ca65.rs): Formats ca65 syntax (`.byte`, `.word`, `.res`, `.incbin`, `.org $ADDR`).
-    -   [`formatter_kickasm.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_kickasm.rs): Formats KickAssembler syntax (`.byte`, `.word`, `.text`, `.fill`, `.import binary`, `* = $ADDR`).
+    -   [`formatter_64tass.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_64tass.rs): Formats 64tass syntax (`.byte`, `.word`, `.text`, `.fill`, `.binary`, `* = $ADDR`, `.block`/`.bend`).
+    -   [`formatter_acme.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_acme.rs): Formats ACME syntax (`!byte`, `!word`, `!text`, `!fill`, `!binary`, `* = $ADDR`, `!zone`).
+    -   [`formatter_ca65.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_ca65.rs): Formats ca65 syntax (`.byte`, `.word`, `.res`, `.incbin`, `.org $ADDR`, `.scope`/`.endscope`, and `.macpack cbm` via `format_file_directives`).
+    -   [`formatter_kickasm.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/formatter_kickasm.rs): Formats KickAssembler syntax (`.byte`, `.word`, `.text`, `.fill`, `.import binary`, `* = $ADDR`, `.label name = * + offset`, and `{`/`}` scope blocks).
 
 ---
 
@@ -410,11 +412,49 @@ The parser modules load raw binaries, disk and tape containers, and symbol files
 
 ---
 
-### 3.8 Exporter Suite & Roundtrip Verification ([`exporter/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter))
+### 3.8 3-Stage Exporter Pipeline & Roundtrip Verification ([`exporter/`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter))
 
--   **[`asm.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/asm.rs)**: Exports complete assembly source files for all 4 supported assemblers (64tass, ACME, ca65, and KickAssembler), including origin directives, scopes, local labels, external binary includes, and enum substitutions.
--   **[`html.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/html.rs)**: Exports standalone HTML disassembly files with syntax highlighting, clickable cross-reference links, dark and light themes, and external file sub-pages.
--   **[`verify.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/verify.rs)**: Runs automated roundtrip verification. This module exports the disassembly, runs the external assembler CLI (`64tass`, `acme`, `ca65`/`ld65`, or `kickass`), and compares the assembled output byte-for-byte against the original binary.
+The exporter subsystem separates semantic lowering, text rendering, and disk persistence into a three-stage pipeline:
+
+```text
+                &AppState + &ExportOptions
+                            │
+                            ▼
+  ┌───────────────────────────────────────────────────┐
+  │ Stage 1: Semantic Lowering (exporter/ir.rs)       │
+  │ build_export_document() -> ExportDocument         │
+  │ (ExportHeader + Vec<ExportRow> + ExportSidecar)   │
+  └────────────┬─────────────────────────┬────────────┘
+               │                         │
+               ▼                         ▼
+┌─────────────────────────────┐ ┌─────────────────────────────┐
+│ Stage 2A: Pure ASM Backend  │ │ Stage 2B: Pure HTML Backend │
+│ render_asm_document()       │ │ render_html_document()      │
+│ -> ExportBundle (in-memory) │ │ -> ExportBundle (in-memory) │
+└──────┬───────────────┬──────┘ └──────────────┬──────────────┘
+       │               │                       │
+       │               ▼                       │
+       │     [verify_roundtrip()]              │
+       │     (Zero AppState clone)             │
+       │               │                       │
+       └───────────────┴───────────┬───────────┘
+                                   ▼
+                 ┌───────────────────────────────────┐
+                 │ Stage 3: Disk Persistence         │
+                 │ ExportBundle::write_to_disk()     │
+                 │ (Primary .asm/.html + .bin files) │
+                 └───────────────────────────────────┘
+```
+
+-   **[`ir.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs)**: Implements Stage 1 semantic lowering via [`build_export_document()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L836). Accepts `&AppState` and [`ExportOptions`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L28) (which lets callers override the target `Assembler` without cloning `AppState`) and produces an in-memory [`ExportDocument`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L540) containing:
+
+    -   [`ExportHeader`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L146): Document title, assembler metadata, comment prefix, and banner lines.
+    -   [`Vec<ExportRow>`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L476): Ordered semantic rows (`SectionComment`, `FileDirective`, `Equate` via [`AppState::get_external_label_definitions_with_formatter()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/blocks.rs#L325), `EnumLine` via [`AppState::get_enum_definition_lines_with_formatter()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/blocks.rs#L608), `Origin`, `ExternalFile`, `Blank`, `RawDirective`, and [`Instruction(InstructionRow)`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L447)).
+    -   Pre-tokenized operands ([`tokenize_operand()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L579) $\rightarrow$ `Vec<OperandToken>`), structured comments with cross-reference targets ([`ExportComment`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L175)), label placement rules ([`LabelPlacement::Inline`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L419) vs. `OwnLine` at [`LABEL_COLUMN_WIDTH`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs#L22)), centralized HTML entity escaping ([`html_escape()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L20)), and in-memory binary sidecars ([`ExportSidecar`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L70) / [`ExportBundle`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L109)).
+
+-   **[`asm.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/asm.rs)**: Pure assembly backend over `&ExportDocument` ([`render_asm_document()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/asm.rs#L32), [`render_asm_with_options()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/asm.rs#L209), [`render_asm()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/asm.rs#L220), and [`export_asm()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/asm.rs#L229)). Renders source files for all 4 supported assemblers (64tass, ACME, ca65, and KickAssembler), including file directives, origin directives, scopes, local and mid-instruction relative labels, external binary includes, and enum definitions.
+-   **[`html.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/html.rs)**: Pure HTML5 backend over `&ExportDocument` ([`render_html_document()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/html.rs#L384), [`render_html_with_options()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/html.rs#L467), [`render_html()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/html.rs#L478), and [`export_html()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/html.rs#L487)). Emits standalone HTML disassembly documents with deduplicated `id="L{:04X}"` address anchors, clickable operand and cross-reference links, dark and light CSS themes aligned to [`INSTRUCTION_COLUMN_WIDTH`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs#L30) (`40ch`), and `ExternalFile` binary sidecars.
+-   **[`verify.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/verify.rs)**: Runs automated roundtrip verification via [`verify_roundtrip()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/verify.rs#L55). Renders assembly in memory using `ExportOptions::for_assembler` (without cloning `AppState`), persists the [`ExportBundle`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L109) to a temporary directory, invokes the external assembler CLI (`64tass`, `acme`, `ca65`/`ld65`, or `kickass`), and compares the assembled output byte-for-byte against `state.raw_data`.
 
 ---
 

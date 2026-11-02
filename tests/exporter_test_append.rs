@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator2000_core::exporter::export_asm;
+use regenerator2000_core::exporter::render_asm;
 use regenerator2000_core::state::AppState;
-use std::path::PathBuf;
+use std::path::Path;
 
 #[test]
 fn test_export_all_labels_disabled() {
@@ -37,23 +37,12 @@ fn test_export_all_labels_disabled() {
         );
     }
 
-    // Now Export
-    let file_name = "test_export_all_labels_false.asm";
-    let path = PathBuf::from(file_name);
-    if path.exists() {
-        let _ = std::fs::remove_file(&path);
-    }
-
-    let res = export_asm(&state, &path);
-    assert!(res.is_ok());
-
-    let content = std::fs::read_to_string(&path).unwrap();
-    // println!("Content:\n{}", content);
+    // Now render in memory (zero CWD file pollution)
+    let bundle = render_asm(&state, Path::new("test_export_all_labels_false.asm"));
+    let content = &bundle.primary_content;
 
     // Must contain the label definition and the new legend header.
     assert!(content.contains("zpf_10 = $10"));
     assert!(content.contains("; EXTERNAL LABELS"));
     assert!(content.contains("zpf_ = Zero Page Field"));
-
-    let _ = std::fs::remove_file(&path);
 }
