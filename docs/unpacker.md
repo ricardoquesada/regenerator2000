@@ -12,14 +12,23 @@ Regenerator 2000 runs the unpacking routine inside a background 6502 emulator sa
 
 The binary unpacker is organized into six single-responsibility modules under [`crates/regenerator2000-core/src/unpacker/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/unpacker):
 
-```
-crates/regenerator2000-core/src/unpacker/
-├── mod.rs        // Public API facade (unpack, UnpackConfig, UnpackResult, re-exports)
-├── cia.rs        // MOS 6526 CIA 1 & CIA 2 timer state emulation & cycle-stepping (CiaState)
-├── bus.rs        // C64Bus (UnpackerMemory) bus, C64 $00/$01 processor port, ROM banking, I/O dispatch
-├── machine.rs    // Target machine profiles (RomTrapTable, KernalTrap, Phase, get_basic_start)
-├── engine.rs     // Decompression state machine, 2-phase 6502 loop, patches, UnpackReport & BoundSource
-└── detector.rs   // Memory range detection, trailing cluster trimming, snapshot diffing heuristics
+```mermaid
+flowchart TB
+    subgraph unpacker_mod ["crates/regenerator2000-core/src/unpacker/"]
+        direction TB
+        Mod["mod.rs — Public API Facade<br/>unpack(), UnpackConfig, UnpackResult & re-exports"]
+        Engine["engine.rs — Decompression State Machine<br/>2-phase 6502 loop, MemoryPatch, UnpackReport & BoundSource"]
+        Machine["machine.rs — Target Machine Profiles<br/>RomTrapTable, KernalTrap, Phase & get_basic_start()"]
+        Bus["bus.rs — C64Bus (UnpackerMemory)<br/>64 KB RAM, C64 $00/$01 port, ROM banking & write bitmaps"]
+        Cia["cia.rs — MOS 6526 Timers<br/>CIA 1 & CIA 2 timer emulation & cycle stepping (CiaState)"]
+        Detector["detector.rs — Boundary & Range Detection<br/>Write-bitmap scan, trailing stub trimming & snapshot diffing"]
+
+        Mod -->|"Orchestrates"| Engine
+        Engine -->|"Consults Profiles & Traps"| Machine
+        Engine -->|"Steps CPU & Tracks Writes"| Bus
+        Engine -->|"Resolves Output Bounds"| Detector
+        Bus -->|"Ticks Timers"| Cia
+    end
 ```
 
 1. **`mod.rs`**: Exposes `unpack()`, `UnpackConfig`, `UnpackResult`, `UnpackerMemory`, `UnpackError`, and re-exports `PackerId`, `BoundSource`, `ExitReason`, `TRACE_TAIL_CAPACITY`, `UnpackEngine`, and `UnpackReport`.
@@ -35,33 +44,14 @@ crates/regenerator2000-core/src/unpacker/
 
 The unpacker runs a cycle-accurate MOS 6502 emulation sandbox with target system memory mappings. It uses a two-phase execution algorithm inspired by [**unp64**](http://iancoog.altervista.org/) combined with write-tracking bitmaps and RAM snapshot diffing:
 
-```
-  ┌──────────────────────────────────────────────────────────────┐
-  │ Phase 1: FindDepacker                                        │
-  │ - Resolves entry (forced_entry > PackerSpec > BASIC SYS)     │
-  │ - Applies conditional/unconditional pre-emulation patches    │
-  │ - Captures pre-emulation 64 KB RAM snapshot                  │
-  │ - Emulates until PC reaches depacker or drops below RAM      │
-  │   start ($0800 on C64, $1C00 on C128, $1000 on VIC-20/Plus4, │
-  │   $0400 on PET)                                              │
-  └──────────────────────────────┬───────────────────────────────┘
-                                 │ (Phase::Decompress entered)
-                                 ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │ Phase 2: Decompress                                          │
-  │ - Continues emulation from the located depacker stub         │
-  │ - Tracks every byte written to RAM                           │
-  │ - Stops when PC returns to unpacked code, hits known entry,  │
-  │   leaves loaded region, or hits a ROM exit / BASIC RUN trap  │
-  └──────────────────────────────┬───────────────────────────────┘
-                                 │ (ExitReason recorded)
-                                 ▼
-  ┌──────────────────────────────────────────────────────────────┐
-  │ Extraction, Bound Refinement & UnpackReport Provenance       │
-  │ - Scans write-tracking bitmap + snapshot diff for bounds     │
-  │ - Applies PackerSpec hints, post-run pointers & refine hooks │
-  │ - Records BoundSource for start_addr, end_addr & entry_point │
-  └──────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Phase1["Phase 1: FindDepacker<br/>• Resolves entry (forced_entry → PackerSpec → BASIC SYS)<br/>• Applies conditional & unconditional pre-emulation patches<br/>• Captures pre-emulation 64 KB RAM snapshot<br/>• Emulates until PC reaches depacker or drops below RAM start<br/>($0800 on C64, $1C00 on C128, $1000 on VIC-20/Plus4, $0400 on PET)"]
+    Phase2["Phase 2: Decompress<br/>• Continues emulation from the located depacker stub<br/>• Tracks every byte written to RAM<br/>• Stops when PC returns to unpacked code, hits known entry,<br/>leaves loaded region, or hits a ROM exit / BASIC RUN trap"]
+    Extract["Extraction, Bound Refinement & UnpackReport Provenance<br/>• Scans write-tracking bitmap + snapshot diff for bounds<br/>• Applies PackerSpec hints, post-run pointers & refine hooks<br/>• Records BoundSource for start_addr, end_addr & entry_point"]
+
+    Phase1 -->|"Phase::Decompress entered"| Phase2
+    Phase2 -->|"ExitReason recorded"| Extract
 ```
 
 ### Phase 1: `Phase::FindDepacker`
