@@ -76,7 +76,7 @@ impl PackerHooks for ByteBoozerHooks {
     }
 }
 
-/// Constructs [`ByteBoozerHooks`] for a matched ByteBoozer image (Ruling B3).
+/// Constructs [`ByteBoozerHooks`] for a matched ByteBoozer image.
 #[must_use]
 pub fn create_byteboozer_hooks(
     _image: &LoadedImage<'_>,

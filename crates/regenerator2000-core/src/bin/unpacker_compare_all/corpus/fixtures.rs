@@ -2,7 +2,7 @@
 //!
 //! The integration test and the compare tool use [`DirFixtures`]; unit tests
 //! use an in-memory resolver, so validation and ground-truth loading stay
-//! testable without a file system (ruling R9).
+//! testable without a file system.
 
 use std::path::PathBuf;
 

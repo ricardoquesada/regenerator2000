@@ -127,7 +127,7 @@ pub enum FailureReason {
         /// Which part of the predicate failed.
         detail: String,
     },
-    /// Listed fields now equal unp64 (ruling R13).
+    /// Listed fields now equal unp64.
     StaleDivergence {
         /// The listed fields that no longer differ.
         stale: Vec<Field>,
@@ -278,12 +278,11 @@ enum Maskable {
 impl ExpectedFailReason {
     /// Returns `true` if this reason masks `failure` of `result`'s case.
     ///
-    /// Each reason has a closed allow-list (ruling R17); there is no
-    /// "mask everything" path:
+    /// Each reason has a closed allow-list; there is no "mask everything" path:
     ///
     /// * `padding_convention` masks only a ground-truth `start` mismatch
-    ///   whose two starts are the BASIC link byte pair (the R16 predicate),
-    ///   e.g. Dali's `$0801` against the original `$0800`.
+    ///   whose two starts are the BASIC link byte pair, e.g. Dali's `$0801`
+    ///   against the original `$0800`.
     /// * `payload_mismatch_under_investigation` masks only payload and
     ///   overlap hash mismatches against unp64.
     ///

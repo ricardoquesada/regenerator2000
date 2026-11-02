@@ -38,7 +38,7 @@ pub struct GroundTruth {
 
 impl GroundTruth {
     /// Derives the ground truth from the original PRG bytes: the range is the
-    /// load address plus the payload length (Addendum A Q1 (a)).
+    /// load address plus the payload length.
     ///
     /// # Example
     ///
@@ -143,9 +143,9 @@ impl<'c> Evaluator<'c> {
     }
 
     /// Checks that all members of each group that are present in `results`
-    /// and not marked `expected_fail` agree on range, entry and payload
-    /// (ruling R3). Members whose unpack failed are reported by
-    /// [`Evaluator::evaluate`] and skipped here.
+    /// and not marked `expected_fail` agree on range, entry and payload.
+    /// Members whose unpack failed are reported by [`Evaluator::evaluate`]
+    /// and skipped here.
     #[must_use]
     pub fn evaluate_consensus(&self, results: &[CaseResult]) -> Vec<CaseFailure> {
         let mut failures = Vec::new();
@@ -266,8 +266,7 @@ struct FieldDifference {
 }
 
 /// Lists every field on which the saved unp64 record and R2000 differ, in
-/// canonical field order. `len` is derived from the range and never appears
-/// (ruling R1b).
+/// canonical field order. `len` is derived from the range and never appears.
 fn unp64_differences(saved: &Unp64Saved, image: CheckedImage<'_>) -> Vec<FieldDifference> {
     Field::ALL
         .into_iter()
@@ -355,8 +354,7 @@ fn record_review_state(divergence: &AcceptedDivergence, verdict: &mut CaseVerdic
     }
 }
 
-/// Checks that the exception is not stale (ruling R13) and that its kind
-/// still holds.
+/// Checks that the exception is not stale and that its kind still holds.
 fn check_divergence_kind(
     divergence: &AcceptedDivergence,
     saved: &Unp64Saved,
@@ -448,7 +446,7 @@ fn kind_violation(
 }
 
 /// Checks the payload: the whole-range hash when the ranges match, otherwise
-/// R2000's bytes over the recorded overlap window (Addendum B1).
+/// R2000's bytes over the recorded overlap window.
 fn check_payload(
     saved: &Unp64Saved,
     unp64_range: AddrRange,
@@ -575,8 +573,7 @@ fn check_ground_truth(
 // expected_fail and consensus
 // =============================================================================
 
-/// Turns a verdict into the final result, applying `expected_fail` (ruling
-/// R17):
+/// Turns a verdict into the final result, applying `expected_fail`:
 ///
 /// * failures the marker's reason does not mask still fail;
 /// * a marked case with nothing left to mask is an "unexpected pass";

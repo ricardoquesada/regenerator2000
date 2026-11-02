@@ -621,7 +621,6 @@ mod tests {
         );
     }
 
-    // T4.3.1
     #[test]
     fn import_dialog_confirm_after_apply_has_no_duplicate_start_label() {
         let mut app_state = AppState::new();
@@ -690,7 +689,6 @@ mod tests {
         assert_eq!(set_label_cmds, 1);
     }
 
-    // T4.3.2
     #[test]
     fn import_dialog_changed_entry_moves_label_and_code_marks() {
         let mut app_state = AppState::new();
@@ -767,7 +765,6 @@ mod tests {
         assert_eq!(app_state.block_types[0x22], BlockType::Code);
     }
 
-    // T4.3.4
     #[test]
     fn test_import_context_dialog_confirm_populates_disassembly() {
         let mut app_state = AppState::new();

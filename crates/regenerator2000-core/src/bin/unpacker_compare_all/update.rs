@@ -11,7 +11,7 @@
 //!   describes the case: the recorded results are unchanged (the version may
 //!   differ), it lists exactly the differing fields, and its kind is the
 //!   classified kind, or `unexplained` for anything but a payload mismatch.
-//!   On a case marked `payload_mismatch_under_investigation` (ruling R17) an
+//!   On a case marked `payload_mismatch_under_investigation` an
 //!   `unexplained` exception for the non-payload fields is kept too. This is
 //!   how a reviewer's decision survives re-runs.
 //! * Otherwise the classifier proposes an **unsigned** exception, which the
@@ -195,7 +195,7 @@ fn decide_exception(
 
 /// The fields on which unp64's record and R2000 differ, or `None` if they
 /// agree on all of them. A failed unp64 run saved nothing, so every field
-/// differs. `len` is derived from the range and never listed (ruling R1b).
+/// differs. `len` is derived from the range and never listed.
 fn differing_fields(record: &Unp64Record, image: &UnpackedImage) -> Option<FieldSet> {
     let fields: Vec<Field> = match record {
         Unp64Record::Failed(_) => Field::ALL.to_vec(),
@@ -217,7 +217,7 @@ fn differing_fields(record: &Unp64Record, image: &UnpackedImage) -> Option<Field
 ///
 /// A reviewer may always accept a range or entry difference as
 /// `unexplained`. A payload mismatch is never accepted, except on a case
-/// marked `payload_mismatch_under_investigation` (ruling R17): there the
+/// marked `payload_mismatch_under_investigation`: there the
 /// exception covers only the non-payload fields, and the marker masks the
 /// payload failure.
 fn still_describes(

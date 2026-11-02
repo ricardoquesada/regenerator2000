@@ -1,8 +1,7 @@
-//! Tests for `validate` (T1.A1.18–T1.A1.27) and the divergence-shape rules.
+//! Tests for `validate` and the divergence-shape rules.
 
 use super::*;
 
-/// T1.A1.18
 #[test]
 fn validate_missing_fixture_is_failure() {
     let corpus = corpus(vec![simple_case("a.prg"), simple_case("ghost.prg")]);
@@ -15,7 +14,6 @@ fn validate_missing_fixture_is_failure() {
     );
 }
 
-/// T1.A1.19
 #[test]
 fn validate_missing_group_original_is_failure() {
     let mut member = simple_case("a.prg");
@@ -34,7 +32,6 @@ fn validate_missing_group_original_is_failure() {
     );
 }
 
-/// T1.A1.20
 #[test]
 fn validate_unknown_group_reference_is_failure() {
     let mut member = simple_case("a.prg");
@@ -49,7 +46,6 @@ fn validate_unknown_group_reference_is_failure() {
     );
 }
 
-/// T1.A1.21
 #[test]
 fn validate_duplicate_case_file_is_failure() {
     let errors = corpus(vec![simple_case("a.prg"), simple_case("a.prg")])
@@ -62,7 +58,6 @@ fn validate_duplicate_case_file_is_failure() {
     );
 }
 
-/// T1.A1.22
 #[test]
 fn validate_duplicate_group_id_is_failure() {
     let corpus = Corpus {
@@ -78,7 +73,6 @@ fn validate_duplicate_group_id_is_failure() {
     );
 }
 
-/// T1.A1.23
 #[test]
 fn validate_case_without_unp64_table_is_failure() {
     let mut plain = simple_case("a.prg");
@@ -104,7 +98,6 @@ fn validate_case_without_unp64_table_is_failure() {
     );
 }
 
-/// T1.A1.24
 #[test]
 fn validate_unp64_failed_requires_unexplained_divergence() {
     let failed_case = |divergence: Option<AcceptedDivergence>| {
@@ -150,7 +143,6 @@ fn validate_unp64_failed_requires_unexplained_divergence() {
     assert_eq!(corpus.validate(&fixtures), Vec::new());
 }
 
-/// T1.A1.25
 #[test]
 fn validate_unp64_len_consistent_with_range() {
     // (start, end, recorded len, expected `derived` in the error, if any)
@@ -185,7 +177,6 @@ fn validate_unp64_len_consistent_with_range() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// T1.A1.26
 #[test]
 fn validate_overlap_lies_inside_unp64_range() {
     let with_overlap = |start: u16, end: u16| {
@@ -212,7 +203,6 @@ fn validate_overlap_lies_inside_unp64_range() {
     }
 }
 
-/// T1.A1.27
 #[test]
 fn validate_all_errors_are_reported_together() {
     let mut no_unp64 = simple_case("a.prg");

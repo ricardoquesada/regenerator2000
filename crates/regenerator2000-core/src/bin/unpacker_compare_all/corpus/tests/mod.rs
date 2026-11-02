@@ -1,12 +1,10 @@
-//! Pure unit tests for the shared corpus module (Test Plan T1.A1.1–T1.A1.63,
-//! TX.6, and the classifier tests T1.A2.20–T1.A2.32 that ship with the
-//! classifier per the ledger's Option A).
+//! Pure unit tests for the shared corpus module.
 //!
 //! The corpus module is compiled into two crates (the compare bin and the
 //! corpus integration test), so these tests run twice. They are deliberately
-//! pure: no file system and no environment variables (ruling R10). Fixtures
-//! come from the in-memory [`MemFixtures`] resolver and payloads from one
-//! deterministic xorshift "memory".
+//! pure: no file system and no environment variables. Fixtures come from the
+//! in-memory [`MemFixtures`] resolver and payloads from one deterministic
+//! xorshift "memory".
 //!
 //! This file holds the shared builders; each submodule tests one library
 //! module and is named after it.

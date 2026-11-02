@@ -1,16 +1,14 @@
-//! Tests for `values`: FNV-1a-64 (T1.A1.1–T1.A1.4) and `HexAddr`
-//! (T1.A1.5–T1.A1.7), plus the address-range helpers they rely on.
+//! Tests for `values`: FNV-1a-64 and `HexAddr`, plus the address-range
+//! helpers they rely on.
 
 use super::*;
 use serde::Serialize;
 
-/// T1.A1.1
 #[test]
 fn fnv1a64_empty_input_is_offset_basis() {
     assert_eq!(fnv1a64(b""), 0xcbf2_9ce4_8422_2325);
 }
 
-/// T1.A1.2
 #[test]
 fn fnv1a64_known_vectors() {
     let vectors: [(&[u8], u64); 3] = [
@@ -31,14 +29,12 @@ fn fnv1a64_known_vectors() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// T1.A1.3
 #[test]
 fn fnv1a64_is_order_and_length_sensitive() {
     assert_ne!(fnv1a64(b"ab"), fnv1a64(b"ba"));
     assert_ne!(fnv1a64(&[0]), fnv1a64(&[0, 0]));
 }
 
-/// T1.A1.4
 #[test]
 fn fnv64_hex_string_roundtrip() {
     for value in [0u64, 1, 0xcbf2_9ce4_8422_2325, u64::MAX] {
@@ -70,7 +66,6 @@ fn fnv64_hex_string_roundtrip() {
     }
 }
 
-/// T1.A1.5
 #[test]
 fn hex_addr_serializes_as_dollar_four_upper_hex() {
     #[derive(Serialize)]
@@ -97,7 +92,6 @@ fn hex_addr_serializes_as_dollar_four_upper_hex() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// T1.A1.6
 #[test]
 fn hex_addr_rejects_malformed() {
     let bad_strings = ["0800", "$800", "$10000", "$GG00", "", "$"];
@@ -124,7 +118,6 @@ fn hex_addr_rejects_malformed() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// T1.A1.7
 #[test]
 fn hex_addr_parse_accepts_lowercase_and_normalizes() {
     let addr = HexAddr::parse("$e7ff").unwrap();

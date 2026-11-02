@@ -1,4 +1,4 @@
-//! Tests for `filter` (T1.A1.54–T1.A1.56).
+//! Tests for `filter`.
 
 use super::*;
 
@@ -39,7 +39,6 @@ fn selected_files(filter: &CorpusFilter, corpus: &Corpus) -> Vec<String> {
         .collect()
 }
 
-/// T1.A1.54
 #[test]
 fn corpus_filter_none_selects_all() {
     let corpus = filter_corpus();
@@ -59,7 +58,6 @@ fn corpus_filter_none_selects_all() {
     }
 }
 
-/// T1.A1.55
 #[test]
 fn corpus_filter_substring_selects_cases_and_whole_groups() {
     let corpus = filter_corpus();
@@ -86,7 +84,6 @@ fn corpus_filter_substring_selects_cases_and_whole_groups() {
     );
 }
 
-/// T1.A1.56
 #[test]
 fn corpus_filter_matching_nothing_is_failure() {
     let filter = CorpusFilter::from_env_value(Some("zzz"));

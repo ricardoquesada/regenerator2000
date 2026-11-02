@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 //! End-to-end parity tests between the TUI unpack completion + `ImportContextDialog`
-//! confirmation flow and the MCP `r2000_unpack_binary` flow (`T4.4.1`, `T4.4.2`).
+//! confirmation flow and the MCP `r2000_unpack_binary` flow.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -118,7 +118,6 @@ fn assert_project_state_parity(
     );
 }
 
-// T4.4.1
 #[test]
 fn tui_and_mcp_produce_identical_project_state() {
     let fixture = "c64_FppScroller.byte_boozer2.prg";
@@ -129,7 +128,6 @@ fn tui_and_mcp_produce_identical_project_state() {
     assert_project_state_parity(fixture, &tui_state, &tui_view, &mcp_state, &mcp_view);
 }
 
-// T4.4.2
 #[test]
 fn parity_over_one_file_per_hooked_packer() {
     let cases: &[(&str, &str)] = &[

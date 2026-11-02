@@ -756,7 +756,6 @@ mod tests {
         assert!(!app_state.is_external(Addr(0xFFFF)));
     }
 
-    // T3.0.49
     #[test]
     fn file_info_packer_name_unchanged_for_corpus_samples() {
         use std::path::Path;
@@ -796,7 +795,6 @@ mod tests {
         }
     }
 
-    // T3.5.1
     #[test]
     fn file_info_does_not_allocate_per_spec() {
         use std::alloc::{GlobalAlloc, Layout, System as StdAlloc};

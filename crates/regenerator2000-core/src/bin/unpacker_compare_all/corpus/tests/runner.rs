@@ -1,6 +1,6 @@
-//! Tests for `runner`: the per-case unpack configuration (T1.A2.45, shared
-//! by the compare tool and the corpus test), fixture errors, and the
-//! equivalence of serial and parallel scheduling. All fixtures are in memory.
+//! Tests for `runner`: the per-case unpack configuration (shared by the
+//! compare tool and the corpus test), fixture errors, and the equivalence of
+//! serial and parallel scheduling. All fixtures are in memory.
 
 use super::*;
 
@@ -16,9 +16,9 @@ fn bare_case(file: &str, max_instructions: Option<u64>) -> Case {
     }
 }
 
-/// T1.A2.45: the compare tool and the corpus test unpack with the case's own
-/// budget (never a tool-wide constant), and with the default budget when the
-/// case has none.
+/// The compare tool and the corpus test unpack with the case's own budget
+/// (never a tool-wide constant), and with the default budget when the case has
+/// none.
 #[test]
 fn bin_uses_case_max_instructions() {
     assert_eq!(

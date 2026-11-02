@@ -1,4 +1,4 @@
-//! Tests for `--check` (T1.A2.39–T1.A2.40).
+//! Tests for `--check`.
 
 use super::*;
 use crate::check::{DriftField, check_all, check_case};
@@ -14,8 +14,8 @@ fn recorded(file: &str, r2000: UnpackedImage, unp64: Unp64Outcome) -> Case {
     .case
 }
 
-/// T1.A2.39: each drifting value is reported once, with both values; the
-/// overlap is re-hashed over the recorded window only.
+/// Each drifting value is reported once, with both values; the overlap is
+/// re-hashed over the recorded window only.
 #[test]
 fn check_reports_drift_per_field() {
     let case = recorded(
@@ -79,7 +79,7 @@ fn check_reports_drift_per_field() {
     assert_eq!(missing[0].field, DriftField::Record);
 }
 
-/// T1.A2.40: any drift makes `--check` exit non-zero; none exits 0.
+/// Any drift makes `--check` exit non-zero; none exits 0.
 #[test]
 fn check_exit_code_is_nonzero_on_drift() {
     let case = recorded(

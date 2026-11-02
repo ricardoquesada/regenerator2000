@@ -7,7 +7,7 @@ use super::spec::{
     SignatureMatch, sig,
 };
 
-/// Default static hints for ECA Compactor (`dep_addr: $0100`, `start_addr: BasicStart(-1)` = `$0800` on C64 per Ruling B4).
+/// Default static hints for ECA Compactor (`dep_addr: $0100`, `start_addr: BasicStart(-1)` = `$0800` on C64).
 pub const DEFAULT_HINTS: Hints = Hints {
     dep_addr: Some(AddrSource::Const(0x0100)),
     start_addr: Some(AddrSource::BasicStart(-1)),
@@ -79,7 +79,7 @@ fn matches_eca_variant(image: &LoadedImage<'_>, p: usize) -> bool {
 }
 
 /// Resolves the ECA Compactor [`Hints`] at position `p`, using `Const(0x0100)` as the
-/// `dep_addr` fallback and `BasicStart(-1)` (`$0800` on C64 per Ruling B4) as the
+/// `dep_addr` fallback and `BasicStart(-1)` (`$0800` on C64) as the
 /// `start_addr` fallback when `mem` is shorter than `p + 0x32` / `p + 0x34`.
 #[must_use]
 pub fn resolve_hints_at(image: &LoadedImage<'_>, p: usize) -> Hints {
@@ -128,7 +128,7 @@ pub fn resolve_hints_at(image: &LoadedImage<'_>, p: usize) -> Hints {
     }
 }
 
-/// Per-position `resolve` function for ECA Compactor (`T3.0.14`, `T3.2.3`, `T3.2.4`).
+/// Per-position `resolve` function for ECA Compactor.
 ///
 /// Returning `None` at candidate `p` causes [`PackerSpec::detect`] to continue scanning
 /// the remaining positions in `0x080D..=0x0830`.

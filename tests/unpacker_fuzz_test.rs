@@ -25,16 +25,16 @@ use regenerator2000_core::unpacker::{UnpackConfig, UnpackError, unpack};
 
 // ─────────────────────── helpers ───────────────────────
 
-/// Instruction budget for fuzz runs (Design Doc §5.1.5). Small enough that the
+/// Instruction budget for fuzz runs. Small enough that the
 /// full grid stays fast on shared 2-vCPU CI runners, large enough that random
 /// code runs through both emulation stages.
 const FUZZ_MAX_INSTRUCTIONS: u64 = 10_000;
 
-/// Wall-clock runaway guard for the full TX.1 grid. Instruction bounding is
-/// verified deterministically by `jmp_self_returns_phase1_timeout_within_budget`
-/// (`TX.4`); this generous wall-clock ceiling catches unbounded hangs without
+/// Wall-clock runaway guard for the full random fuzz grid. Instruction bounding is
+/// verified deterministically by `jmp_self_returns_phase1_timeout_within_budget`;
+/// this generous wall-clock ceiling catches unbounded hangs without
 /// flaking under parallel test contention on shared CI runners.
-const TX1_TIME_LIMIT: Duration = Duration::from_secs(30);
+const FUZZ_GRID_TIME_LIMIT: Duration = Duration::from_secs(30);
 
 /// The 6502 `JMP absolute` opcode.
 const OPCODE_JMP_ABS: u8 = 0x4C;
@@ -159,9 +159,9 @@ fn basic_sys_line(basic_start: u16, digits: &[u8]) -> Vec<u8> {
     bytes
 }
 
-// ═══════════════════════ TX.1 ═══════════════════════
+// ═══════════════════════ random byte grid ═══════════════════════
 
-/// TX.1: random images of every size, at every interesting load address, with
+/// Random images of every size, at every interesting load address, with
 /// and without a forced entry, never make `unpack()` panic.
 #[test]
 fn unpack_random_bytes_never_panics() {
@@ -179,15 +179,15 @@ fn unpack_random_bytes_never_panics() {
     assert_no_unpack_panics(&inputs);
     let elapsed = started.elapsed();
     assert!(
-        elapsed < TX1_TIME_LIMIT,
-        "the TX.1 grid took {elapsed:?}, above the {TX1_TIME_LIMIT:?} limit: \
+        elapsed < FUZZ_GRID_TIME_LIMIT,
+        "the random fuzz grid took {elapsed:?}, above the {FUZZ_GRID_TIME_LIMIT:?} limit: \
          a small instruction budget must keep every run short"
     );
 }
 
-// ═══════════════════════ TX.2 ═══════════════════════
+// ═══════════════════════ multi-system random grid ═══════════════════════
 
-/// TX.2: a reduced random grid on every supported target system. Load
+/// A reduced random grid on every supported target system. Load
 /// addresses come from each system's own `ram_start()` and
 /// `default_basic_start()`, never from hardcoded constants.
 #[test]
@@ -213,9 +213,9 @@ fn unpack_random_bytes_all_systems() {
     assert_no_unpack_panics(&inputs);
 }
 
-// ═══════════════════════ TX.3 ═══════════════════════
+// ═══════════════════════ pathological images ═══════════════════════
 
-/// TX.3: hand-built pathological images return without panicking.
+/// Hand-built pathological images return without panicking.
 #[test]
 fn unpack_pathological_images() {
     let system = System::C64;
@@ -289,9 +289,9 @@ fn unpack_pathological_images() {
     assert_no_unpack_panics(&inputs);
 }
 
-// ═══════════════════════ TX.4 ═══════════════════════
+// ═══════════════════════ instruction budget timeout ═══════════════════════
 
-/// TX.4: a self-jumping stub (`JMP *`) never leaves the depacker search, so
+/// A self-jumping stub (`JMP *`) never leaves the depacker search, so
 /// `unpack()` must return [`UnpackError::Phase1Timeout`] and must not execute
 /// more instructions than the configured budget.
 #[test]
@@ -319,9 +319,9 @@ fn jmp_self_returns_phase1_timeout_within_budget() {
     );
 }
 
-// ═══════════════════════ TX.5 ═══════════════════════
+// ═══════════════════════ packer detection fuzz ═══════════════════════
 
-/// TX.5: packer detection over random 64 KB images never panics, for every
+/// Packer detection over random 64 KB images never panics, for every
 /// interesting load address and for both `load_end` conventions in use (the
 /// engine's exclusive end and `file_info`'s inclusive end).
 #[test]

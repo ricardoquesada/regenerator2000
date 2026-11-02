@@ -179,7 +179,7 @@ pub struct ProbeOutput {
     pub text: String,
 }
 
-/// Interprets the no-argument version probe of `program` (ruling R2).
+/// Interprets the no-argument version probe of `program`.
 ///
 /// unp64 prints its usage banner and exits non-zero when called without
 /// arguments, so a non-zero exit is **not** a tool failure: only the banner

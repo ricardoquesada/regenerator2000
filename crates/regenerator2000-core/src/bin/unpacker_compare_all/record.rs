@@ -2,7 +2,7 @@
 //!
 //! `--update` and `--check` build records the same way; they differ only in
 //! the overlap window: `--update` uses the current intersection with R2000's
-//! range (Addendum B1), `--check` re-hashes the window that was recorded, so
+//! range, while `--check` re-hashes the window that was recorded, so
 //! drift detection never depends on R2000.
 
 use crate::corpus::{

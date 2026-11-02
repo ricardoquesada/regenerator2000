@@ -272,7 +272,7 @@ impl PackerHooks for ExomizerHooks {
     }
 }
 
-/// Constructs [`ExomizerHooks`] for a matched Exomizer image (Ruling B3).
+/// Constructs [`ExomizerHooks`] for a matched Exomizer image.
 #[must_use]
 pub fn create_exomizer_hooks(
     image: &LoadedImage<'_>,

@@ -1,6 +1,4 @@
-//! Tests for `classify` (T1.A2.20–T1.A2.32). They ship with the classifier
-//! in M1.1 because the ledger places the classifier in M1.1 and its ground
-//! rules bundle tests with the step that implements the logic (Option A).
+//! Tests for `classify`.
 
 use super::*;
 
@@ -18,7 +16,6 @@ fn classify_image(image: UnpackedImage, unp64: &Unp64Observation) -> Divergence 
     classify(&ok_result("a.prg", image), unp64)
 }
 
-/// T1.A2.20
 #[test]
 fn classify_agree() {
     let unp64 = observed(0x0801, 0x2000, Unp64Entry::Address(0x080D));
@@ -28,9 +25,8 @@ fn classify_agree() {
     );
 }
 
-/// T1.A2.21 (tightened by ruling R16): only the BASIC link byte pair
-/// `{basic_start - 1, basic_start}` is a padding byte, in either order. The
-/// former `$0802` vs `$0801` row is not the pair and now classifies as
+/// Only the BASIC link byte pair `{basic_start - 1, basic_start}` is a padding
+/// byte, in either order. `$0802` vs `$0801` is not the pair and classifies as
 /// `Unexplained`.
 #[test]
 fn classify_padding_byte_both_directions() {
@@ -108,9 +104,9 @@ fn classify_padding_byte_both_directions() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// R16 follow-up (M2.1): `padding_byte` keeps both anchors. The engine's
-/// BASIC start comes from the shared `unpacker::machine::get_basic_start`
-/// (no copy), and the system's default BASIC start is the other anchor.
+/// `padding_byte` keeps both anchors: the engine's BASIC start comes from the
+/// shared `unpacker::machine::get_basic_start`, and the system's default BASIC
+/// start is the other anchor.
 #[test]
 fn padding_byte_anchors_on_engine_and_default_basic_start() {
     use super::super::kinds::{padding_byte_holds, padding_byte_pairs};
@@ -150,7 +146,6 @@ fn padding_byte_anchors_on_engine_and_default_basic_start() {
     );
 }
 
-/// T1.A2.22
 #[test]
 fn classify_padding_byte_requires_matching_intersection() {
     let mut r2000 = image(0x0801, 0x2000, 0x080D);
@@ -165,7 +160,6 @@ fn classify_padding_byte_requires_matching_intersection() {
     );
 }
 
-/// T1.A2.23
 #[test]
 fn classify_unp64_default_end() {
     let rows = [
@@ -189,7 +183,6 @@ fn classify_unp64_default_end() {
     }
 }
 
-/// T1.A2.24
 #[test]
 fn classify_unp64_default_start() {
     let unp64 = observed(0x0800, 0x2000, Unp64Entry::Address(0x0810));
@@ -212,7 +205,6 @@ fn classify_unp64_default_start() {
     );
 }
 
-/// T1.A2.25
 #[test]
 fn classify_unexplained_range_difference() {
     let start_off = observed(0x0400, 0x2000, Unp64Entry::Address(0x0810));
@@ -227,7 +219,6 @@ fn classify_unexplained_range_difference() {
     );
 }
 
-/// T1.A2.26
 #[test]
 fn classify_payload_mismatch_first_and_count() {
     let mut r2000 = image(0x0801, 0x2000, 0x080D);
@@ -244,7 +235,6 @@ fn classify_payload_mismatch_first_and_count() {
     );
 }
 
-/// T1.A2.27
 #[test]
 fn classify_unp64_missing_opcode() {
     let unp64 = Unp64Observation::Failed {
@@ -259,7 +249,6 @@ fn classify_unp64_missing_opcode() {
     );
 }
 
-/// T1.A2.28
 #[test]
 fn classify_entry_mismatch() {
     let unp64 = observed(0x0801, 0x2000, Unp64Entry::Address(0x0900));
@@ -268,7 +257,6 @@ fn classify_entry_mismatch() {
     assert_eq!(divergence.accepted_kind(), None);
 }
 
-/// T1.A2.29
 #[test]
 fn classify_suspicious_beats_benign() {
     let padded_other_entry = observed(0x0800, 0x2000, Unp64Entry::Address(0x0900));
@@ -285,7 +273,6 @@ fn classify_suspicious_beats_benign() {
     ));
 }
 
-/// T1.A2.30
 #[test]
 fn classify_disjoint_ranges() {
     let unp64 = observed(0x4000, 0x5000, Unp64Entry::Address(0x080D));
@@ -295,7 +282,6 @@ fn classify_disjoint_ranges() {
     );
 }
 
-/// T1.A2.31
 #[test]
 fn classify_one_side_failed() {
     let unp64_failed = Unp64Observation::Failed {
@@ -336,7 +322,6 @@ fn classify_one_side_failed() {
     );
 }
 
-/// T1.A2.32
 #[test]
 fn classify_unp64_basic_run_entry_is_not_entry_mismatch() {
     let unp64 = observed(0x0801, 0x2000, Unp64Entry::BasicRun);

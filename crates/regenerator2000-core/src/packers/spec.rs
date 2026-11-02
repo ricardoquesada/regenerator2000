@@ -415,7 +415,7 @@ impl PointerGuard {
 pub enum AddrSource {
     /// Fixed 16-bit constant address.
     Const(u16),
-    /// Signed offset from [`System::default_basic_start`] (Ruling B4).
+    /// Signed offset from [`System::default_basic_start`].
     ///
     /// For example, on C64 (`default_basic_start() == $0801`), `BasicStart(0)` resolves
     /// to `$0801` and `BasicStart(-1)` resolves to `$0800`. Out-of-range offsets that
@@ -471,7 +471,7 @@ pub enum AddrSource {
 }
 
 /// Reads a little-endian `u16` from `mem` at `ptr_addr` (low byte) and
-/// `ptr_addr.wrapping_add(1)` (high byte, Ruling R19).
+/// `ptr_addr.wrapping_add(1)` (high byte).
 #[must_use]
 pub fn read_u16_le_wrapping(mem: &[u8], ptr_addr: u16) -> Option<u16> {
     let lo = *mem.get(usize::from(ptr_addr))?;
@@ -502,8 +502,8 @@ impl PointerMonitor {
     /// Samples the little-endian 16-bit word at `ptr_addr` from `mem` when execution
     /// reaches the depacker PC.
     ///
-    /// - Records `first_at_depacker` only on the first sample (`T3.0.27`).
-    /// - Updates `monitored_max` and `monitored_min` on every sample (`T3.0.28`).
+    /// - Records `first_at_depacker` only on the first sample.
+    /// - Updates `monitored_max` and `monitored_min` on every sample.
     pub fn sample_at_depacker(&mut self, mem: &[u8], ptr_addr: u16) {
         let Some(val) = read_u16_le_wrapping(mem, ptr_addr) else {
             return;
@@ -848,8 +848,7 @@ impl SignatureMatch {
 /// For [`TargetSystem::C64`], this uses [`TargetSystem::is_c64`] (consistent with
 /// [`RomTrapTable::for_system`](crate::unpacker::machine::RomTrapTable::for_system)
 /// and [`C64Bus`](crate::unpacker::C64Bus)), NOT `PartialEq`, so a
-/// `TargetSystem::Custom("Commodore 64")` does not masquerade as [`TargetSystem::C64`]
-/// (`T3.0.31`).
+/// `TargetSystem::Custom("Commodore 64")` does not masquerade as [`TargetSystem::C64`].
 #[must_use]
 pub fn system_matches(allowed: &TargetSystem, actual: &TargetSystem) -> bool {
     match (allowed, actual) {
@@ -863,7 +862,7 @@ pub fn system_matches(allowed: &TargetSystem, actual: &TargetSystem) -> bool {
 /// Function pointer signature for [`PackerSpec::resolve`].
 pub type ResolveFn = fn(&LoadedImage<'_>, &SignatureMatch) -> Option<ResolvedSpec>;
 
-/// Function pointer signature for [`PackerSpec::hooks`] (Ruling B3).
+/// Function pointer signature for [`PackerSpec::hooks`].
 pub type HooksFactory = fn(&LoadedImage<'_>, &SignatureMatch) -> Box<dyn PackerHooks>;
 
 /// Declarative specification of a binary packer variant.
@@ -894,9 +893,9 @@ pub struct PackerSpec {
     ///
     /// Evaluated at *each candidate position* of `signatures[0].anchor` where all
     /// `signatures` match. Returning `None` advances to the next candidate position
-    /// (ECA `continue` semantics, `T3.0.14`–`T3.0.15`).
+    /// (ECA `continue` semantics).
     pub resolve: Option<ResolveFn>,
-    /// Optional factory producing emulation-time [`PackerHooks`] (Ruling B3, `T3.0.36`).
+    /// Optional factory producing emulation-time [`PackerHooks`].
     pub hooks: Option<HooksFactory>,
     /// Minimal synthetic payload bytes placed at `fixture_load_addr` for registry self-tests.
     pub fixture: &'static [u8],
@@ -1058,14 +1057,14 @@ impl Registers {
 ///
 /// Provides a value copy of the CPU registers (`registers`), raw side-effect-free
 /// RAM inspection ([`Self::peek`]), and phase-1 write-bitmap clearing
-/// ([`Self::forget_writes`]) without exposing the `CPU` or `C64Bus` internals (Ruling B2).
+/// ([`Self::forget_writes`]) without exposing the `CPU` or `C64Bus` internals.
 pub struct StepContext<'a> {
     /// Current 6502 program counter.
     pub pc: u16,
     /// Current emulation stage ([`Phase::FindDepacker`] or [`Phase::Decompress`]).
     pub phase: Phase,
     /// Value copy of the CPU registers (`A`, `X`, `Y`, `SP`). Mutating this copy
-    /// does not modify the emulated CPU (`T3.0.35`).
+    /// does not modify the emulated CPU.
     pub registers: Registers,
     bus: &'a mut UnpackerMemory,
 }
@@ -1111,7 +1110,7 @@ impl<'a> StepContext<'a> {
     }
 
     /// Reads the raw RAM byte at `addr` directly from `C64Bus::mem` without going
-    /// through `Bus::get_byte` (Ruling B2, `T3.0.32`–`T3.0.33`).
+    /// through `Bus::get_byte`.
     ///
     /// Never advances `total_cycles`, never steps CIA1/CIA2 timers, and always reads
     /// underlying RAM even at ROM or I/O addresses.
@@ -1128,7 +1127,7 @@ impl<'a> StepContext<'a> {
     }
 
     /// Clears write-tracking flags in `C64Bus::written` for every address in `range`,
-    /// leaving `C64Bus::written_phase2` completely untouched (Ruling B2, `T3.0.34`).
+    /// leaving `C64Bus::written_phase2` completely untouched.
     pub fn forget_writes(&mut self, range: RangeInclusive<u16>) {
         let start = usize::from(*range.start());
         let end = usize::from(*range.end());
@@ -1140,7 +1139,7 @@ impl<'a> StepContext<'a> {
         }
     }
 
-    /// Test-only accessor for `engine.rs` invariant unit tests (`T2.3.2`–`T2.3.4`).
+    /// Test-only accessor for `engine.rs` invariant unit tests.
     #[cfg(test)]
     pub(crate) fn bus_mut(&mut self) -> &mut UnpackerMemory {
         self.bus
@@ -1175,7 +1174,7 @@ pub struct Bounds {
 
 /// Optional emulation-time lifecycle hooks for a [`PackerSpec`].
 ///
-/// Requires `Debug + Send` (`T3.0.37`), but intentionally does not require `Sync`
+/// Requires `Debug + Send`, but intentionally does not require `Sync`
 /// so hook state can live in a plain struct owned per unpack run.
 pub trait PackerHooks: Debug + Send {
     /// Invoked once per instruction step during emulation.
@@ -1186,7 +1185,7 @@ pub trait PackerHooks: Debug + Send {
 }
 
 // ===========================================================================
-// Unit Tests (`T3.0.1`–`T3.0.29`, `T3.0.31`–`T3.0.37`)
+// Unit Tests
 // ===========================================================================
 
 #[cfg(test)]
@@ -1196,7 +1195,7 @@ mod tests {
 
     use super::*;
 
-    /// T3.0.1: `Pat::Byte(v)` matches only the exact byte `v` across all 256 possible values.
+    /// `Pat::Byte(v)` matches only the exact byte `v` across all 256 possible values.
     #[test]
     fn pat_byte_matches_only_exact_value() {
         for expected in 0u8..=u8::MAX {
@@ -1211,7 +1210,7 @@ mod tests {
         }
     }
 
-    /// T3.0.2: `Pat::Any` matches all 256 byte values.
+    /// `Pat::Any` matches all 256 byte values.
     #[test]
     fn pat_any_matches_all_values() {
         for actual in 0u8..=u8::MAX {
@@ -1219,7 +1218,7 @@ mod tests {
         }
     }
 
-    /// T3.0.3: `Pat::Mask` exhaustively matches iff `(byte & mask) == eq`, including TBC's `& 0xFD == 0x84`.
+    /// `Pat::Mask` exhaustively matches iff `(byte & mask) == eq`, including TBC's `& 0xFD == 0x84`.
     #[test]
     fn pat_mask_exhaustive() {
         // TBC Multicompactor mask (`tbc.rs:10`): `(b & 0xFD) == 0x84` matches only 0x84 and 0x86.
@@ -1245,7 +1244,7 @@ mod tests {
         }
     }
 
-    /// T3.0.4: `Pat::OneOf` matches iff the byte is in the candidate slice (e.g. Exomizer `0x34 | 0x50`).
+    /// `Pat::OneOf` matches iff the byte is in the candidate slice (e.g. Exomizer `0x34 | 0x50`).
     #[test]
     fn pat_one_of_exhaustive() {
         let exo = Pat::OneOf(&[0x34, 0x50]);
@@ -1260,7 +1259,7 @@ mod tests {
         }
     }
 
-    /// T3.0.5: `Pat::OneOf(&[])` never matches any byte value.
+    /// `Pat::OneOf(&[])` never matches any byte value.
     #[test]
     fn pat_one_of_empty_never_matches() {
         let empty = Pat::OneOf(&[]);
@@ -1269,7 +1268,7 @@ mod tests {
         }
     }
 
-    /// T3.0.6: `sig!` expands byte literals, `_`/`__` wildcards, `[...]` alternatives, and `(mask, eq)` pairs.
+    /// `sig!` expands byte literals, `_`/`__` wildcards, `[...]` alternatives, and `(mask, eq)` pairs.
     #[test]
     fn sig_macro_expands_bytes_and_wildcards() {
         const EAGLE: &[Pat] = sig![0x78 0xA2 __ 0xBD _ __ 0x9D 0x00 0x01 0xD0 0xFC 0x4C 0x00 0x01];
@@ -1308,7 +1307,7 @@ mod tests {
         );
     }
 
-    /// T3.0.7: A signature extending past the end of `mem` or across `$FFFF` neither matches nor panics.
+    /// A signature extending past the end of `mem` or across `$FFFF` neither matches nor panics.
     #[test]
     fn signature_past_end_of_memory_does_not_match_or_panic() {
         let sig = Signature {
@@ -1333,7 +1332,7 @@ mod tests {
         assert!(wrap_sig.find_first(&image_full).is_none());
     }
 
-    /// T3.0.8: `Anchor::BasicStart` resolves relative to `system.default_basic_start()` on each system.
+    /// `Anchor::BasicStart` resolves relative to `system.default_basic_start()` on each system.
     #[test]
     fn anchor_basic_start_offset_per_system() {
         let sig = Signature {
@@ -1379,7 +1378,7 @@ mod tests {
         assert_eq!(overflow_sig.find_first(&image), None);
     }
 
-    /// T3.0.9: `Anchor::Absolute` matches only at the exact fixed address.
+    /// `Anchor::Absolute` matches only at the exact fixed address.
     #[test]
     fn anchor_absolute() {
         let sig = Signature {
@@ -1397,7 +1396,7 @@ mod tests {
         assert_eq!(sig.find_first(&image), Some(0x0810));
     }
 
-    /// T3.0.10: `Anchor::Window(0x0810..=0x0840)` includes both endpoints and scans ascending.
+    /// `Anchor::Window(0x0810..=0x0840)` includes both endpoints and scans ascending.
     #[test]
     fn anchor_window_bounds_inclusive_like_mc_cracken() {
         let sig = Signature {
@@ -1420,7 +1419,7 @@ mod tests {
         }
     }
 
-    /// T3.0.11: `Anchor::ScanFromLoad` scans forward from `load_addr` up to `load_addr + max_offset`.
+    /// `Anchor::ScanFromLoad` scans forward from `load_addr` up to `load_addr + max_offset`.
     #[test]
     fn anchor_scan_from_load() {
         let sig = Signature {
@@ -1443,7 +1442,7 @@ mod tests {
         }
     }
 
-    /// T3.0.12: `Anchor::ScanBackFromEnd` scans descending from `load_end - pattern.len()`.
+    /// `Anchor::ScanBackFromEnd` scans descending from `load_end - pattern.len()`.
     #[test]
     fn anchor_scan_back_from_end_descending() {
         let sig = Signature {
@@ -1465,7 +1464,7 @@ mod tests {
         assert_eq!(sig.find_first(&image), None);
     }
 
-    /// T3.0.13: `Anchor::Candidates` probes candidate anchors in exact slice order.
+    /// `Anchor::Candidates` probes candidate anchors in exact slice order.
     #[test]
     fn anchor_candidates_in_order() {
         const CANDIDATES: [Anchor; 2] = [Anchor::Absolute(0x080D), Anchor::Absolute(0x080F)];
@@ -1486,7 +1485,7 @@ mod tests {
         assert_eq!(sig.find_first(&image), Some(0x080D));
     }
 
-    /// T3.0.14: When `resolve` returns `None` at the first matching anchor position, scanning
+    /// When `resolve` returns `None` at the first matching anchor position, scanning
     /// continues to the next matching position in the anchor window (ECA `continue` semantics).
     #[test]
     fn resolve_none_moves_to_next_position() {
@@ -1542,7 +1541,7 @@ mod tests {
         );
     }
 
-    /// T3.0.15: When `resolve` returns `None` at every matching anchor position, the spec is rejected.
+    /// When `resolve` returns `None` at every matching anchor position, the spec is rejected.
     #[test]
     fn resolve_none_everywhere_rejects_spec() {
         fn always_none(_: &LoadedImage<'_>, _: &SignatureMatch) -> Option<ResolvedSpec> {
@@ -1575,7 +1574,7 @@ mod tests {
         assert!(spec.detect(&image).is_none());
     }
 
-    /// T3.0.16: `resolve` runs only after ALL declarative `signatures` match.
+    /// `resolve` runs only after ALL declarative `signatures` match.
     #[test]
     fn resolve_runs_only_after_all_signatures_match() {
         static CALLS: AtomicUsize = AtomicUsize::new(0);
@@ -1624,7 +1623,7 @@ mod tests {
         assert_eq!(CALLS.load(Ordering::SeqCst), 1);
     }
 
-    /// T3.0.17: A spec with multiple `Signature`s requires every one of them to match.
+    /// A spec with multiple `Signature`s requires every one of them to match.
     #[test]
     fn multiple_signatures_all_required() {
         const SIGS: [Signature; 3] = [
@@ -1670,7 +1669,7 @@ mod tests {
         assert_eq!(m.signature_addr(1), Some(0x081D));
     }
 
-    /// T3.0.18: Hints and name returned by `resolve` replace the static fields on `PackerSpec`.
+    /// Hints and name returned by `resolve` replace the static fields on `PackerSpec`.
     #[test]
     fn resolve_hints_replace_static_hints() {
         const PATCHES: [MemoryPatch; 1] = [MemoryPatch {
@@ -1729,7 +1728,7 @@ mod tests {
         assert_eq!(m.resolved.patches, &PATCHES);
     }
 
-    /// T3.0.19: `AddrSource::BasicStart(i16)` resolves signed offsets from `default_basic_start()` (Ruling B4).
+    /// `AddrSource::BasicStart(i16)` resolves signed offsets from `default_basic_start()`.
     #[test]
     fn addr_source_basic_start_signed_offsets() {
         let mem = [0u8; 16];
@@ -1762,7 +1761,7 @@ mod tests {
         );
     }
 
-    /// T3.0.20: `AddrSource::BasicStart(i16)` returns `None` when the signed offset underflows `< 0` or overflows `> $FFFF`.
+    /// `AddrSource::BasicStart(i16)` returns `None` when the signed offset underflows `< 0` or overflows `> $FFFF`.
     #[test]
     fn addr_source_basic_start_out_of_range_is_none() {
         let mem = [0u8; 16];
@@ -1789,7 +1788,7 @@ mod tests {
         );
     }
 
-    /// T3.0.21: `AddrSource::Const` returns its constant 16-bit address.
+    /// `AddrSource::Const` returns its constant 16-bit address.
     #[test]
     fn addr_source_const() {
         let mem = [0u8; 16];
@@ -1802,7 +1801,7 @@ mod tests {
         }
     }
 
-    /// T3.0.22: `AddrSource::OperandLe` reads a little-endian word at `anchor_addr + from_match`.
+    /// `AddrSource::OperandLe` reads a little-endian word at `anchor_addr + from_match`.
     #[test]
     fn addr_source_operand_little_endian() {
         let mut mem = vec![0u8; 0x1_0000];
@@ -1841,7 +1840,7 @@ mod tests {
         );
     }
 
-    /// T3.0.23: `AddrSource::PointerAfterRun` reads LE word with `wrapping_add(1)` for high byte and applies `adjust`.
+    /// `AddrSource::PointerAfterRun` reads LE word with `wrapping_add(1)` for high byte and applies `adjust`.
     #[test]
     fn pointer_after_run_reads_le_with_adjust_and_wraps() {
         let mut mem = vec![0u8; 0x1_0000];
@@ -1869,7 +1868,7 @@ mod tests {
             Some(0x3202)
         );
 
-        // Wrapping at $FFFF: low byte at $FFFF, high byte at $0000 (Ruling R19).
+        // Wrapping at $FFFF: low byte at $FFFF, high byte at $0000.
         mem[0xFFFF] = 0x34;
         mem[0x0000] = 0x12; // $1234
         let src_wrap = AddrSource::PointerAfterRun {
@@ -1883,7 +1882,7 @@ mod tests {
         );
     }
 
-    /// T3.0.24: `PointerGuard::NearDetectedEnd` enforces `raw > start_addr` and `adjusted <= detected_end + slack`.
+    /// `PointerGuard::NearDetectedEnd` enforces `raw > start_addr` and `adjusted <= detected_end + slack`.
     #[test]
     fn pointer_guard_near_detected_end() {
         let mut mem = vec![0u8; 0x1_0000];
@@ -1919,7 +1918,7 @@ mod tests {
         );
     }
 
-    /// T3.0.25: `PointerGuard::McCrackenEndOfProgram` matches legacy `mc_cracken.rs:42-45` (`start_addr < raw < $FFFF`).
+    /// `PointerGuard::McCrackenEndOfProgram` enforces `start_addr < raw < $FFFF`.
     #[test]
     fn pointer_guard_mccracken_matches_legacy() {
         let mut mem = vec![0u8; 0x1_0000];
@@ -1949,7 +1948,7 @@ mod tests {
         }
     }
 
-    /// T3.0.26: `AddrSource::PointerPlusRegister` adds the selected register and signed `adjust`.
+    /// `AddrSource::PointerPlusRegister` adds the selected register and signed `adjust`.
     #[test]
     fn pointer_plus_register() {
         let mut mem = vec![0u8; 0x1_0000];
@@ -1994,7 +1993,7 @@ mod tests {
         );
     }
 
-    /// T3.0.27: `AddrSource::PointerAtDepacker` samples only the first hit at the depacker PC.
+    /// `AddrSource::PointerAtDepacker` samples only the first hit at the depacker PC.
     #[test]
     fn pointer_at_depacker_samples_first_hit_only() {
         let mut mem = vec![0u8; 0x1_0000];
@@ -2028,7 +2027,7 @@ mod tests {
         );
     }
 
-    /// T3.0.28: `AddrSource::MonitoredMax` and `MonitoredMin` track extrema across depacker hits.
+    /// `AddrSource::MonitoredMax` and `MonitoredMin` track extrema across depacker hits.
     #[test]
     fn monitored_max_and_min() {
         let mut mem = vec![0u8; 0x1_0000];
@@ -2062,7 +2061,7 @@ mod tests {
         );
     }
 
-    /// T3.0.29: `Hints::NONE` has all `Option` fields set to `None` and `exact_return == false`.
+    /// `Hints::NONE` has all `Option` fields set to `None` and `exact_return == false`.
     #[test]
     fn hints_none_is_all_none() {
         let none = Hints::NONE;
@@ -2075,7 +2074,7 @@ mod tests {
         assert_eq!(Hints::default(), Hints::NONE);
     }
 
-    /// T3.0.31: `PackerSpec` systems gating uses `System::is_c64()`, not `PartialEq`.
+    /// `PackerSpec` systems gating uses `System::is_c64()`, not `PartialEq`.
     #[test]
     fn systems_gate_uses_is_c64_predicate() {
         const SIGS: [Signature; 1] = [Signature {
@@ -2112,7 +2111,7 @@ mod tests {
         assert!(spec.detect(&custom_img).is_none());
     }
 
-    /// T3.0.32: `StepContext::peek` reads raw `C64Bus::mem` even when ROM or I/O is banked in (Ruling B2).
+    /// `StepContext::peek` reads raw `C64Bus::mem` even when ROM or I/O is banked in.
     #[test]
     fn step_context_peek_reads_raw_ram() {
         let basic_rom = Some(vec![0xAA; 0x2000]);
@@ -2137,7 +2136,7 @@ mod tests {
         assert_eq!(ctx.peek(0xFFFF), 0x55);
     }
 
-    /// T3.0.33: `StepContext::peek` does not advance `total_cycles` or CIA timers (Ruling B2).
+    /// `StepContext::peek` does not advance `total_cycles` or CIA timers.
     #[test]
     fn step_context_peek_does_not_advance_cycles_or_cia() {
         let mut bus = UnpackerMemory::new(TargetSystem::C64, None, None, None);
@@ -2160,7 +2159,7 @@ mod tests {
         assert_eq!(format!("{:?}", bus.cia2), cia2_before);
     }
 
-    /// T3.0.34: `StepContext::forget_writes` clears `written` in `range` and never touches `written_phase2` (Ruling B2).
+    /// `StepContext::forget_writes` clears `written` in `range` and never touches `written_phase2`.
     #[test]
     fn forget_writes_clears_written_only_in_range() {
         let mut bus = UnpackerMemory::new(TargetSystem::C64, None, None, None);
@@ -2183,7 +2182,7 @@ mod tests {
         }
     }
 
-    /// T3.0.35: `StepContext::registers` is a value copy; mutating it does not mutate the CPU.
+    /// `StepContext::registers` is a value copy; mutating it does not mutate the CPU.
     #[test]
     fn step_context_registers_are_a_copy() {
         let bus = UnpackerMemory::new(TargetSystem::C64, None, None, None);
@@ -2224,7 +2223,7 @@ mod tests {
         assert_eq!(cpu.registers.stack_pointer.0, 0xF6);
     }
 
-    /// T3.0.36: The `hooks` factory receives `(&LoadedImage, &SignatureMatch)` and can inspect image bytes (Ruling B3).
+    /// The `hooks` factory receives `(&LoadedImage, &SignatureMatch)` and can inspect image bytes.
     #[test]
     fn hooks_factory_receives_image() {
         #[derive(Debug)]
@@ -2287,7 +2286,7 @@ mod tests {
         assert_eq!(bounds.end_addr, 0x4500);
     }
 
-    /// T3.0.37: `PackerHooks` is `Send` (and does not require `Sync`).
+    /// `PackerHooks` is `Send` (and does not require `Sync`).
     #[test]
     fn packer_hooks_is_send() {
         #[derive(Debug)]
@@ -2317,7 +2316,7 @@ mod tests {
         });
     }
 
-    /// T3.6.1: [`MemoryPatch`] with [`PatchAddr::Absolute`] writes `bytes` at the exact fixed
+    /// [`MemoryPatch`] with [`PatchAddr::Absolute`] writes `bytes` at the exact fixed
     /// address regardless of `anchor_addr` and rejects out-of-range or empty patches.
     #[test]
     fn patch_absolute_applied() {
@@ -2350,7 +2349,7 @@ mod tests {
         assert!(!empty_patch.apply(&mut mem, 0x080C));
     }
 
-    /// T3.6.2: [`PatchAddr::FromMatch`] resolves positive, zero, and negative signed offsets
+    /// [`PatchAddr::FromMatch`] resolves positive, zero, and negative signed offsets
     /// relative to `anchor_addr` and rejects offsets that underflow `< 0` or overflow `> $FFFF`.
     #[test]
     fn patch_from_match_signed_offset() {
@@ -2393,7 +2392,7 @@ mod tests {
         assert!(!underflow_patch.apply(&mut mem, anchor_addr));
     }
 
-    /// T3.6.3: [`MemoryPatch::expected`] acts as an "apply only if" guard on the first target
+    /// [`MemoryPatch::expected`] acts as an "apply only if" guard on the first target
     /// byte; when the byte at the resolved address differs from `expected`, the patch is skipped.
     #[test]
     fn patch_expected_mismatch_is_skipped() {

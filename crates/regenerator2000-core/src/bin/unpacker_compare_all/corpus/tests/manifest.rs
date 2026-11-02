@@ -1,5 +1,5 @@
-//! Tests for `manifest`: parsing (T1.A1.8–T1.A1.17), the deterministic
-//! writer (T1.A1.62–T1.A1.63) and parser robustness (TX.6).
+//! Tests for `manifest`: parsing, the deterministic writer, and parser
+//! robustness.
 
 use super::*;
 use regenerator2000_core::unpacker::UnpackConfig;
@@ -51,7 +51,6 @@ fn full_corpus() -> Corpus {
 
 // ═══════════════════════ parsing ═══════════════════════
 
-/// T1.A1.8
 #[test]
 fn parse_minimal_valid_case() {
     let corpus = Corpus::parse(&manifest_with_unp64("")).unwrap();
@@ -85,7 +84,6 @@ fn parse_minimal_valid_case() {
     assert_eq!(saved.entry, Unp64Entry::BasicRun);
 }
 
-/// T1.A1.9
 #[test]
 fn parse_rejects_unknown_divergence_kind() {
     let message = parse_error(&manifest_with_divergence(
@@ -105,7 +103,6 @@ fn parse_rejects_unknown_divergence_kind() {
     }
 }
 
-/// T1.A1.10
 #[test]
 fn parse_rejects_unknown_fields_everywhere() {
     let valid_divergence = "kind = \"unexplained\"\nfields = [\"end\"]\nreviewed_by = \"x\"";
@@ -154,7 +151,6 @@ fn parse_rejects_unknown_fields_everywhere() {
     );
 }
 
-/// T1.A1.11
 #[test]
 fn parse_rejects_disallowed_divergence_field_names() {
     let mut failures = Vec::new();
@@ -179,7 +175,6 @@ fn parse_rejects_disallowed_divergence_field_names() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// T1.A1.12
 #[test]
 fn parse_rejects_payload_in_divergence_fields() {
     let message = parse_error(&manifest_with_divergence(
@@ -191,7 +186,6 @@ fn parse_rejects_payload_in_divergence_fields() {
     );
 }
 
-/// T1.A1.13
 #[test]
 fn parse_rejects_empty_or_duplicate_divergence_fields() {
     let empty = parse_error(&manifest_with_divergence(
@@ -204,8 +198,8 @@ fn parse_rejects_empty_or_duplicate_divergence_fields() {
     assert!(duplicate.contains("more than once"), "{duplicate}");
 }
 
-/// T1.A1.14 (extended by ruling R17): both closed reasons parse and
-/// round-trip; any other value is rejected with the allowed list.
+/// Both closed expected-fail reasons parse and round-trip; any other value is
+/// rejected with the allowed list.
 #[test]
 fn parse_rejects_unknown_expected_fail_reason() {
     let with_reason = |reason: &str| {
@@ -239,7 +233,6 @@ fn parse_rejects_unknown_expected_fail_reason() {
     );
 }
 
-/// T1.A1.15
 #[test]
 fn parse_unp64_failed_shape() {
     let failed = "[[case]]\nfile = \"a.prg\"\n[case.unp64]\nfailed = \"Max Iterations\"\nversion = \"2.42\"\n";
@@ -269,7 +262,6 @@ fn parse_unp64_failed_shape() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// T1.A1.16
 #[test]
 fn parse_overlap_table() {
     let corpus = Corpus::parse(&manifest_with_unp64(
@@ -303,7 +295,6 @@ fn parse_overlap_table() {
     );
 }
 
-/// T1.A1.17
 #[test]
 fn parse_max_instructions_per_case() {
     let with_budget = |budget: &str| {
@@ -342,7 +333,6 @@ fn review_state_classification() {
 
 // ═══════════════════════ writer ═══════════════════════
 
-/// T1.A1.62
 #[test]
 fn manifest_writer_is_idempotent() {
     let first = full_corpus().to_toml_string().unwrap();
@@ -375,7 +365,6 @@ fn manifest_writer_is_idempotent() {
     );
 }
 
-/// T1.A1.63
 #[test]
 fn manifest_writer_sorts_cases_and_groups() {
     let written = full_corpus().to_toml_string().unwrap();
@@ -402,9 +391,9 @@ fn manifest_writer_sorts_cases_and_groups() {
 
 // ═══════════════════════ robustness ═══════════════════════
 
-/// TX.6: the manifest and baseline parsers return `Ok` or a typed error for
-/// random bytes and for random single-byte corruptions of a valid manifest,
-/// and never panic.
+/// The manifest and baseline parsers return `Ok` or a typed error for random
+/// bytes and for random single-byte corruptions of a valid manifest, and
+/// never panic.
 #[test]
 fn corpus_parse_never_panics_on_garbage() {
     let valid = full_corpus().to_toml_string().unwrap();

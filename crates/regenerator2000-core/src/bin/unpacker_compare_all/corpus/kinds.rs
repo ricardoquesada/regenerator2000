@@ -22,7 +22,7 @@ use super::values::{HexAddr, ManifestStr, deserialize_manifest_str};
 ///
 /// Only `start`, `end` and `entry` exist. `len` is derived from the range,
 /// and the payload over the overlap must always match, so neither can be
-/// listed (ruling R1b).
+/// listed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Field {
     /// The first unpacked address.
@@ -184,7 +184,7 @@ impl<'de> Deserialize<'de> for FieldSet {
 #[serde(rename_all = "snake_case")]
 pub enum DivergenceKind {
     /// The starts are the BASIC link byte pair `{basic_start - 1,
-    /// basic_start}` (the padding byte, ruling R16).
+    /// basic_start}` (the padding byte).
     PaddingByte,
     /// unp64 had no end scanner and saved up to its top-page default.
     Unp64DefaultEnd,
@@ -258,12 +258,11 @@ impl fmt::Display for DivergenceKind {
 pub enum ExpectedFailReason {
     /// The start differs from the original only by the padding convention:
     /// R2000 drops the original's first byte, one below the BASIC start
-    /// (`$0801` versus the original `$0800`). Dali carried this marker until
-    /// its start was fixed (M1.4); no manifest case uses it today.
+    /// (`$0801` versus the original `$0800`).
     PaddingConvention,
     /// R2000's payload differs from unp64's over the shared range, and the
-    /// cause is being investigated (ruling R17). Masks only payload and
-    /// overlap hash mismatches.
+    /// cause is being investigated. Masks only payload and overlap hash
+    /// mismatches.
     PayloadMismatchUnderInvestigation,
 }
 
@@ -298,15 +297,12 @@ impl fmt::Display for ExpectedFailReason {
 ///    used for this load (incl. the `$07C0` Card Cruncher case). This is the
 ///    engine's own function, the single source of truth, so the classifier
 ///    cannot drift from the engine.
-///
-/// On the C64, the only corpus system, this set is identical to the one
-/// M1.2 used.
 fn basic_start_candidates(load_addr: u16, system: &System) -> [u16; 2] {
     [system.default_basic_start(), get_basic_start(load_addr)]
 }
 
-/// `padding_byte` (ruling R16): the two starts are exactly the BASIC link
-/// byte pair `{basic_start - 1, basic_start}`, in either order.
+/// `padding_byte`: the two starts are exactly the BASIC link byte pair
+/// `{basic_start - 1, basic_start}`, in either order.
 ///
 /// `basic_start` is either candidate of [`basic_start_candidates`]; either
 /// one may anchor the pair. Any other one-byte difference is not the padding
@@ -345,9 +341,9 @@ pub(super) fn padding_byte_pairs(load_addr: u16, system: &System) -> String {
         .join(" or ")
 }
 
-/// `unp64_default_end` (ruling R1): unp64's end is above R2000's and on the
-/// top page ([`UNP64_TOP_PAGE`]), i.e. unp64 fell back to its default instead
-/// of a real end.
+/// `unp64_default_end`: unp64's end is above R2000's and on the top page
+/// ([`UNP64_TOP_PAGE`]), i.e. unp64 fell back to its default instead of a
+/// real end.
 ///
 /// # Example
 ///
@@ -359,7 +355,7 @@ pub(super) fn unp64_default_end_holds(unp64_end: u16, r2000_end: u16) -> bool {
 
 /// `unp64_default_start`: unp64's start is its default
 /// `min(load_addr, system.ram_start())` (`unp64.c:562`) and differs from
-/// R2000's. There is no `ret_addr` term (Orchestrator ruling on T1.A1.39).
+/// R2000's.
 ///
 /// # Example
 ///

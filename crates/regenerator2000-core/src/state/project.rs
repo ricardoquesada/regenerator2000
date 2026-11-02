@@ -353,9 +353,8 @@ mod serialization_tests {
         assert_eq!(ranges[2].type_, BlockType::Code);
     }
 
-    // T3.1
     #[test]
-    fn test_compress_block_types_unsorted_collapsed_ranges_landmine_e() {
+    fn test_compress_block_types_unsorted_collapsed_ranges() {
         let types = vec![BlockType::DataByte; 20];
         let unsorted = vec![(12, 15), (2, 5)];
         let sorted = vec![(2, 5), (12, 15)];
@@ -401,7 +400,6 @@ mod serialization_tests {
         );
     }
 
-    // T3.2
     #[test]
     fn test_compress_block_types_adjacent_and_overlapping_collapsed_ranges() {
         let types = vec![BlockType::DataByte; 16];

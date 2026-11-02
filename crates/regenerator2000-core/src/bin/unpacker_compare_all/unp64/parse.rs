@@ -275,7 +275,7 @@ pub fn parse_console(text: &str) -> Console {
 }
 
 // =============================================================================
-// Version banner (ruling R2)
+// Version banner
 // =============================================================================
 
 /// Extracts the version from unp64's usage banner.

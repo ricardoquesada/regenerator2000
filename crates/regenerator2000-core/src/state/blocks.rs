@@ -831,7 +831,6 @@ mod tests {
         );
     }
 
-    // T2.1
     #[test]
     fn test_is_virtual_splitter_manual_and_scopes() {
         let mut app_state = AppState::new();
@@ -858,7 +857,6 @@ mod tests {
         assert!(!app_state.is_virtual_splitter(Addr(0x1021)));
     }
 
-    // T2.2
     #[test]
     fn test_get_block_range_respects_scopes_and_splitters() {
         let mut app_state = AppState::new();
@@ -895,9 +893,8 @@ mod tests {
         );
     }
 
-    // T2.3
     #[test]
-    fn test_get_blocks_view_items_splitter_positions_landmine_d() {
+    fn test_get_blocks_view_items_splitter_positions() {
         use super::super::app_state::BlockItem;
 
         let mut app_state = AppState::new();
@@ -951,7 +948,6 @@ mod tests {
         );
     }
 
-    // T2.4
     #[test]
     fn test_get_blocks_view_items_with_scopes_and_labels() {
         use super::super::app_state::BlockItem;
@@ -1008,9 +1004,8 @@ mod tests {
         );
     }
 
-    // T2.5
     #[test]
-    fn test_get_blocks_view_items_address_wrap_around_landmine_c() {
+    fn test_get_blocks_view_items_address_wrap_around() {
         let mut app_state = AppState::new();
         app_state.origin = Addr(0xFFFE);
         app_state.raw_data = vec![0xEA; 4];
@@ -1025,7 +1020,6 @@ mod tests {
         assert!(!items.is_empty());
     }
 
-    // T2.6
     #[test]
     fn test_get_blocks_view_items_full_64k_boundary() {
         use super::super::app_state::BlockItem;
@@ -1052,7 +1046,6 @@ mod tests {
         }));
     }
 
-    // T4.1
     #[test]
     fn test_performance_64k_blocks_view_and_block_range_with_2000_annotations() {
         let mut app_state = AppState::new();

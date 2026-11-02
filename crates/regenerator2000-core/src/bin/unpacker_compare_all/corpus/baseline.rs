@@ -1,8 +1,8 @@
 //! The committed baseline: every observable R2000 output per corpus case.
 //!
 //! It is the zero-diff freeze for refactors and the before/after record for
-//! intentional changes. The packer column keeps the **display name**
-//! (Orchestrator ruling), so later API changes do not touch the file.
+//! intentional changes. The packer column keeps the **display name**,
+//! so later API changes do not touch the file.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;

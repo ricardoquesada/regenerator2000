@@ -88,8 +88,8 @@ fn validate_case_oracle_data(case: &Case, in_group: bool, errors: &mut Vec<Corpu
     let file = || case.file.clone();
 
     let Some(record) = &case.unp64 else {
-        // Required even inside a ground-truth group (M1 gate: "every case has
-        // a recorded [case.unp64]").
+        // Required even inside a ground-truth group so every case has a
+        // recorded `[case.unp64]` reference.
         errors.push(CorpusError::MissingUnp64 { file: file() });
         return;
     };
@@ -146,8 +146,7 @@ fn validate_case_oracle_data(case: &Case, in_group: bool, errors: &mut Vec<Corpu
 }
 
 /// Validates the internal consistency of a saved unp64 record: `len` is
-/// derived from the range (ruling R1b), and the overlap window lies inside
-/// unp64's range (Addendum B1).
+/// derived from the range, and the overlap window lies inside unp64's range.
 fn validate_saved_record(file: &str, saved: &Unp64Saved, errors: &mut Vec<CorpusError>) {
     let range = saved.range();
     let derived = range.map(AddrRange::len);

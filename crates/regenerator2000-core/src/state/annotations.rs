@@ -493,7 +493,6 @@ mod tests {
         assert_eq!(entry.bookmark, Some("  valid  ".to_string()));
     }
 
-    // T1.1
     #[test]
     fn test_annotation_manager_scope_index_lifecycle() {
         let mut manager = AnnotationManager::default();
@@ -531,9 +530,8 @@ mod tests {
         assert!(manager.is_empty());
     }
 
-    // T1.2
     #[test]
-    fn test_annotation_manager_shared_scope_end_landmine_a() {
+    fn test_annotation_manager_shared_scope_end() {
         let mut manager = AnnotationManager::default();
         let s1 = Addr(0x1000);
         let s2 = Addr(0x1010);
@@ -563,7 +561,6 @@ mod tests {
         assert!(manager.scope_ends_set().is_empty());
     }
 
-    // T1.3
     #[test]
     fn test_annotation_manager_scope_end_wrapping_ffff() {
         let mut manager = AnnotationManager::default();
@@ -574,7 +571,6 @@ mod tests {
         assert!(manager.scope_ends_set().contains(&Addr(0x0000)));
     }
 
-    // T1.4
     #[test]
     fn test_annotation_manager_clear_resets_scope_indices() {
         let mut manager = AnnotationManager::default();
@@ -593,9 +589,8 @@ mod tests {
         assert!(manager.scope_ends_set().is_empty());
     }
 
-    // T1.5
     #[test]
-    fn test_annotation_manager_deserialize_populates_scopes_landmine_b() {
+    fn test_annotation_manager_deserialize_populates_scopes() {
         // 1. Direct payload
         let direct_json = r#"{
             "8192": {
@@ -646,7 +641,6 @@ mod tests {
         assert!(round_tripped.is_scope_end(Addr(0x2011)));
     }
 
-    // T1.6
     #[test]
     fn test_annotation_manager_non_scope_update_preserves_scopes() {
         let mut manager = AnnotationManager::default();

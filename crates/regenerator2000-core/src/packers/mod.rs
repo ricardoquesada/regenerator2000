@@ -274,9 +274,8 @@ mod tests {
         let info = detect_info(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "Dali");
         assert_eq!(info.dep_addr, Some(0x0003));
-        // T1.B.1: no start hint. The generic output detector yields the
-        // original load address (`$0800` on the C64, Design Doc Open
-        // Question 1); `dali::tests` pins the resulting payload.
+        // No start hint: the generic output detector yields the original load
+        // address (`$0800` on the C64); `dali::tests` pins the resulting payload.
         assert_eq!(info.start_addr, None);
         assert_eq!(info.entry_point, Some(0x1000));
         assert_eq!(info.end_addr_ptr, Some(0x006B));

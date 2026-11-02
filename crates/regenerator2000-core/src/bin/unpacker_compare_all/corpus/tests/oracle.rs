@@ -1,6 +1,6 @@
 //! Tests for `oracle`: the unp64 reference rule, accepted divergences, ground
-//! truth, consensus, `expected_fail` and stale exceptions
-//! (T1.A1.28–T1.A1.53), plus edge cases and the aggregate `evaluate_all`.
+//! truth, consensus, `expected_fail`, and stale exceptions, plus edge cases
+//! and the aggregate `evaluate_all`.
 
 use super::*;
 
@@ -110,7 +110,6 @@ fn grouped_member(file: &str, image: &UnpackedImage) -> (Case, UnpackedImage) {
 
 // ═══════════════════════ unp64 reference ═══════════════════════
 
-/// T1.A1.28
 #[test]
 fn eval_exact_unp64_match_passes() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -126,7 +125,6 @@ fn eval_exact_unp64_match_passes() {
     );
 }
 
-/// T1.A1.29
 #[test]
 fn eval_each_field_mismatch_fails_without_divergence() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -176,7 +174,6 @@ fn eval_each_field_mismatch_fails_without_divergence() {
 
 // ═══════════════════════ accepted divergence ═══════════════════════
 
-/// T1.A1.30
 #[test]
 fn eval_divergence_without_reviewed_by_fails() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -188,7 +185,6 @@ fn eval_divergence_without_reviewed_by_fails() {
     assert!(found[0].to_string().contains("proposed, unsigned"));
 }
 
-/// T1.A1.31
 #[test]
 fn eval_divergence_with_blank_reviewed_by_fails() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -219,7 +215,6 @@ fn eval_divergence_with_blank_reviewed_by_fails() {
     assert_eq!(run("ricardoq").unwrap().notes, Vec::new());
 }
 
-/// T1.A1.32
 #[test]
 fn eval_divergence_permits_only_listed_fields() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -254,7 +249,6 @@ fn eval_divergence_permits_only_listed_fields() {
     );
 }
 
-/// T1.A1.33
 #[test]
 fn eval_divergence_requires_overlap_when_range_differs() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -271,7 +265,6 @@ fn eval_divergence_requires_overlap_when_range_differs() {
     );
 }
 
-/// T1.A1.34
 #[test]
 fn eval_divergence_overlap_hash_match_passes() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -288,7 +281,6 @@ fn eval_divergence_overlap_hash_match_passes() {
     assert!(eval(&corpus, &ok_result("a.prg", image)).is_ok());
 }
 
-/// T1.A1.35
 #[test]
 fn eval_divergence_overlap_hash_mismatch_fails() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -310,7 +302,6 @@ fn eval_divergence_overlap_hash_mismatch_fails() {
     );
 }
 
-/// T1.A1.36
 #[test]
 fn eval_overlap_window_outside_r2000_range_fails() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -360,10 +351,10 @@ fn eval_overlap_window_must_equal_current_intersection() {
     );
 }
 
-/// T1.A1.37 (tightened by ruling R16): the kind holds only for the BASIC
-/// link byte pair `{basic_start - 1, basic_start}`. A signed `padding_byte`
-/// exception on `$0802` vs `$0801` (one byte apart, but not the pair) fails
-/// with "kind no longer holds".
+/// The `padding_byte` kind holds only for the BASIC link byte pair
+/// `{basic_start - 1, basic_start}`. A signed `padding_byte` exception on
+/// `$0802` vs `$0801` (one byte apart, but not the pair) fails with "kind no
+/// longer holds".
 #[test]
 fn eval_padding_byte_kind_predicate() {
     let run = |unp64, r2000, load_addr, system, fields: &[Field]| {
@@ -479,7 +470,7 @@ fn eval_padding_byte_kind_predicate() {
         Err(text) if text.contains("requires fields = [start]") => {}
         other => failures.push(format!("wrong fields: {other:?}")),
     }
-    // `len` is not even parseable as a field (T1.A1.11).
+    // `len` is not even parseable as a field.
     assert!(
         Corpus::parse(&manifest_with_divergence(
             "kind = \"padding_byte\"\nfields = [\"start\", \"len\"]\nreviewed_by = \"x\""
@@ -489,7 +480,6 @@ fn eval_padding_byte_kind_predicate() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// T1.A1.38
 #[test]
 fn eval_unp64_default_end_kind_predicate() {
     let run = |unp64, r2000| {
@@ -516,7 +506,6 @@ fn eval_unp64_default_end_kind_predicate() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// T1.A1.39
 #[test]
 fn eval_unp64_default_start_kind_predicate() {
     let run = |unp64, r2000, load_addr, system| {
@@ -564,7 +553,6 @@ fn eval_unp64_default_start_kind_predicate() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// T1.A1.40
 #[test]
 fn eval_unexplained_kind_passes_and_is_listed() {
     // HBFS-like: unp64 $0400-$FEFF entry $080D, R2000 $0801-$FEFF entry $EFB0.
@@ -589,7 +577,6 @@ fn eval_unexplained_kind_passes_and_is_listed() {
 
 // ═══════════════════════ ground truth ═══════════════════════
 
-/// T1.A1.41
 #[test]
 fn eval_ground_truth_overrides_unp64() {
     let image = image(0x0800, 0x0863, 0x0810);
@@ -612,7 +599,6 @@ fn eval_ground_truth_overrides_unp64() {
     );
 }
 
-/// T1.A1.42
 #[test]
 fn eval_ground_truth_range_derived_from_original_file() {
     let group = Group {
@@ -659,7 +645,6 @@ fn eval_ground_truth_range_derived_from_original_file() {
     ));
 }
 
-/// T1.A1.43
 #[test]
 fn eval_ground_truth_range_mismatch_fails() {
     let image = image(0x0801, 0x0863, 0x0810);
@@ -677,7 +662,6 @@ fn eval_ground_truth_range_mismatch_fails() {
     );
 }
 
-/// T1.A1.44
 #[test]
 fn eval_ground_truth_payload_mismatch_reports_first_address() {
     let mut image = image(0x0800, 0x0863, 0x0810);
@@ -697,7 +681,6 @@ fn eval_ground_truth_payload_mismatch_reports_first_address() {
     assert!(found[0].to_string().contains("$080A"));
 }
 
-/// T1.A1.45
 #[test]
 fn eval_ground_truth_entry_must_equal_group_entry() {
     let image = image(0x0800, 0x0863, 0x0820);
@@ -734,7 +717,6 @@ fn eval_ground_truth_with_failed_unp64_is_a_note() {
 
 // ═══════════════════════ consensus ═══════════════════════
 
-/// T1.A1.46
 #[test]
 fn eval_consensus_all_members_agree_passes() {
     let image = image(0x0800, 0x0863, 0x0810);
@@ -746,7 +728,6 @@ fn eval_consensus_all_members_agree_passes() {
     assert_eq!(failures, Vec::new());
 }
 
-/// T1.A1.47
 #[test]
 fn eval_consensus_disagreement_fails_and_names_members() {
     let good = image(0x0800, 0x0863, 0x0810);
@@ -772,7 +753,6 @@ fn eval_consensus_disagreement_fails_and_names_members() {
     assert!(text.contains("a.prg") && text.contains("b.prg"), "{text}");
 }
 
-/// T1.A1.48
 #[test]
 fn eval_consensus_single_member_group_is_noop() {
     let odd = image(0x0801, 0x0900, 0x0820);
@@ -782,7 +762,6 @@ fn eval_consensus_single_member_group_is_noop() {
     );
 }
 
-/// T1.A1.49
 #[test]
 fn eval_consensus_skips_expected_fail_members() {
     let good = image(0x0800, 0x0863, 0x0810);
@@ -799,7 +778,6 @@ fn eval_consensus_skips_expected_fail_members() {
 
 // ═══════════════════════ expected_fail and stale exceptions ═══════════════════════
 
-/// T1.A1.50
 #[test]
 fn eval_expected_fail_that_fails_is_green_and_reported() {
     let padded = image(0x0801, 0x0863, 0x0810);
@@ -825,7 +803,6 @@ fn eval_expected_fail_that_fails_is_green_and_reported() {
     );
 }
 
-/// T1.A1.51
 #[test]
 fn eval_expected_fail_that_passes_is_failure() {
     let good = image(0x0800, 0x0863, 0x0810);
@@ -846,7 +823,6 @@ fn eval_expected_fail_that_passes_is_failure() {
     );
 }
 
-/// T1.A1.52
 #[test]
 fn eval_stale_divergence_is_failure() {
     // Every listed field now equals unp64.
@@ -891,8 +867,7 @@ fn eval_stale_divergence_is_failure() {
     assert!(found[0].to_string().contains("remove them from `fields`"));
 }
 
-/// T1.A1.53 (scoped by ruling R17: an R2000 error fails even under an
-/// `expected_fail` marker)
+/// An R2000 error fails even under an `expected_fail` marker.
 #[test]
 fn eval_r2000_error_fails_unless_expected() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -907,8 +882,8 @@ fn eval_r2000_error_fails_unless_expected() {
         "{found:?}"
     );
 
-    // Ruling R17: each reason masks only its own closed set of failures, so
-    // no `expected_fail` marker masks an R2000 error.
+    // Each reason masks only its own closed set of failures, so no
+    // `expected_fail` marker masks an R2000 error.
     for marker in [
         ExpectedFailReason::PaddingConvention,
         ExpectedFailReason::PayloadMismatchUnderInvestigation,
@@ -926,9 +901,8 @@ fn eval_r2000_error_fails_unless_expected() {
     }
 }
 
-/// Ruling R17: `padding_convention` masks only a ground-truth start
-/// mismatch on the BASIC link byte pair. Rows are collected before the
-/// assertion.
+/// `padding_convention` masks only a ground-truth start mismatch on the
+/// BASIC link byte pair. Rows are collected before the assertion.
 #[test]
 fn expected_fail_padding_convention_masks_only_the_padding_start() {
     // (label, R2000 image, masked?)
@@ -1006,8 +980,8 @@ fn masked_failures(outcome: &Result<CaseReport, Vec<FailureReason>>) -> Option<V
         })
 }
 
-/// Ruling R17: `payload_mismatch_under_investigation` masks only payload and
-/// overlap hash mismatches. Field mismatches, structural overlap errors and
+/// `payload_mismatch_under_investigation` masks only payload and overlap
+/// hash mismatches. Field mismatches, structural overlap errors and
 /// unsigned exceptions still fail, and a repaired payload is an unexpected
 /// pass. Rows are collected before the assertion.
 #[test]
@@ -1107,8 +1081,8 @@ fn expected_fail_payload_mismatch_masks_only_payload_hashes() {
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }
 
-/// Every `expected_fail` note is a user action item, so both R17 cases
-/// appear in every report.
+/// Every `expected_fail` note is a user action item, so both `ExpectedFailReason`
+/// variants appear in every report.
 #[test]
 fn expected_failures_are_action_items() {
     for reason in [

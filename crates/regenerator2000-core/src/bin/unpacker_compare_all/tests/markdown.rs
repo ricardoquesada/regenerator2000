@@ -1,4 +1,4 @@
-//! Tests for `--markdown` (T1.A2.41) and the divergence labels.
+//! Tests for `--markdown` and the divergence labels.
 
 use super::*;
 use crate::corpus::{Divergence, ExpectedFailReason, INITIAL_REVIEW_MARKER};
@@ -35,8 +35,8 @@ fn observations() -> Vec<Observation> {
     ]
 }
 
-/// T1.A2.41: one row per case, sorted by file, the same text for any input
-/// order, and a summary per divergence category.
+/// One row per case, sorted by file, the same text for any input order, and a
+/// summary per divergence category.
 #[test]
 fn markdown_report_has_one_row_per_case_and_is_deterministic() {
     let forward = observations();
@@ -107,7 +107,7 @@ fn divergence_labels_include_details() {
     );
 }
 
-/// T4.1.12: `render_markdown` renders the `start_source`, `end_source`, `entry_source`,
+/// `render_markdown` renders the `start_source`, `end_source`, `entry_source`,
 /// and `exit_reason` provenance strings from `UnpackReport`.
 #[test]
 fn compare_all_renders_report_provenance() {

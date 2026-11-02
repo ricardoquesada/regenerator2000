@@ -1,6 +1,6 @@
-//! Tests for the unp64 parser and invocation helpers (T1.A2.1–T1.A2.19,
-//! T1.A2.42–T1.A2.44, T1.A2.46). Console captures are real unp64 v2.42
-//! output shapes (lower-case hex, `\r` progress, `-v` diagnostics).
+//! Tests for the unp64 parser and invocation helpers. Console captures are
+//! real unp64 v2.42 output shapes (lower-case hex, `\r` progress, `-v`
+//! diagnostics).
 
 use std::ffi::OsString;
 use std::io;
@@ -30,7 +30,7 @@ const MAX_ITERATIONS: &str = "\nExomizer, unpacker=$0134\n\
                               pass2, return to mem: \n\
                               Max Iterations 0x01000000 Reached, quitting...\n";
 
-/// The no-argument usage banner (ruling R2).
+/// The no-argument usage banner.
 const BANNER: &str = "\nUNP64 v2.42 - Generic C64 prg unpacker - (C)2008-2026 iAN CooG [May 11 2026]\n\
                       Based on Exomizer 2.0b7 sources by Magnus Lind.\n\
                       usage: UNP64 <packed.prg>{[,|@]Addr} [-parameters]\n";
@@ -47,7 +47,6 @@ fn prg(load_addr: u16, len: usize) -> Vec<u8> {
     bytes
 }
 
-/// T1.A2.1
 #[test]
 fn parse_saved_line_basic() {
     assert_eq!(
@@ -59,7 +58,6 @@ fn parse_saved_line_basic() {
     );
 }
 
-/// T1.A2.2
 #[test]
 fn parse_saved_line_lowercase_hex() {
     let console = parse_console("saved $c0de-$e7ff as /tmp/x.prg\n");
@@ -72,8 +70,7 @@ fn parse_saved_line_lowercase_hex() {
     );
 }
 
-/// T1.A2.3: `$ffff` is printed as such (`(EndAdr - 1) & $FFFF` with
-/// `EndAdr = $10000`).
+/// `$ffff` is printed as such (`(EndAdr - 1) & $FFFF` with `EndAdr = $10000`).
 #[test]
 fn parse_saved_line_end_ffff() {
     assert_eq!(
@@ -85,7 +82,7 @@ fn parse_saved_line_end_ffff() {
     );
 }
 
-/// T1.A2.4: progress output uses bare `\r`, which must split lines too.
+/// Progress output uses bare `\r`, which must split lines too.
 #[test]
 fn parse_splits_on_carriage_return_and_newline() {
     let text = "Exomizer, unpacker=$0134\rpass2, return to mem: $0810\rsaved $0810-$fff9 as o\r";
@@ -104,7 +101,6 @@ fn parse_splits_on_carriage_return_and_newline() {
     );
 }
 
-/// T1.A2.5
 #[test]
 fn parse_crlf_line_endings() {
     let console = parse_console(&TRAVELLER.replace('\n', "\r\n"));
@@ -112,7 +108,7 @@ fn parse_crlf_line_endings() {
     assert_eq!(console.entry, Some(Unp64Entry::Address(0x0911)));
 }
 
-/// T1.A2.6: without a `saved` line the run failed, whatever the exit code;
+/// Without a `saved` line the run failed, whatever the exit code;
 /// the diagnostic becomes the reason.
 #[test]
 fn parse_without_saved_line_is_unp64_failure() {
@@ -139,13 +135,11 @@ fn parse_without_saved_line_is_unp64_failure() {
     ));
 }
 
-/// T1.A2.7
 #[test]
 fn parse_pass2_plain_address() {
     assert_eq!(pass2_entry("$0911\n"), Some(Unp64Entry::Address(0x0911)));
 }
 
-/// T1.A2.8
 #[test]
 fn parse_pass2_basic_run_with_sys() {
     assert_eq!(
@@ -154,13 +148,11 @@ fn parse_pass2_basic_run_with_sys() {
     );
 }
 
-/// T1.A2.9
 #[test]
 fn parse_pass2_run_without_sys() {
     assert_eq!(pass2_entry("($a7ae)->RUN\n"), Some(Unp64Entry::BasicRun));
 }
 
-/// T1.A2.10
 #[test]
 fn parse_pass2_new_basic_start_run() {
     assert_eq!(
@@ -169,8 +161,7 @@ fn parse_pass2_new_basic_start_run() {
     );
 }
 
-/// T1.A2.11: in verbose mode a `forced` diagnostic sits between the marker
-/// and the value.
+/// In verbose mode a `forced` diagnostic sits between the marker and the value.
 #[test]
 fn parse_pass2_forced_run() {
     assert_eq!(
@@ -183,14 +174,12 @@ fn parse_pass2_forced_run() {
     );
 }
 
-/// T1.A2.12
 #[test]
 fn parse_pass2_missing_is_none() {
     assert_eq!(parse_console("saved $0801-$0810 as x\n").entry, None);
     assert_eq!(parse_console(MAX_ITERATIONS).entry, None);
 }
 
-/// T1.A2.13
 #[test]
 fn parse_packer_name_and_unpacker_address() {
     assert_eq!(
@@ -209,7 +198,6 @@ fn parse_packer_name_and_unpacker_address() {
     );
 }
 
-/// T1.A2.14
 #[test]
 fn parse_version_banner_gives_version() {
     assert_eq!(parse_version_banner(BANNER), Ok("2.42".to_string()));
@@ -223,7 +211,7 @@ fn parse_version_banner_gives_version() {
     );
 }
 
-/// T1.A2.15: the file is authoritative for start, length and bytes.
+/// The output file is authoritative for start, length, and bytes.
 #[test]
 fn derive_from_output_file() {
     let saved = derive_saved_payload(&prg(0x0801, 16)).unwrap();
@@ -231,7 +219,6 @@ fn derive_from_output_file() {
     assert_eq!(saved.payload, vec![0xEA; 16]);
 }
 
-/// T1.A2.16
 #[test]
 fn derive_from_output_file_wrap_to_ffff() {
     let saved = derive_saved_payload(&prg(0x0800, 0xF800)).unwrap();
@@ -239,7 +226,6 @@ fn derive_from_output_file_wrap_to_ffff() {
     assert_eq!(saved.range.len(), 63_488);
 }
 
-/// T1.A2.17
 #[test]
 fn derive_from_output_file_too_short_is_error() {
     for bytes in [vec![], vec![0x01], vec![0x01, 0x08]] {
@@ -251,7 +237,6 @@ fn derive_from_output_file_too_short_is_error() {
     }
 }
 
-/// T1.A2.18
 #[test]
 fn derive_payload_exceeding_address_space_is_error() {
     assert_eq!(
@@ -263,8 +248,8 @@ fn derive_payload_exceeding_address_space_is_error() {
     );
 }
 
-/// T1.A2.19: the `saved` line must agree with the file, and a run that
-/// claims a payload needs the file and an entry.
+/// The `saved` line must agree with the file, and a run that claims a payload
+/// needs the file and an entry.
 #[test]
 fn cross_check_saved_line_against_file() {
     let printed = SavedLine {
@@ -306,8 +291,8 @@ fn cross_check_saved_line_against_file() {
     );
 }
 
-/// T1.A2.42: an explicit `UNP64` is the only candidate; otherwise `PATH`
-/// and `~/.local/bin`. No candidate names a user directory of its own.
+/// An explicit `UNP64` is the only candidate; otherwise `PATH` and
+/// `~/.local/bin`. No candidate names a user directory of its own.
 #[test]
 fn unp64_binary_candidates_have_no_hardcoded_user_paths() {
     assert_eq!(
@@ -338,7 +323,6 @@ fn unp64_binary_candidates_have_no_hardcoded_user_paths() {
     assert!(!mentions_foreign_home);
 }
 
-/// T1.A2.43
 #[test]
 fn tmp_output_path_is_unique_per_case() {
     let dir = Path::new("/tmp");
@@ -354,8 +338,8 @@ fn tmp_output_path_is_unique_per_case() {
     );
 }
 
-/// T1.A2.44: the output always goes through `-o` (a positional output name
-/// makes unp64 write next to the fixture).
+/// The output always goes through `-o` (a positional output name makes unp64
+/// write next to the fixture).
 #[test]
 fn unp64_command_line_uses_dash_o() {
     assert_eq!(
@@ -368,8 +352,8 @@ fn unp64_command_line_uses_dash_o() {
     );
 }
 
-/// T1.A2.46: a non-zero exit with a banner is the normal probe result; a
-/// missing banner or a spawn error is a tool failure.
+/// A non-zero exit with a banner is the normal probe result; a missing banner
+/// or a spawn error is a tool failure.
 #[test]
 fn version_probe_nonzero_exit_is_not_tool_failure() {
     let program = Path::new("unp64");

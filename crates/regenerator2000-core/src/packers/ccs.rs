@@ -1,8 +1,8 @@
 //! Commodore Cruncher System (CCS) packer specification.
 //!
-//! Per Design Doc Addendum B (Ruling B5) and Ruling R14, this specification
-//! preserves the legacy bug-compatible indexing (`mem[target - load_addr]` on a
-//! 64 KB memory buffer) and the `load_addr <= 0x0801` guard via `resolve_ccs`.
+//! This specification preserves the historical bug-compatible indexing
+//! (`mem[target - load_addr]` on a 64 KB memory buffer) and the `load_addr <= 0x0801`
+//! guard via `resolve_ccs`.
 
 use crate::state::types::TargetSystem;
 
@@ -14,7 +14,7 @@ const HINTS: Hints = Hints {
     ..Hints::NONE
 };
 
-/// Bug-compatible detection for Commodore Cruncher System (Rulings B5 and R14).
+/// Bug-compatible detection for Commodore Cruncher System.
 ///
 /// Preserves the legacy `mem[target - load_addr]` indexing and the `load_addr <= 0x0801`
 /// guard so `target - load_addr` never underflows when `load_addr > 0x0801`.

@@ -45,7 +45,7 @@
 //! Nothing in this module reads environment variables, and the only file
 //! system access lives in [`Corpus::load`], [`Baseline::load`] and
 //! [`DirFixtures`]. All logic is testable in memory, which matters because
-//! the unit tests run once per including crate (ruling R10).
+//! the unit tests run once per including crate.
 
 // This module is compiled into two crates: the `unpacker_compare_all` bin (as
 // `mod corpus`) and the `unpack_corpus` integration test (via `#[path]`). Each
@@ -121,8 +121,7 @@ pub const BASELINE_FILE: &str = "unpack_baseline.toml";
 /// as a user action item. It deliberately does not impersonate the user.
 pub const INITIAL_REVIEW_MARKER: &str = "initial-classification-2026-10-28 (pending ricardoq)";
 
-/// Lowest end address that unp64 produces when no end scanner fired
-/// (ruling R1).
+/// Lowest end address that unp64 produces when no end scanner fired.
 ///
 /// unp64 has no write tracking. Without a scanner-provided end it saves up to
 /// `$FFFF` (or a few bytes below, e.g. `$FFFD` for traveller), so an unp64 end

@@ -1223,7 +1223,6 @@ mod tests {
     use super::*;
     use regenerator2000_core::unpacker::{BoundSource, ExitReason, UnpackReport, UnpackResult};
 
-    // T4.3.3
     #[test]
     fn status_line_shows_packer_and_exit_reason() {
         let mut core = Core::new();

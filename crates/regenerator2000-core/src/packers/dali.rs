@@ -27,9 +27,7 @@ const BASE_HINTS: Hints = Hints {
     // start (`$0800` on the C64), so the generic output
     // detector, which scans from `System::ram_start()`,
     // already finds the original load address. This matches
-    // both the original binary and unp64 (Design Doc Open
-    // Question 1: the canonical start is the original load
-    // address).
+    // both the original binary and unp64.
     start_addr: None,
     entry_point: Some(AddrSource::OperandLe { from_match: 0xFE }),
     ..Hints::NONE
@@ -125,7 +123,7 @@ impl PackerHooks for DaliHooks {
     }
 }
 
-/// Constructs [`DaliHooks`] for a matched Dali image (Ruling B3).
+/// Constructs [`DaliHooks`] for a matched Dali image.
 #[must_use]
 pub fn create_dali_hooks(
     _image: &LoadedImage<'_>,
@@ -183,11 +181,11 @@ mod tests {
         (load_addr, bytes[2..].to_vec())
     }
 
-    /// T1.B.4: Dali's output starts at the original load address and keeps
-    /// the padding byte, the original's first byte one below the BASIC start
-    /// (Design Doc Open Question 1). For `c64_mule_1100.prg` that byte is
-    /// `$20`, not `$00`, so it is compared with the original, not a literal.
-    /// The unpacked image equals the original byte for byte.
+    /// Verifies that Dali's output starts at the original load address and keeps
+    /// the padding byte (the original's first byte one below the BASIC start).
+    /// For `c64_mule_1100.prg` that byte is `$20`, not `$00`, so it is compared
+    /// with the original, not a literal. The unpacked image equals the original
+    /// byte for byte.
     #[test]
     fn dali_unpacked_payload_includes_padding_byte() {
         let (packed_load, packed) = read_prg("c64_mule.dali.prg");

@@ -1,5 +1,5 @@
-//! Tests for `--update` (T1.A2.33–T1.A2.38) plus the preservation rules for
-//! reviewed decisions, ground-truth members and R2000 failures.
+//! Tests for `--update` plus the preservation rules for reviewed decisions,
+//! ground-truth members, and R2000 failures.
 
 use super::*;
 use crate::corpus::{
@@ -24,8 +24,8 @@ fn traveller(case: Case) -> Observation {
     )
 }
 
-/// T1.A2.33: the record holds unp64's results, hash and version, and the
-/// overlap window is the intersection hashed over unp64's bytes.
+/// The record holds unp64's results, hash, and version, and the overlap window
+/// is the intersection hashed over unp64's bytes.
 #[test]
 fn update_writes_unp64_table_and_overlap() {
     let update = update_case(&traveller(bare_case("t.prg")), VERSION);
@@ -73,8 +73,8 @@ fn update_writes_unp64_table_and_overlap() {
     );
 }
 
-/// T1.A2.34: a new difference gets an unsigned proposal that lists only
-/// `start`/`end`/`entry` fields (never `len`) and carries the evidence.
+/// A new difference gets an unsigned proposal that lists only `start`/`end`/`entry`
+/// fields (never `len`) and carries the evidence.
 #[test]
 fn update_proposes_unsigned_divergence_for_new_difference() {
     let update = update_case(&traveller(bare_case("t.prg")), VERSION);
@@ -107,7 +107,7 @@ fn update_proposes_unsigned_divergence_for_new_difference() {
     assert_eq!(proposal.reviewed_by, None);
 }
 
-/// T1.A2.35: payload and entry mismatches are never proposed.
+/// Payload and entry mismatches are never proposed automatically.
 #[test]
 fn update_never_proposes_payload_or_entry_mismatch() {
     let mut corrupted = image(0x0801, 0x2000, 0x080D);
@@ -139,9 +139,8 @@ fn update_never_proposes_payload_or_entry_mismatch() {
     }
 }
 
-/// T1.A2.36: a signed exception survives a re-run with the same results,
-/// including the initial-classification marker and a different unp64
-/// version string.
+/// A signed exception survives a re-run with the same results, including the
+/// initial-classification marker and a different unp64 version string.
 #[test]
 fn update_preserves_signature_when_classification_unchanged() {
     let first = update_case(&traveller(bare_case("t.prg")), VERSION);
@@ -191,8 +190,8 @@ fn update_preserves_signature_when_classification_unchanged() {
     assert_eq!(again.case.accepted_divergence, Some(decision));
 }
 
-/// T1.A2.37: the signature is dropped when the recorded values change or
-/// the exception no longer describes the case.
+/// The signature is dropped when the recorded values change or the exception
+/// no longer describes the case.
 #[test]
 fn update_drops_signature_when_kind_or_values_change() {
     let mut case = update_case(&traveller(bare_case("t.prg")), VERSION).case;
@@ -235,7 +234,7 @@ fn update_drops_signature_when_kind_or_values_change() {
         DivergenceKind::Unp64DefaultEnd
     );
 
-    // The tools agree now: the exception is removed (stale, ruling R13).
+    // The tools agree now: the stale exception is removed.
     let agree = update_case(
         &observation(
             case,
@@ -251,9 +250,9 @@ fn update_drops_signature_when_kind_or_values_change() {
     );
 }
 
-/// T1.A2.38: a failed unp64 run is recorded as `failed` and proposed as an
-/// unsigned `unexplained` exception over all three fields; a missing-opcode
-/// stop is proposed as `unp64_missing_opcode`.
+/// A failed unp64 run is recorded as `failed` and proposed as an unsigned
+/// `unexplained` exception over all three fields; a missing-opcode stop is
+/// proposed as `unp64_missing_opcode`.
 #[test]
 fn update_records_failed_unp64_as_unexplained_proposal() {
     let update = update_case(
@@ -290,9 +289,9 @@ fn update_records_failed_unp64_as_unexplained_proposal() {
     assert_eq!(proposal.fields.as_slice(), &Field::ALL);
 }
 
-/// Ruling R17: on a case marked `payload_mismatch_under_investigation`, the
-/// reviewer's `unexplained` exception for the non-payload fields survives
-/// re-runs; without the marker a payload mismatch never keeps an exception.
+/// On a case marked `payload_mismatch_under_investigation`, the reviewer's
+/// `unexplained` exception for the non-payload fields survives re-runs;
+/// without the marker a payload mismatch never keeps an exception.
 #[test]
 fn update_keeps_reviewed_fields_of_a_payload_mismatch_under_investigation() {
     let hbfs = |case: Case| {

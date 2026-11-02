@@ -112,7 +112,7 @@ pub fn detect_all_in_specs(
 }
 
 // ===========================================================================
-// Registry Invariant Tests (`T3.0.30`, `T3.0.38`–`T3.0.45`) & M3.2 (`T3.1.1`–`T3.1.9`)
+// Registry Invariant & Packer Detection Tests
 // ===========================================================================
 
 #[cfg(test)]
@@ -138,7 +138,7 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Sample spec set (`SAMPLE_SPECS`, Ruling R15)
+    // Sample spec set (`SAMPLE_SPECS`)
     // -----------------------------------------------------------------------
 
     const SAMPLE_ALPHA_SIGS: [Signature; 1] = [Signature {
@@ -236,7 +236,7 @@ mod tests {
     const SAMPLE_SPECS: &[&PackerSpec] =
         &[&SAMPLE_ALPHA_SPEC, &SAMPLE_BETA_SPEC, &SAMPLE_GAMMA_SPEC];
 
-    /// Non-C64 systems tested by `T3.0.30`.
+    /// Non-C64 target systems used to verify platform-specific packer filtering.
     fn non_c64_systems() -> [TargetSystem; 10] {
         [
             TargetSystem::C128,
@@ -283,7 +283,7 @@ mod tests {
         }
     }
 
-    /// T3.0.30: C64 specs and registry entries never match on non-C64 systems.
+    /// Verifies that C64 specs and registry entries never match on non-C64 systems.
     #[test]
     fn c64_spec_does_not_match_on_other_systems() {
         assert!(!REGISTRY.is_empty());
@@ -326,7 +326,7 @@ mod tests {
         }
     }
 
-    /// T3.0.38: Every spec id is unique and priorities strictly increase across the registry.
+    /// Verifies that every spec id is unique and priorities strictly increase across the registry.
     #[test]
     fn ids_are_unique_and_priorities_strictly_increase() {
         assert_eq!(REGISTRY.len(), 21);
@@ -352,7 +352,7 @@ mod tests {
         }
     }
 
-    /// T3.0.39: Every spec matches its own synthetic `fixture` at `fixture_load_addr`.
+    /// Verifies that every spec matches its own synthetic `fixture` at `fixture_load_addr`.
     #[test]
     fn every_spec_matches_its_own_fixture() {
         assert!(!REGISTRY.is_empty());
@@ -384,7 +384,7 @@ mod tests {
         }
     }
 
-    /// T3.0.40: No spec's `fixture` is claimed by an earlier (higher-priority) spec in the registry.
+    /// Verifies that no spec's `fixture` is claimed by an earlier (higher-priority) spec in the registry.
     #[test]
     fn no_fixture_is_claimed_by_a_higher_priority_spec() {
         assert!(!REGISTRY.is_empty());
@@ -412,7 +412,7 @@ mod tests {
         }
     }
 
-    /// T3.0.41: Every registry id and spec id is a valid, canonical `PackerId`.
+    /// Verifies that every registry id and spec id is a valid, canonical `PackerId`.
     #[test]
     fn spec_ids_are_stable_identifiers() {
         check_spec_ids_are_stable_identifiers(REGISTRY);
@@ -466,7 +466,7 @@ mod tests {
         }
     }
 
-    /// T3.0.42: Every spec has a non-empty `fixture`, target `systems`, and detection logic.
+    /// Verifies that every spec has a non-empty `fixture`, target `systems`, and detection logic.
     #[test]
     fn every_spec_has_fixture_and_detection_logic() {
         assert!(!REGISTRY.is_empty());
@@ -475,7 +475,7 @@ mod tests {
         check_every_spec_has_fixture_and_detection_logic(SAMPLE_SPECS);
     }
 
-    /// T3.0.43: Detection over empty and uniform (`$00`, `$FF`, `$AA`) images returns `None`.
+    /// Verifies that detection over empty and uniform (`$00`, `$FF`, `$AA`) images returns `None`.
     #[test]
     fn detect_on_empty_and_uniform_images_is_none() {
         let empty: [u8; 0] = [];
@@ -499,7 +499,7 @@ mod tests {
         }
     }
 
-    /// T3.0.44: `detect(view)` always equals `detect_all(view).into_iter().next()`.
+    /// Verifies that `detect(view)` always equals `detect_all(view).into_iter().next()`.
     #[test]
     fn detect_equals_first_of_detect_all() {
         // 1. Check over `SAMPLE_SPECS`, including an image where two sample specs match at once.
@@ -549,7 +549,7 @@ mod tests {
         assert_eq!(detect(&prod_view), all_prod.into_iter().next());
     }
 
-    /// T3.0.45: `REGISTRY` preserves the exact 21-packer order of the original scanner chain.
+    /// Verifies that `REGISTRY` preserves the expected 21-packer priority order.
     #[test]
     fn registry_order_preserves_legacy_order() {
         const EXPECTED_FAMILIES: [&str; 21] = [
@@ -589,7 +589,7 @@ mod tests {
     }
 
     // =======================================================================
-    // M3.2 — The 10 static packers (`T3.1.1`–`T3.1.9`)
+    // Static Packers
     // =======================================================================
 
     const STATIC_PACKER_SPECS: [&PackerSpec; 10] = [
@@ -605,9 +605,8 @@ mod tests {
         &turbo_cruncher::SPEC,
     ];
 
-    /// T3.1.1: Table-driven over all 10 static packers: each spec's `start_addr` uses
-    /// `AddrSource::BasicStart(0)` (replacing hardcoded `0x0801`), and its resolved
-    /// `PackerInfo` equals the pre-migration literal `PackerInfo`.
+    /// Table-driven check over all 10 static packers verifying that each spec's `start_addr`
+    /// uses `AddrSource::BasicStart(0)` and resolves to the expected `PackerInfo`.
     #[test]
     fn static_spec_hints_equal_legacy_packer_info() {
         let cases: [(&PackerSpec, PackerInfo); 10] = [
@@ -761,7 +760,7 @@ mod tests {
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
-    /// T3.1.2: Table-driven verification that each static packer preserves its exact
+    /// Table-driven verification that each static packer preserves its exact
     /// legacy `load_addr` gate (`<= 0x0801` for 9 packers; no gate for `time_cruncher`).
     #[test]
     fn static_spec_load_gate_preserved() {
@@ -835,7 +834,7 @@ mod tests {
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
-    /// T3.1.3: Table-driven single-byte corruption test across all 10 static packers:
+    /// Table-driven single-byte corruption test across all 10 static packers:
     /// flipping any non-wildcard signature byte to a non-matching value causes the spec to reject.
     #[test]
     fn static_spec_rejects_each_single_byte_corruption() {
@@ -899,7 +898,7 @@ mod tests {
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
-    /// T3.1.4: Table-driven wildcard acceptance test across all static specs with `Pat::Any`
+    /// Table-driven wildcard acceptance test across all static specs with `Pat::Any`
     /// wildcards (`super_cruncher`, `triad`, `eagle`, `turbo_cruncher`).
     #[test]
     fn static_spec_accepts_arbitrary_wildcards() {
@@ -982,7 +981,7 @@ mod tests {
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
-    /// T3.1.5: `action_replay` accepts both `0x37` and `0x34` at `$080D + 2`, and
+    /// `action_replay` accepts both `0x37` and `0x34` at `$080D + 2`, and
     /// `cruel_cruncher` accepts all 6 combinations of `[0xA2, 0xA0] × [0x1A, 0x1F, 0x20]`
     /// at `$080D + 5..=6`, while rejecting all other byte values.
     #[test]
@@ -1077,7 +1076,7 @@ mod tests {
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
-    /// T3.1.6: `tiny_crunch` reads its 16-bit little-endian `entry_point` operand from
+    /// `tiny_crunch` reads its 16-bit little-endian `entry_point` operand from
     /// `$0836..=$0837` (`$080D + 0x29`).
     #[test]
     fn tiny_crunch_entry_operand_from_0836() {
@@ -1110,7 +1109,7 @@ mod tests {
         }
     }
 
-    /// T3.1.7 (Ruling B5): Bug-compatible CCS does NOT match when the 4 variant patterns
+    /// Bug-compatible CCS does NOT match when the 4 variant patterns
     /// are placed at their intended C64 addresses (`$0817`, `$0812`, `$0814`, `$080B`)
     /// with `load_addr == 0x0801`.
     #[test]
@@ -1129,7 +1128,7 @@ mod tests {
             let view = LoadedImage::for_c64(&mem, 0x0801, 0x0900);
             assert!(
                 ccs::SPEC.detect(&view).is_none(),
-                "ccs must NOT match intended address ${intended_addr:04X} at load_addr=$0801 (B5)"
+                "ccs must NOT match intended address ${intended_addr:04X} at load_addr=$0801"
             );
             assert!(
                 detect_c64_info(&mem, 0x0801, 0x0900).is_none(),
@@ -1146,7 +1145,7 @@ mod tests {
             let zp_view = LoadedImage::for_c64(&zp_mem, 0x0801, 0x0900);
             assert!(
                 ccs::SPEC.detect(&zp_view).is_none(),
-                "ccs must NOT match intended address ${intended_addr:04X} with C64 zero-page (B5)"
+                "ccs must NOT match intended address ${intended_addr:04X} with C64 zero-page"
             );
         }
 
@@ -1159,7 +1158,7 @@ mod tests {
         assert!(ccs::SPEC.detect(&combined_view).is_none());
     }
 
-    /// T3.1.8 (Ruling R14): Bug-compatible CCS matches ONLY at the legacy index
+    /// Bug-compatible CCS matches ONLY at the legacy index
     /// `target - load_addr` when `load_addr <= 0x0801`, and NEVER matches or underflows
     /// when `load_addr > 0x0801`.
     #[test]
@@ -1217,7 +1216,7 @@ mod tests {
             }
         }
 
-        // 2. Ruling R14: `load_addr > 0x0801` is rejected before any subtraction and inside
+        // 2. `load_addr > 0x0801` is rejected before any subtraction and inside
         // `resolve_ccs` via `load_addr > 0x0801` and `checked_sub`, so it never matches or underflows.
         for bad_load in [
             0x0802_u16, 0x080B, 0x080C, 0x0812, 0x0814, 0x0817, 0x0818, 0x1000, 0xFFFF,
@@ -1241,7 +1240,7 @@ mod tests {
                         "detect_c64_info matched CCS at bad_load=${bad_load:04X} > $0801"
                     ));
                 }
-                // Also call `resolve` directly to verify R14's guard inside `resolve_ccs` itself.
+                // Also call `resolve` directly to verify the guard inside `resolve_ccs` itself.
                 if let Some(resolve_fn) = ccs::SPEC.resolve {
                     let dummy_match = SignatureMatch {
                         spec_id: ccs::SPEC.id,
@@ -1252,7 +1251,7 @@ mod tests {
                     };
                     if resolve_fn(&view, &dummy_match).is_some() {
                         failures.push(format!(
-                            "resolve_ccs returned Some at bad_load=${bad_load:04X} > $0801 (R14)"
+                            "resolve_ccs returned Some at bad_load=${bad_load:04X} > $0801"
                         ));
                     }
                 }
@@ -1262,7 +1261,7 @@ mod tests {
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
-    /// T3.1.9: Unpacking the corpus files covered by the M3.2 static packers
+    /// Unpacking the corpus files covered by the static packers
     /// (`c64_thats_the_way_scoop.time_cruncher.prg` and `c64_traveller.tiny_crunch.prg`)
     /// produces the exact baseline outputs (`start_addr`, `end_addr`, `entry_point`,
     /// `dep_addr`, `packer_name`, `instructions_executed`, and payload length).
@@ -1371,10 +1370,10 @@ mod tests {
     }
 
     // =======================================================================
-    // M3.3 — The 4 computed packers (`T3.2.1`–`T3.2.7`)
+    // Computed packers (`card_cruncher`, `eca`, `pucrunch`, `tbc`)
     // =======================================================================
 
-    /// T3.2.1: `card_cruncher` ACM variant tries candidate addresses `[$080D, $080F]` in order,
+    /// `card_cruncher` ACM variant tries candidate addresses `[$080D, $080F]` in order,
     /// checks the 17-byte `ACM_SIGNATURE` at `q`, reads absolute operands at fixed `$081E..=$081F`
     /// (`end_val > load_addr => Some(end_val - 1)`, `end_val <= load_addr => None`) and
     /// `$083F..=$0840` (`entry_point`), sets `start_addr` via `AddrSource::BasicStart(0)`, and
@@ -1518,7 +1517,7 @@ mod tests {
         }
     }
 
-    /// T3.2.2: `card_cruncher` Variant 2 (`1001 CardCruncher v4`) matches at `$0815`
+    /// `card_cruncher` Variant 2 (`1001 CardCruncher v4`) matches at `$0815`
     /// (`86 01 __ __ __ 2A 08 99 FA`), reads `end_addr` from `$082E..=$082F` and `entry_point`
     /// from `$0940..=$0941`, sets `start_addr` via `AddrSource::BasicStart(0)`, and enforces
     /// `mem.len() > 0x0941`.
@@ -1588,7 +1587,7 @@ mod tests {
         assert!(card_cruncher::SPEC.detect(&exact_view).is_some());
     }
 
-    /// T3.2.3: `eca` scans `0x080D..=0x0830` for `[0x2A; 4]` at `p + 0x3A..p + 0x3E`, checks
+    /// `eca` scans `0x080D..=0x0830` for `[0x2A; 4]` at `p + 0x3A..p + 0x3E`, checks
     /// the position-dependent 32-bit word `w08 == 0x2D9D0032.wrapping_add(p as u32)` at
     /// `p + 8..p + 12` (along with `w0c == 0xF710CA00` at `p + 12..p + 16`), and continues
     /// scanning later window positions when an earlier position matches `[0x2A; 4]` at `p + 0x3A`
@@ -1682,10 +1681,10 @@ mod tests {
         assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 
-    /// T3.2.4: `eca` validates all bitmask and variant branches (Check 1 masks on `w00` and `wm3`,
+    /// `eca` validates all bitmask and variant branches (Check 1 masks on `w00` and `wm3`,
     /// Check 2 Variant 2, Check 3 FDT, Check 4 Decibel), secondary `entry_point` scan in
     /// `p + 0xD6..p + 0xDE` (rejecting excluded KERNAL/BASIC targets), `end_addr_ptr` scan in
-    /// `p + 0xED..p + 0x108`, and `BasicStart(-1)` (`$0800` on C64 per Ruling B4) / `Const(0x0100)`
+    /// `p + 0xED..p + 0x108`, and `BasicStart(-1)` (`$0800` on C64) / `Const(0x0100)`
     /// fallback hints in `eca::SPEC.hints` and `eca::resolve_hints_at`.
     #[test]
     fn eca_mask_and_fallbacks() {
@@ -1780,7 +1779,7 @@ mod tests {
 
         // Verify `eca::resolve_hints_at` fallback when `mem` is shorter than `p + 0x31` / `p + 0x33`:
         // `dep_addr` falls back to `Some(AddrSource::Const(0x0100))` and `start_addr` falls back to
-        // `Some(AddrSource::BasicStart(-1))` (which resolves to `$0800` on C64 per Ruling B4).
+        // `Some(AddrSource::BasicStart(-1))` (which resolves to `$0800` on C64).
         let short_slice = &cases[0][..p + 0x30];
         let short_image = LoadedImage::for_c64(short_slice, 0x0801, 0x0830);
         let fallback_hints = eca::resolve_hints_at(&short_image, p);
@@ -1826,7 +1825,7 @@ mod tests {
         assert_eq!(info_both.start_addr, Some(0x0800));
     }
 
-    /// T3.2.5: `pucrunch` matches at `$0813` (`Anchor::BasicStart { offset: 0x12 }`), extracts
+    /// `pucrunch` matches at `$0813` (`Anchor::BasicStart { offset: 0x12 }`), extracts
     /// `dep_addr` from `$0841..=$0842` (`OperandLe { from_match: 0x2E }`) and `start_addr` from
     /// `$0879..=$087A` (`OperandLe { from_match: 0x66 }`), sets `end_addr_ptr` to `$00FA`, and
     /// scans `0x0912..0x0938` (`Anchor::Window(0x0912..=0x0937)`) for the optional secondary
@@ -1907,7 +1906,7 @@ mod tests {
         assert!(pucrunch::SPEC.detect(&short_view).is_none());
     }
 
-    /// T3.2.6: `tbc` checks `(mem[0x082C] & 0xFD) == 0x84` (`Pat::Mask { mask: 0xFD, eq: 0x84 }`),
+    /// `tbc` checks `(mem[0x082C] & 0xFD) == 0x84` (`Pat::Mask { mask: 0xFD, eq: 0x84 }`),
     /// `$08A2..$08A6 == [0x01, 0x4C, 0x49, 0x01]`, normal (`$084A == 0x81`, `$0820..$0824`) and
     /// Firelord (`$084A == 0x7B`, `$081D..$0821`) variants, and the `$08EB` table-reduction edge
     /// values (`tbl_len == 0` -> `None`; multi-entry max; `0x0000` mapped to `0x10000` and
@@ -2013,7 +2012,7 @@ mod tests {
         assert!(tbc::SPEC.detect(&short_view).is_none());
     }
 
-    /// T3.2.7: Unpacking all 6 corpus files covered by the 4 M3.3 computed packers
+    /// Unpacking all 6 corpus files covered by the 4 computed packers
     /// (`card_cruncher`, `eca`, `pucrunch`, `tbc`) produces the exact baseline outputs
     /// (`packer_name`, `start_addr`, `end_addr`, `entry_point`, `dep_addr`,
     /// `instructions_executed`, and payload length).
@@ -2162,7 +2161,7 @@ mod tests {
     }
 
     // =======================================================================
-    // M3.4 — Exomizer + TSCrunch (`T3.3.1`–`T3.3.8`, `T3.3.12`, `T3.3.13`)
+    // Exomizer + TSCrunch
     // =======================================================================
 
     /// Helper writing an Exomizer 3.x decruncher signature at `p` in `mem`.
@@ -2198,7 +2197,7 @@ mod tests {
         mem[p + 7] = 0x4C;
     }
 
-    /// T3.3.1: `exomizer` detects all three variants (`Exomizer 3.0`, `Exomizer v3.02+`,
+    /// `exomizer` detects all three variants (`Exomizer 3.0`, `Exomizer v3.02+`,
     /// and `Exomizer 2.x` with both `0x34` and `0x50` via `Pat::OneOf`), resolves their
     /// `dep_addr`, `start_addr` (`BasicStart(0)` for 2.x), and optional `entry_point`,
     /// and maps all three display names via `find_entry_by_name`.
@@ -2311,7 +2310,7 @@ mod tests {
         );
     }
 
-    /// T3.3.2: `exomizer` scans descending (`Anchor::ScanBackFromEnd`) from `load_end - 8` down
+    /// `exomizer` scans descending (`Anchor::ScanBackFromEnd`) from `load_end - 8` down
     /// to `load_addr`, selecting the higher-address signature when two signatures of the same
     /// generation are present, while always preferring an Exomizer 3.x match over an Exomizer 2.x
     /// match even when the 2.x signature lies at a higher address.
@@ -2388,7 +2387,7 @@ mod tests {
         snapshot[p..p + 8].copy_from_slice(&[0x69, 0x80, 0x0A, 0x10, 0x0F, 0x06, 0xFD, 0xD0]);
     }
 
-    /// T3.3.3: `ExomizerHooks::refine` rescans `ctx.snapshot` **ascending** across `$0200..=$FFF0`
+    /// `ExomizerHooks::refine` rescans `ctx.snapshot` **ascending** across `$0200..=$FFF0`
     /// (stopping at the lowest-address match, ignoring matches below `$0200`), handles the optional
     /// `0x8A` (`TXA`) byte, distinguishes `ver == 0x30` vs `ver == 0x32` end adjustments, maps
     /// `dyn_end == 0` to `$FF00` (`end_addr = $FEFF`), and is a no-op on non-C64 systems.
@@ -2479,7 +2478,7 @@ mod tests {
         assert_eq!(bounds_c128.end_addr, 0x9FFF);
     }
 
-    /// T3.3.4: `ExomizerHooks::refine` reads `ctx.registers.y` from [`RefineContext`] and adds it
+    /// `ExomizerHooks::refine` reads `ctx.registers.y` from [`RefineContext`] and adds it
     /// to `mem[$FE..=$FF]` (`+ 0` for `ver == 0x30`, `+ 1` for `ver == 0x32`) to compute `dyn_start`,
     /// clamping `bounds.start_addr` downward when `dyn_start >= $0400` (in addition to `self.min_start`).
     #[test]
@@ -2562,8 +2561,8 @@ mod tests {
         assert_eq!(bounds_min.start_addr, 0x07C0);
     }
 
-    /// T3.3.5: `ExomizerHooks::on_step` reads instructions and zero-page pointers exclusively via
-    /// [`StepContext::peek`] (Ruling B2), updating `min_start` for `$B1` / `$91` with `dep_zp` or
+    /// `ExomizerHooks::on_step` reads instructions and zero-page pointers exclusively via
+    /// [`StepContext::peek`], updating `min_start` for `$B1` / `$91` with `dep_zp` or
     /// `$FE` when the resolved target is `>= $0200`, ignoring `< $0200`, and never advancing
     /// `bus.total_cycles` or CIA1/CIA2 timers even when `pc` is in I/O or ROM address space.
     #[test]
@@ -2672,7 +2671,7 @@ mod tests {
         assert_eq!(bus.total_cycles, cycles_before);
     }
 
-    /// T3.3.6: `tscrunch` extracts `reloc_start` from `q + 0x10` (`$081D..=$081E`) for Variant 1
+    /// `tscrunch` extracts `reloc_start` from `q + 0x10` (`$081D..=$081E`) for Variant 1
     /// (`TSCrunch v1.3+`) and from `q + 0x18` (`$0825..=$0826`) for Variant 2 (`TSCrunch v1.3+-X2`),
     /// accepting only addresses `> $0800`, and resolves optional `entry_point` from the secondary
     /// `A9 37 85 01 58 4C` scan when `mem.len() >= q + 0x70`.
@@ -2764,9 +2763,9 @@ mod tests {
         }
     }
 
-    /// T3.3.7: `TScrunchHooks::on_step` clears `bus.written[reloc..=0xFFFF]` once when `pc` enters
+    /// `TScrunchHooks::on_step` clears `bus.written[reloc..=0xFFFF]` once when `pc` enters
     /// `$0021..=$0090` or `$0121..=$0190` in `Phase::Decompress`, leaving `bus.written_phase2`
-    /// completely untouched (Ruling B2), and `TScrunchHooks::refine` trims `bounds.end_addr` to
+    /// completely untouched, and `TScrunchHooks::refine` trims `bounds.end_addr` to
     /// the highest remaining `written` byte in `start_addr..=end_addr`.
     #[test]
     fn tscrunch_on_step_forgets_reloc_to_ffff_written_only() {
@@ -2839,8 +2838,8 @@ mod tests {
         assert_eq!(bounds.end_addr, 0x9D19);
     }
 
-    /// T3.3.8: `tscrunch::SPEC` and both resolved variants (`TSCrunch v1.3+` and `TSCrunch v1.3+-X2`)
-    /// declare `start_addr: Some(AddrSource::BasicStart(-1))` (Ruling B4), which resolves to `$0800`
+    /// `tscrunch::SPEC` and both resolved variants (`TSCrunch v1.3+` and `TSCrunch v1.3+-X2`)
+    /// declare `start_addr: Some(AddrSource::BasicStart(-1))`, which resolves to `$0800`
     /// on C64.
     #[test]
     fn tscrunch_start_is_basic_start_minus_one() {
@@ -2889,12 +2888,12 @@ mod tests {
         );
     }
 
-    /// T3.3.12: Re-verifies Invariant 2 (`T2.3.3` and `T2.3.4`) end-to-end through `PackerSpec`
+    /// Verifies the step-hook ordering invariant end-to-end through `PackerSpec`
     /// and real `PackerHooks` (`TScrunchHooks` and `ExomizerHooks`):
-    /// 1. In `Phase::FindDepacker` (`T2.3.3`), `pc` is read *before* `on_step`, so `on_step` does
+    /// 1. In `Phase::FindDepacker`, `pc` is read *before* `on_step`, so `on_step` does
     ///    not fire with `Phase::Decompress` at `dep_addr` during Phase 1, and Phase 1 transitions
     ///    cleanly to `Phase::Decompress` at `dep_addr`.
-    /// 2. In `Phase::Decompress` (`T2.3.4`), `on_step` runs *before* `pc` is checked against
+    /// 2. In `Phase::Decompress`, `on_step` runs *before* `pc` is checked against
     ///    `written`: when `TScrunchHooks` clears `written[reloc..=0xFFFF]` upon entering `$0121`,
     ///    a subsequent jump into the relocated high-memory stub at `reloc` is not mistaken for
     ///    `WrittenCodeReached`, allowing execution to continue to the unpacked payload entry.
@@ -2956,7 +2955,7 @@ mod tests {
         assert_eq!(res.end_addr, 0x2000);
     }
 
-    /// T3.3.13: Unpacking all 24 Exomizer and TSCrunch corpus files (17 `Exomizer 3.0`,
+    /// Unpacking all 24 Exomizer and TSCrunch corpus files (17 `Exomizer 3.0`,
     /// 3 `Exomizer 2.x`, 2 `TSCrunch v1.3+`, and 2 `TSCrunch v1.3+-X2`) produces the exact
     /// baseline outputs and preserves ground-truth/consensus agreement on the `moving_tubes`
     /// and `mule` groups.
@@ -3330,10 +3329,10 @@ mod tests {
     }
 
     // =======================================================================
-    // M3.5 — Dali + ByteBoozer + McCracken (`T3.3.9`–`T3.3.11`, `T3.3.14`)
+    // Dali + ByteBoozer + McCracken
     // =======================================================================
 
-    /// T3.3.9: `dali::SPEC` resolves `dep_addr = $0003`, `start_addr = None` (M1.4 Dali padding),
+    /// `dali::SPEC` resolves `dep_addr = $0003`, `start_addr = None` (Dali padding),
     /// `entry_point = OperandLe { from_match: 0xFE }`, and dynamic `end_addr = PointerAfterRun`
     /// from `mem[q + 0x44]`; `DaliHooks::refine` trims `bounds.end_addr` to `max_gap_start - 1`
     /// when `mem[$EA] == 0x4C`, `bounds.entry_point == u16::from_le_bytes([mem[$EB], mem[$EC]])`,
@@ -3470,7 +3469,7 @@ mod tests {
         assert_eq!(bounds_c128.end_addr, 0xFBFF);
     }
 
-    /// T3.3.10: `byteboozer::SPEC` reads `start_addr` at `$0886..=$0887` (`OperandLe { from_match: 0x79 }`)
+    /// `byteboozer::SPEC` reads `start_addr` at `$0886..=$0887` (`OperandLe { from_match: 0x79 }`)
     /// and `entry_point` at `$08CB..=$08CC` (`OperandLe { from_match: 0xBE }`), and
     /// `ByteBoozerHooks::refine` rechecks all 4 snapshot slices (`$080D`, `$0813`, `$0870`, `$08C0`)
     /// before reading `mem[$77..=$78]` (`reported_end - 1`).
@@ -3582,7 +3581,7 @@ mod tests {
         assert_eq!(bounds_c128.end_addr, 0xFFFF);
     }
 
-    /// T3.3.11: `mc_cracken::SPEC` declares `end_addr: Some(AddrSource::PointerAfterRun { ptr_addr: 0x00AE, adjust: -1, guard: PointerGuard::McCrackenEndOfProgram })`,
+    /// `mc_cracken::SPEC` declares `end_addr: Some(AddrSource::PointerAfterRun { ptr_addr: 0x00AE, adjust: -1, guard: PointerGuard::McCrackenEndOfProgram })`,
     /// and the two-step end pointer order runs the generic `+512` slack guard first in `engine::finish`
     /// step 4 (`end_addr_ptr = Some(0x00AE)`), followed by `PointerGuard::McCrackenEndOfProgram`
     /// (`raw > start_addr && raw < 0xFFFF => raw - 1`) in step 7 on C64.
@@ -3705,7 +3704,7 @@ mod tests {
         assert_eq!(step7_b, 0xFFFE);
     }
 
-    /// T3.3.14: Unpacking all 6 Dali, ByteBoozer, and McCracken corpus files (2 `Dali`,
+    /// Unpacking all 6 Dali, ByteBoozer, and McCracken corpus files (2 `Dali`,
     /// 3 `ByteBoozer`, and 1 `McCracken Compressor`) produces the exact baseline outputs
     /// and preserves ground-truth/consensus agreement on `mule`.
     #[test]
@@ -3884,11 +3883,11 @@ mod tests {
     }
 
     // =======================================================================
-    // M3.6a — ALZ64 & Antiram migration (`T3.6a.1`–`T3.6a.3`)
+    // ALZ64 & Antiram
     // =======================================================================
 
-    /// T3.6a.1: `alz64::SPEC` detects both `ALZ64/Quiss` and `ALZ64/Kabuto`, resolves exact
-    /// legacy `PackerInfo` (`dep_addr = $005E`, default `start_addr = $080B` vs optional
+    /// `alz64::SPEC` detects both `ALZ64/Quiss` and `ALZ64/Kabuto`, resolves exact
+    /// `PackerInfo` (`dep_addr = $005E`, default `start_addr = $080B` vs optional
     /// `[0x02, 0xE6, 0xC7, 0x8D]` scan override, indirect `entry_point`, `forced_entry = $080B`,
     /// `exact_return = true` for Quiss, and `$080B = $A2` patch for Kabuto), maps both variant
     /// names via `find_entry_by_name`, and unpacks `c64_boo_alz64.prg` identically to baseline.
@@ -4095,7 +4094,7 @@ mod tests {
         assert_eq!(kabuto_result.data.len(), 5_698);
     }
 
-    /// T3.6a.2: `antiram::SPEC` detects both `Antiram Packer v1.0` and `Antiram Packer v2.0`,
+    /// `antiram::SPEC` detects both `Antiram Packer v1.0` and `Antiram Packer v2.0`,
     /// resolves exact `PackerInfo` (`dep_addr`, `BasicStart(0)` `start_addr`, `end_addr_ptr`
     /// at `$002D`, `entry_point` with and without `0x20` JSR skip, conditional `patches`,
     /// `forced_entry = $080D`, and `exact_return = true`), maps both variant names via
@@ -4247,7 +4246,7 @@ mod tests {
         assert_eq!(result.data.len(), 50_688);
     }
 
-    /// T3.6a.3: `alz64::SPEC` preserves `load_addr_max = Some(0x080B)` (`<= 0x080B` matches,
+    /// `alz64::SPEC` preserves `load_addr_max = Some(0x080B)` (`<= 0x080B` matches,
     /// `> 0x080B` rejects for both Quiss and Kabuto) and `antiram::SPEC` preserves
     /// `load_addr_max = None` (matches across all `load_addr` values for both v1.0 and v2.0).
     #[test]
@@ -4307,7 +4306,7 @@ mod tests {
         }
     }
 
-    /// T3.6.7: `antiram::SPEC` conditionally patches `$0904` (v1.0) or `$0911` (v2.0) from `0x20`
+    /// `antiram::SPEC` conditionally patches `$0904` (v1.0) or `$0911` (v2.0) from `0x20`
     /// (`JSR`) to `0x2C` (`BIT` absolute) and shifts the `entry_point` operand read offset by +3
     /// when `0x20` is present.
     #[test]
@@ -4380,7 +4379,7 @@ mod tests {
         assert_eq!(v1_mem[0x0904], 0x2C);
     }
 
-    /// T3.6.8: both `Antiram Packer v1.0` and `Antiram Packer v2.0` declare
+    /// Both `Antiram Packer v1.0` and `Antiram Packer v2.0` declare
     /// `forced_entry = Some(AddrSource::Const(0x080D))` and `exact_return = true`.
     #[test]
     fn antiram_forced_entry_and_exact_return_hints() {
@@ -4400,7 +4399,7 @@ mod tests {
         }
     }
 
-    /// T3.6.9: `ALZ64/Kabuto` declares `forced_entry = Some(AddrSource::Const(0x080B))`,
+    /// `ALZ64/Kabuto` declares `forced_entry = Some(AddrSource::Const(0x080B))`,
     /// `exact_return = false`, and an unconditional pre-emulation patch writing `0xA2` (`LDX #imm`)
     /// at `$080B` (`unp64` `ALZ64.c:47`).
     #[test]
@@ -4434,7 +4433,7 @@ mod tests {
         assert_eq!(mem[0x080B], 0xA2);
     }
 
-    /// T3.6.10: `ALZ64/Quiss` declares `forced_entry = Some(AddrSource::Const(0x080B))`,
+    /// `ALZ64/Quiss` declares `forced_entry = Some(AddrSource::Const(0x080B))`,
     /// `exact_return = true` (`unp64` `ALZ64.c:30` `RtAFrc = 1`), and no patches (`patches.is_empty()`).
     #[test]
     fn alz64_quiss_has_exact_return_and_no_patch() {
@@ -4456,7 +4455,7 @@ mod tests {
         assert!(sig_match.resolved.patches.is_empty());
     }
 
-    /// T3.6.13: `c64_chiller.antiram_packer.prg` contains `0x20` (`JSR $A659`) at `$0911`;
+    /// `c64_chiller.antiram_packer.prg` contains `0x20` (`JSR $A659`) at `$0911`;
     /// `antiram::SPEC` skips the 3-byte `JSR` to read the `JMP $A7AE` operand (`$A7AE`, BASIC
     /// `RUN`) from `$0915..=$0916` and patches `$0911` to `0x2C` (`BIT $A659`), executing the
     /// `BIT $A659; JMP $A7AE` sequence (`679_862` instructions, matching `unp64 -v` `1029 + 678833`)

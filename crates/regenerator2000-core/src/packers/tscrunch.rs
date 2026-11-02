@@ -187,7 +187,7 @@ impl PackerHooks for TScrunchHooks {
     }
 }
 
-/// Constructs [`TScrunchHooks`] for a matched TSCrunch image (Ruling B3).
+/// Constructs [`TScrunchHooks`] for a matched TSCrunch image.
 #[must_use]
 pub fn create_tscrunch_hooks(
     image: &LoadedImage<'_>,

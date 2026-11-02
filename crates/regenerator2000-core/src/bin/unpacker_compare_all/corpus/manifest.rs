@@ -29,7 +29,7 @@ const MANIFEST_HEADER: &str = "\
 // =============================================================================
 
 /// The window over which unp64's and R2000's payloads overlap, with the hash
-/// of unp64's bytes over that window (Addendum B1).
+/// of unp64's bytes over that window.
 ///
 /// Recorded by `--update` whenever the two ranges differ, so CI can check
 /// "the payload matches over the overlapping range" without unp64.

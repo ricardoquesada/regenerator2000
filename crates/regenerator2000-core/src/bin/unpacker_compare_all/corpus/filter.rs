@@ -1,7 +1,7 @@
 //! Case selection while debugging (`CORPUS_FILTER`).
 //!
 //! The filter is built from the variable's *value*; reading the environment
-//! is the integration test's job, so this module stays pure (ruling R10).
+//! is the integration test's job, so this module stays pure.
 
 use std::collections::BTreeSet;
 

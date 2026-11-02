@@ -1,10 +1,9 @@
-//! Tests for `baseline` (T1.A1.58–T1.A1.61).
+//! Tests for `baseline`.
 
 use super::*;
 use regenerator2000_core::unpacker::UnpackError;
 use std::collections::BTreeSet;
 
-/// T1.A1.58
 #[test]
 fn baseline_row_captures_every_observable_output() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -61,7 +60,6 @@ fn baseline_row_captures_every_observable_output() {
     assert_eq!(Baseline::parse(&text).unwrap(), baseline);
 }
 
-/// T1.A1.59
 #[test]
 fn baseline_compare_detects_each_field_change() {
     let base_image = image(0x0801, 0x2000, 0x080D);
@@ -114,7 +112,6 @@ fn baseline_compare_detects_each_field_change() {
     assert_eq!(base.compare(&base), Vec::new());
 }
 
-/// T1.A1.60
 #[test]
 fn baseline_missing_or_extra_row_is_failure() {
     let a = ok_result("a.prg", image(0x0801, 0x2000, 0x080D));
@@ -143,7 +140,6 @@ fn baseline_missing_or_extra_row_is_failure() {
     );
 }
 
-/// T1.A1.61
 #[test]
 fn baseline_writer_is_deterministic_and_sorted() {
     let results = [

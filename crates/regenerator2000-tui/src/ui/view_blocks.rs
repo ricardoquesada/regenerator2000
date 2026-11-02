@@ -369,9 +369,9 @@ mod tests {
     use ratatui::backend::TestBackend;
     use regenerator2000_core::state::Addr;
 
-    // T5.1: Verify scope indentation and mouse click index math when scrolled past Scope header (Landmine F)
+    // Verify scope indentation and mouse click index math when scrolled past Scope header
     #[test]
-    fn test_blocks_view_scope_indentation_when_scrolled_landmine_f() {
+    fn test_blocks_view_scope_indentation_when_scrolled() {
         let mut app_state = AppState::new();
         app_state
             .load_binary(Addr(0x1000), vec![0xEA; 0x200])
@@ -469,7 +469,7 @@ mod tests {
         );
     }
 
-    // T5.2: Verify BlocksView::handle_input for Enter, Ctrl+k, and unhandled keys
+    // Verify BlocksView::handle_input for Enter, Ctrl+k, and unhandled keys
     #[test]
     fn test_blocks_view_handle_input_unhandled_and_handled_keys() {
         let mut app_state = AppState::new();

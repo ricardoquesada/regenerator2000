@@ -35,7 +35,7 @@ const SIGNATURES: [Signature; 2] = [
 ];
 
 /// Resolves TBC Multicompactor normal (`$084A == $81`) and Firelord (`$084A == $7B`) variants,
-/// reducing the segment end-address table at `$08EB` (`T3.2.6`).
+/// reducing the segment end-address table at `$08EB`.
 #[must_use]
 fn resolve_tbc(image: &LoadedImage<'_>, _sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
     let mem = image.mem;

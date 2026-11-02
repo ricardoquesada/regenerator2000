@@ -1,8 +1,7 @@
-//! Tests for `report` (T1.A1.57) and the action-item list.
+//! Tests for `report` and the action-item list.
 
 use super::*;
 
-/// T1.A1.57
 #[test]
 fn failure_table_lists_every_failure_sorted() {
     let failures = vec![

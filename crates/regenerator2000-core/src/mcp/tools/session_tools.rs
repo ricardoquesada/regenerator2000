@@ -278,7 +278,6 @@ mod tests {
         assert!(app_state.undo_stack.can_undo());
     }
 
-    // T4.2.8
     #[test]
     fn mcp_unpack_binary_summary_contains_provenance() {
         let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -306,7 +305,6 @@ mod tests {
         assert!(text.contains("entry="), "missing entry provenance: {text}");
     }
 
-    // T4.2.9
     #[test]
     fn mcp_unpack_binary_error_mapping_unchanged() {
         let mut app_state = AppState::new();

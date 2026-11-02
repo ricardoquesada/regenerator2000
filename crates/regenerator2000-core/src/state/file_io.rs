@@ -1502,7 +1502,6 @@ mod apply_unpack_result_tests {
         }
     }
 
-    // T4.2.1
     #[test]
     fn apply_unpack_result_loads_at_start() {
         let mut state = AppState::new();
@@ -1521,7 +1520,6 @@ mod apply_unpack_result_tests {
         assert_eq!(state.entry_point, Some(Addr(0x080D)));
     }
 
-    // T4.2.2
     #[test]
     fn apply_unpack_result_marks_code_from_entry() {
         let mut state = AppState::new();
@@ -1544,7 +1542,6 @@ mod apply_unpack_result_tests {
         assert_eq!(state.block_types[3], BlockType::Undefined);
     }
 
-    // T4.2.3
     #[test]
     fn apply_unpack_result_sets_exactly_one_start_label() {
         let mut state = AppState::new();
@@ -1568,7 +1565,6 @@ mod apply_unpack_result_tests {
         assert_eq!(start_labels.len(), 1);
     }
 
-    // T4.2.4
     #[test]
     fn apply_unpack_result_runs_analysis_once() {
         let mut state = AppState::new();
@@ -1579,7 +1575,6 @@ mod apply_unpack_result_tests {
         assert_eq!(AppState::analysis_pass_count(), 1);
     }
 
-    // T4.2.5
     #[test]
     fn apply_unpack_result_without_auto_analyze_disassembles() {
         let mut state = AppState::new();
@@ -1594,7 +1589,6 @@ mod apply_unpack_result_tests {
         assert_eq!(state.disassembly[0].address, Addr(res.start_addr));
     }
 
-    // T4.2.6
     #[test]
     fn apply_unpack_result_outcome_summary() {
         let mut state = AppState::new();
@@ -1624,7 +1618,6 @@ mod apply_unpack_result_tests {
         assert!(generic_outcome.summary.contains("Generic"));
     }
 
-    // T4.2.7
     #[test]
     fn apply_unpack_result_entry_mode_variants() {
         let mut state = AppState::new();

@@ -1,7 +1,6 @@
-//! Unit tests of the compare tool (Test Plan T1.A2.1–T1.A2.19 and
-//! T1.A2.33–T1.A2.46; T1.A2.45 lives with the shared runner in the corpus
-//! module). Everything here is pure: captured unp64 output is stored as
-//! `const` strings, and payloads come from one deterministic "memory".
+//! Unit tests of the compare tool. Everything here is pure: captured unp64
+//! output is stored as `const` strings, and payloads come from one
+//! deterministic "memory".
 //!
 //! This file holds the shared builders; each submodule tests one module of
 //! the tool and is named after it.

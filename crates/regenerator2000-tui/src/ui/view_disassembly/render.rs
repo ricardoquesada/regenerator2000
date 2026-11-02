@@ -1330,7 +1330,7 @@ mod tests {
         );
     }
 
-    // T5.3: Verify scope gutter rendering (`┌─`, `│ `, `└─`) with indexed `app_state.annotations.scopes()`
+    // Verify scope gutter rendering (`┌─`, `│ `, `└─`) with indexed `app_state.annotations.scopes()`
     #[test]
     fn test_disassembly_render_scope_gutter_with_indexed_scopes() {
         for assembler in [Assembler::Tass64, Assembler::Acme] {
