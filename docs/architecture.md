@@ -19,7 +19,7 @@ flowchart TB
         EventLoop["TUI Event Loop & Input Router<br/>regenerator2000-tui (events.rs / input.rs)"]
         WidgetUI["Widgets, UIState & Ratatui Renderer<br/>Widget Trait · CoreViewState Deref · Theme Engine"]
         ExtClients["External Clients & Tools<br/>MCP AI Agents (HTTP SSE / Stdio)<br/>& VICE Emulator (Binary Monitor Port 6502)"]
-        EventLoop -->|Routes Input & Drives Render Frame| WidgetUI
+        EventLoop -->|"Routes Input & Drives Render Frame"| WidgetUI
     end
 
     subgraph core_dispatch ["Tier 3 — Headless Core Hub & State (regenerator2000-core)"]
@@ -35,25 +35,25 @@ flowchart TB
         Ingest["Stage 1 — Ingest & 6502 Unpacker Sandbox<br/>parser/ (.prg, .crt, .d64, .t64, .vsf)<br/>unpacker/ & packers/ (21 PackerSpecs)"]
         AnalysisDisasm["Stage 2 — Analyzer & Disassembly Pipeline<br/>analyzer.rs · cpu.rs · disassembler/<br/>(64tass, ACME, ca65, KickAss)"]
         ExportVerify["Stage 3 — 3-Stage Exporter & Roundtrip Verify<br/>exporter/ (IR Lowering, ASM, HTML)<br/>& External Assembler Diff Check"]
-        Ingest -->|Populates Raw Binary & Entry Point| AnalysisDisasm
-        AnalysisDisasm -->|Provides Decoded Lines & Symbols| ExportVerify
+        Ingest -->|"Populates Raw Binary & Entry Point"| AnalysisDisasm
+        AnalysisDisasm -->|"Provides Decoded Lines & Symbols"| ExportVerify
     end
 
     %% Tier 1 -> Tier 2 (All Tier 2 roots anchored to Main for strict vertical stacking)
-    Main -->|Initializes Core & Spawns TUI Loop| EventLoop
-    Main -->|Configures --mcp-server & --vice Flags| ExtClients
+    Main -->|"Initializes Core & Spawns TUI Loop"| EventLoop
+    Main -->|"Configures MCP & VICE CLI Flags"| ExtClients
 
     %% Tier 2 -> Tier 3
-    WidgetUI <-->|Emits AppAction / Reads State & View| Core
-    ExtClients <-->|JSON-RPC & Binary Monitor| Bridges
+    WidgetUI <-->|"Emits AppAction / Reads State & View"| Core
+    ExtClients <-->|"JSON-RPC & Binary Monitor"| Bridges
 
     %% Inside Tier 3
-    Core -->|Applies / Undoes Commands & View Updates| CommandSys
-    Bridges -->|Applies Commands & Syncs Live RAM| CommandSys
-    CommandSys -->|Mutates Persistent & View State| AppState
+    Core -->|"Applies / Undoes Commands & View Updates"| CommandSys
+    Bridges -->|"Applies Commands & Syncs Live RAM"| CommandSys
+    CommandSys -->|"Mutates Persistent & View State"| AppState
 
     %% Tier 3 -> Tier 4
-    AppState <-->|Loads, Analyzes & Exports Project State| Ingest
+    AppState <-->|"Loads, Analyzes & Exports Project State"| Ingest
 ```
 
 ---
@@ -71,10 +71,10 @@ flowchart TB
         CoreCrate["regenerator2000-core (Library Crate)<br/>crates/regenerator2000-core — Headless Engine, State, Disassembler, Unpacker, MCP & VICE"]
         CompareBin["unpacker_compare_all (Benchmarking CLI)<br/>crates/regenerator2000-core/src/bin/unpacker_compare_all"]
 
-        Bin -->|Links TUI| Tui
-        Bin -->|Links Core| CoreCrate
-        Tui -->|Consumes State & Dispatches Actions| CoreCrate
-        CompareBin -->|Benchmarks Unpacker vs unp64| CoreCrate
+        Bin -->|"Links TUI"| Tui
+        Bin -->|"Links Core"| CoreCrate
+        Tui -->|"Consumes State & Dispatches Actions"| CoreCrate
+        CompareBin -->|"Benchmarks Unpacker vs unp64"| CoreCrate
     end
 ```
 
@@ -227,16 +227,16 @@ The disassembly pipeline converts raw binary bytes and metadata into formatted a
 flowchart TB
     Inputs["raw_data + block_types + annotations + symbols"]
     Ctx["DisassemblyContext (context.rs)<br/>Pre-computes scope_ends for O(log S) boundary checks"]
-    Loop["disassemble_ctx() (pipeline.rs)<br/>Main disassembly decoding loop"]
+    DecodeLoop["disassemble_ctx() (pipeline.rs)<br/>Main disassembly decoding loop"]
     CodePath["Code Instruction Decoder<br/>pipeline.rs / handlers.rs / symbols.rs<br/>(Opcode lookup & 13 addressing modes)"]
     DataPath["Data Block Formatter<br/>data_blocks.rs<br/>(Bytes, Words, Text, Lo/Hi tables, Fill runs)"]
     Fmt["Formatter Trait (formatter.rs)<br/>64tass · ACME · ca65 · KickAss"]
     Out["DisassemblyLine Rows<br/>(Renderable TUI rows & Exportable IR input)"]
 
     Inputs --> Ctx
-    Ctx --> Loop
-    Loop -->|BlockType::Code| CodePath
-    Loop -->|Non-Code BlockType| DataPath
+    Ctx --> DecodeLoop
+    DecodeLoop -->|"BlockType::Code"| CodePath
+    DecodeLoop -->|"Non-Code BlockType"| DataPath
     CodePath --> Fmt
     DataPath --> Fmt
     Fmt --> Out
@@ -370,7 +370,7 @@ flowchart TB
     Stage1 --> Stage2B
     Stage2A --> Verify
     Stage2A --> Stage3
-    Verify -.->|Temp Dir Bundle| Stage3
+    Verify -.->|"Temp Dir Bundle"| Stage3
     Stage2B --> Stage3
 ```
 
@@ -631,16 +631,16 @@ sequenceDiagram
     autonumber
     participant VICE as VICE Emulator (Port 6502)
     participant Client as ViceClient (Reader Thread)
-    participant Loop as TUI Event Loop (events.rs)
+    participant EventLoop as TUI Event Loop (events.rs)
     participant View as ViceState & DebuggerView
 
     Client->>VICE: Connect TCP socket to Binary Monitor (port 6502)
     VICE-->>Client: Stream binary response packets (0x02 STX header)
-    Client->>Loop: Forward decoded packet as AppEvent::Vice
-    Loop->>View: REGISTERS_GET (0x31) → Update PC, A, X, Y, SP, flags
-    Loop->>View: MEMORY_GET (0x01) → Update live/stack/IO/vector RAM
-    Loop->>View: CHECKPOINT (0x11/0x12) → Sync breakpoints & stop_reason
-    Loop->>View: STOPPED (0x62) / RESUMED (0x65) → Toggle running & flash
+    Client->>EventLoop: Forward decoded packet as AppEvent::Vice
+    EventLoop->>View: REGISTERS_GET (0x31) → Update PC, A, X, Y, SP, flags
+    EventLoop->>View: MEMORY_GET (0x01) → Update live/stack/IO/vector RAM
+    EventLoop->>View: CHECKPOINT (0x11/0x12) → Sync breakpoints & stop_reason
+    EventLoop->>View: STOPPED (0x62) / RESUMED (0x65) → Toggle running & flash
     View->>View: Render DebuggerView & highlight diffs vs ViceState::previous
 ```
 
