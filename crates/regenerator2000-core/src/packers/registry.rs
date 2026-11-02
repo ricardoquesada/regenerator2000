@@ -4055,7 +4055,8 @@ mod tests {
         let short_kabuto = LoadedImage::for_c64(&kabuto_mem[..=0x09FE], kabuto_load, 0x09FE);
         assert!(alz64::SPEC.detect(&short_kabuto).is_none());
 
-        // 3. Corpus verification: `c64_boo_alz64.prg` unpacks identically to baseline.
+        // 3. Corpus verification: `c64_boo_alz64.prg` (Quiss) and `c64_wavehero_alz64.prg` (Kabuto)
+        //    unpack identically to baseline.
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/6502")
             .join("c64_boo_alz64.prg");
@@ -4071,6 +4072,27 @@ mod tests {
         assert_eq!(result.dep_addr, 0x005E);
         assert_eq!(result.instructions_executed, 2_829_809);
         assert_eq!(result.data.len(), 17_724);
+
+        let kabuto_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/6502")
+            .join("c64_wavehero_alz64.prg");
+        let kabuto_bytes = std::fs::read(&kabuto_path)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", kabuto_path.display()));
+        let kabuto_load_addr = u16::from_le_bytes([kabuto_bytes[0], kabuto_bytes[1]]);
+        let kabuto_result = unpack(
+            &kabuto_bytes[2..],
+            kabuto_load_addr,
+            &UnpackConfig::default(),
+            None,
+        )
+        .expect("c64_wavehero_alz64.prg unpacks");
+        assert_eq!(kabuto_result.packer_name.as_deref(), Some("ALZ64/Kabuto"));
+        assert_eq!(kabuto_result.start_addr, 0x0801);
+        assert_eq!(kabuto_result.end_addr, 0x1E42);
+        assert_eq!(kabuto_result.entry_point, 0x080D);
+        assert_eq!(kabuto_result.dep_addr, 0x005E);
+        assert_eq!(kabuto_result.instructions_executed, 2_739_309);
+        assert_eq!(kabuto_result.data.len(), 5_698);
     }
 
     /// T3.6a.2: `antiram::SPEC` detects both `Antiram Packer v1.0` and `Antiram Packer v2.0`,

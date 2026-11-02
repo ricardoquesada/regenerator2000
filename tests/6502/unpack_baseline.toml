@@ -210,6 +210,16 @@ len = 49479
 fnv64 = "e4c86f473342045c"
 
 [[row]]
+file = "c64_goblin.unk.prg"
+start = "$0800"
+end = "$2DE7"
+entry = "$1400"
+dep = "$005E"
+instructions = 2900620
+len = 9704
+fnv64 = "05637ca8f63fc98a"
+
+[[row]]
 file = "c64_hw20131031.exo.prg"
 start = "$0801"
 end = "$F481"
@@ -471,3 +481,14 @@ packer = "TinyCrunch"
 instructions = 282753
 len = 29001
 fnv64 = "107ce3a882bea7b2"
+
+[[row]]
+file = "c64_wavehero_alz64.prg"
+start = "$0801"
+end = "$1E42"
+entry = "$080D"
+dep = "$005E"
+packer = "ALZ64/Kabuto"
+instructions = 2739309
+len = 5698
+fnv64 = "0a92321a4604d06b"

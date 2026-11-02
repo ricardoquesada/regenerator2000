@@ -151,7 +151,7 @@ Packer detection and lifecycle hooks live under [`crates/regenerator2000-core/sr
 
 > [!NOTE]
 > **Deferred Q3 TODO — Sourcing Real `.prg` Corpus Fixtures:**
-> Every spec in `REGISTRY` embeds a synthetic `fixture` verified by the registry self-tests (`every_spec_matches_its_own_fixture` and `no_fixture_is_claimed_by_a_higher_priority_spec`). However, eight registered packers currently have **no** real packed `.prg` binary in `tests/6502/` (**Action Replay**, **CCS**, **Cruel Cruncher**, **Eagle**, **Final Cartridge III**, **Super Cruncher**, **Triad**, and **Turbo Cruncher**), and **Card Cruncher** covers only its ACM variant (`c64_323_ice_psm.1001_card_cruncher.prg`, not v4), alongside uncovered sub-variants of Exomizer (`v3.02+`, `1.x`) and ALZ64 (`Kabuto`). Sourcing real packed `.prg` fixtures for these packers and recording their `unp64` reference entries with `unpacker_compare_all --update` is tracked as the deferred **Q3 TODO** (Design Doc Addendum A, §Q3).
+> Every spec in `REGISTRY` embeds a synthetic `fixture` verified by the registry self-tests (`every_spec_matches_its_own_fixture` and `no_fixture_is_claimed_by_a_higher_priority_spec`). However, eight registered packers currently have **no** real packed `.prg` binary in `tests/6502/` (**Action Replay**, **CCS**, **Cruel Cruncher**, **Eagle**, **Final Cartridge III**, **Super Cruncher**, **Triad**, and **Turbo Cruncher**), and **Card Cruncher** covers only its ACM variant (`c64_323_ice_psm.1001_card_cruncher.prg`, not v4), alongside uncovered sub-variants of Exomizer (`v3.02+`, `1.x`). Sourcing real packed `.prg` fixtures for these packers and recording their `unp64` reference entries with `unpacker_compare_all --update` is tracked as the deferred **Q3 TODO** (Design Doc Addendum A, §Q3).
 
 ---
 
@@ -289,7 +289,7 @@ Call the `r2000_unpack_binary` tool from an MCP client or AI agent to unpack the
 
 ## unp64 Oracle, Corpus Verification & Reviewed Divergences
 
-Regenerator 2000 validates its unpacker against a 43-case corpus manifest in [`tests/6502/unpack_corpus.toml`](../tests/6502/unpack_corpus.toml) and a frozen output snapshot in [`tests/6502/unpack_baseline.toml`](../tests/6502/unpack_baseline.toml) via `cargo test -p regenerator2000-core --test unpack_corpus`.
+Regenerator 2000 validates its unpacker against the corpus manifest in [`tests/6502/unpack_corpus.toml`](../tests/6502/unpack_corpus.toml) and a frozen output snapshot in [`tests/6502/unpack_baseline.toml`](../tests/6502/unpack_baseline.toml) via `cargo test -p regenerator2000-core --test unpack_corpus`.
 
 Each corpus case is evaluated by one of three explicit oracle rules:
 
@@ -371,6 +371,7 @@ The table below lists every case in `tests/6502/unpack_corpus.toml` that carries
 | `c64_cubicdream.exo3.prg` | `$0801-$EF2A → $080D` | `$0800-$EF2A → $080D` | `padding_byte` | `start` | `-` |
 | `c64_daah_those_acid_pills.exo2.prg` | `$0810-$FFF9 → $0810` | `$0801-$FF91 → $0810` | `unexplained` | `start, end` | `-` |
 | `c64_druid_too.exo3.prg` | `$0801-$CE1F → $4800` | `$0800-$CE1F → $4800` | `padding_byte` | `start` | `-` |
+| `c64_goblin.unk.prg` | `$0800-$FFFF → $1400` | `$0800-$2DE7 → $1400` | `unp64_default_end` | `end` | `-` |
 | `c64_hw20131031.exo.prg` | `$0800-$FF3F → $3000` | `$0801-$F481 → $3000` | `unexplained` | `start, end` | `-` |
 | `c64_leftovers-pl.exo3.prg` | `$0801-$F3F0 → $080E` | `$0800-$F3F0 → $080E` | `padding_byte` | `start` | `-` |
 | `c64_lft-nine.exo3.prg` | `$0801-$7CBC → $080D` | `$0800-$7CBC → $080D` | `padding_byte` | `start` | `-` |
@@ -381,6 +382,7 @@ The table below lists every case in `tests/6502/unpack_corpus.toml` that carries
 | `c64_spectro.exo3.prg` | `$080D-$E7FF → $08A1` | `$0801-$E7FF → $08A1` | `unexplained` | `start` | `-` |
 | `c64_sprite_runners.exo3.prg` | `$0801-$95BF → $6900` | `$0800-$95BF → $6900` | `padding_byte` | `start` | `-` |
 | `c64_traveller.tiny_crunch.prg` | `$0801-$FFFD → $0911` | `$0801-$7949 → $0911` | `unp64_default_end` | `end` | `-` |
+| `c64_wavehero_alz64.prg` | `$080D-$1E41 → $080D` | `$0801-$1E42 → $080D` | `unexplained` | `start, end` | `-` |
 <!-- END CORPUS DIVERGENCE TABLE -->
 
 All other 22 cases in `tests/6502/unpack_corpus.toml` (including all 11 ground-truth cases in the `moving_tubes` and `mule` groups, plus `c64_Bit_by_Bits-BZ!.exo3.prg`, `c64_CopperBooze.byte_boozer2.prg`, `c64_FppScroller.byte_boozer2.prg`, `c64_chiller.antiram_packer.prg`, `c64_endoskull.exo3.prg`, `c64_f600.exo.prg`, `c64_fantasy_intro.eca_compactor.prg`, `c64_gianna_sister_remix_badboy.tbc_multicompactor.prg`, `c64_little_things.exo3.prg`, `c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg`, and `c64_thats_the_way_scoop.time_cruncher.prg`) match `unp64` (and their original uncompressed binaries, where present) in start address, end address, entry point, and full payload hash.

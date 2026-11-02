@@ -769,7 +769,9 @@ mod tests {
             ("c64_CopperBooze.byte_boozer2.prg", Some("ByteBoozer")),
             ("c64_traveller.tiny_crunch.prg", Some("TinyCrunch")),
             ("c64_boo_alz64.prg", Some("ALZ64/Quiss")),
+            ("c64_wavehero_alz64.prg", Some("ALZ64/Kabuto")),
             ("c64_8_bit_ball.meanteam_cruncher.prg", None),
+            ("c64_goblin.unk.prg", None),
         ];
 
         let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/6502");

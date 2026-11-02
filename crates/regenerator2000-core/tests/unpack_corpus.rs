@@ -104,6 +104,9 @@ const MIGRATED_CASES: [&str; 43] = [
     "c64_daah_those_acid_pills.exo2.prg",
 ];
 
+/// Corpus cases added after the M1.3 migration (e.g., Q3 real `.prg` fixtures).
+const POST_MIGRATION_CASES: [&str; 2] = ["c64_goblin.unk.prg", "c64_wavehero_alz64.prg"];
+
 /// The ground-truth groups: id, original, entry, and members.
 const GROUND_TRUTH_GROUPS: [(&str, &str, u16, &[&str]); 2] = [
     (
@@ -135,9 +138,10 @@ const GROUND_TRUTH_GROUPS: [(&str, &str, u16, &[&str]); 2] = [
 
 /// The only cases with an unknown packer that carry an exception
 /// (Addendum A, Q2).
-const UNKNOWN_PACKER_EXCEPTIONS: [&str; 3] = [
+const UNKNOWN_PACKER_EXCEPTIONS: [&str; 4] = [
     "c64_8_bit_ball.meanteam_cruncher.prg",
     "c64_bluemarble4k_unk.prg",
+    "c64_goblin.unk.prg",
     "c64_soul_on_fire_unk.prg",
 ];
 
@@ -291,10 +295,13 @@ fn corpus_manifest_loads_and_validates() {
 #[test]
 fn corpus_contains_every_migrated_case() {
     let corpus = load_valid_corpus();
-    let expected: BTreeSet<&str> = MIGRATED_CASES.into_iter().collect();
+    let expected: BTreeSet<&str> = MIGRATED_CASES
+        .into_iter()
+        .chain(POST_MIGRATION_CASES)
+        .collect();
     assert_eq!(
         expected.len(),
-        MIGRATED_CASES.len(),
+        MIGRATED_CASES.len() + POST_MIGRATION_CASES.len(),
         "duplicate in the list"
     );
     let actual: BTreeSet<&str> = corpus.cases.iter().map(|case| case.file.as_str()).collect();

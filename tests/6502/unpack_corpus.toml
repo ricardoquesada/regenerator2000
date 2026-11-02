@@ -347,6 +347,28 @@ payload_fnv64 = "e4c86f473342045c"
 version = "2.42"
 
 [[case]]
+file = "c64_goblin.unk.prg"
+
+[case.unp64]
+start = "$0800"
+end = "$FFFF"
+entry = "$1400"
+len = 63488
+payload_fnv64 = "7a6cb8482c4ccddf"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$0800"
+end = "$2DE7"
+fnv64 = "05637ca8f63fc98a"
+
+[case.accepted_divergence]
+kind = "unp64_default_end"
+fields = ["end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "proposed by unpacker_compare_all --update: unp64 $0800-$FFFF entry $1400; R2000 $0800-$2DE7 entry $1400"
+
+[[case]]
 file = "c64_hw20131031.exo.prg"
 
 [case.unp64]
@@ -731,3 +753,25 @@ kind = "unp64_default_end"
 fields = ["end"]
 reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
 note = "proposed by unpacker_compare_all --update: unp64 $0801-$FFFD entry $0911; R2000 $0801-$7949 entry $0911"
+
+[[case]]
+file = "c64_wavehero_alz64.prg"
+
+[case.unp64]
+start = "$080D"
+end = "$1E41"
+entry = "$080D"
+len = 5685
+payload_fnv64 = "13378032cad803bd"
+version = "2.42"
+
+[case.unp64.overlap]
+start = "$080D"
+end = "$1E41"
+fnv64 = "13378032cad803bd"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start", "end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "ALZ64/Kabuto overlap $080D-$1E41 matches unp64 100%; R2000 dumps $0801-$1E42 (ALZ64 start $080D clamped to BASIC SYS at $0801, plus $00CF end pointer +1 padding byte) while unp64 dumps $080D-$1E41"
