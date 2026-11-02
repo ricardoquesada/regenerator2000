@@ -9,152 +9,110 @@ The system enforces a **unidirectional data flow** and separates the headless co
 ## 1. High-Level Overview
 
 ```mermaid
-flowchart TD
-    subgraph bin_crate [regenerator2000 Crate - CLI Application]
-        Main[main.rs<br/>CLI Parsing & Terminal Init]
+flowchart TB
+    subgraph bin_crate ["1. CLI Application Crate (regenerator2000)"]
+        Main["main.rs<br/>CLI Parsing, File Init & Thread Spawning"]
     end
 
-    subgraph tui_crate [regenerator2000-tui Crate - TUI Frontend]
-        EventLoop[Event Loop & Router<br/>events.rs / input.rs]
-        UIState[UIState<br/>Deref to CoreViewState]
-        WidgetSystem[Widget Trait System<br/>Disassembly / Views / Dialogs / Menu]
-        Renderer[Ratatui Renderer<br/>ui.rs / render.rs]
-        ThemeEngine[Theme Engine<br/>theme.rs / theme_file.rs]
+    subgraph frontends ["2. User Interface & External Clients"]
+        direction TB
+        EventLoop["TUI Event Loop & Input Router<br/>regenerator2000-tui (events.rs / input.rs)"]
+        WidgetUI["Widgets, UIState & Ratatui Renderer<br/>Widget Trait · CoreViewState Deref · Theme Engine"]
+        ExtClients["External Clients & Tools<br/>MCP AI Agents (HTTP SSE / Stdio)<br/>& VICE Emulator (Binary Monitor :6502)"]
+        EventLoop -->|Routes Input & Drives Render Frame| WidgetUI
     end
 
-    subgraph core_crate [regenerator2000-core Crate - Headless Engine]
-        Core[Core Hub<br/>core.rs]
-        ActionHandlers[Action Handlers<br/>File / Disassembly / Debug / Navigation]
-        AppAction[AppAction Enum<br/>actions.rs]
-        CommandSys[Command Pattern & UndoStack<br/>commands.rs]
-        AppState[AppState<br/>Memory / Labels / CrossRefs / Settings]
-        AnnotationMap[AnnotationManager<br/>Sparse AddressEntry Metadata]
-        CoreViewState[CoreViewState<br/>Cursors / Panes / Modes / History]
-        Analyzer[Control-Flow Analyzer<br/>analyzer.rs]
-        DisasmEngine[Disassembly Pipeline<br/>symbols / data_blocks / handlers / formatter]
-        Parsers[Parser Suite<br/>PRG / CRT / D64 / T64 / VSF / SourceGen]
-        Exporters[Exporter Pipeline & Verify<br/>IR Lowering / ASM / HTML / Roundtrip Diff]
-        UnpackerSandbox[6502 Emulation Sandbox<br/>bus / cia / machine / engine / detector / 21 PackerSpecs]
-        MCPServer[MCP Server Suite<br/>HTTP SSE / Stdio / handler / tools]
-        ViceClient[VICE Monitor Client<br/>protocol / client / state / c64_hardware]
-        AssetsConfig[Assets & Config<br/>system-*.toml / enum-*.toml / config.toml]
+    subgraph core_dispatch ["3. Headless Core Hub & State (regenerator2000-core)"]
+        direction TB
+        Core["Core Hub & Action Handlers<br/>core.rs / action_handlers/<br/>(File, Disassembly, Debug, Navigation)"]
+        Bridges["External Protocol Bridges<br/>MCP Server (mcp/) & VICE Client (vice/)"]
+        CommandSys["Command Pattern & UndoStack<br/>commands.rs (Atomic Apply / Undo / Batch)"]
+        AppState["AppState, AnnotationManager & CoreViewState<br/>Memory · Labels · CrossRefs · Settings · Sparse Metadata"]
     end
 
-    subgraph External [External Interfaces & Tools]
-        MCPClient[MCP Client / AI Agent<br/>Claude Desktop / Cursor / Custom]
-        VICE[VICE Emulator<br/>Binary Monitor TCP Port 6502]
-        AssemblerBinaries[Assembler CLIs<br/>64tass / ACME / ca65 / KickAss]
-        CommodoreFiles[Binary Media<br/>.prg / .crt / .d64 / .d71 / .d81 / .t64 / .vsf]
+    subgraph core_engines ["4. Core Processing Pipelines (regenerator2000-core)"]
+        direction TB
+        Ingest["1. Ingest & 6502 Unpacker Sandbox<br/>parser/ (.prg, .crt, .d64, .t64, .vsf)<br/>unpacker/ & packers/ (21 PackerSpecs)"]
+        AnalysisDisasm["2. Analyzer & Disassembly Pipeline<br/>analyzer.rs · cpu.rs · disassembler/<br/>(64tass, ACME, ca65, KickAss)"]
+        ExportVerify["3. 3-Stage Exporter & Roundtrip Verify<br/>exporter/ (IR Lowering, ASM, HTML)<br/>& External Assembler Diff Check"]
+        Ingest -->|Populates Raw Binary & Entry Point| AnalysisDisasm
+        AnalysisDisasm -->|Provides Decoded Lines & Symbols| ExportVerify
     end
 
-    %% Lifecycle & Initialization
-    Main -->|Initializes Engine| Core
-    Main -->|Spawns Threads & Runs| EventLoop
-    Main -->|Loads Files / Media| Parsers
-    CommodoreFiles -->|Decoded by| Parsers
-    Parsers -->|Populates Initial State| AppState
+    %% Tier 1 -> Tier 2 (All Tier 2 roots anchored to Main for strict vertical stacking)
+    Main -->|Initializes Core & Spawns TUI Loop| EventLoop
+    Main -->|Configures --mcp-server & --vice Flags| ExtClients
 
-    %% UI Flow
-    EventLoop -->|Routes Input Event| WidgetSystem
-    WidgetSystem -->|Emits Action| AppAction
-    AppAction -->|apply_action| Core
-    Core -->|Delegates via ActionContext| ActionHandlers
-    ActionHandlers -->|Applies / Undoes| CommandSys
-    ActionHandlers -->|Mutates View State| CoreViewState
-    CommandSys -->|Mutates State| AppState
-    AppState -->|Maintains Metadata| AnnotationMap
-    AppState -->|Triggers Analysis| Analyzer
-    AppState -->|Provides Data| DisasmEngine
-    DisasmEngine -->|Generates Formatted Lines| AppState
-    AppState -->|Lowers via Exporter IR| Exporters
+    %% Tier 2 -> Tier 3
+    WidgetUI <-->|Emits AppAction / Reads State & View| Core
+    ExtClients <-->|JSON-RPC & Binary Monitor| Bridges
 
-    %% Rendering Flow
-    CoreViewState -.->|Embedded via Deref| UIState
-    UIState -->|Supplies View State| Renderer
-    AppState -->|Supplies Data| Renderer
-    ThemeEngine -->|Supplies Styles| Renderer
-    EventLoop -->|Drives Render Frame| Renderer
+    %% Inside Tier 3
+    Core -->|Applies / Undoes Commands & View Updates| CommandSys
+    Bridges -->|Applies Commands & Syncs Live RAM| CommandSys
+    CommandSys -->|Mutates Persistent & View State| AppState
 
-    %% Background & External Integrations
-    Core -->|Emits UnpackStarted Event| EventLoop
-    EventLoop -->|Spawns Sandbox Thread| UnpackerSandbox
-    UnpackerSandbox -.->|Loads Unpacked Output| AppState
-
-    MCPClient <-->|JSON-RPC via HTTP SSE or Stdio| MCPServer
-    MCPServer -->|Builds & Applies Commands via AppState| CommandSys
-    MCPServer -.->|Inspects Engine State| AppState
-
-    VICE <-->|Binary Monitor Protocol| ViceClient
-    ViceClient <-->|Updates Live Registers/RAM| AppState
-
-    Exporters -->|Invokes Assemblers| AssemblerBinaries
-    AssemblerBinaries -->|Byte-Level Diff Verification| Exporters
+    %% Tier 3 -> Tier 4
+    AppState <-->|Loads, Analyzes & Exports Project State| Ingest
 ```
 
 ---
 
 ## 2. Workspace & Crate Structure
 
-The Cargo workspace splits Regenerator 2000 into three crates:
+The Cargo workspace splits Regenerator 2000 into three crates with strict unidirectional dependencies:
 
-```text
-regenerator2000/
-├── Cargo.toml                                 # Workspace manifest
-├── src/                                       # Binary crate (CLI entry point)
-│   └── main.rs
-├── crates/
-│   ├── regenerator2000-core/                  # Headless reverse-engineering engine
-│   │   ├── Cargo.toml
-│   │   └── src/
-│   │       ├── lib.rs
-│   │       ├── core.rs                        # Engine central hub
-│   │       ├── action_handlers/               # Modular domain action dispatchers
-│   │       ├── state/                         # Domain models, metadata & persistence
-│   │       ├── disassembler/                  # Disassembly pipeline & formatters
-│   │       ├── cpu.rs                         # MOS 6502/6510 opcode table & modes
-│   │       ├── commands.rs                    # Command pattern & UndoStack
-│   │       ├── analyzer.rs                    # Control-flow & symbol heuristics
-│   │       ├── parser/                        # Binary container & snapshot parsers
-│   │       ├── exporter/                      # 3-stage Exporter IR pipeline, ASM/HTML backends & roundtrip verify
-│   │       ├── unpacker/                      # 2-phase 6502 sandbox depacker engine
-│   │       ├── packers/                       # Declarative PackerSpec registry (21 packer families)
-│   │       ├── mcp/                           # Model Context Protocol server (HTTP & Stdio)
-│   │       ├── vice/                          # Live VICE binary monitor client
-│   │       ├── assets.rs                      # Embedded ROM definitions, system TOMLs & enums
-│   │       ├── config.rs                      # System configuration persistence
-│   │       ├── error.rs                       # Subsystem error hierarchy (thiserror)
-│   │       ├── event.rs                       # CoreEvent & DialogType vocabularies
-│   │       ├── navigation.rs                  # Address jump & bookmark helpers
-│   │       ├── utils.rs                       # Shared string & formatting utilities
-│   │       ├── view_state.rs                  # Frontend-agnostic CoreViewState
-│   │       └── bin/
-│   │           └── unpacker_compare_all/      # Corpus oracle comparison & drift CLI (5 modules)
-│   └── regenerator2000-tui/                   # Terminal User Interface frontend
-│       ├── Cargo.toml
-│       └── src/
-│           ├── lib.rs
-│           ├── events.rs                      # Main TUI event loop & background task coordination
-│           ├── events/input.rs                # Input router for keyboard and mouse
-│           ├── ui.rs                          # Top-level Ratatui layout engine
-│           ├── ui_state.rs                    # UIState wrapping CoreViewState via Deref
-│           ├── theme.rs                       # Runtime color theme engine
-│           ├── theme_file.rs                  # TOML theme file parser & dumper
-│           └── ui/
-│               ├── widget.rs                  # Widget trait & WidgetResult
-│               ├── statusbar.rs               # Dynamic bottom status bar
-│               ├── minimap_bar.rs             # Memory map visualization bar
-│               ├── navigable.rs               # Unified navigation trait
-│               ├── graphics_common.rs         # Shared glyph & bit-matrix renderers
-│               ├── menu/                      # Menu bar model, render & actions
-│               ├── view_disassembly/          # Modular disassembly view (5 submodules)
-│               ├── view_hexdump.rs            # Hex dump view (8/16 column)
-│               ├── view_sprites.rs            # Sprite visualizer (1/2 column, mono/multicolor)
-│               ├── view_charset.rs            # Character set visualizer (4/8 column)
-│               ├── view_bitmap.rs             # Full bitmap visualizer (mono/multicolor)
-│               ├── view_blocks.rs             # Memory block overview list
-│               ├── view_debugger.rs           # Live VICE monitor register & RAM view
-│               └── dialog_*.rs                # 34 modal dialog implementations
+```mermaid
+flowchart TB
+    subgraph ws ["regenerator2000 Cargo Workspace"]
+        direction TB
+        Bin["regenerator2000 (Binary Crate)<br/>src/main.rs — CLI Entry Point & Terminal Init"]
+        Tui["regenerator2000-tui (Library Crate)<br/>crates/regenerator2000-tui — Ratatui Views, 34 Dialogs, Events & Themes"]
+        CoreCrate["regenerator2000-core (Library Crate)<br/>crates/regenerator2000-core — Headless Engine, State, Disassembler, Unpacker, MCP & VICE"]
+        CompareBin["unpacker_compare_all (Benchmarking CLI)<br/>crates/regenerator2000-core/src/bin/unpacker_compare_all"]
+
+        Bin -->|Links TUI| Tui
+        Bin -->|Links Core| CoreCrate
+        Tui -->|Consumes State & Dispatches Actions| CoreCrate
+        CompareBin -->|Benchmarks Unpacker vs unp64| CoreCrate
+    end
 ```
+
+### `regenerator2000-core` Modules (`crates/regenerator2000-core/src/`)
+
+| Module / Path | Responsibility |
+| :--- | :--- |
+| `core.rs` | Engine central hub (`Core`) combining `AppState` and `CoreViewState`. |
+| `action_handlers/` | Modular domain action dispatchers (`file_handler`, `disassembly_handler`, `debug_handler`, `navigation_handler`). |
+| `state/` | Domain models (`AppState`, `Addr`, `BlockType`, `TargetSystem`), sparse `AnnotationManager`, and `.regen2000proj` persistence. |
+| `disassembler/` | Disassembly pipeline, symbol resolution, data block formatters, and 4 assembler backends (`64tass`, `ACME`, `ca65`, `KickAss`). |
+| `cpu.rs` | MOS 6502/6510 256-opcode table, cycle counts, addressing modes, and undocumented opcodes. |
+| `commands.rs` | Reversible `Command` enum and `UndoStack` for atomic undo/redo and batch execution. |
+| `analyzer.rs` | Recursive control-flow tracer, cross-reference builder, fill-run detector, and auto-label generator. |
+| `parser/` | Container and symbol parsers (`.prg`, BASIC `SYS`, `.crt`, `.d64`/`.d71`/`.d81`, `.t64`, `.dis65`, `.lbl`, `.vsf`). |
+| `exporter/` | 3-stage Exporter IR pipeline (`ir.rs`), pure ASM/HTML backends (`asm.rs`, `html.rs`), and roundtrip assembler verification (`verify.rs`). |
+| `unpacker/` | 2-phase 6502 emulation sandbox (`bus.rs`, `cia.rs`, `machine.rs`, `engine.rs`, `detector.rs`). |
+| `packers/` | Declarative `PackerSpec` definitions (`spec.rs`) and priority-ordered `REGISTRY` (`registry.rs`) covering 21 packer families. |
+| `mcp/` | Model Context Protocol server over HTTP SSE (`http.rs`) and Stdio (`stdio.rs`), request router (`handler.rs`), and tool submodules (`tools/`). |
+| `vice/` | Live VICE binary monitor TCP client (`client.rs`), packet codec (`protocol.rs`), state (`state.rs`), and C64 I/O decoders (`c64_hardware.rs`). |
+| `assets.rs` / `config.rs` | Embedded ROM labels, platform `system-*.toml` configs, `enum-*.toml` definitions, and user `config.toml` persistence. |
+| `error.rs` / `event.rs` | Typed `thiserror` error hierarchy (`CoreError`) and frontend-agnostic `CoreEvent` / `DialogType` vocabularies. |
+| `navigation.rs` / `view_state.rs` | Address jump/bookmark helpers and frontend-agnostic `CoreViewState` cursor/pane tracking. |
+| `bin/unpacker_compare_all/` | Corpus oracle comparison and CI drift CLI (`main.rs`, `manifest.rs`, `runner.rs`, `diff.rs`, `report.rs`). |
+
+### `regenerator2000-tui` Modules (`crates/regenerator2000-tui/src/`)
+
+| Module / Path | Responsibility |
+| :--- | :--- |
+| `events.rs` / `events/input.rs` | Main TUI event loop, background thread coordination, and keyboard/mouse input routing. |
+| `ui.rs` / `ui_state.rs` | Top-level Ratatui layout engine and `UIState` (wrapping `CoreViewState` via `Deref`). |
+| `theme.rs` / `theme_file.rs` | Runtime color theme engine and TOML theme file parser/exporter. |
+| `ui/widget.rs` / `ui/navigable.rs` | `Widget` trait (`render`, `handle_input`, `handle_mouse`, `handle_tick`), `WidgetResult`, and unified navigation trait. |
+| `ui/statusbar.rs` / `ui/minimap_bar.rs` | Dynamic bottom status bar and memory block distribution minimap bar. |
+| `ui/menu/` | Top menu bar model (`menu_model.rs`), popup renderer (`menu_render.rs`), and action dispatcher (`menu_action.rs`). |
+| `ui/view_disassembly/` | Modular disassembly view (`mod.rs`, `layout.rs`, `navigation.rs`, `mouse.rs`, `render.rs`). |
+| `ui/view_*.rs` | Right-pane views: `view_hexdump.rs`, `view_sprites.rs`, `view_charset.rs`, `view_bitmap.rs`, `view_blocks.rs`, and `view_debugger.rs`. |
+| `ui/dialog_*.rs` | 34 modal dialog implementations (settings, search, labels, comments, bookmarks, pickers, VICE debugger controls). |
 
 ---
 
@@ -265,34 +223,23 @@ pub struct AppState {
 
 The disassembly pipeline converts raw binary bytes and metadata into formatted assembly lines:
 
-```text
-raw_data + block_types + annotations + symbols
-                     │
-                     ▼
-       ┌───────────────────────────┐
-       │   DisassemblyContext      │  (Pre-computes scope ends for O(log S) checks)
-       └─────────────┬─────────────┘
-                     │
-                     ▼
-       ┌───────────────────────────┐
-       │    disassemble_ctx()      │  (pipeline.rs decoding loop)
-       └─────────────┬─────────────┘
-                     │
-       ┌─────────────┴────────────────────────┐
-       ▼                                      ▼
-[Code Instruction]                     [Data Block Formatter]
-pipeline.rs / handlers.rs              data_blocks.rs
-(Opcode lookup & operand format)       (Bytes, Words, Text, Fill runs)
-       │                                      │
-       └─────────────┬────────────────────────┘
-                     │
-                     ▼
-       ┌───────────────────────────┐
-       │     Formatter Trait       │  (64tass / ACME / ca65 / KickAss)
-       └─────────────┬─────────────┘
-                     │
-                     ▼
-       Vec<DisassemblyLine> (Renderable & Exportable rows)
+```mermaid
+flowchart TB
+    Inputs["raw_data + block_types + annotations + symbols"]
+    Ctx["DisassemblyContext (context.rs)<br/>Pre-computes scope_ends for O(log S) boundary checks"]
+    Loop["disassemble_ctx() (pipeline.rs)<br/>Main disassembly decoding loop"]
+    CodePath["Code Instruction Decoder<br/>pipeline.rs / handlers.rs / symbols.rs<br/>(Opcode lookup & 13 addressing modes)"]
+    DataPath["Data Block Formatter<br/>data_blocks.rs<br/>(Bytes, Words, Text, Lo/Hi tables, Fill runs)"]
+    Fmt["Formatter Trait (formatter.rs)<br/>64tass · ACME · ca65 · KickAss"]
+    Out["Vec#lt;DisassemblyLine#gt;<br/>(Renderable TUI rows & Exportable IR input)"]
+
+    Inputs --> Ctx
+    Ctx --> Loop
+    Loop -->|BlockType::Code| CodePath
+    Loop -->|Non-Code BlockType| DataPath
+    CodePath --> Fmt
+    DataPath --> Fmt
+    Fmt --> Out
 ```
 
 -   **[`mod.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs)**: Exports [`DisassemblyLine`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs#L33) and the shared column-alignment constants [`LABEL_COLUMN_WIDTH`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs#L22) (`20`), [`DEFINITION_COLUMN_WIDTH`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs#L27) (`40`), and [`INSTRUCTION_COLUMN_WIDTH`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/disassembler/mod.rs#L30) (`40`) consumed by the TUI renderer, ASM exporter, and HTML exporter.
@@ -358,23 +305,16 @@ pub enum Command {
 
 The analyzer scans the binary memory buffer to discover subroutines, jump targets, data references, and fill runs:
 
-```text
-[Raw Program Memory]
-         │
-         ▼
-Recursive Control-Flow Tracing ──► JSR / Bxx / JMP / RTS / RTI graph
-         │
-         ▼
-Operand Symbol Classification ──► Usage count & semantic role resolution
-         │
-         ▼
-Auto-Label Generation ──────────► Prefix assignment (s_, j_, b_, p_, etc.)
-         │
-         ▼
-Cross-Reference Construction ───► Inverted index (target -> [referencing addrs])
-         │
-         ▼
-Fill Run Detection ─────────────► Consecutive byte sequences >= threshold
+```mermaid
+flowchart TB
+    Mem["Raw Program Memory & Block Types"]
+    Trace["1. Recursive Control-Flow Tracing<br/>Walks JSR, Bxx, JMP, RTS & RTI instruction graph"]
+    Classify["2. Operand Symbol Classification<br/>Resolves usage counts & semantic address roles"]
+    Labels["3. Auto-Label Generation<br/>Assigns deterministic prefixes (s_, j_, b_, r_, p_, zpp_, f_, etc.)"]
+    XRefs["4. Cross-Reference Construction<br/>Builds inverted index (target Addr → Vec#lt;referencing Addr#gt;)"]
+    Fill["5. Fill Run Detection<br/>Identifies consecutive identical byte sequences ≥ threshold"]
+
+    Mem --> Trace --> Classify --> Labels --> XRefs --> Fill
 ```
 
 #### Auto-Generated Label Prefixes
@@ -416,34 +356,22 @@ The parser modules load raw binaries, disk and tape containers, and symbol files
 
 The exporter subsystem separates semantic lowering, text rendering, and disk persistence into a three-stage pipeline:
 
-```text
-                &AppState + &ExportOptions
-                            │
-                            ▼
-  ┌───────────────────────────────────────────────────┐
-  │ Stage 1: Semantic Lowering (exporter/ir.rs)       │
-  │ build_export_document() -> ExportDocument         │
-  │ (ExportHeader + Vec<ExportRow> + ExportSidecar)   │
-  └────────────┬─────────────────────────┬────────────┘
-               │                         │
-               ▼                         ▼
-┌─────────────────────────────┐ ┌─────────────────────────────┐
-│ Stage 2A: Pure ASM Backend  │ │ Stage 2B: Pure HTML Backend │
-│ render_asm_document()       │ │ render_html_document()      │
-│ -> ExportBundle (in-memory) │ │ -> ExportBundle (in-memory) │
-└──────┬───────────────┬──────┘ └──────────────┬──────────────┘
-       │               │                       │
-       │               ▼                       │
-       │     [verify_roundtrip()]              │
-       │     (Zero AppState clone)             │
-       │               │                       │
-       └───────────────┴───────────┬───────────┘
-                                   ▼
-                 ┌───────────────────────────────────┐
-                 │ Stage 3: Disk Persistence         │
-                 │ ExportBundle::write_to_disk()     │
-                 │ (Primary .asm/.html + .bin files) │
-                 └───────────────────────────────────┘
+```mermaid
+flowchart TB
+    Input["&AppState + &ExportOptions"]
+    Stage1["Stage 1: Semantic Lowering (exporter/ir.rs)<br/>build_export_document() → ExportDocument<br/>(ExportHeader + Vec#lt;ExportRow#gt; + Vec#lt;ExportSidecar#gt;)"]
+    Stage2A["Stage 2A: Pure ASM Backend (exporter/asm.rs)<br/>render_asm_document() → ExportBundle (in-memory)"]
+    Stage2B["Stage 2B: Pure HTML Backend (exporter/html.rs)<br/>render_html_document() → ExportBundle (in-memory)"]
+    Verify["Roundtrip Verification (exporter/verify.rs)<br/>verify_roundtrip() — Zero AppState clone<br/>Assembles in temp dir & diffs bytes against raw_data"]
+    Stage3["Stage 3: Disk Persistence<br/>ExportBundle::write_to_disk()<br/>(Writes primary .asm/.html + ExternalFile .bin sidecars)"]
+
+    Input --> Stage1
+    Stage1 --> Stage2A
+    Stage1 --> Stage2B
+    Stage2A --> Verify
+    Stage2A --> Stage3
+    Verify -.->|Temp Dir Bundle| Stage3
+    Stage2B --> Stage3
 ```
 
 -   **[`ir.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs)**: Implements Stage 1 semantic lowering via [`build_export_document()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L836). Accepts `&AppState` and [`ExportOptions`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L28) (which lets callers override the target `Assembler` without cloning `AppState`) and produces an in-memory [`ExportDocument`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/exporter/ir.rs#L540) containing:
@@ -462,23 +390,16 @@ The exporter subsystem separates semantic lowering, text rendering, and disk per
 
 Regenerator 2000 embeds a system-agnostic 2-phase 6502 emulation sandbox to unpack compressed executables across Commodore 8-bit targets:
 
-```text
-[Packed Input PRG]
-         │
-         ▼
-[Declarative Signature Scanner] ──► match_packer() evaluates REGISTRY signatures & hints
-         │
-         ▼
-[Phase 1: Phase1Searching] ────────► Emulate 6502 from SYS entry until PC enters depacker stub
-         │
-         ▼
-[Phase 2: Phase2Depacking] ────────► Clear WrittenBitmap; run stub until PC jumps to payload
-         │
-         ▼
-[Detector & Boundary Resolution] ──► Precedence: Hints > StepHook > WrittenBitmap > SnapshotDiff
-         │
-         ▼
-[UnpackedPrg + UnpackReport Telemetry]
+```mermaid
+flowchart TB
+    Input["Packed Input PRG"]
+    Scanner["Declarative Signature Scanner (packers/)<br/>match_packer() evaluates priority-ordered REGISTRY<br/>(Signatures, Hints, MemoryPatches & PackerHooks)"]
+    Phase1["Phase 1: RunState::Phase1Searching (unpacker/engine.rs)<br/>Steps 6502 Machine from SYS entry point until PC enters depacker stub"]
+    Phase2["Phase 2: RunState::Phase2Depacking (unpacker/engine.rs)<br/>Resets WrittenBitmap & runs stub until control jumps to unpacked payload"]
+    Detector["Detector & Boundary Resolution (unpacker/detector.rs)<br/>Precedence: Hints #gt; StepHook #gt; WrittenBitmap #gt; SnapshotDiff"]
+    Output["UnpackedPrg + UnpackReport Telemetry<br/>(Phase1Outcome, Phase2Outcome, BoundSource)"]
+
+    Input --> Scanner --> Phase1 --> Phase2 --> Detector --> Output
 ```
 
 -   **[`bus.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/bus.rs)**: [`MemoryBus`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/unpacker/bus.rs) emulates the 64 KB address space, C64 `$00`/`$01` processor port banking, ROM overlays, and dual write-tracking bitmaps (`DirtyBitmap` across both phases and `WrittenBitmap` reset at Phase 2 entry).
@@ -535,25 +456,27 @@ The `vice` module provides live bidirectional debugging with the VICE emulator:
 
 The terminal user interface uses `ratatui` and `crossterm`:
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ Menu Bar (File, Edit, View, Navigate, Tools, Help)          │
-├──────────────────────────────┬──────────────────────────────┤
-│                              │ Right Pane (Toggleable)      │
-│                              │ - Hex Dump (8/16 Col)        │
-│ Disassembly View             │ - Sprite Matrix (1/2 Col)    │
-│ (Primary Left Pane)          │ - Charset Matrix (4/8 Col)   │
-│ - Virtual Row Indexing       │ - Bitmap Visualizer          │
-│ - Syntax Colored Tokens      │ - Memory Block Overview      │
-│ - Control-Flow Arrows        │ - Live VICE Monitor Debugger │
-│ - Collapsible Code Blocks    │                              │
-│                              │                              │
-├──────────────────────────────┴──────────────────────────────┤
-│ Minimap Bar (Memory Block Distribution Overview)            │
-├─────────────────────────────────────────────────────────────┤
-│ Status Bar (Address, Opcodes, Mode, Progress, Status)       │
-└─────────────────────────────────────────────────────────────┘
-  [ Modal Dialog Overlay: Settings, Search, Labels, Pickers ]
+```mermaid
+flowchart TB
+    subgraph TUIFrame ["Top-Level Terminal Frame (ui.rs)"]
+        direction TB
+        MenuBar["Menu Bar (ui/menu/)<br/>File · Edit · View · Navigate · Tools · Debugger · Help"]
+
+        subgraph MainWorkspace ["Split Workspace Area"]
+            direction LR
+            LeftPane["Disassembly View (ui/view_disassembly/)<br/>• Virtual Row Indexing (layout.rs)<br/>• Syntax-Colored Tokens (render.rs)<br/>• Control-Flow Arrows & Collapsible Blocks<br/>• Keyboard & Mouse Navigation"]
+            RightPane["Toggleable Right Pane<br/>• Hex Dump (8/16 Col)<br/>• Sprite Matrix (1/2 Col, Mono/Multi)<br/>• Charset Matrix (4/8 Col, Mono/Multi)<br/>• Bitmap Visualizer (HiRes/Multi)<br/>• Memory Block Overview<br/>• Live VICE Monitor Debugger"]
+        end
+
+        Minimap["Minimap Bar (ui/minimap_bar.rs)<br/>Memory Block Distribution Overview"]
+        StatusBar["Status Bar (ui/statusbar.rs)<br/>Address · Opcodes · Mode · Progress · Status"]
+        ModalOverlay["Modal Dialog Overlay (dialog_*.rs — 34 Dialogs)<br/>Settings · Search · Labels · Comments · Bookmarks · Pickers"]
+
+        MenuBar --> MainWorkspace
+        MainWorkspace --> Minimap
+        Minimap --> StatusBar
+        StatusBar --> ModalOverlay
+    end
 ```
 
 -   **`Widget` Trait ([`ui/widget.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-tui/src/ui/widget.rs))**: Every TUI view and modal dialog implements the `Widget` trait:
@@ -603,108 +526,135 @@ The terminal user interface uses `ratatui` and `crossterm`:
 
 ### 4.1 Interactive User Action in TUI (Block Type Reclassification)
 
-```text
-1. User Input: User presses 'c' in Disassembly View to mark bytes as Code.
-2. Routing: events.rs routes the KeyEvent to the active DisassemblyView widget.
-3. Action Creation: DisassemblyView returns
-   WidgetResult::Action(AppAction::Code).
-4. Menu Dispatcher: dispatch_menu_action() calls
-   Core::apply_action(AppAction::Code).
-5. Domain Handler: Core routes the action to
-   DisassemblyActionHandler::handle_action().
-6. Context Setup: The handler records the cursor address via
-   ActionContext::preserve_cursor().
-7. Command Execution: The handler constructs Command::SetBlockType and calls
-   UndoStack::apply().
-8. State Mutation: AppState::block_types updates, and UndoStack records the
-   previous block types.
-9. Downstream Analysis: The disassembly cache invalidates, and
-   analyzer::analyze() recalculates symbols and cross-references.
-10. Event Emission: Core emits CoreEvent::StateChanged.
-11. UI Sync: The TUI syncs CoreViewState to UIState, and preserve_cursor()
-    restores the visual row.
-12. Render Frame: The event loop calls terminal.draw() with ui::ui() to render
-    the updated disassembly.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant TUI as TUI Loop & DisassemblyView
+    participant Core as Core & DisassemblyHandler
+    participant Cmd as Command & UndoStack
+    participant State as AppState & Analyzer
+
+    TUI->>TUI: User presses 'c' → KeyEvent routed to DisassemblyView
+    TUI->>Core: WidgetResult::Action(AppAction::Code) → Core::apply_action()
+    Core->>Core: DisassemblyActionHandler::handle_action() & preserve_cursor()
+    Core->>Cmd: Construct Command::SetBlockType & UndoStack::apply()
+    Cmd->>State: Update block_types & record previous types on UndoStack
+    State->>State: Invalidate disassembly cache & run analyzer::analyze()
+    Core-->>TUI: Emit CoreEvent::StateChanged & restore cursor row
+    TUI->>TUI: Sync CoreViewState → UIState & terminal.draw(ui::ui)
 ```
+
+1.  **User Input**: User presses `c` in Disassembly View to mark bytes as Code.
+2.  **Routing**: `events.rs` routes the `KeyEvent` to the active `DisassemblyView` widget.
+3.  **Action Creation**: `DisassemblyView` returns `WidgetResult::Action(AppAction::Code)`.
+4.  **Menu Dispatcher**: `dispatch_menu_action()` calls `Core::apply_action(AppAction::Code)`.
+5.  **Domain Handler**: `Core` routes the action to `DisassemblyActionHandler::handle_action()`.
+6.  **Context Setup**: The handler records the cursor address via `ActionContext::preserve_cursor()`.
+7.  **Command Execution**: The handler constructs `Command::SetBlockType` and calls `UndoStack::apply()`.
+8.  **State Mutation**: `AppState::block_types` updates, and `UndoStack` records the previous block types.
+9.  **Downstream Analysis**: The disassembly cache invalidates, and `analyzer::analyze()` recalculates symbols and cross-references.
+10. **Event Emission**: `Core` emits `CoreEvent::StateChanged`.
+11. **UI Sync**: The TUI syncs `CoreViewState` to `UIState`, and `preserve_cursor()` restores the visual row.
+12. **Render Frame**: The event loop calls `terminal.draw()` with `ui::ui()` to render the updated disassembly.
 
 ### 4.2 AI Agent / MCP Server Invocation (Setting a Label)
 
-```text
-1. Client Request: The external AI agent sends a JSON-RPC POST 'tools/call'
-   ("r2000_set_label_name", {address: 2064, name: "init"}).
-2. Transport Handling: mcp::http or mcp::stdio decodes the JSON-RPC request.
-3. Handler Router: mcp::handler routes 'tools/call' to
-   modification_tools, which matches the tool name to set_label_name_impl().
-4. Shared Validation: The tool calls
-   AppState::create_set_user_label_command(). This core method validates the
-   name (for example, it rejects duplicates) and builds a Command::SetLabel.
-   The TUI path (DisassemblyActionHandler for AppAction::SetLabel) calls the
-   same method.
-5. Command Execution: The tool calls Command::apply() on AppState. Then
-   AppState::push_command() records it on the UndoStack. MCP tools do not
-   dispatch an AppAction through Core::apply_action().
-6. Reactive Invalidation: The tool calls AppState::disassemble() to rebuild
-   the disassembly cache.
-7. Response Construction: The MCP handler constructs a JSON-RPC success
-   response.
-8. Transport Reply: The transport writes the response to the HTTP SSE stream or
-   Stdio pipe.
-9. TUI Coordination: If the TUI is active, the event loop receives
-   AppEvent::Mcp and redraws the screen.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Agent as AI Agent (MCP Client)
+    participant MCP as MCP Transport & Handler
+    participant Tool as modification_tools
+    participant State as AppState & UndoStack
+
+    Agent->>MCP: JSON-RPC POST tools/call ("r2000_set_label_name")
+    MCP->>Tool: Route request to set_label_name_impl()
+    Tool->>State: AppState::create_set_user_label_command() (shared validation)
+    State-->>Tool: Return validated Command::SetLabel
+    Tool->>State: Command::apply() & AppState::push_command()
+    Tool->>State: AppState::disassemble() (rebuild disassembly cache)
+    Tool-->>MCP: Return JSON-RPC success payload
+    MCP-->>Agent: Write response to HTTP SSE stream or Stdio pipe
+    MCP--)State: Emit AppEvent::Mcp to trigger TUI redraw (if active)
 ```
+
+1.  **Client Request**: The external AI agent sends a JSON-RPC POST `tools/call` (`"r2000_set_label_name"`, `{address: 2064, name: "init"}`).
+2.  **Transport Handling**: `mcp::http` or `mcp::stdio` decodes the JSON-RPC request.
+3.  **Handler Router**: `mcp::handler` routes `tools/call` to `modification_tools`, which matches the tool name to `set_label_name_impl()`.
+4.  **Shared Validation**: The tool calls `AppState::create_set_user_label_command()`. This core method validates the name (for example, it rejects duplicates) and builds a `Command::SetLabel`. The TUI path (`DisassemblyActionHandler` for `AppAction::SetLabel`) calls the same method.
+5.  **Command Execution**: The tool calls `Command::apply()` on `AppState`. Then `AppState::push_command()` records it on the `UndoStack`. MCP tools do not dispatch an `AppAction` through `Core::apply_action()`.
+6.  **Reactive Invalidation**: The tool calls `AppState::disassemble()` to rebuild the disassembly cache.
+7.  **Response Construction**: The MCP handler constructs a JSON-RPC success response.
+8.  **Transport Reply**: The transport writes the response to the HTTP SSE stream or Stdio pipe.
+9.  **TUI Coordination**: If the TUI is active, the event loop receives `AppEvent::Mcp` and redraws the screen.
 
 ### 4.3 Background Binary Unpacker Sandbox Lifecycle
 
-```text
-1. Trigger: The user loads a packed binary or selects "Unpack Binary" (or an AI
-   agent invokes the "r2000_unpack_binary" MCP tool).
-2. Action Dispatch: Core emits CoreEvent::UnpackStarted with the binary buffer
-   and UnpackConfig.
-3. Thread Spawn: The TUI menu action dispatcher (menu_action.rs) processes
-   CoreEvent::UnpackStarted and spawns a background thread that runs
-   unpacker::unpack_with_progress() (MCP calls unpacker::unpack() directly).
-4. 6502 Emulation:
-   a. packers::match_packer() scans the priority-ordered REGISTRY of
-      PackerSpec definitions to resolve signatures, hints, and patches.
-   b. Phase 1 (RunState::Phase1Searching) steps Machine from the SYS entry
-      point until PC reaches the depacker stub.
-   c. Phase 2 (RunState::Phase2Depacking) resets WrittenBitmap and runs the
-      depacker stub until control transfers to the unpacked payload.
-   d. The engine sends AppEvent::UnpackProgress events to update the status bar
-      and records UnpackReport telemetry (BoundSource, Phase1/Phase2 outcomes).
-5. Completion Event: The background thread sends AppEvent::UnpackComplete(result)
-   to the main event channel.
-6. Unified State Initialization: Both TUI (handle_unpack_complete) and MCP
-   (r2000_unpack_binary) call AppState::apply_unpacked_prg(&unpacked), which
-   resets project paths, reloads system assets, seeds Code at entry_point, runs
-   analyzer::analyze() + disassemble(), and clears UndoStack.
-7. Context Dialog: In the TUI, handle_unpack_complete() opens
-   ImportContextDialog so the user can review or adjust the target platform,
-   origin, and entry point.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller as TUI / MCP Caller
+    participant Core as Core Hub
+    participant Sandbox as 6502 Unpacker Sandbox
+    participant State as AppState
+
+    Caller->>Core: Trigger "Unpack Binary" (or r2000_unpack_binary)
+    Core-->>Caller: Emit CoreEvent::UnpackStarted (buffer + UnpackConfig)
+    Caller->>Sandbox: Spawn thread → unpack_with_progress() / unpack()
+    Sandbox->>Sandbox: packers::match_packer() scans priority-ordered REGISTRY
+    Sandbox->>Sandbox: Phase 1 (Phase1Searching): Step Machine to depacker stub
+    Sandbox->>Sandbox: Phase 2 (Phase2Depacking): Reset WrittenBitmap & run stub
+    Sandbox--)Caller: Stream AppEvent::UnpackProgress & UnpackReport telemetry
+    Sandbox-->>Caller: Send AppEvent::UnpackComplete(UnpackedPrg)
+    Caller->>State: AppState::apply_unpacked_prg() (analyze + disassemble)
+    Caller->>Caller: Open ImportContextDialog in TUI
 ```
+
+1.  **Trigger**: The user loads a packed binary or selects "Unpack Binary" (or an AI agent invokes the `r2000_unpack_binary` MCP tool).
+2.  **Action Dispatch**: `Core` emits `CoreEvent::UnpackStarted` with the binary buffer and `UnpackConfig`.
+3.  **Thread Spawn**: The TUI menu action dispatcher (`menu_action.rs`) processes `CoreEvent::UnpackStarted` and spawns a background thread that runs `unpacker::unpack_with_progress()` (MCP calls `unpacker::unpack()` directly).
+4.  **6502 Emulation**:
+
+    -   `packers::match_packer()` scans the priority-ordered `REGISTRY` of `PackerSpec` definitions to resolve signatures, hints, and patches.
+    -   **Phase 1 (`RunState::Phase1Searching`)**: Steps `Machine` from the `SYS` entry point until `PC` reaches the depacker stub.
+    -   **Phase 2 (`RunState::Phase2Depacking`)**: Resets `WrittenBitmap` and runs the depacker stub until control transfers to the unpacked payload.
+    -   The engine sends `AppEvent::UnpackProgress` events to update the status bar and records `UnpackReport` telemetry (`BoundSource`, `Phase1`/`Phase2` outcomes).
+
+5.  **Completion Event**: The background thread sends `AppEvent::UnpackComplete(result)` to the main event channel.
+6.  **Unified State Initialization**: Both TUI (`handle_unpack_complete`) and MCP (`r2000_unpack_binary`) call `AppState::apply_unpacked_prg(&unpacked)`, which resets project paths, reloads system assets, seeds `Code` at `entry_point`, runs `analyzer::analyze()` + `disassemble()`, and clears `UndoStack`.
+7.  **Context Dialog**: In the TUI, `handle_unpack_complete()` opens `ImportContextDialog` so the user can review or adjust the target platform, origin, and entry point.
 
 ### 4.4 Live VICE Monitor Synchronization
 
-```text
-1. Connection: ViceClient connects to the VICE binary monitor TCP socket on
-   port 6502.
-2. Background Reader: The reader thread parses incoming binary response packets
-   (0x02 STX header).
-3. Event Bridge: The client converts packets into AppEvent::Vice events and
-   sends them to the TUI event channel.
-4. State Update (events.rs handle_vice_message):
-   - REGISTERS_GET response (0x31) updates ViceState::pc, a, x, y, sp, and p
-     (status flags). Before each step, debug_handler.rs stores the prior
-     snapshot in ViceState::previous.
-   - MEMORY_GET response (0x01) updates ViceState::live_memory,
-     stack_memory, io_memory, vectors, or dump_memory, based on the request.
-   - CHECKPOINT_GET / CHECKPOINT_SET responses (0x11/0x12) update
-     ViceState::breakpoints and set ViceState::stop_reason on a hit.
-   - STOPPED event (0x62) sets ViceState::running to false and starts the
-     debugger highlight flash. RESUMED (0x65) clears stop_reason.
-5. UI Sync: DebuggerView renders the updated registers and highlights values
-   that differ from ViceState::previous.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant VICE as VICE Emulator (:6502)
+    participant Client as ViceClient (Reader Thread)
+    participant Loop as TUI Event Loop (events.rs)
+    participant View as ViceState & DebuggerView
+
+    Client->>VICE: Connect TCP socket to Binary Monitor (port 6502)
+    VICE-->>Client: Stream binary response packets (0x02 STX header)
+    Client->>Loop: Forward decoded packet as AppEvent::Vice
+    Loop->>View: REGISTERS_GET (0x31) → Update PC, A, X, Y, SP, flags
+    Loop->>View: MEMORY_GET (0x01) → Update live/stack/IO/vector RAM
+    Loop->>View: CHECKPOINT (0x11/0x12) → Sync breakpoints & stop_reason
+    Loop->>View: STOPPED (0x62) / RESUMED (0x65) → Toggle running & flash
+    View->>View: Render DebuggerView & highlight diffs vs ViceState::previous
 ```
+
+1.  **Connection**: `ViceClient` connects to the VICE binary monitor TCP socket on port `6502`.
+2.  **Background Reader**: The reader thread parses incoming binary response packets (`0x02` STX header).
+3.  **Event Bridge**: The client converts packets into `AppEvent::Vice` events and sends them to the TUI event channel.
+4.  **State Update (`events.rs` `handle_vice_message`)**:
+
+    -   `REGISTERS_GET` response (`0x31`) updates `ViceState::pc`, `a`, `x`, `y`, `sp`, and `p` (status flags). Before each step, `debug_handler.rs` stores the prior snapshot in `ViceState::previous`.
+    -   `MEMORY_GET` response (`0x01`) updates `ViceState::live_memory`, `stack_memory`, `io_memory`, `vectors`, or `dump_memory`, based on the request.
+    -   `CHECKPOINT_GET` / `CHECKPOINT_SET` responses (`0x11`/`0x12`) update `ViceState::breakpoints` and set `ViceState::stop_reason` on a hit.
+    -   `STOPPED` event (`0x62`) sets `ViceState::running` to `false` and starts the debugger highlight flash. `RESUMED` (`0x65`) clears `stop_reason`.
+
+5.  **UI Sync**: `DebuggerView` renders the updated registers and highlights values that differ from `ViceState::previous`.
 
 ---
 
