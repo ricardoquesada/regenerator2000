@@ -258,7 +258,10 @@ fn test_assembler_enum_formatting() {
         "Colors.BLACK"
     );
     let tass_block = tass.format_enum_definition(&enum_def);
-    assert_eq!(tass_block, "Colors = {\n    BLACK: $00,\n    WHITE: $01\n}");
+    assert_eq!(
+        tass_block,
+        "Colors .block\n    BLACK = $00\n    WHITE = $01\n.bend"
+    );
 
     // --- 2. KickAssembler ---
     let kick = Disassembler::create_formatter(Assembler::Kick);
@@ -269,7 +272,7 @@ fn test_assembler_enum_formatting() {
     let kick_block = kick.format_enum_definition(&enum_def);
     assert_eq!(
         kick_block,
-        ".enum Colors {\n    BLACK = $00,\n    WHITE = $01\n}"
+        ".namespace Colors {\n    .label BLACK = $00\n    .label WHITE = $01\n}"
     );
 
     // --- 3. ca65 ---

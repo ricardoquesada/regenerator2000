@@ -432,18 +432,16 @@ impl Formatter for KickAsmFormatter {
     }
 
     fn format_enum_definition(&self, enum_def: &crate::state::EnumDefinition) -> String {
-        let mut s = format!(".enum {} {{\n", enum_def.name);
-        let mut parts = Vec::new();
+        let mut s = format!(".namespace {} {{\n", enum_def.name);
         for (&val, variant) in &enum_def.variants {
             let val_str = if val <= 0xFF {
                 format!("${:02x}", val)
             } else {
                 format!("${:04x}", val)
             };
-            parts.push(format!("    {} = {}", variant, val_str));
+            s.push_str(&format!("    .label {} = {}\n", variant, val_str));
         }
-        s.push_str(&parts.join(",\n"));
-        s.push_str("\n}");
+        s.push('}');
         s
     }
 }

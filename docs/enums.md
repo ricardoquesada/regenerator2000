@@ -146,13 +146,13 @@ Dump the built-in system enums to use them as templates for your own global enum
 During export, Regenerator 2000 translates enums into the syntax required by your target assembler:
 
 === "64tass"
-Uses named `.struct` blocks to group variants:
+Uses named `.block` scopes to group variants:
 ```asm
-Colors .struct
-BLACK = $00
-WHITE = $01
-RED = $02
-.ends
+Colors .block
+    BLACK = $00
+    WHITE = $01
+    RED = $02
+.bend
 
     ; Usage
     lda #Colors.BLACK
@@ -163,9 +163,9 @@ RED = $02
 Uses `.enum` blocks and double-colon (`::`) scope namespaces:
 ```asm
 .enum Colors
-BLACK = $00
-WHITE = $01
-RED = $02
+    BLACK = $00
+    WHITE = $01
+    RED = $02
 .endenum
 
     ; Usage
@@ -174,9 +174,13 @@ RED = $02
     ```
 
 === "KickAssembler"
-Uses `.enum` blocks and dot (`.`) namespaces:
+Uses `.namespace` blocks with `.label` definitions and dot (`.`) member access:
 ```asm
-.enum Colors { BLACK=$00, WHITE=$01, RED=$02 }
+.namespace Colors {
+    .label BLACK = $00
+    .label WHITE = $01
+    .label RED = $02
+}
 
     // Usage
     lda #Colors.BLACK

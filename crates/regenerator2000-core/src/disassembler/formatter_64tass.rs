@@ -295,7 +295,7 @@ impl Formatter for TassFormatter {
         s.push_str("; Assemble with:\n");
         let illegal_flag = if use_illegal_opcodes { "-i " } else { "" };
         s.push_str(&format!(
-            ";   64tass {illegal_flag}-o {file_name}.prg {file_name}.asm\n"
+            ";   64tass -C {illegal_flag}-o {file_name}.prg {file_name}.asm\n"
         ));
         s.push_str(";\n");
         s
@@ -335,18 +335,16 @@ impl Formatter for TassFormatter {
     }
 
     fn format_enum_definition(&self, enum_def: &crate::state::EnumDefinition) -> String {
-        let mut s = format!("{} = {{\n", enum_def.name);
-        let mut parts = Vec::new();
+        let mut s = format!("{} .block\n", enum_def.name);
         for (&val, variant) in &enum_def.variants {
             let val_str = if val <= 0xFF {
                 format!("${:02x}", val)
             } else {
                 format!("${:04x}", val)
             };
-            parts.push(format!("    {}: {}", variant, val_str));
+            s.push_str(&format!("    {} = {}\n", variant, val_str));
         }
-        s.push_str(&parts.join(",\n"));
-        s.push_str("\n}");
+        s.push_str(".bend");
         s
     }
 }
