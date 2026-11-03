@@ -1051,8 +1051,7 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     // Sync Blocks view
     if ui_state.right_pane == crate::ui_state::RightPane::Blocks
         && app_state.system_config.sync_blocks_view
-        && let Some(idx) =
-            app_state.get_block_index_for_address(target_addr, line.mnemonic == "{splitter}")
+        && let Some(idx) = app_state.get_block_index_for_address(target_addr, line.is_splitter())
     {
         ui_state.blocks_list_state.select(Some(idx));
     }

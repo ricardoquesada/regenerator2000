@@ -128,9 +128,10 @@ impl Widget for BlocksView {
                             (*start, idx)
                         }
                         crate::state::BlockItem::Splitter(addr) => {
-                            let idx = app_state.disassembly.iter().position(|line| {
-                                line.address == *addr && line.mnemonic == "{splitter}"
-                            });
+                            let idx = app_state
+                                .disassembly
+                                .iter()
+                                .position(|line| line.address == *addr && line.is_splitter());
                             (*addr, idx)
                         }
                         crate::state::BlockItem::Scope { start, .. } => {
@@ -332,9 +333,10 @@ impl Widget for BlocksView {
                             (*start, idx)
                         }
                         crate::state::BlockItem::Splitter(addr) => {
-                            let idx = app_state.disassembly.iter().position(|line| {
-                                line.address == *addr && line.mnemonic == "{splitter}"
-                            });
+                            let idx = app_state
+                                .disassembly
+                                .iter()
+                                .position(|line| line.address == *addr && line.is_splitter());
                             (*addr, idx)
                         }
                         crate::state::BlockItem::Scope { start, .. } => {

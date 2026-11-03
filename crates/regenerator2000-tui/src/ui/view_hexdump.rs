@@ -83,7 +83,7 @@ fn sync_hex_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
         // line-comments that occupy lower sub-indices.
         let counts =
             DisassemblyView::get_visual_line_counts(&app_state.disassembly[inst_idx], app_state);
-        ui_state.sub_cursor_index = counts.labels + counts.comments;
+        ui_state.sub_cursor_index = counts.opcode_sub_index();
 
         ui_state.selection_start = ui_state.hex_selection_start.and_then(|sel_row| {
             let anchor_addr = (aligned_origin

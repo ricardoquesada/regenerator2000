@@ -80,7 +80,7 @@ pub fn perform_jump_to_address_no_history(
 
         // Smart Jump: Select relevant sub-line if applicable
         if let Some(line) = app_state.disassembly.get(idx) {
-            view_state.sub_cursor_index = line.get_sub_index_for_address(app_state, target_addr.0);
+            view_state.sub_cursor_index = line.get_sub_index_for_address(app_state, target_addr);
         } else {
             view_state.sub_cursor_index = 0;
         }

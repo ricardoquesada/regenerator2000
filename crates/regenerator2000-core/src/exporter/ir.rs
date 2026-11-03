@@ -7,9 +7,8 @@
 //! [`AppState`] and [`ExportOptions`] into a strongly-typed sequence of [`ExportRow`] items
 //! in memory.
 
-use crate::disassembler::{
-    Disassembler, DisassemblyLine, LABEL_COLUMN_WIDTH, format_cross_references, resolve_label,
-};
+pub use crate::disassembler::{CODE_COLUMN_WIDTH, LABEL_COLUMN_WIDTH, LabelPlacement};
+use crate::disassembler::{Disassembler, DisassemblyLine, format_cross_references};
 use crate::error::{CoreError, ExportError};
 use crate::state::{Addr, AppState, Assembler, BlockType, DocumentSettings, LabelType};
 use std::collections::HashMap;
@@ -414,19 +413,6 @@ pub struct MidLabel {
     pub side_comment: Option<ExportComment>,
 }
 
-/// Placement of a label definition relative to its instruction row.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LabelPlacement {
-    /// No label is attached to this instruction row.
-    None,
-    /// Label fits within [`LABEL_COLUMN_WIDTH`] (`< 20` characters) and is rendered inline
-    /// in the label column on the same line as the mnemonic.
-    Inline,
-    /// Label is `>= LABEL_COLUMN_WIDTH` (`>= 20` characters) or attached to a scope brace
-    /// (`{` / `}`) and is emitted on its own preceding line.
-    OwnLine,
-}
-
 /// A parsed segment of an instruction or data directive operand.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OperandToken {
@@ -548,7 +534,7 @@ pub struct ExportDocument {
 /// such as `_loop` in `64tass`, `.loop` in `ACME`, and `@loop` in `ca65`) to their [`Addr`].
 #[must_use]
 pub fn build_label_lookup_map(state: &AppState, assembler: Assembler) -> HashMap<String, Addr> {
-    let formatter = Disassembler::create_formatter(assembler);
+    let formatter = Disassembler::formatter(assembler);
     let local_prefix = formatter.local_label_prefix();
     let mut label_name_to_addr = HashMap::new();
     for (addr, label_vec) in &state.labels {
@@ -736,6 +722,15 @@ pub fn tokenize_operand<S: std::hash::BuildHasher>(
     tokens
 }
 
+/// Lowers a single body [`DisassemblyLine`] into a structured [`InstructionRow`].
+///
+/// Delegates per-line semantic lowering—mid-instruction relative labels
+/// ([`DisassemblyLine::mid_instruction_labels`]), local prefix deduplication
+/// ([`MidInstructionLabel::format_definition`](crate::disassembler::MidInstructionLabel::format_definition)),
+/// unindented scope detection ([`DisassemblyLine::is_unindented_scope`]), formatted label text
+/// ([`DisassemblyLine::formatted_label`]), and [`LabelPlacement`]
+/// ([`DisassemblyLine::label_placement`])—to [`crate::disassembler`] so batch exports and the
+/// interactive TUI share identical column-wrapping and symbol-resolution rules.
 fn lower_instruction_row(
     line: &DisassemblyLine,
     state: &AppState,
@@ -750,43 +745,23 @@ fn lower_instruction_row(
         .map(|c| c.lines().map(ToString::to_string).collect())
         .unwrap_or_default();
 
-    let mut mid_labels = Vec::new();
-    if line.bytes.len() > 1 {
-        for offset in 1..line.bytes.len() {
-            let mid_addr = line.address.wrapping_add(offset as u16);
-            if let Some(label_vec) = state.labels.get(&mid_addr)
-                && let Some(label) = resolve_label(label_vec, mid_addr.0, settings)
-            {
-                let mut name = label.name.clone();
-                if label.label_type == LabelType::LocalUserDefined
-                    && let Some(p) = formatter.local_label_prefix()
-                    && !name.starts_with(p)
-                {
-                    name = format!("{p}{name}");
-                }
-                let definition = formatter.format_relative_label(&name, offset);
-                let side_comment = ExportComment::from_xrefs_only(state, settings, mid_addr);
-                mid_labels.push(MidLabel {
-                    address: mid_addr,
-                    definition,
-                    side_comment,
-                });
+    let mid_labels = line
+        .mid_instruction_labels(state)
+        .into_iter()
+        .map(|mid| {
+            let definition = mid.format_definition(formatter);
+            let side_comment = ExportComment::from_xrefs_only(state, settings, mid.address);
+            MidLabel {
+                address: mid.address,
+                definition,
+                side_comment,
             }
-        }
-    }
+        })
+        .collect();
 
-    let is_scope_brace = line.mnemonic == "{" || line.mnemonic == "}";
-    let label = line
-        .label
-        .as_ref()
-        .map(|l| formatter.format_label_definition(l))
-        .filter(|s| !s.is_empty());
-
-    let label_placement = match &label {
-        None => LabelPlacement::None,
-        Some(l) if is_scope_brace || l.len() >= LABEL_COLUMN_WIDTH => LabelPlacement::OwnLine,
-        Some(_) => LabelPlacement::Inline,
-    };
+    let is_scope_brace = line.is_unindented_scope(comment_prefix);
+    let label = line.formatted_label(formatter);
+    let label_placement = line.label_placement(formatter);
 
     let operand_tokens = tokenize_operand(
         &line.operand,
@@ -823,6 +798,7 @@ fn lower_instruction_row(
 /// Lowers [`AppState`] and [`ExportOptions`] into a unified, target-agnostic [`ExportDocument`] IR.
 ///
 /// This pass performs zero filesystem I/O and zero [`AppState`] cloning. It lowers:
+///
 /// 1. Top-of-file metadata into [`ExportHeader`].
 /// 2. Formatter file directives ([`Formatter::format_file_directives`](crate::disassembler::formatter::Formatter::format_file_directives))
 ///    into [`ExportRow::FileDirective`].
@@ -834,7 +810,7 @@ fn lower_instruction_row(
 /// 6. Body disassembly lines into [`ExportRow::ExternalFile`] and [`ExportRow::Instruction`].
 #[must_use]
 pub fn build_export_document(state: &AppState, options: &ExportOptions) -> ExportDocument {
-    let formatter = Disassembler::create_formatter(options.assembler);
+    let formatter = Disassembler::formatter(options.assembler);
     let comment_prefix = formatter.comment_prefix().to_string();
 
     // Clone only the lightweight `DocumentSettings` struct so `DisassemblyContext` can use
@@ -888,8 +864,7 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
     }
 
     // 2. External & ExternalFile label equates
-    let external_lines =
-        state.get_external_label_definitions_with_formatter(true, formatter.as_ref());
+    let external_lines = state.get_external_label_definitions_with_formatter(true, formatter);
     for line in &external_lines {
         if line.mnemonic.is_empty() && line.bytes.is_empty() && line.comment.is_empty() {
             rows.push(ExportRow::Blank);
@@ -915,7 +890,7 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
     }
 
     // 3. Enum definitions
-    let enum_lines = state.get_enum_definition_lines_with_formatter(formatter.as_ref());
+    let enum_lines = state.get_enum_definition_lines_with_formatter(formatter);
     for line in &enum_lines {
         if line.mnemonic.is_empty() && line.bytes.is_empty() && line.comment.is_empty() {
             rows.push(ExportRow::Blank);
@@ -955,7 +930,7 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
     while i < full_disassembly.len() {
         let line = &full_disassembly[i];
 
-        if line.mnemonic == "{splitter}" {
+        if line.is_splitter() {
             i += 1;
             continue;
         }
@@ -1025,7 +1000,7 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
                 if !line_in_range {
                     break;
                 }
-                if next_line.mnemonic != "{splitter}" {
+                if !next_line.is_splitter() {
                     if next_line.mnemonic.is_empty()
                         && next_line.bytes.is_empty()
                         && next_line.comment.is_empty()
@@ -1038,7 +1013,7 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
                             next_line,
                             state,
                             &settings,
-                            formatter.as_ref(),
+                            formatter,
                             &comment_prefix,
                             &label_name_to_addr,
                         )));
@@ -1072,7 +1047,7 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
             line,
             state,
             &settings,
-            formatter.as_ref(),
+            formatter,
             &comment_prefix,
             &label_name_to_addr,
         )));

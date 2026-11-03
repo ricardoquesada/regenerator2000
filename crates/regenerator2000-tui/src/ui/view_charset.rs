@@ -35,7 +35,7 @@ fn sync_charset_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
         ui_state.cursor_index = inst_idx;
         let counts =
             DisassemblyView::get_visual_line_counts(&app_state.disassembly[inst_idx], app_state);
-        ui_state.sub_cursor_index = counts.labels + counts.comments;
+        ui_state.sub_cursor_index = counts.opcode_sub_index();
 
         ui_state.selection_start = ui_state.charset_selection_start.and_then(|sel_idx| {
             let anchor_addr = (aligned_start_addr + sel_idx * 8)

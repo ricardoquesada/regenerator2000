@@ -34,7 +34,7 @@ fn sync_sprites_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
         ui_state.cursor_index = inst_idx;
         let counts =
             DisassemblyView::get_visual_line_counts(&app_state.disassembly[inst_idx], app_state);
-        ui_state.sub_cursor_index = counts.labels + counts.comments;
+        ui_state.sub_cursor_index = counts.opcode_sub_index();
 
         ui_state.selection_start = ui_state.sprites_selection_start.and_then(|sel_idx| {
             let anchor_addr = (aligned_origin + sel_idx * 64)

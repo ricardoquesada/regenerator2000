@@ -36,6 +36,11 @@ pub use error::*;
 /// A specialized [`Result`](std::result::Result) type for core operations returning [`CoreError`].
 pub type Result<T> = std::result::Result<T, CoreError>;
 pub mod disassembler;
+pub use disassembler::{
+    CODE_COLUMN_WIDTH, DEFINITION_COLUMN_WIDTH, Disassembler, DisassemblyLine, DisassemblyLineKind,
+    INSTRUCTION_COLUMN_WIDTH, LABEL_COLUMN_WIDTH, LabelPlacement, MidInstructionLabel,
+    SPLITTER_MNEMONIC, VisualLineCounts,
+};
 pub mod event;
 pub mod exporter;
 pub mod navigation;

@@ -105,8 +105,7 @@ pub fn handle_mouse_events(
         let mut next = current_inst + 1;
         while next < app_state.disassembly.len() {
             let l = &app_state.disassembly[next];
-            if !l.bytes.is_empty() || l.is_collapsed || l.label.is_some() || !l.mnemonic.is_empty()
-            {
+            if l.is_navigable() {
                 break;
             }
             next += 1;

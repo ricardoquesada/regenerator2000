@@ -38,11 +38,7 @@ pub fn move_cursor_down(app_state: &AppState, ui_state: &mut UIState, amount: us
             let mut next_idx = ui_state.cursor_index + 1;
             while next_idx < app_state.disassembly.len() {
                 let next_line = &app_state.disassembly[next_idx];
-                if !next_line.bytes.is_empty()
-                    || next_line.is_collapsed
-                    || next_line.label.is_some()
-                    || !next_line.mnemonic.is_empty()
-                {
+                if next_line.is_navigable() {
                     break;
                 }
                 next_idx += 1;
@@ -79,22 +75,14 @@ pub fn move_cursor_up(app_state: &AppState, ui_state: &mut UIState, amount: usiz
             let mut prev_idx = ui_state.cursor_index - 1;
             while prev_idx > 0 {
                 let prev_line = &app_state.disassembly[prev_idx];
-                if !prev_line.bytes.is_empty()
-                    || prev_line.is_collapsed
-                    || prev_line.label.is_some()
-                    || !prev_line.mnemonic.is_empty()
-                {
+                if prev_line.is_navigable() {
                     break;
                 }
                 prev_idx -= 1;
             }
 
             let prev_line = &app_state.disassembly[prev_idx];
-            if !prev_line.bytes.is_empty()
-                || prev_line.is_collapsed
-                || prev_line.label.is_some()
-                || !prev_line.mnemonic.is_empty()
-            {
+            if prev_line.is_navigable() {
                 ui_state.cursor_index = prev_idx;
                 let prev_counts = get_visual_line_count_for_instruction(prev_line, app_state);
                 ui_state.sub_cursor_index = prev_counts.saturating_sub(1);

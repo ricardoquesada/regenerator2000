@@ -1,3 +1,10 @@
+//! Main disassembly decoding loop and instruction-level byte consumption pipeline.
+//!
+//! This module drives the byte-by-byte traversal of `ctx.data` ([`disassemble_ctx`]),
+//! emitting lexical scope delimiters, virtual block splitters ([`super::SPLITTER_MNEMONIC`]),
+//! collapsed block summary lines, code instructions ([`disassemble_code_instruction`]), and
+//! formatted data directives.
+
 use crate::cpu::Opcode;
 use crate::disassembler::DisassemblyLine;
 use crate::disassembler::context::{DisassemblyContext, HandleArgs};
@@ -10,7 +17,11 @@ use crate::disassembler::symbols::{
 use crate::state::{Addr, BlockType};
 use std::collections::BTreeMap;
 
-/// Disassembles a single 6502 code instruction at `pc`.
+/// Decodes a single MOS 6502/6510 code instruction starting at byte offset `args.pc`.
+///
+/// Returns `(bytes_consumed, emitted_lines)`, handling multi-byte `BRK` signature bytes
+/// (`!settings.brk_single_byte`), illegal opcode filtering (`settings.use_illegal_opcodes`),
+/// and fallback `.byte` emission when an opcode is undecodable or crosses a non-code block boundary.
 #[must_use]
 pub fn disassemble_code_instruction(
     opcodes: &[Option<Opcode>; 256],
@@ -247,7 +258,9 @@ pub fn disassemble_code_instruction(
     )
 }
 
-/// Drives the main disassembly loop over `ctx.data`.
+/// Drives the main disassembly loop over `ctx.data`, converting raw memory bytes,
+/// block classifications, labels, lexical scopes, splitters, and collapsed ranges into
+/// a sequence of [`DisassemblyLine`] rows.
 #[must_use]
 pub fn disassemble_ctx(
     opcodes: &[Option<Opcode>; 256],
@@ -323,12 +336,14 @@ pub fn disassemble_ctx(
             current_scope_name = None;
         }
 
-        // Render splitter if exists at this address
+        // Emit a virtual splitter marker (`SPLITTER_MNEMONIC`) when a user splitter or
+        // lexical scope boundary exists at `address`. The TUI renders this marker as a
+        // full-width horizontal ruler while the batch exporter skips it via `is_splitter()`.
         if ctx.is_virtual_splitter(address) {
             lines.push(DisassemblyLine {
                 address,
                 bytes: vec![],
-                mnemonic: "{splitter}".to_string(),
+                mnemonic: super::SPLITTER_MNEMONIC.to_string(),
                 operand: String::new(),
                 comment: String::new(),
                 line_comment: None,
