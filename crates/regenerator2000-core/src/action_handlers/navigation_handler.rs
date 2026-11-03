@@ -648,32 +648,10 @@ impl DomainActionHandler for NavigationActionHandler {
             }
             AppAction::FindReferences => {
                 if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
-                    let addr = if line.bytes.is_empty() {
-                        line.external_label_address.unwrap_or(line.address)
-                    } else if line.bytes.len() > 1 {
-                        let mut resolved = line.address;
-                        let mut current_sub_index = 0;
-                        let mut found = false;
-                        for offset in 1..line.bytes.len() {
-                            let mid_addr = line.address.wrapping_add(offset as u16);
-                            if let Some(labels) = ctx.state.labels.get(&mid_addr) {
-                                for _ in labels {
-                                    if current_sub_index == ctx.view.sub_cursor_index {
-                                        resolved = mid_addr;
-                                        found = true;
-                                        break;
-                                    }
-                                    current_sub_index += 1;
-                                }
-                            }
-                            if found {
-                                break;
-                            }
-                        }
-                        resolved
-                    } else {
-                        line.address
-                    };
+                    // Resolve `sub_cursor_index` via `address_at_sub_index` so querying references
+                    // on a mid-instruction label row (`* + offset`) or external equate row inspects
+                    // that specific target address.
+                    let addr = line.address_at_sub_index(ctx.state, ctx.view.sub_cursor_index);
                     ctx.events.push(CoreEvent::DialogRequested(
                         crate::event::DialogType::FindReferences(addr),
                     ));

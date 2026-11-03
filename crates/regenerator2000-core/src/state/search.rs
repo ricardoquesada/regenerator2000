@@ -1,3 +1,15 @@
+//! Disassembly search engine, filter configuration, and 2D sub-cursor match resolution.
+//!
+//! This module implements plain-text substring matching, case-insensitive regular expression
+//! matching, wildcard hex-byte pattern scanning, and PETSCII/Screencode string matching across
+//! [`AppState::disassembly`](crate::state::AppState::disassembly) and collapsed memory blocks.
+//!
+//! To keep TUI search highlights synchronized with [`DisassemblyLine`](crate::disassembler::DisassemblyLine)
+//! rendering across all four assemblers, [`get_line_matches`] computes visual sub-line indices
+//! via [`DisassemblyLine::visual_line_counts`](crate::disassembler::DisassemblyLine::visual_line_counts),
+//! distinguishing standalone [`LabelPlacement::OwnLine`](crate::disassembler::LabelPlacement::OwnLine)
+//! label rows from main opcode rows.
+
 use crate::state::AppState;
 use crate::utils::{petscii_to_unicode, screencode_to_petscii};
 use regex::Regex;
@@ -6,12 +18,18 @@ use regex::Regex;
 // SearchFilters
 // ---------------------------------------------------------------------------
 
+/// Domain flags controlling which disassembly columns and byte representations are searched.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchFilters {
+    /// Match against primary labels and mid-instruction relative labels.
     pub labels: bool,
+    /// Match against full-line comments and trailing side comments.
     pub comments: bool,
+    /// Match against instruction mnemonics and formatted operands.
     pub instructions: bool,
+    /// Match against raw instruction bytes and wildcard hex byte patterns (plain-text mode only).
     pub hex_bytes: bool,
+    /// Match against raw binary bytes decoded as PETSCII and Screencode text (plain-text mode only).
     pub text: bool,
     /// When `true`, the search query is interpreted as a regular expression.
     /// Hex-byte and PETSCII/Screencode byte scanning are disabled in regex mode.
@@ -32,6 +50,7 @@ impl Default for SearchFilters {
 }
 
 impl SearchFilters {
+    /// Returns the six filter flags as a fixed-size boolean array for UI checkbox iteration.
     #[must_use]
     pub fn as_array(&self) -> [bool; 6] {
         [
@@ -44,6 +63,7 @@ impl SearchFilters {
         ]
     }
 
+    /// Toggles the filter flag at `index` (`0..6`).
     pub fn toggle(&mut self, index: usize) {
         match index {
             0 => self.labels = !self.labels,
@@ -56,6 +76,7 @@ impl SearchFilters {
         }
     }
 
+    /// Enables all five content category filters (`labels`, `comments`, `instructions`, `hex_bytes`, `text`).
     pub fn set_all(&mut self) {
         self.labels = true;
         self.comments = true;
@@ -64,6 +85,7 @@ impl SearchFilters {
         self.text = true;
     }
 
+    /// Disables all five content category filters (`labels`, `comments`, `instructions`, `hex_bytes`, `text`).
     pub fn set_none(&mut self) {
         self.labels = false;
         self.comments = false;
@@ -269,13 +291,13 @@ fn text_matches(haystack: &str, query_lower: &str, regex: Option<&Regex>) -> boo
     }
 }
 
-/// Returns `true` when the disassembly line's textual content matches the query.
+/// Returns `true` when the disassembly line's non-label textual content matches the query.
 ///
-/// Hex-byte matching uses alignment-aware byte-level scanning and is disabled
-/// in regex mode (the query is a pattern, not a hex string).  Mnemonic,
-/// operand, comment, and label fields are matched via text matching.
+/// Checks hex-byte alignment (in plain-text mode), mnemonic, operand, and side comment,
+/// intentionally excluding [`DisassemblyLine::label`](crate::disassembler::DisassemblyLine::label)
+/// so standalone `OwnLine` labels do not also match the opcode row.
 #[must_use]
-pub fn match_instruction_content(
+fn match_instruction_content_without_label(
     line: &crate::disassembler::DisassemblyLine,
     query_lower: &str,
     regex: Option<&Regex>,
@@ -318,6 +340,25 @@ pub fn match_instruction_content(
         return true;
     }
 
+    false
+}
+
+/// Returns `true` when the disassembly line's textual content matches the query.
+///
+/// Hex-byte matching uses alignment-aware byte-level scanning and is disabled
+/// in regex mode (the query is a pattern, not a hex string).  Mnemonic,
+/// operand, comment, and label fields are matched via text matching.
+#[must_use]
+pub fn match_instruction_content(
+    line: &crate::disassembler::DisassemblyLine,
+    query_lower: &str,
+    regex: Option<&Regex>,
+    filters: &SearchFilters,
+) -> bool {
+    if match_instruction_content_without_label(line, query_lower, regex, filters) {
+        return true;
+    }
+
     if filters.labels
         && let Some(lbl) = &line.label
         && text_matches(lbl, query_lower, regex)
@@ -328,15 +369,23 @@ pub fn match_instruction_content(
     false
 }
 
-/// Returns the list of sub-indices within `line` that match the query.
+/// Returns the list of visual sub-line indices within `line` that match the query.
 ///
-/// Sub-indices map to: mid-address labels (relative offsets), line-comment
-/// lines, and then the instruction itself (mnemonic / operand / comment /
-/// label).  Used by the TUI to highlight individual matches within a row.
+/// Sub-indices follow [`VisualLineCounts`](crate::disassembler::VisualLineCounts) top-to-bottom ordering:
 ///
-/// * `query_lower` – the query string lowercased; used for plain-text search.
-/// * `hex_pattern` – pre-parsed hex byte pattern; `None` in regex mode.
-/// * `regex`       – compiled regex; `None` in plain-text mode.
+/// 1. `0..counts.labels`: Resolved mid-instruction relative labels (`* + offset`).
+/// 2. `counts.labels..counts.labels + counts.comments`: Full-line `line_comment` rows.
+/// 3. [`VisualLineCounts::own_line_label_sub_index()`](crate::disassembler::VisualLineCounts::own_line_label_sub_index)
+///    (`counts.labels + counts.comments`, when [`LabelPlacement::OwnLine`](crate::disassembler::LabelPlacement::OwnLine) holds):
+///    Standalone own-line label row.
+/// 4. [`VisualLineCounts::opcode_sub_index()`](crate::disassembler::VisualLineCounts::opcode_sub_index):
+///    The main instruction, directive, equate, or scope row.
+///
+/// # Arguments
+///
+/// * `query_lower` – Lowercased query string used for plain-text substring search.
+/// * `hex_pattern` – Pre-parsed hex byte pattern (`None` in regex mode).
+/// * `regex`       – Compiled case-insensitive regex (`None` in plain-text mode).
 #[must_use]
 pub fn get_line_matches(
     line: &crate::disassembler::DisassemblyLine,
@@ -347,42 +396,38 @@ pub fn get_line_matches(
     filters: &SearchFilters,
 ) -> Vec<usize> {
     let mut matches = Vec::new();
-    let mut current_sub = 0;
+    let formatter = crate::disassembler::Disassembler::formatter(app_state.settings.assembler);
+    let counts = line.visual_line_counts(app_state, formatter);
 
-    // 1. Relative Labels
-    if line.bytes.len() > 1 {
-        for offset in 1..line.bytes.len() {
-            let mid_addr = line.address.wrapping_add(offset as u16);
-            if let Some(labels) = app_state.labels.get(&mid_addr) {
-                for _ in labels {
-                    if filters.labels
-                        && labels
-                            .iter()
-                            .any(|l| text_matches(&l.name, query_lower, regex))
-                    {
-                        matches.push(current_sub);
-                    }
-                    current_sub += 1;
-                }
-            }
+    // 1. Mid-instruction relative labels (`0..counts.labels`):
+    // Match against both the raw resolved symbol name and the assembler-formatted relative
+    // definition (for example, `_loop =*+$01` or `.label loop = * + 1`).
+    for (sub_idx, mid) in line
+        .mid_instruction_labels(app_state)
+        .into_iter()
+        .enumerate()
+    {
+        if filters.labels
+            && (text_matches(&mid.name, query_lower, regex)
+                || text_matches(&mid.format_definition(formatter), query_lower, regex))
+        {
+            matches.push(sub_idx);
         }
     }
 
-    // 2. Line Comment
-    if let Some(lc) = &line.line_comment {
-        for comment_line in lc.lines() {
+    // 2. Full-line comments (`counts.labels..counts.labels + counts.comments`):
+    // Skip external equate rows to match `visual_line_counts` and `render_line_comment_sub_rows`.
+    if let Some(lc) = &line.line_comment
+        && line.external_label_address.is_none()
+    {
+        for (comment_idx, comment_line) in lc.lines().enumerate() {
             if filters.comments && text_matches(comment_line, query_lower, regex) {
-                matches.push(current_sub);
+                matches.push(counts.labels + comment_idx);
             }
-            current_sub += 1;
         }
     }
 
-    // 3. Instruction Content
-    let mut instruction_match = match_instruction_content(line, query_lower, regex, filters);
-
-    // 4. Hex pattern and string-encoding search (plain-text mode only)
-    if !instruction_match && regex.is_none() {
+    let check_raw_byte_or_string_patterns = || {
         for offset in 0..line.bytes.len() {
             let addr = line.address.wrapping_add(offset as u16);
 
@@ -390,20 +435,55 @@ pub fn get_line_matches(
             if let Some(pattern) = hex_pattern
                 && check_hex_pattern(addr, pattern, app_state)
             {
-                instruction_match = true;
-                break;
+                return true;
             }
 
             // String pattern search (PETSCII / Screencode)
             if check_string_pattern(addr, query_lower, app_state, filters) {
-                instruction_match = true;
-                break;
+                return true;
             }
         }
-    }
+        false
+    };
 
-    if instruction_match {
-        matches.push(current_sub);
+    // 3 & 4. Standalone `OwnLine` label row (`L + C`) vs. Main Opcode Row (`L + C + 1` or `L + C`):
+    // When `LabelPlacement::OwnLine` holds, the label occupies its own visual sub-row (`own_label_sub`)
+    // above the opcode row (`counts.opcode_sub_index()`). Evaluate the label on `own_label_sub` and
+    // use `match_instruction_content_without_label` on `opcode_sub_index()` so a label match highlights
+    // only the standalone label row while an operand/mnemonic/comment match highlights the opcode row.
+    if let Some(own_label_sub) = counts.own_line_label_sub_index() {
+        if filters.labels
+            && (line
+                .label
+                .as_ref()
+                .is_some_and(|lbl| text_matches(lbl, query_lower, regex))
+                || line
+                    .formatted_label(formatter)
+                    .is_some_and(|fl| text_matches(&fl, query_lower, regex)))
+        {
+            matches.push(own_label_sub);
+        }
+
+        let mut inst_matched =
+            match_instruction_content_without_label(line, query_lower, regex, filters);
+        if !inst_matched && regex.is_none() {
+            inst_matched = check_raw_byte_or_string_patterns();
+        }
+        if inst_matched {
+            matches.push(counts.opcode_sub_index());
+        }
+    } else {
+        let mut inst_matched = match_instruction_content(line, query_lower, regex, filters)
+            || (filters.labels
+                && line
+                    .formatted_label(formatter)
+                    .is_some_and(|fl| text_matches(&fl, query_lower, regex)));
+        if !inst_matched && regex.is_none() {
+            inst_matched = check_raw_byte_or_string_patterns();
+        }
+        if inst_matched {
+            matches.push(counts.opcode_sub_index());
+        }
     }
 
     matches
@@ -746,6 +826,161 @@ mod tests {
         assert_eq!(
             get_line_matches(&line, &app_state, "line", None, None, &filters),
             vec![1, 2, 3]
+        );
+    }
+
+    #[test]
+    fn test_get_line_matches_own_line_label_vs_opcode_sub_index_no_duplicates() {
+        use crate::state::{Addr, Assembler, Label, LabelKind, LabelType};
+
+        let mut app_state = AppState::new();
+        app_state.settings.assembler = Assembler::Ca65;
+        app_state.labels.insert(
+            Addr(0x1001),
+            vec![Label {
+                name: "mid_lbl".to_string(),
+                label_type: LabelType::UserDefined,
+                kind: LabelKind::User,
+            }],
+        );
+
+        let mut line = DisassemblyLine {
+            address: Addr(0x1000),
+            bytes: vec![0xA9, 0x00],
+            mnemonic: "LDA".to_string(),
+            operand: "#$00".to_string(),
+            comment: "load zero".to_string(),
+            line_comment: Some("header 1\nheader 2".to_string()),
+            label: Some("nineteen_char_label".to_string()),
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+
+        // Visual layout in Ca65:
+        // 0: mid-instruction label ("mid_lbl =*+$01")
+        // 1: "header 1"
+        // 2: "header 2"
+        // 3: standalone OwnLine label ("nineteen_char_label:")
+        // 4: main opcode row ($1000  A9 00  LDA #$00  ; load zero)
+        let filters = SearchFilters::default();
+
+        assert_eq!(
+            get_line_matches(&line, &app_state, "mid_lbl", None, None, &filters),
+            vec![0]
+        );
+        assert_eq!(
+            get_line_matches(&line, &app_state, "=*+$01", None, None, &filters),
+            vec![0]
+        );
+        assert_eq!(
+            get_line_matches(&line, &app_state, "header 2", None, None, &filters),
+            vec![2]
+        );
+
+        // Standalone OwnLine label match must ONLY return sub-index 3, never [3, 4]
+        assert_eq!(
+            get_line_matches(
+                &line,
+                &app_state,
+                "nineteen_char_label",
+                None,
+                None,
+                &filters
+            ),
+            vec![3]
+        );
+        assert_eq!(
+            get_line_matches(
+                &line,
+                &app_state,
+                "nineteen_char_label:",
+                None,
+                None,
+                &filters
+            ),
+            vec![3]
+        );
+
+        // Instruction, operand, side comment, and hex bytes must point to opcode_sub_index() == 4
+        assert_eq!(
+            get_line_matches(&line, &app_state, "lda", None, None, &filters),
+            vec![4]
+        );
+        assert_eq!(
+            get_line_matches(&line, &app_state, "#$00", None, None, &filters),
+            vec![4]
+        );
+        assert_eq!(
+            get_line_matches(&line, &app_state, "load zero", None, None, &filters),
+            vec![4]
+        );
+        assert_eq!(
+            get_line_matches(&line, &app_state, "a900", None, None, &filters),
+            vec![4]
+        );
+
+        // When side comment also contains the label substring, both rows [3, 4] match
+        line.comment = "nineteen_char_label_ref".to_string();
+        assert_eq!(
+            get_line_matches(
+                &line,
+                &app_state,
+                "nineteen_char_label",
+                None,
+                None,
+                &filters
+            ),
+            vec![3, 4]
+        );
+    }
+
+    #[test]
+    fn test_get_line_matches_mid_instruction_label_priority_single_sub_index() {
+        use crate::state::{Addr, Label, LabelKind, LabelType};
+
+        let mut app_state = AppState::new();
+        app_state.labels.insert(
+            Addr(0x1001),
+            vec![
+                Label {
+                    name: "a1001".to_string(),
+                    label_type: LabelType::AbsoluteAddress,
+                    kind: LabelKind::Auto,
+                },
+                Label {
+                    name: "custom_mid".to_string(),
+                    label_type: LabelType::UserDefined,
+                    kind: LabelKind::User,
+                },
+            ],
+        );
+
+        let line = DisassemblyLine {
+            address: Addr(0x1000),
+            bytes: vec![0xA9, 0x00],
+            mnemonic: "LDA".to_string(),
+            operand: "#$00".to_string(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+
+        let filters = SearchFilters::default();
+        assert_eq!(
+            get_line_matches(&line, &app_state, "custom_mid", None, None, &filters),
+            vec![0]
+        );
+        assert_eq!(
+            get_line_matches(&line, &app_state, "lda", None, None, &filters),
+            vec![1]
         );
     }
 }

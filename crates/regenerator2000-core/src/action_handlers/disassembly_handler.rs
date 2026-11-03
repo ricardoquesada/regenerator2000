@@ -459,36 +459,15 @@ fn handle_apply_comment(
     ctx.events.push(CoreEvent::ViewChanged);
 }
 
+/// Opens the label editor dialog for the 6502 [`Addr`] at `(cursor_index, sub_cursor_index)`.
+///
+/// Uses [`DisassemblyLine::address_at_sub_index`](crate::disassembler::DisassemblyLine::address_at_sub_index)
+/// so invoking `SetLabel` while the sub-cursor is parked on a mid-instruction relative label row
+/// (`* + offset`) edits that intermediate byte's label rather than the instruction's base address.
 fn handle_set_label(ctx: &mut ActionContext<'_>) {
     if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
-        let address = line.address;
         let is_external = line.external_label_address.is_some();
-        let target_addr = if is_external {
-            line.external_label_address.unwrap_or(address)
-        } else if line.bytes.len() > 1 {
-            let mut resolved = address;
-            let mut current_sub_index = 0;
-            let mut found = false;
-            for offset in 1..line.bytes.len() {
-                let mid_addr = address.wrapping_add(offset as u16);
-                if let Some(labels) = ctx.state.labels.get(&mid_addr) {
-                    for _ in labels {
-                        if current_sub_index == ctx.view.sub_cursor_index {
-                            resolved = mid_addr;
-                            found = true;
-                            break;
-                        }
-                        current_sub_index += 1;
-                    }
-                }
-                if found {
-                    break;
-                }
-            }
-            resolved
-        } else {
-            address
-        };
+        let target_addr = line.address_at_sub_index(ctx.state, ctx.view.sub_cursor_index);
 
         if is_external {
             let current = ctx
@@ -1181,7 +1160,11 @@ impl DomainActionHandler for DisassemblyActionHandler {
             AppAction::ToggleBookmark => {
                 if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
                     if line.external_label_address.is_none() {
-                        let address = line.address;
+                        // Resolve `sub_cursor_index` via `address_at_sub_index` so toggling a
+                        // bookmark on a mid-instruction label row (`* + offset`) bookmarks that
+                        // intermediate byte address, matching the `+` indicator in the TUI gutter.
+                        let address =
+                            line.address_at_sub_index(ctx.state, ctx.view.sub_cursor_index);
                         let is_bookmarked = ctx
                             .state
                             .annotations
@@ -1189,12 +1172,14 @@ impl DomainActionHandler for DisassemblyActionHandler {
                             .and_then(|e| e.bookmark.as_ref())
                             .is_some();
 
+                        // Use a non-empty default bookmark name (`"Bookmark"`) because
+                        // `AnnotationManager` normalizes whitespace and prunes empty strings.
                         let command = crate::commands::Command::SetBookmark {
                             address,
                             new_name: if is_bookmarked {
                                 None
                             } else {
-                                Some(String::new())
+                                Some("Bookmark".to_string())
                             },
                             old_name: ctx
                                 .state
@@ -1375,5 +1360,136 @@ mod tests {
                 .and_then(|e| e.immediate_format),
             Some(crate::state::ImmediateFormat::LowByte(Addr(0x1688)))
         );
+    }
+
+    #[test]
+    fn test_toggle_bookmark_on_mid_instruction_label_and_opcode_rows() {
+        let mut core = Core::new();
+        let prg = vec![0x4C, 0x00, 0x20]; // JMP $2000 at $1000..=$1002
+        let _ = core.state.load_binary(Addr(0x1000), prg);
+        core.state.block_types = vec![crate::state::BlockType::Code; 3];
+        core.state.labels.insert(
+            Addr(0x1001),
+            vec![crate::state::Label {
+                name: "mid_target".to_string(),
+                kind: crate::state::LabelKind::User,
+                label_type: crate::state::LabelType::UserDefined,
+            }],
+        );
+        core.state.disassemble();
+
+        // Sub-index 0 is the mid-instruction label row for $1001
+        core.view.cursor_index = 0;
+        core.view.sub_cursor_index = 0;
+        let _ = core.apply_action(AppAction::ToggleBookmark);
+        assert!(
+            core.state
+                .annotations
+                .get(Addr(0x1001))
+                .and_then(|e| e.bookmark.as_ref())
+                .is_some()
+        );
+        assert!(
+            core.state
+                .annotations
+                .get(Addr(0x1000))
+                .and_then(|e| e.bookmark.as_ref())
+                .is_none()
+        );
+
+        // Toggle off at sub-index 0
+        let _ = core.apply_action(AppAction::ToggleBookmark);
+        assert!(
+            core.state
+                .annotations
+                .get(Addr(0x1001))
+                .and_then(|e| e.bookmark.as_ref())
+                .is_none()
+        );
+
+        // Sub-index 1 is the main opcode row for $1000
+        core.view.sub_cursor_index = 1;
+        let _ = core.apply_action(AppAction::ToggleBookmark);
+        assert!(
+            core.state
+                .annotations
+                .get(Addr(0x1000))
+                .and_then(|e| e.bookmark.as_ref())
+                .is_some()
+        );
+        assert!(
+            core.state
+                .annotations
+                .get(Addr(0x1001))
+                .and_then(|e| e.bookmark.as_ref())
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn test_set_label_on_mid_instruction_sub_cursor_with_multiple_labels() {
+        let mut core = Core::new();
+        let prg = vec![0x4C, 0x00, 0x20]; // JMP $2000 at $1000..=$1002
+        let _ = core.state.load_binary(Addr(0x1000), prg);
+        core.state.block_types = vec![crate::state::BlockType::Code; 3];
+        core.state.labels.insert(
+            Addr(0x1001),
+            vec![
+                crate::state::Label {
+                    name: "a1001".to_string(),
+                    kind: crate::state::LabelKind::Auto,
+                    label_type: crate::state::LabelType::AbsoluteAddress,
+                },
+                crate::state::Label {
+                    name: "user_1001".to_string(),
+                    kind: crate::state::LabelKind::User,
+                    label_type: crate::state::LabelType::UserDefined,
+                },
+            ],
+        );
+        core.state.labels.insert(
+            Addr(0x1002),
+            vec![crate::state::Label {
+                name: "user_1002".to_string(),
+                kind: crate::state::LabelKind::User,
+                label_type: crate::state::LabelType::UserDefined,
+            }],
+        );
+        core.state.disassemble();
+
+        core.view.cursor_index = 0;
+
+        // Sub-index 0 -> $1001
+        core.view.sub_cursor_index = 0;
+        let events0 = core.apply_action(AppAction::SetLabel);
+        assert!(events0.iter().any(|e| matches!(
+            e,
+            CoreEvent::DialogRequested(crate::event::DialogType::Label {
+                address: Addr(0x1001),
+                ..
+            })
+        )));
+
+        // Sub-index 1 -> $1002 (NOT $1001 again!)
+        core.view.sub_cursor_index = 1;
+        let events1 = core.apply_action(AppAction::SetLabel);
+        assert!(events1.iter().any(|e| matches!(
+            e,
+            CoreEvent::DialogRequested(crate::event::DialogType::Label {
+                address: Addr(0x1002),
+                ..
+            })
+        )));
+
+        // Sub-index 2 (opcode row) -> $1000
+        core.view.sub_cursor_index = 2;
+        let events2 = core.apply_action(AppAction::SetLabel);
+        assert!(events2.iter().any(|e| matches!(
+            e,
+            CoreEvent::DialogRequested(crate::event::DialogType::Label {
+                address: Addr(0x1000),
+                ..
+            })
+        )));
     }
 }
