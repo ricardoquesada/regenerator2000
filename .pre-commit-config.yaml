@@ -1,45 +1,44 @@
+# Exclude 6502 golden test fixtures and binary/serialized project snapshots from text-mutating hooks.
+exclude: '^(tests/6502/A2-|.*\.(t64|d64|d71|d81|vsf|crt|bin|raw|prg|dis65|sym65|regen2000proj)$)'
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: '.*\.(t64|vsf|crt|bin|raw|prg|regen2000proj)$'
       - id: end-of-file-fixer
-        exclude: '.*\.(t64|vsf|crt|bin|raw|prg|regen2000proj)$'
       - id: check-yaml
+        args: ["--unsafe"]
+      - id: check-toml
       - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-case-conflict
 
   - repo: local
     hooks:
       - id: cargo-fmt
         name: cargo fmt
-        description: Format files with cargo fmt.
+        description: Format Rust workspace with cargo fmt.
         entry: cargo fmt
         language: system
         types: [rust]
-        args: ["--"]
-
-      - id: cargo-check
-        name: cargo check
-        description: Check the package for errors.
-        entry: cargo check
-        language: system
-        types: [rust]
+        args: ["--all", "--", "--check"]
         pass_filenames: false
 
       - id: cargo-clippy
         name: cargo clippy
-        description: Lint rust sources
+        description: Lint Rust workspace sources.
         entry: cargo clippy
         language: system
-        args: ["--all-targets", "--", "-D", "warnings"]
-        types: [rust]
+        args: ["--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"]
+        types_or: [rust, toml]
         pass_filenames: false
 
       - id: cargo-test
         name: cargo test
-        description: Run cargo test
+        description: Run workspace tests.
         entry: cargo test
         language: system
-        types: [rust]
+        args: ["--workspace"]
+        types_or: [rust, toml]
         pass_filenames: false
