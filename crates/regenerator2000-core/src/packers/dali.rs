@@ -9,7 +9,7 @@ use super::spec::{
 
 /// Dali 0.3.3 21-byte signature at `$080D`.
 ///
-/// Matches `SEI; LDX #$0B; TXS; LDY #$EC; PHA; LAX $xx,Y; ...; JMP $0003; .byte $34`.
+/// Matches `SEI, LDX #$0B, TXS, LDY #$EC, PHA, LAX $xx,Y, ..., JMP $0003, .byte $34`.
 pub const DALI_SIGNATURE: Signature = Signature {
     anchor: Anchor::Absolute(0x080D),
     pattern: sig![
@@ -22,19 +22,15 @@ const SIGNATURES: [Signature; 1] = [DALI_SIGNATURE];
 
 const BASE_HINTS: Hints = Hints {
     dep_addr: Some(AddrSource::Const(0x0003)),
-    // No start override. Dali rewrites the whole original
-    // image, including its first byte one below the BASIC
-    // start (`$0800` on the C64), so the generic output
-    // detector, which scans from `System::ram_start()`,
-    // already finds the original load address. This matches
-    // both the original binary and unp64.
+    // No start override. Dali rewrites the whole original image, including its first
+    // byte one below the BASIC start (`$0800` on the C64). The generic output detector
+    // scans from `System::ram_start()` and finds the original load address.
     start_addr: None,
     entry_point: Some(AddrSource::OperandLe { from_match: 0xFE }),
     ..Hints::NONE
 };
 
-/// Resolves Dali 0.3.3 dynamic zero-page end pointer at `anchor_addr + 0x44` and entry point
-/// operand at `anchor_addr + 0xFE..=anchor_addr + 0xFF`.
+/// Resolves the Dali 0.3.3 zero-page end pointer and entry point operand.
 #[must_use]
 fn resolve_dali(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
     let q = usize::from(sig_match.anchor_addr);
@@ -75,10 +71,9 @@ impl PackerHooks for DaliHooks {
 
         let start_addr = usize::from(bounds.start_addr);
 
-        // unp64 compatibility for Dali v0.3.3 / fast:
-        // Dali copies its depacker to zero page and jumps to the entry point stored at $EB-$EC when done.
+        // Dali copies its depacker to zero page and jumps to the entry point at $EB..=$EC.
         // It leaves the compressed payload at the top of memory, which defeats standard gap trim.
-        // We find the true end of decompressed data by finding the largest contiguous block of unwritten memory.
+        // Find the true end of decompressed data before the largest unwritten memory block.
         if ctx.mem.len() >= 0xED
             && ctx.mem[0xEA] == 0x4C
             && bounds.entry_point == u16::from_le_bytes([ctx.mem[0xEB], ctx.mem[0xEC]])
@@ -167,9 +162,8 @@ mod tests {
 
     /// Reads a `tests/6502` fixture as a `(load address, payload)` pair.
     ///
-    /// The path is resolved from `CARGO_MANIFEST_DIR`, so the test does not
-    /// depend on the working directory, and a missing fixture fails the test
-    /// instead of skipping it.
+    /// Resolves the path from `CARGO_MANIFEST_DIR`. A missing fixture fails
+    /// the test instead of skipping it.
     fn read_prg(name: &str) -> (u16, Vec<u8>) {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/6502")
@@ -181,11 +175,8 @@ mod tests {
         (load_addr, bytes[2..].to_vec())
     }
 
-    /// Verifies that Dali's output starts at the original load address and keeps
-    /// the padding byte (the original's first byte one below the BASIC start).
-    /// For `c64_mule_1100.prg` that byte is `$20`, not `$00`, so it is compared
-    /// with the original, not a literal. The unpacked image equals the original
-    /// byte for byte.
+    /// Verifies that the Dali output starts at the original load address and
+    /// keeps the padding byte one below the BASIC start.
     #[test]
     fn dali_unpacked_payload_includes_padding_byte() {
         let (packed_load, packed) = read_prg("c64_mule.dali.prg");

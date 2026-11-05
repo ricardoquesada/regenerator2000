@@ -1,7 +1,7 @@
 //! Unified declarative packer registry and detection entry points.
 //!
-//! [`REGISTRY`] is the single source of truth for packer detection order, mirroring
-//! the scanner sequence in `unp64` (`_Scanners.c`).
+//! [`REGISTRY`] is the single source of truth for the packer detection order.
+//! It matches the scanner sequence in `unp64` (`_Scanners.c`).
 
 use super::spec::{LoadedImage, PackerSpec, SignatureMatch};
 use super::{
@@ -10,7 +10,7 @@ use super::{
     tiny_crunch, triad, tscrunch, turbo_cruncher,
 };
 
-/// Unified ordered registry of all 21 [`PackerSpec`] entries in ascending `priority` order.
+/// Ordered registry of all 21 [`PackerSpec`] entries in ascending `priority` order.
 pub static REGISTRY: &[&PackerSpec] = &[
     &eca::SPEC,
     &action_replay::SPEC,
@@ -35,16 +35,10 @@ pub static REGISTRY: &[&PackerSpec] = &[
     &turbo_cruncher::SPEC,
 ];
 
-/// Alias for [`REGISTRY`] exposing all registered [`PackerSpec`] entries in priority order.
+/// Alias for [`REGISTRY`] that exposes all registered [`PackerSpec`] entries in priority order.
 pub static PACKERS: &[&PackerSpec] = REGISTRY;
 
-/// Returns all declarative [`PackerSpec`] entries in [`REGISTRY`].
-#[must_use]
-pub fn registry_specs() -> Vec<&'static PackerSpec> {
-    REGISTRY.to_vec()
-}
-
-/// Returns `true` if `packer_name` is produced by `spec`.
+/// Returns `true` if `spec` produces `packer_name`.
 #[must_use]
 pub fn matches_packer_name(spec: &PackerSpec, packer_name: &str) -> bool {
     spec.name == packer_name
@@ -55,7 +49,7 @@ pub fn matches_packer_name(spec: &PackerSpec, packer_name: &str) -> bool {
         || (spec.id == "antiram" && packer_name == "Antiram Packer v1.0")
 }
 
-/// Looks up the [`PackerSpec`] in [`REGISTRY`] that produces the display name `packer_name`.
+/// Finds the [`PackerSpec`] in [`REGISTRY`] that produces the display name `packer_name`.
 #[must_use]
 pub fn find_entry_by_name(packer_name: &str) -> Option<&'static PackerSpec> {
     REGISTRY
@@ -81,7 +75,7 @@ pub fn detect_spec(image: &LoadedImage<'_>) -> Option<(&'static PackerSpec, Sign
     detect_spec_in(REGISTRY, image)
 }
 
-/// Returns the first matching packer in [`REGISTRY`] for `image` (production path).
+/// Returns the first matching packer in [`REGISTRY`] for `image`.
 #[must_use]
 pub fn detect(image: &LoadedImage<'_>) -> Option<SignatureMatch> {
     detect_spec(image).map(|(_spec, sig_match)| sig_match)
@@ -124,8 +118,7 @@ mod tests {
     use crate::packers::PackerInfo;
     use crate::packers::spec::{
         AddrSource, Anchor, Bounds, Hints, MemoryPatch, PackerHooks, Pat, PatchAddr, PointerGuard,
-        PointerMonitor, RefineContext, Registers, ResolvedSpec, Signature, StepContext,
-        is_valid_packer_id, sig,
+        RefineContext, Registers, ResolvedSpec, Signature, StepContext, is_valid_packer_id, sig,
     };
     use crate::state::types::TargetSystem;
     use crate::unpacker::machine::Phase;
@@ -135,6 +128,118 @@ mod tests {
         let view = LoadedImage::for_c64(mem, load_addr, load_end);
         let sig_match = detect(&view)?;
         Some(PackerInfo::resolve(&view, &sig_match))
+    }
+
+    fn load_fixture_at_0801(payload: &[u8]) -> (Vec<u8>, u16, u16) {
+        let mut mem = vec![0u8; 0x1_0000];
+        let load_addr: u16 = 0x0801;
+        let start = usize::from(load_addr);
+        mem[start..start + payload.len()].copy_from_slice(payload);
+        let load_end = load_addr.wrapping_add(payload.len() as u16);
+        (mem, load_addr, load_end)
+    }
+
+    #[derive(Clone, Copy)]
+    struct ExpectedCorpusUnpack {
+        file: &'static str,
+        packer_name: &'static str,
+        start_addr: u16,
+        end_addr: u16,
+        entry_point: u16,
+        dep_addr: u16,
+        instructions_executed: u64,
+        len: usize,
+    }
+
+    fn assert_corpus_cases(cases: &[ExpectedCorpusUnpack]) -> Vec<(&'static str, Vec<u8>)> {
+        let results: Vec<(
+            ExpectedCorpusUnpack,
+            Result<crate::unpacker::UnpackResult, String>,
+        )> = std::thread::scope(|s| {
+            let handles: Vec<_> = cases
+                .iter()
+                .copied()
+                .map(|case| {
+                    s.spawn(move || {
+                        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+                            .join("../../tests/6502")
+                            .join(case.file);
+                        let bytes = std::fs::read(&path)
+                            .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+                        assert!(bytes.len() > 2, "{} is too short", case.file);
+                        let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);
+                        let payload = &bytes[2..];
+                        let res = unpack(payload, load_addr, &UnpackConfig::default(), None)
+                            .map_err(|e| e.to_string());
+                        (case, res)
+                    })
+                })
+                .collect();
+            handles.into_iter().map(|h| h.join().unwrap()).collect()
+        });
+
+        let mut failures = Vec::new();
+        let mut payloads = Vec::with_capacity(results.len());
+
+        for (case, res) in results {
+            let result = match res {
+                Ok(r) => r,
+                Err(e) => {
+                    failures.push(format!("{}: unpack failed: {e}", case.file));
+                    continue;
+                }
+            };
+
+            if result.packer_name.as_deref() != Some(case.packer_name) {
+                failures.push(format!(
+                    "{}: packer_name {:?} != Some({:?})",
+                    case.file, result.packer_name, case.packer_name
+                ));
+            }
+            if result.start_addr != case.start_addr {
+                failures.push(format!(
+                    "{}: start_addr ${:04X} != ${:04X}",
+                    case.file, result.start_addr, case.start_addr
+                ));
+            }
+            if result.end_addr != case.end_addr {
+                failures.push(format!(
+                    "{}: end_addr ${:04X} != ${:04X}",
+                    case.file, result.end_addr, case.end_addr
+                ));
+            }
+            if result.entry_point != case.entry_point {
+                failures.push(format!(
+                    "{}: entry_point ${:04X} != ${:04X}",
+                    case.file, result.entry_point, case.entry_point
+                ));
+            }
+            if result.dep_addr != case.dep_addr {
+                failures.push(format!(
+                    "{}: dep_addr ${:04X} != ${:04X}",
+                    case.file, result.dep_addr, case.dep_addr
+                ));
+            }
+            if result.instructions_executed != case.instructions_executed {
+                failures.push(format!(
+                    "{}: instructions_executed {} != {}",
+                    case.file, result.instructions_executed, case.instructions_executed
+                ));
+            }
+            if result.data.len() != case.len {
+                failures.push(format!(
+                    "{}: data.len() {} != {}",
+                    case.file,
+                    result.data.len(),
+                    case.len
+                ));
+            }
+
+            payloads.push((case.file, result.data));
+        }
+
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+        payloads
     }
 
     // -----------------------------------------------------------------------
@@ -1246,7 +1351,6 @@ mod tests {
                         spec_id: ccs::SPEC.id,
                         spec_name: ccs::SPEC.name,
                         anchor_addr: bad_load,
-                        match_addrs: Vec::new(),
                         resolved: ResolvedSpec::from_hints(ccs::SPEC.hints),
                     };
                     if resolve_fn(&view, &dummy_match).is_some() {
@@ -1267,17 +1371,6 @@ mod tests {
     /// `dep_addr`, `packer_name`, `instructions_executed`, and payload length).
     #[test]
     fn time_cruncher_corpus_unchanged() {
-        struct ExpectedCorpusUnpack {
-            file: &'static str,
-            packer_name: &'static str,
-            start_addr: u16,
-            end_addr: u16,
-            entry_point: u16,
-            dep_addr: u16,
-            instructions_executed: u64,
-            len: usize,
-        }
-
         const CASES: [ExpectedCorpusUnpack; 2] = [
             ExpectedCorpusUnpack {
                 file: "c64_thats_the_way_scoop.time_cruncher.prg",
@@ -1301,72 +1394,7 @@ mod tests {
             },
         ];
 
-        let mut failures = Vec::new();
-        for case in CASES {
-            let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../tests/6502")
-                .join(case.file);
-            let bytes = std::fs::read(&path)
-                .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-            assert!(bytes.len() > 2, "{} is too short", case.file);
-            let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);
-            let payload = &bytes[2..];
-
-            let result = match unpack(payload, load_addr, &UnpackConfig::default(), None) {
-                Ok(res) => res,
-                Err(e) => {
-                    failures.push(format!("{}: unpack failed: {e}", case.file));
-                    continue;
-                }
-            };
-
-            if result.packer_name.as_deref() != Some(case.packer_name) {
-                failures.push(format!(
-                    "{}: packer_name {:?} != Some({:?})",
-                    case.file, result.packer_name, case.packer_name
-                ));
-            }
-            if result.start_addr != case.start_addr {
-                failures.push(format!(
-                    "{}: start_addr ${:04X} != ${:04X}",
-                    case.file, result.start_addr, case.start_addr
-                ));
-            }
-            if result.end_addr != case.end_addr {
-                failures.push(format!(
-                    "{}: end_addr ${:04X} != ${:04X}",
-                    case.file, result.end_addr, case.end_addr
-                ));
-            }
-            if result.entry_point != case.entry_point {
-                failures.push(format!(
-                    "{}: entry_point ${:04X} != ${:04X}",
-                    case.file, result.entry_point, case.entry_point
-                ));
-            }
-            if result.dep_addr != case.dep_addr {
-                failures.push(format!(
-                    "{}: dep_addr ${:04X} != ${:04X}",
-                    case.file, result.dep_addr, case.dep_addr
-                ));
-            }
-            if result.instructions_executed != case.instructions_executed {
-                failures.push(format!(
-                    "{}: instructions_executed {} != {}",
-                    case.file, result.instructions_executed, case.instructions_executed
-                ));
-            }
-            if result.data.len() != case.len {
-                failures.push(format!(
-                    "{}: data.len() {} != {}",
-                    case.file,
-                    result.data.len(),
-                    case.len
-                ));
-            }
-        }
-
-        assert!(failures.is_empty(), "{}", failures.join("\n"));
+        assert_corpus_cases(&CASES);
     }
 
     // =======================================================================
@@ -2018,17 +2046,6 @@ mod tests {
     /// `instructions_executed`, and payload length).
     #[test]
     fn computed_packers_corpus_unchanged() {
-        struct ExpectedCorpusUnpack {
-            file: &'static str,
-            packer_name: &'static str,
-            start_addr: u16,
-            end_addr: u16,
-            entry_point: u16,
-            dep_addr: u16,
-            instructions_executed: u64,
-            len: usize,
-        }
-
         const CASES: [ExpectedCorpusUnpack; 6] = [
             ExpectedCorpusUnpack {
                 file: "c64_323_ice_psm.1001_card_cruncher.prg",
@@ -2092,72 +2109,7 @@ mod tests {
             },
         ];
 
-        let mut failures = Vec::new();
-        for case in CASES {
-            let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../../tests/6502")
-                .join(case.file);
-            let bytes = std::fs::read(&path)
-                .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-            assert!(bytes.len() > 2, "{} is too short", case.file);
-            let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);
-            let payload = &bytes[2..];
-
-            let result = match unpack(payload, load_addr, &UnpackConfig::default(), None) {
-                Ok(res) => res,
-                Err(e) => {
-                    failures.push(format!("{}: unpack failed: {e}", case.file));
-                    continue;
-                }
-            };
-
-            if result.packer_name.as_deref() != Some(case.packer_name) {
-                failures.push(format!(
-                    "{}: packer_name {:?} != Some({:?})",
-                    case.file, result.packer_name, case.packer_name
-                ));
-            }
-            if result.start_addr != case.start_addr {
-                failures.push(format!(
-                    "{}: start_addr ${:04X} != ${:04X}",
-                    case.file, result.start_addr, case.start_addr
-                ));
-            }
-            if result.end_addr != case.end_addr {
-                failures.push(format!(
-                    "{}: end_addr ${:04X} != ${:04X}",
-                    case.file, result.end_addr, case.end_addr
-                ));
-            }
-            if result.entry_point != case.entry_point {
-                failures.push(format!(
-                    "{}: entry_point ${:04X} != ${:04X}",
-                    case.file, result.entry_point, case.entry_point
-                ));
-            }
-            if result.dep_addr != case.dep_addr {
-                failures.push(format!(
-                    "{}: dep_addr ${:04X} != ${:04X}",
-                    case.file, result.dep_addr, case.dep_addr
-                ));
-            }
-            if result.instructions_executed != case.instructions_executed {
-                failures.push(format!(
-                    "{}: instructions_executed {} != {}",
-                    case.file, result.instructions_executed, case.instructions_executed
-                ));
-            }
-            if result.data.len() != case.len {
-                failures.push(format!(
-                    "{}: data.len() {} != {}",
-                    case.file,
-                    result.data.len(),
-                    case.len
-                ));
-            }
-        }
-
-        assert!(failures.is_empty(), "{}", failures.join("\n"));
+        assert_corpus_cases(&CASES);
     }
 
     // =======================================================================
@@ -2961,18 +2913,6 @@ mod tests {
     /// and `mule` groups.
     #[test]
     fn exomizer_and_tscrunch_corpus_unchanged() {
-        #[derive(Clone, Copy)]
-        struct ExpectedCorpusUnpack {
-            file: &'static str,
-            packer_name: &'static str,
-            start_addr: u16,
-            end_addr: u16,
-            entry_point: u16,
-            dep_addr: u16,
-            instructions_executed: u64,
-            len: usize,
-        }
-
         const CASES: [ExpectedCorpusUnpack; 24] = [
             ExpectedCorpusUnpack {
                 file: "c64_Bit_by_Bits-BZ!.exo3.prg",
@@ -3216,97 +3156,15 @@ mod tests {
             },
         ];
 
-        let results: Vec<(
-            ExpectedCorpusUnpack,
-            Result<crate::unpacker::UnpackResult, String>,
-        )> = std::thread::scope(|s| {
-            let handles: Vec<_> = CASES
-                .into_iter()
-                .map(|case| {
-                    s.spawn(move || {
-                        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-                            .join("../../tests/6502")
-                            .join(case.file);
-                        let bytes = std::fs::read(&path)
-                            .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-                        assert!(bytes.len() > 2, "{} is too short", case.file);
-                        let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);
-                        let payload = &bytes[2..];
-                        let res = unpack(payload, load_addr, &UnpackConfig::default(), None)
-                            .map_err(|e| e.to_string());
-                        (case, res)
-                    })
-                })
-                .collect();
-            handles.into_iter().map(|h| h.join().unwrap()).collect()
-        });
-
-        let mut failures = Vec::new();
-        let mut moving_tubes_payloads: Vec<(&str, Vec<u8>)> = Vec::new();
-        let mut mule_payloads: Vec<(&str, Vec<u8>)> = Vec::new();
-
-        for (case, res) in results {
-            let result = match res {
-                Ok(r) => r,
-                Err(e) => {
-                    failures.push(format!("{}: unpack failed: {e}", case.file));
-                    continue;
-                }
-            };
-
-            if result.packer_name.as_deref() != Some(case.packer_name) {
-                failures.push(format!(
-                    "{}: packer_name {:?} != Some({:?})",
-                    case.file, result.packer_name, case.packer_name
-                ));
-            }
-            if result.start_addr != case.start_addr {
-                failures.push(format!(
-                    "{}: start_addr ${:04X} != ${:04X}",
-                    case.file, result.start_addr, case.start_addr
-                ));
-            }
-            if result.end_addr != case.end_addr {
-                failures.push(format!(
-                    "{}: end_addr ${:04X} != ${:04X}",
-                    case.file, result.end_addr, case.end_addr
-                ));
-            }
-            if result.entry_point != case.entry_point {
-                failures.push(format!(
-                    "{}: entry_point ${:04X} != ${:04X}",
-                    case.file, result.entry_point, case.entry_point
-                ));
-            }
-            if result.dep_addr != case.dep_addr {
-                failures.push(format!(
-                    "{}: dep_addr ${:04X} != ${:04X}",
-                    case.file, result.dep_addr, case.dep_addr
-                ));
-            }
-            if result.instructions_executed != case.instructions_executed {
-                failures.push(format!(
-                    "{}: instructions_executed {} != {}",
-                    case.file, result.instructions_executed, case.instructions_executed
-                ));
-            }
-            if result.data.len() != case.len {
-                failures.push(format!(
-                    "{}: data.len() {} != {}",
-                    case.file,
-                    result.data.len(),
-                    case.len
-                ));
-            }
-
-            if case.file.starts_with("c64_moving_tubes_lxt.") {
-                moving_tubes_payloads.push((case.file, result.data));
-            } else if case.file.starts_with("c64_mule.") {
-                mule_payloads.push((case.file, result.data));
-            }
-        }
-
-        assert!(failures.is_empty(), "{}", failures.join("\n"));
+        let payloads = assert_corpus_cases(&CASES);
+        let moving_tubes_payloads: Vec<_> = payloads
+            .iter()
+            .filter(|(f, _)| f.starts_with("c64_moving_tubes_lxt."))
+            .collect();
+        let mule_payloads: Vec<_> = payloads
+            .iter()
+            .filter(|(f, _)| f.starts_with("c64_mule."))
+            .collect();
 
         // Verify ground-truth & consensus across Exomizer 3.0, TSCrunch v1.3+, and TSCrunch v1.3+-X2
         // on `moving_tubes` and `mule`.
@@ -3650,13 +3508,7 @@ mod tests {
                     adjust: -1,
                     guard: PointerGuard::NearDetectedEnd { slack: 512 },
                 };
-                if let Some(step4_end) = step4_src.resolve_post_run(
-                    &run_mem,
-                    Registers::default(),
-                    range.0,
-                    range.1,
-                    &PointerMonitor::new(),
-                ) {
+                if let Some(step4_end) = step4_src.resolve_post_run(&run_mem, range.0, range.1) {
                     range.1 = step4_end;
                 }
             }
@@ -3670,13 +3522,7 @@ mod tests {
                         ..
                     },
                 ) = sig_match.resolved.hints.end_addr
-                && let Some(step7_end) = src.resolve_post_run(
-                    &run_mem,
-                    Registers::default(),
-                    range.0,
-                    range.1,
-                    &PointerMonitor::new(),
-                )
+                && let Some(step7_end) = src.resolve_post_run(&run_mem, range.0, range.1)
             {
                 range.1 = step7_end;
             }
@@ -3709,18 +3555,6 @@ mod tests {
     /// and preserves ground-truth/consensus agreement on `mule`.
     #[test]
     fn dali_byteboozer_and_mc_cracken_corpus_unchanged() {
-        #[derive(Clone, Copy)]
-        struct ExpectedCorpusUnpack {
-            file: &'static str,
-            packer_name: &'static str,
-            start_addr: u16,
-            end_addr: u16,
-            entry_point: u16,
-            dep_addr: u16,
-            instructions_executed: u64,
-            len: usize,
-        }
-
         const CASES: [ExpectedCorpusUnpack; 6] = [
             ExpectedCorpusUnpack {
                 file: "c64_moving_tubes_lxt.dali.prg",
@@ -3784,94 +3618,11 @@ mod tests {
             },
         ];
 
-        let results: Vec<(
-            ExpectedCorpusUnpack,
-            Result<crate::unpacker::UnpackResult, String>,
-        )> = std::thread::scope(|s| {
-            let handles: Vec<_> = CASES
-                .into_iter()
-                .map(|case| {
-                    s.spawn(move || {
-                        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-                            .join("../../tests/6502")
-                            .join(case.file);
-                        let bytes = std::fs::read(&path)
-                            .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-                        assert!(bytes.len() > 2, "{} is too short", case.file);
-                        let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);
-                        let payload = &bytes[2..];
-                        let res = unpack(payload, load_addr, &UnpackConfig::default(), None)
-                            .map_err(|e| e.to_string());
-                        (case, res)
-                    })
-                })
-                .collect();
-            handles.into_iter().map(|h| h.join().unwrap()).collect()
-        });
-
-        let mut failures = Vec::new();
-        let mut mule_payloads: Vec<(&str, Vec<u8>)> = Vec::new();
-
-        for (case, res) in results {
-            let result = match res {
-                Ok(r) => r,
-                Err(e) => {
-                    failures.push(format!("{}: unpack failed: {e}", case.file));
-                    continue;
-                }
-            };
-
-            if result.packer_name.as_deref() != Some(case.packer_name) {
-                failures.push(format!(
-                    "{}: packer_name {:?} != Some({:?})",
-                    case.file, result.packer_name, case.packer_name
-                ));
-            }
-            if result.start_addr != case.start_addr {
-                failures.push(format!(
-                    "{}: start_addr ${:04X} != ${:04X}",
-                    case.file, result.start_addr, case.start_addr
-                ));
-            }
-            if result.end_addr != case.end_addr {
-                failures.push(format!(
-                    "{}: end_addr ${:04X} != ${:04X}",
-                    case.file, result.end_addr, case.end_addr
-                ));
-            }
-            if result.entry_point != case.entry_point {
-                failures.push(format!(
-                    "{}: entry_point ${:04X} != ${:04X}",
-                    case.file, result.entry_point, case.entry_point
-                ));
-            }
-            if result.dep_addr != case.dep_addr {
-                failures.push(format!(
-                    "{}: dep_addr ${:04X} != ${:04X}",
-                    case.file, result.dep_addr, case.dep_addr
-                ));
-            }
-            if result.instructions_executed != case.instructions_executed {
-                failures.push(format!(
-                    "{}: instructions_executed {} != {}",
-                    case.file, result.instructions_executed, case.instructions_executed
-                ));
-            }
-            if result.data.len() != case.len {
-                failures.push(format!(
-                    "{}: data.len() {} != {}",
-                    case.file,
-                    result.data.len(),
-                    case.len
-                ));
-            }
-
-            if case.file.starts_with("c64_mule.") {
-                mule_payloads.push((case.file, result.data));
-            }
-        }
-
-        assert!(failures.is_empty(), "{}", failures.join("\n"));
+        let payloads = assert_corpus_cases(&CASES);
+        let mule_payloads: Vec<_> = payloads
+            .iter()
+            .filter(|(f, _)| f.starts_with("c64_mule."))
+            .collect();
 
         // Verify ground-truth & consensus across Dali and McCracken on `mule`.
         assert_eq!(mule_payloads.len(), 2);
@@ -3897,15 +3648,6 @@ mod tests {
             let entry = find_entry_by_name(name)
                 .unwrap_or_else(|| panic!("missing registry entry for `{name}`"));
             assert_eq!(entry.id, "alz64");
-        }
-
-        fn load_fixture_at_0801(payload: &[u8]) -> (Vec<u8>, u16, u16) {
-            let mut mem = vec![0u8; 0x1_0000];
-            let load_addr: u16 = 0x0801;
-            let start = usize::from(load_addr);
-            mem[start..start + payload.len()].copy_from_slice(payload);
-            let load_end = load_addr.wrapping_add(payload.len() as u16);
-            (mem, load_addr, load_end)
         }
 
         // 1. ALZ64/Quiss with optional `[0x02, 0xE6, 0xC7, 0x8D]` start_addr override:
@@ -4056,42 +3798,28 @@ mod tests {
 
         // 3. Corpus verification: `c64_boo_alz64.prg` (Quiss) and `c64_wavehero_alz64.prg` (Kabuto)
         //    unpack identically to baseline.
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/6502")
-            .join("c64_boo_alz64.prg");
-        let bytes =
-            std::fs::read(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-        let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);
-        let result = unpack(&bytes[2..], load_addr, &UnpackConfig::default(), None)
-            .expect("c64_boo_alz64.prg unpacks");
-        assert_eq!(result.packer_name.as_deref(), Some("ALZ64/Quiss"));
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0x4D3C);
-        assert_eq!(result.entry_point, 0x2A78);
-        assert_eq!(result.dep_addr, 0x005E);
-        assert_eq!(result.instructions_executed, 2_829_809);
-        assert_eq!(result.data.len(), 17_724);
-
-        let kabuto_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/6502")
-            .join("c64_wavehero_alz64.prg");
-        let kabuto_bytes = std::fs::read(&kabuto_path)
-            .unwrap_or_else(|e| panic!("cannot read {}: {e}", kabuto_path.display()));
-        let kabuto_load_addr = u16::from_le_bytes([kabuto_bytes[0], kabuto_bytes[1]]);
-        let kabuto_result = unpack(
-            &kabuto_bytes[2..],
-            kabuto_load_addr,
-            &UnpackConfig::default(),
-            None,
-        )
-        .expect("c64_wavehero_alz64.prg unpacks");
-        assert_eq!(kabuto_result.packer_name.as_deref(), Some("ALZ64/Kabuto"));
-        assert_eq!(kabuto_result.start_addr, 0x0801);
-        assert_eq!(kabuto_result.end_addr, 0x1E42);
-        assert_eq!(kabuto_result.entry_point, 0x080D);
-        assert_eq!(kabuto_result.dep_addr, 0x005E);
-        assert_eq!(kabuto_result.instructions_executed, 2_739_309);
-        assert_eq!(kabuto_result.data.len(), 5_698);
+        assert_corpus_cases(&[
+            ExpectedCorpusUnpack {
+                file: "c64_boo_alz64.prg",
+                packer_name: "ALZ64/Quiss",
+                start_addr: 0x0801,
+                end_addr: 0x4D3C,
+                entry_point: 0x2A78,
+                dep_addr: 0x005E,
+                instructions_executed: 2_829_809,
+                len: 17_724,
+            },
+            ExpectedCorpusUnpack {
+                file: "c64_wavehero_alz64.prg",
+                packer_name: "ALZ64/Kabuto",
+                start_addr: 0x0801,
+                end_addr: 0x1E42,
+                entry_point: 0x080D,
+                dep_addr: 0x005E,
+                instructions_executed: 2_739_309,
+                len: 5_698,
+            },
+        ]);
     }
 
     /// `antiram::SPEC` detects both `Antiram Packer v1.0` and `Antiram Packer v2.0`,
@@ -4101,15 +3829,6 @@ mod tests {
     /// `find_entry_by_name`, and unpacks `c64_chiller.antiram_packer.prg` identically to baseline.
     #[test]
     fn antiram_spec_hints_equal_legacy_packer_info() {
-        fn load_fixture_at_0801(payload: &[u8]) -> (Vec<u8>, u16, u16) {
-            let mut mem = vec![0u8; 0x1_0000];
-            let load_addr: u16 = 0x0801;
-            let start = usize::from(load_addr);
-            mem[start..start + payload.len()].copy_from_slice(payload);
-            let load_end = load_addr.wrapping_add(payload.len() as u16);
-            (mem, load_addr, load_end)
-        }
-
         for name in ["Antiram Packer v1.0", "Antiram Packer v2.0"] {
             let entry = find_entry_by_name(name)
                 .unwrap_or_else(|| panic!("missing registry entry for `{name}`"));
@@ -4229,21 +3948,16 @@ mod tests {
         assert!(antiram::SPEC.detect(&exact_v2).is_some());
 
         // 3. Corpus verification: `c64_chiller.antiram_packer.prg` unpacks identically to baseline.
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/6502")
-            .join("c64_chiller.antiram_packer.prg");
-        let bytes =
-            std::fs::read(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-        let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);
-        let result = unpack(&bytes[2..], load_addr, &UnpackConfig::default(), None)
-            .expect("c64_chiller.antiram_packer.prg unpacks");
-        assert_eq!(result.packer_name.as_deref(), Some("Antiram Packer v2.0"));
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0xCE00);
-        assert_eq!(result.entry_point, 0x0818);
-        assert_eq!(result.dep_addr, 0xFF00);
-        assert_eq!(result.instructions_executed, 679_862);
-        assert_eq!(result.data.len(), 50_688);
+        assert_corpus_cases(&[ExpectedCorpusUnpack {
+            file: "c64_chiller.antiram_packer.prg",
+            packer_name: "Antiram Packer v2.0",
+            start_addr: 0x0801,
+            end_addr: 0xCE00,
+            entry_point: 0x0818,
+            dep_addr: 0xFF00,
+            instructions_executed: 679_862,
+            len: 50_688,
+        }]);
     }
 
     /// `alz64::SPEC` preserves `load_addr_max = Some(0x080B)` (`<= 0x080B` matches,
@@ -4251,20 +3965,11 @@ mod tests {
     /// `load_addr_max = None` (matches across all `load_addr` values for both v1.0 and v2.0).
     #[test]
     fn alz64_and_antiram_load_gates_preserved() {
-        fn load_fixture_at_0801(payload: &[u8]) -> (Vec<u8>, u16) {
-            let mut mem = vec![0u8; 0x1_0000];
-            let load_addr: u16 = 0x0801;
-            let start = usize::from(load_addr);
-            mem[start..start + payload.len()].copy_from_slice(payload);
-            let load_end = load_addr.wrapping_add(payload.len() as u16);
-            (mem, load_end)
-        }
-
         assert_eq!(alz64::SPEC.load_addr_max, Some(0x080B));
         assert_eq!(antiram::SPEC.load_addr_max, None);
 
-        let (quiss_mem, quiss_end) = load_fixture_at_0801(&alz64::build_quiss_fixture());
-        let (kabuto_mem, kabuto_end) = load_fixture_at_0801(&alz64::build_kabuto_fixture());
+        let (quiss_mem, _, quiss_end) = load_fixture_at_0801(&alz64::build_quiss_fixture());
+        let (kabuto_mem, _, kabuto_end) = load_fixture_at_0801(&alz64::build_kabuto_fixture());
         for ok_load in [0x0000_u16, 0x0400, 0x0801, 0x080B] {
             let qv = LoadedImage::for_c64(&quiss_mem, ok_load, quiss_end);
             assert!(
@@ -4290,8 +3995,8 @@ mod tests {
             );
         }
 
-        let (v1_mem, v1_end) = load_fixture_at_0801(&antiram::build_v1_fixture());
-        let (v2_mem, v2_end) = load_fixture_at_0801(&antiram::build_v2_fixture());
+        let (v1_mem, _, v1_end) = load_fixture_at_0801(&antiram::build_v1_fixture());
+        let (v2_mem, _, v2_end) = load_fixture_at_0801(&antiram::build_v2_fixture());
         for load_addr in [0x0000_u16, 0x0801, 0x080B, 0x080C, 0x080D, 0x0900, 0x1000] {
             let v1v = LoadedImage::for_c64(&v1_mem, load_addr, v1_end);
             assert!(
@@ -4311,15 +4016,6 @@ mod tests {
     /// when `0x20` is present.
     #[test]
     fn antiram_conditional_patch_and_entry_offset() {
-        fn load_fixture_at_0801(payload: &[u8]) -> (Vec<u8>, u16, u16) {
-            let mut mem = vec![0u8; 0x1_0000];
-            let load_addr: u16 = 0x0801;
-            let start = usize::from(load_addr);
-            mem[start..start + payload.len()].copy_from_slice(payload);
-            let load_end = load_addr.wrapping_add(payload.len() as u16);
-            (mem, load_addr, load_end)
-        }
-
         // Antiram v2.0 without JSR ($0911 != 0x20): entry_point from $0912..=$0913, patch skipped.
         let (mut v2_mem, v2_load, v2_end) = load_fixture_at_0801(&antiram::build_v2_fixture());
         assert_ne!(v2_mem[0x0911], 0x20);
@@ -4384,10 +4080,8 @@ mod tests {
     #[test]
     fn antiram_forced_entry_and_exact_return_hints() {
         for payload in [antiram::build_v1_fixture(), antiram::build_v2_fixture()] {
-            let mut mem = vec![0u8; 0x1_0000];
-            mem[0x0801..0x0801 + payload.len()].copy_from_slice(&payload);
-            let load_end = 0x0801_u16.wrapping_add(payload.len() as u16);
-            let view = LoadedImage::for_c64(&mem, 0x0801, load_end);
+            let (mem, load_addr, load_end) = load_fixture_at_0801(&payload);
+            let view = LoadedImage::for_c64(&mem, load_addr, load_end);
             let sig_match = antiram::SPEC
                 .detect(&view)
                 .expect("Antiram fixture matches");
@@ -4404,11 +4098,8 @@ mod tests {
     /// at `$080B` (`unp64` `ALZ64.c:47`).
     #[test]
     fn alz64_kabuto_patch_and_forced_entry() {
-        let payload = alz64::build_kabuto_fixture();
-        let mut mem = vec![0u8; 0x1_0000];
-        mem[0x0801..0x0801 + payload.len()].copy_from_slice(&payload);
-        let load_end = 0x0801_u16.wrapping_add(payload.len() as u16);
-        let view = LoadedImage::for_c64(&mem, 0x0801, load_end);
+        let (mut mem, load_addr, load_end) = load_fixture_at_0801(&alz64::build_kabuto_fixture());
+        let view = LoadedImage::for_c64(&mem, load_addr, load_end);
         let sig_match = alz64::SPEC
             .detect(&view)
             .expect("ALZ64/Kabuto fixture matches");
@@ -4437,11 +4128,8 @@ mod tests {
     /// `exact_return = true` (`unp64` `ALZ64.c:30` `RtAFrc = 1`), and no patches (`patches.is_empty()`).
     #[test]
     fn alz64_quiss_has_exact_return_and_no_patch() {
-        let payload = alz64::build_quiss_fixture();
-        let mut mem = vec![0u8; 0x1_0000];
-        mem[0x0801..0x0801 + payload.len()].copy_from_slice(&payload);
-        let load_end = 0x0801_u16.wrapping_add(payload.len() as u16);
-        let view = LoadedImage::for_c64(&mem, 0x0801, load_end);
+        let (mem, load_addr, load_end) = load_fixture_at_0801(&alz64::build_quiss_fixture());
+        let view = LoadedImage::for_c64(&mem, load_addr, load_end);
         let sig_match = alz64::SPEC
             .detect(&view)
             .expect("ALZ64/Quiss fixture matches");

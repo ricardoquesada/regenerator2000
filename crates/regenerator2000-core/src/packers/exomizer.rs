@@ -1,4 +1,4 @@
-//! Exomizer 1.x / 2.x / 3.x packer specification and emulation hooks.
+//! Exomizer 1.x, 2.x, and 3.x packer specification and emulation hooks.
 
 use crate::state::types::TargetSystem;
 use crate::unpacker::machine::Phase;
@@ -8,27 +8,27 @@ use super::spec::{
     ResolvedSpec, Signature, SignatureMatch, StepContext, sig,
 };
 
-/// Exomizer 3.x core decruncher 8-byte signature (`ADC #$80; ASL A; BPL +15; ASL $FD; BNE ...`),
-/// searched in descending order across `load_addr..=load_end - 8`.
+/// Exomizer 3.x core decruncher 8-byte signature (`ADC #$80`, `ASL A`, `BPL +15`, `ASL $FD`, `BNE`),
+/// searched in descending order across `load_addr..=effective_load_end() - 8`.
 ///
-/// A valid Exomizer 3.x match at `p` additionally requires `p >= 6`, `mem.len() > p + 8`,
+/// A valid Exomizer 3.x match at `p` also requires `p >= 6`, `mem.len() > p + 8`,
 /// `mem[p - 6] == 0x4C` (`JMP`), and `mem[p - 4] == 0x01` (stack page high byte `$01xx`).
 pub const EXO3_SIGNATURE: Signature = Signature {
     anchor: Anchor::ScanBackFromEnd { max_offset: 0xFFFF },
     pattern: sig![0x69, 0x80, 0x0A, 0x10, 0x0F, 0x06, 0xFD, 0xD0],
 };
 
-/// Exomizer 1.x / 2.x 8-byte signature (`INY; CPY #$34/#$50; BNE ...; JMP ...`),
-/// searched in descending order across `load_addr..=load_end - 8`.
+/// Exomizer 1.x and 2.x 8-byte signature (`INY`, `CPY #$34/#$50`, `BNE`, `JMP`),
+/// searched in descending order across `load_addr..=effective_load_end() - 8`.
 pub const EXO2_SIGNATURE: Signature = Signature {
     anchor: Anchor::ScanBackFromEnd { max_offset: 0xFFFF },
     pattern: sig![0xC8, 0xC0, [0x34, 0x50], 0xD0, __, __, __, 0x4C],
 };
 
-/// Combined descending candidate signature covering both [`EXO3_SIGNATURE`] and [`EXO2_SIGNATURE`].
+/// Combined descending candidate signature for [`EXO3_SIGNATURE`] and [`EXO2_SIGNATURE`].
 ///
-/// [`resolve_exomizer`] enforces the exact variant rules and guarantees that any Exomizer 3.x
-/// match in `load_addr..=load_end - 8` takes precedence over Exomizer 2.x.
+/// [`resolve_exomizer`] checks the variant rules and gives any Exomizer 3.x match
+/// precedence over Exomizer 2.x.
 const SIGNATURES: [Signature; 1] = [Signature {
     anchor: Anchor::ScanBackFromEnd { max_offset: 0xFFFF },
     pattern: sig![
@@ -56,7 +56,7 @@ pub fn matches_exo3_at(mem: &[u8], p: usize) -> bool {
         && EXO3_SIGNATURE.matches_at(mem, addr)
 }
 
-/// Returns `true` if `mem` contains an Exomizer 1.x / 2.x signature at `p`.
+/// Returns `true` if `mem` contains an Exomizer 1.x or 2.x signature at `p`.
 #[must_use]
 pub fn matches_exo2_at(mem: &[u8], p: usize) -> bool {
     let Ok(addr) = u16::try_from(p) else {
@@ -67,10 +67,9 @@ pub fn matches_exo2_at(mem: &[u8], p: usize) -> bool {
 
 /// Resolves Exomizer 3.0, v3.02+, or 2.x at candidate `sig_match.anchor_addr`.
 ///
-/// Preserves the legacy two-pass descending scan precedence:
-/// 1. All Exomizer 3.x positions from `load_end - 8` down to `load_addr` are checked first.
-/// 2. Only if no Exomizer 3.x match exists anywhere in `load_addr..=load_end - 8` is an
-///    Exomizer 1.x / 2.x match accepted (also in descending order).
+/// Keeps two-pass descending scan precedence:
+/// 1. Checks all Exomizer 3.x positions from the end of the image down to `load_addr`.
+/// 2. Accepts an Exomizer 1.x or 2.x match only if no Exomizer 3.x match exists in the image.
 #[must_use]
 fn resolve_exomizer(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
     let mem = image.mem;
@@ -86,10 +85,7 @@ fn resolve_exomizer(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Opti
 
         let entry_point = if p + 0x17 < mem.len() && mem[p + 0x10] == 0x20 && mem[p + 0x15] == 0x4C
         {
-            Some(AddrSource::Const(u16::from_le_bytes([
-                mem[p + 0x16],
-                mem[p + 0x17],
-            ])))
+            image.read_u16_le(p + 0x16).map(AddrSource::Const)
         } else {
             None
         };
@@ -105,10 +101,8 @@ fn resolve_exomizer(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Opti
     }
 
     if matches_exo2_at(mem, p) {
-        // Because `Anchor::ScanBackFromEnd` visits positions in descending order, any Exomizer 3.x
-        // match above `p` would have already been returned. Check whether an Exomizer 3.x match
-        // exists below `p` (`load_addr..p`); if so, reject `p` so the scan continues down to the
-        // 3.x match.
+        // `Anchor::ScanBackFromEnd` visits positions in descending order, so any Exomizer 3.x
+        // match above `p` already returned. Reject `p` if an Exomizer 3.x match exists below `p`.
         let lower_bound = usize::from(image.load_addr);
         if (lower_bound..p).rev().any(|q| matches_exo3_at(mem, q)) {
             return None;
@@ -128,10 +122,10 @@ fn resolve_exomizer(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Opti
     None
 }
 
-/// Emulation-time hooks for Exomizer 1.x / 2.x / 3.x packers.
+/// Emulation-time hooks for Exomizer 1.x, 2.x, and 3.x packers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExomizerHooks {
-    /// Major version (`2` for Exomizer 1.x / 2.x, `3` for Exomizer 3.x).
+    /// Major version (`2` for Exomizer 1.x and 2.x, `3` for Exomizer 3.x).
     pub version: u8,
     /// Exomizer 3 sub-version (`0x30` for 3.0, `0x32` for v3.02+, `0` for 2.x).
     pub exo_ver: u8,
@@ -193,37 +187,19 @@ impl PackerHooks for ExomizerHooks {
             bounds.start_addr = min_s;
         }
 
+        if self.version != 3 {
+            return;
+        }
+
         let snapshot = ctx.snapshot;
         let mem = ctx.mem;
         let y_reg = ctx.registers.y;
 
-        let mut exomizer_end_lo = None;
-        let mut exomizer_end_hi = None;
-        let mut exomizer_version = None;
+        let mut exo_meta: Option<(u8, u8, u8)> = None;
 
-        // Scan pre-emulation snapshot ascending across $0200..=$FFF0 for the Exomizer 3
-        // decruncher routine sequence:
-        //   p - 6: 0x4C (JMP)
-        //   p - 4: 0x01 (high byte of stack jump, e.g. $01xx)
-        //   p    : 0x69 0x80 (ADC #$80)
-        //   p + 2: 0x0A (ASL A)
-        //   p + 3: 0x10 0x0F (BPL +15)
-        //   p + 5: 0x06 0xFD (ASL $FD)
-        //   p + 7: 0xD0 (BNE)
+        // Scan the pre-emulation snapshot across $0200..=$FFF0 for the Exomizer 3 decruncher.
         for p in 0x0200..=0xFFF0 {
-            if p >= 6
-                && snapshot.len() > p + 8
-                && snapshot[p] == 0x69
-                && snapshot[p + 1] == 0x80
-                && snapshot[p + 2] == 0x0A
-                && snapshot[p + 3] == 0x10
-                && snapshot[p + 4] == 0x0F
-                && snapshot[p + 5] == 0x06
-                && snapshot[p + 6] == 0xFD
-                && snapshot[p + 7] == 0xD0
-                && snapshot[p - 6] == 0x4C
-                && snapshot[p - 4] == 0x01
-            {
+            if matches_exo3_at(snapshot, p) {
                 let p_idx = p - 5;
                 let mut q = 2;
                 if snapshot[p_idx - q] == 0x8A {
@@ -234,15 +210,12 @@ impl PackerHooks for ExomizerHooks {
                 let is_exo_30 = snapshot[p_idx - q - 1] == snapshot[p_idx - q - 3]
                     && snapshot[p_idx - q - 2] == snapshot[p_idx - q];
                 let ev = if is_exo_30 { 0x30 } else { 0x32 };
-                exomizer_end_lo = Some(elo);
-                exomizer_end_hi = Some(ehi);
-                exomizer_version = Some(ev);
+                exo_meta = Some((elo, ehi, ev));
                 break;
             }
         }
 
-        if let Some(ver) = exomizer_version
-            && exomizer_end_lo.is_some()
+        if let Some((end_lo, end_hi, ver)) = exo_meta
             && mem.len() > 0xFF
         {
             let mut dyn_start = u16::from(mem[0xFE]) + (u16::from(mem[0xFF]) << 8);
@@ -255,24 +228,21 @@ impl PackerHooks for ExomizerHooks {
                 bounds.start_addr = bounds.start_addr.min(dyn_start);
             }
 
-            if let Some(end_lo) = exomizer_end_lo {
-                let end_hi = exomizer_end_hi.unwrap_or_else(|| snapshot[0xFF]);
-                let mut dyn_end = u16::from(end_lo) + (u16::from(end_hi) << 8);
-                if ver == 0x32 {
-                    dyn_end = dyn_end.wrapping_add(1);
-                }
-                if dyn_end == 0 {
-                    dyn_end = 0xFF00;
-                }
-                if dyn_end > bounds.start_addr {
-                    bounds.end_addr = dyn_end.saturating_sub(1);
-                }
+            let mut dyn_end = u16::from(end_lo) + (u16::from(end_hi) << 8);
+            if ver == 0x32 {
+                dyn_end = dyn_end.wrapping_add(1);
+            }
+            if dyn_end == 0 {
+                dyn_end = 0xFF00;
+            }
+            if dyn_end > bounds.start_addr {
+                bounds.end_addr = dyn_end.saturating_sub(1);
             }
         }
     }
 }
 
-/// Constructs [`ExomizerHooks`] for a matched Exomizer image.
+/// Creates [`ExomizerHooks`] for a matched Exomizer image.
 #[must_use]
 pub fn create_exomizer_hooks(
     image: &LoadedImage<'_>,
@@ -297,7 +267,7 @@ pub fn create_exomizer_hooks(
 /// - `$0807..=$080E` (`p..p + 8`): `69 80 0A 10 0F 06 FD D0` (Exomizer 3.x core signature)
 /// - `$080F..=$0813` (`p + 8..=p + 12`): `08 48 20 1A 01` (Exomizer 3.0 marker)
 /// - `$0814..=$0816` (`p + 13..=p + 15`): `00 00 00`
-/// - `$0817..=$081E` (`p + 0x10..=p + 0x17`): `20 00 01 00 00 4C 20 08` (`JSR $0100; ...; JMP $0820`)
+/// - `$0817..=$081E` (`p + 0x10..=p + 0x17`): `20 00 01 00 00 4C 20 08` (`JSR $0100`, `JMP $0820`)
 const EXOMIZER_FIXTURE: [u8; 30] = [
     // p - 6..p ($0801..=$0806)
     0x4C, 0x34, 0x01, 0x00, 0x00, 0x00, // p..p + 8 ($0807..=$080E)

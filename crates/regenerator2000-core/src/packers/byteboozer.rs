@@ -9,7 +9,7 @@ use super::spec::{
 
 /// ByteBoozer 2.0 10-byte signature at `$080D`.
 ///
-/// Matches `SEI; LDA #$34; STA $xx; ...; LAX $xx,Y; LDA $081E,X`.
+/// Matches `SEI, LDA #$34, STA $xx, ..., LAX $xx,Y, LDA $081E,X`.
 pub const BYTEBOOZER_SIGNATURE: Signature = Signature {
     anchor: Anchor::Absolute(0x080D),
     pattern: sig![0x78, 0xA9, 0x34, 0x85, __, __, 0xB7, 0xBD, 0x1E, 0x08],
@@ -31,8 +31,7 @@ const BASE_HINTS: Hints = Hints {
     ..Hints::NONE
 };
 
-/// Validates ByteBoozer 2.0 bounds (`mem.len() > 0x0887`, `load_addr <= 0x0801`, and
-/// readable operands at `$0886..=$0887` and `$08CB..=$08CC`).
+/// Validates ByteBoozer 2.0 bounds and readable operands at `$0886` and `$08CB`.
 #[must_use]
 fn resolve_byteboozer(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
     let q = usize::from(sig_match.anchor_addr);

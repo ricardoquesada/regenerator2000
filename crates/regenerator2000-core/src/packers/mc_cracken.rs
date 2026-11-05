@@ -9,7 +9,7 @@ use super::spec::{
 
 /// MC-Cracken Compressor 8-byte signature searched in `$0810..=$0840`.
 ///
-/// Matches `LDA #imm; STA $xx; LDY #$00; DEC $AF`.
+/// Matches `LDA #imm, STA $xx, LDY #$00, DEC $AF`.
 pub const MCCRACKEN_SIGNATURE: Signature = Signature {
     anchor: Anchor::Window(0x0810..=0x0840),
     pattern: sig![0xA9, __, 0x85, __, 0xA0, 0x00, 0xC6, 0xAF],
@@ -29,7 +29,7 @@ const BASE_HINTS: Hints = Hints {
     ..Hints::NONE
 };
 
-/// Resolves MC-Cracken per-position bounds check (`mem.len() > p + 0x40`) and optional
+/// Verifies the MC-Cracken bounds (`mem.len() > p + 0x40`) and resolves the optional
 /// `JMP` entry point at `p + 0x61..=p + 0x63` (defaulting to `$1100`).
 #[must_use]
 fn resolve_mc_cracken(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Option<ResolvedSpec> {

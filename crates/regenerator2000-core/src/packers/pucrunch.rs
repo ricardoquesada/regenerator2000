@@ -15,15 +15,15 @@ const SIGNATURES: [Signature; 1] = [Signature {
     ],
 }];
 
-/// Secondary scan signature in `$0912..=$0937` (`0x0912..0x0938`) locating the optional
+/// Secondary scan signature in `$0912..=$0937` that locates the optional
 /// unpacked `entry_point` operand at `p + 0x0A..=p + 0x0B`.
 pub const ENTRY_SIGNATURE: Signature = Signature {
     anchor: Anchor::Window(0x0912..=0x0937),
     pattern: sig![0xA5, 0xFA, 0x85, 0x2D, 0xA5, 0xFB, 0x85, 0x2E],
 };
 
-/// Static base hints for PUCrunch (`dep_addr` at `$0813 + 0x2E = $0841`, `start_addr` at
-/// `$0813 + 0x66 = $0879`, and post-run end pointer at `$00FA`).
+/// Static base hints for PUCrunch (`dep_addr` at `$0841`, `start_addr` at `$0879`,
+/// and post-run end pointer at `$00FA`).
 pub const BASE_HINTS: Hints = Hints {
     dep_addr: Some(AddrSource::OperandLe { from_match: 0x2E }),
     start_addr: Some(AddrSource::OperandLe { from_match: 0x66 }),
@@ -35,7 +35,7 @@ pub const BASE_HINTS: Hints = Hints {
     ..Hints::NONE
 };
 
-/// Resolves PUCrunch hints, running the secondary window scan `0x0912..0x0938` for `entry_point`.
+/// Resolves PUCrunch hints and scans `0x0912..=0x0937` for `entry_point`.
 #[must_use]
 fn resolve_pucrunch(image: &LoadedImage<'_>, _sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
     if image.mem.len() < 0x0944 {

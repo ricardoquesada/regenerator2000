@@ -12,7 +12,7 @@ pub const ACM_CANDIDATES: [Anchor; 2] = [Anchor::Absolute(0x080D), Anchor::Absol
 
 /// Variant 1 (`1001 CardCruncher ACM`) 17-byte signature at candidate anchors `$080D` and `$080F`.
 ///
-/// Matches `SEI; LDX #imm; STX $01; LDA abs,X; STA abs,X; DEX; BNE rel; JMP $0100`.
+/// Matches `SEI, LDX #imm, STX $01, LDA abs,X, STA abs,X, DEX, BNE rel, JMP $0100`.
 pub const ACM_SIGNATURE: Signature = Signature {
     anchor: Anchor::Candidates(&ACM_CANDIDATES),
     pattern: sig![
@@ -22,13 +22,13 @@ pub const ACM_SIGNATURE: Signature = Signature {
 
 /// Variant 2 (`1001 CardCruncher v4`) 9-byte signature at `$0815`.
 ///
-/// Matches `STX $01; ...; LDA $082A,Y; STA $FAxx,Y` (`mem[$0815..=$081D]`).
+/// Matches `STX $01, ..., LDA $082A,Y, STA $FAxx,Y` (`mem[$0815..=$081D]`).
 pub const V4_SIGNATURE: Signature = Signature {
     anchor: Anchor::Absolute(0x0815),
     pattern: sig![0x86, 0x01, __, __, __, 0x2A, 0x08, 0x99, 0xFA],
 };
 
-/// Combined candidate anchors (`$080D`, `$080F` for ACM; `$0815` for v4) probed in order.
+/// Combined candidate anchors (`$080D` and `$080F` for ACM, `$0815` for v4) probed in order.
 const ALL_CANDIDATES: [Anchor; 3] = [
     Anchor::Absolute(0x080D),
     Anchor::Absolute(0x080F),
@@ -37,9 +37,8 @@ const ALL_CANDIDATES: [Anchor; 3] = [
 
 /// Primary candidate signature covering both Variant 1 (`$080D`/`$080F`) and Variant 2 (`$0815`).
 ///
-/// `resolve_card_cruncher` verifies the full variant-specific signature (`ACM_SIGNATURE` or
-/// `V4_SIGNATURE`) and minimum image length at each candidate position before reading the
-/// fixed-address little-endian operands.
+/// `resolve_card_cruncher` verifies the full variant signature (`ACM_SIGNATURE` or
+/// `V4_SIGNATURE`) and minimum image length at each candidate position.
 const SIGNATURES: [Signature; 1] = [Signature {
     anchor: Anchor::Candidates(&ALL_CANDIDATES),
     pattern: sig![
@@ -55,7 +54,7 @@ const SIGNATURES: [Signature; 1] = [Signature {
     ],
 }];
 
-/// Resolves 1001 Card Cruncher Variant 1 (`ACM`) or Variant 2 (`v4`) at candidate `sig_match.anchor_addr`.
+/// Resolves 1001 Card Cruncher Variant 1 (`ACM`) or Variant 2 (`v4`) at `sig_match.anchor_addr`.
 #[must_use]
 fn resolve_card_cruncher(
     image: &LoadedImage<'_>,

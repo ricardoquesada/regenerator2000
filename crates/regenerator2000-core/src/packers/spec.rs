@@ -2,19 +2,18 @@
 //!
 //! This module defines the data-driven model for 6502 binary packers:
 //!
-//! - [`Pat`] and the [`sig!`](crate::sig) macro express byte patterns with wildcards,
+//! - [`Pat`] and the [`sig!`](crate::sig) macro define byte patterns with wildcards,
 //!   bitmasks, and value sets.
-//! - [`Anchor`] and [`Signature`] describe where and how signatures are matched in a
+//! - [`Anchor`] and [`Signature`] define where and how signatures match in a
 //!   [`LoadedImage`].
-//! - [`AddrSource`], [`PointerGuard`], and [`Hints`] declaratively express static and
-//!   runtime address overrides (depacker address, output range start/end, entry point,
-//!   forced entry, and exact-return semantics).
-//! - [`PatchAddr`] and [`MemoryPatch`] express conditional or unconditional pre-emulation
-//!   RAM patches.
-//! - [`PackerSpec`] combines signatures, hints, patches, an optional per-position
-//!   `resolve` escape hatch, an optional `hooks` factory, and a self-test `fixture`.
-//! - [`PackerHooks`], [`StepContext`], [`RefineContext`], and [`Bounds`] provide a narrow,
-//!   encapsulated emulation-time hook facade that hides CPU and bus internals.
+//! - [`AddrSource`], [`PointerGuard`], and [`Hints`] define static and runtime address
+//!   overrides (depacker address, output range start/end, entry point, forced entry,
+//!   and exact-return rules).
+//! - [`PatchAddr`] and [`MemoryPatch`] define pre-emulation RAM patches.
+//! - [`PackerSpec`] combines signatures, hints, patches, an optional `resolve` function,
+//!   an optional `hooks` factory, and a self-test `fixture`.
+//! - [`PackerHooks`], [`StepContext`], [`RefineContext`], and [`Bounds`] provide an
+//!   emulation-time hook interface that hides CPU and bus internals.
 
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
@@ -26,13 +25,13 @@ use crate::state::types::{System, TargetSystem};
 use crate::unpacker::UnpackerMemory;
 use crate::unpacker::machine::Phase;
 
-/// Stable identifier for a registered [`PackerSpec`] (e.g. `"eagle"`, `"exomizer.v3"`).
+/// Stable identifier for a registered [`PackerSpec`] (for example, `"eagle"` or `"exomizer.v3"`).
 pub type PackerId = &'static str;
 
 /// Returns `true` if `id` is a valid, canonical [`PackerId`].
 ///
-/// A valid identifier is non-empty, starts with an ASCII lowercase letter or digit,
-/// and contains only ASCII lowercase alphanumeric characters, `'_'`, `'.'`, or `'-'`,
+/// A valid identifier is not empty and starts with an ASCII lowercase letter or digit.
+/// It contains only ASCII lowercase alphanumeric characters, `'_'`, `'.'`, or `'-'`,
 /// with no consecutive or trailing separators.
 ///
 /// # Examples
@@ -81,21 +80,21 @@ pub fn is_valid_packer_id(id: &str) -> bool {
 pub enum Pat {
     /// Matches only the exact byte value.
     Byte(u8),
-    /// Wildcard: matches any byte value (`0x00..=0xFF`).
+    /// Matches any byte value (`0x00..=0xFF`).
     Any,
-    /// Bitmask match: holds when `(byte & mask) == eq` (e.g. TBC `& 0xFD == 0x84`).
+    /// Matches when `(byte & mask) == eq` (for example, TBC `& 0xFD == 0x84`).
     Mask {
         /// Bitmask applied to the candidate byte before comparison.
         mask: u8,
-        /// Expected value after masking.
+        /// Expected value after the bitmask.
         eq: u8,
     },
-    /// Set match: holds when `byte` equals any element in the slice (e.g. Exomizer `0x34 | 0x50`).
+    /// Matches when `byte` equals any element in the slice (for example, Exomizer `0x34 | 0x50`).
     OneOf(&'static [u8]),
 }
 
 impl Pat {
-    /// Returns `true` if `byte` satisfies this pattern element.
+    /// Returns `true` if `byte` matches this pattern element.
     ///
     /// # Examples
     ///
@@ -120,10 +119,10 @@ impl Pat {
     }
 }
 
-/// Constructs a `&'static [Pat]` slice from byte literals, wildcards (`_` or `__`),
+/// Builds a `&'static [Pat]` slice from byte literals, wildcards (`_` or `__`),
 /// `OneOf` slices (`[a, b]`), and `Mask` pairs (`(mask, eq)`).
 ///
-/// Tokens may be separated by spaces or commas.
+/// Separate tokens with spaces or commas.
 ///
 /// # Examples
 ///
@@ -173,51 +172,36 @@ macro_rules! sig {
 
 pub use crate::sig;
 
-/// Where a [`Signature`] is searched within a [`LoadedImage`].
+/// Search location for a [`Signature`] in a [`LoadedImage`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Anchor {
-    /// Positive offset from [`System::default_basic_start`] (e.g. `$0801 + offset` on C64).
+    /// Positive offset from [`System::default_basic_start`] (for example, `$0801 + offset` on C64).
     BasicStart {
         /// Unsigned byte offset added to `system.default_basic_start()`.
         offset: u16,
     },
     /// Fixed absolute 16-bit memory address.
     Absolute(u16),
-    /// Inclusive absolute address range searched in ascending order (e.g. `0x0810..=0x0840`).
+    /// Inclusive absolute address range searched in ascending order (for example, `0x0810..=0x0840`).
     Window(RangeInclusive<u16>),
-    /// Forward (ascending) scan starting at `image.load_addr` up to `load_addr + max_offset`.
+    /// Forward (ascending) scan from `image.load_addr` up to `load_addr + max_offset`.
     ScanFromLoad {
         /// Maximum offset past `load_addr` to test as a signature start position.
         max_offset: usize,
     },
-    /// Backward (descending) scan from `image.load_end - pattern.len()` down by at most
+    /// Backward (descending) scan from `image.effective_load_end() - pattern.len()` down by at most
     /// `max_offset` bytes, bounded below by `image.load_addr`.
     ScanBackFromEnd {
         /// Maximum backward distance from the highest valid start position.
         max_offset: usize,
     },
-    /// Ordered list of candidate anchors tried in sequence.
+    /// Ordered list of candidate anchors tested in sequence.
     Candidates(&'static [Anchor]),
 }
 
 impl Anchor {
-    /// Appends every candidate start address for a pattern of length `pattern_len`
-    /// in `image` to `out`, in the exact probe order of this anchor.
-    pub fn collect_positions(
-        &self,
-        image: &LoadedImage<'_>,
-        pattern_len: usize,
-        out: &mut Vec<u16>,
-    ) {
-        let _: Option<()> = self.find_position(image, pattern_len, |addr| {
-            out.push(addr);
-            None
-        });
-    }
-
     /// Calls `predicate` on each candidate start address for a pattern of length `pattern_len`
-    /// in `image` in probe order, returning `Some(R)` on the first candidate where
-    /// `predicate` returns `Some(R)`.
+    /// in `image` in probe order. Returns `Some(R)` on the first match.
     ///
     /// Performs zero heap allocations.
     #[must_use]
@@ -263,7 +247,7 @@ impl Anchor {
             Self::ScanFromLoad { max_offset } => {
                 let start = usize::from(image.load_addr);
                 let limit_from_offset = start.saturating_add(*max_offset);
-                let limit_from_end = usize::from(image.load_end).saturating_sub(pattern_len);
+                let limit_from_end = image.effective_load_end().saturating_sub(pattern_len);
                 let upper = limit_from_offset
                     .min(limit_from_end)
                     .min(usize::from(u16::MAX));
@@ -279,7 +263,7 @@ impl Anchor {
                 None
             }
             Self::ScanBackFromEnd { max_offset } => {
-                let end_bound = usize::from(image.load_end);
+                let end_bound = image.effective_load_end();
                 if end_bound < pattern_len {
                     return None;
                 }
@@ -311,17 +295,16 @@ impl Anchor {
 /// A byte pattern anchored by an [`Anchor`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Signature {
-    /// Where to look for `pattern` in memory.
+    /// Search location for `pattern` in memory.
     pub anchor: Anchor,
-    /// Sequence of byte patterns that must match contiguously starting at the anchor position.
+    /// Contiguous sequence of byte patterns that must match at the anchor position.
     pub pattern: &'static [Pat],
 }
 
 impl Signature {
-    /// Returns `true` if `self.pattern` matches `mem` starting at `addr`.
+    /// Returns `true` if `self.pattern` matches `mem` at `addr`.
     ///
-    /// Returns `false` (without panicking) if `addr + self.pattern.len()` exceeds `mem.len()`
-    /// or overflows the 16-bit address space.
+    /// Returns `false` if `addr + self.pattern.len()` exceeds `mem.len()` or `0x1_0000`.
     #[must_use]
     pub fn matches_at(&self, mem: &[u8], addr: u16) -> bool {
         let start = usize::from(addr);
@@ -355,39 +338,26 @@ impl Signature {
 // Address sources, guards, hints, and patches
 // ===========================================================================
 
-/// 6502 CPU register selector for [`AddrSource::PointerPlusRegister`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Reg {
-    /// Accumulator (`A`).
-    A,
-    /// Index register `X`.
-    X,
-    /// Index register `Y`.
-    Y,
-}
-
 /// Acceptance policy for a post-emulation pointer read ([`AddrSource::PointerAfterRun`]).
 ///
 /// Named variants keep [`AddrSource`] and [`Hints`] `PartialEq + Eq` without comparing
 /// function pointers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PointerGuard {
-    /// Accept the adjusted pointer value unconditionally.
+    /// Accepts the adjusted pointer value unconditionally.
     None,
-    /// Generic R2000 rule: requires `raw > start_addr` and
+    /// Requires `raw > start_addr` and
     /// `adjusted >= start_addr && adjusted <= detected_end.saturating_add(slack)`.
     NearDetectedEnd {
         /// Maximum allowed positive distance past `detected_end` (typically `512`).
         slack: u16,
     },
-    /// McCracken Compressor rule: requires `raw > start_addr` and
-    /// `raw < 0xFFFF` (with `adjusted >= start_addr`).
+    /// Requires `raw > start_addr`, `raw < 0xFFFF`, and `adjusted >= start_addr`.
     McCrackenEndOfProgram,
 }
 
 impl PointerGuard {
-    /// Returns `true` if a pointer with raw LE value `raw` and adjusted value `adjusted`
-    /// is accepted given the current `start_addr` and `detected_end`.
+    /// Returns `true` if `self` accepts `raw` and `adjusted` for `start_addr` and `detected_end`.
     #[must_use]
     pub const fn accepts(
         self,
@@ -417,9 +387,8 @@ pub enum AddrSource {
     Const(u16),
     /// Signed offset from [`System::default_basic_start`].
     ///
-    /// For example, on C64 (`default_basic_start() == $0801`), `BasicStart(0)` resolves
-    /// to `$0801` and `BasicStart(-1)` resolves to `$0800`. Out-of-range offsets that
-    /// underflow `< 0` or overflow `> $FFFF` resolve to `None`.
+    /// On C64 (`default_basic_start() == $0801`), `BasicStart(0)` resolves to `$0801`
+    /// and `BasicStart(-1)` resolves to `$0800`. Offsets outside `0..=$FFFF` resolve to `None`.
     BasicStart(i16),
     /// Little-endian 16-bit word read from `mem` at `anchor_addr + from_match`.
     OperandLe {
@@ -433,40 +402,10 @@ pub enum AddrSource {
     PointerAfterRun {
         /// Zero-page or RAM address of the low byte (high byte at `ptr_addr.wrapping_add(1)`).
         ptr_addr: u16,
-        /// Signed adjustment added to the raw pointer (e.g. `-1` to convert exclusive to inclusive).
+        /// Signed adjustment added to the raw pointer (for example, `-1` for inclusive end).
         adjust: i16,
         /// Acceptance guard checked before overriding the bound.
         guard: PointerGuard,
-    },
-    /// Little-endian 16-bit word read from `mem[ptr_addr]` and `mem[ptr_addr.wrapping_add(1)]`
-    /// after emulation finishes, plus the value of CPU register `reg` and signed `adjust`.
-    PointerPlusRegister {
-        /// Zero-page or RAM address of the low byte.
-        ptr_addr: u16,
-        /// CPU register added to the 16-bit pointer.
-        reg: Reg,
-        /// Signed adjustment added after the register offset.
-        adjust: i16,
-    },
-    /// Little-endian 16-bit word at `ptr_addr` sampled only on the **first** hit at the
-    /// depacker PC, adjusted by `adjust`.
-    PointerAtDepacker {
-        /// Zero-page or RAM address of the low byte.
-        ptr_addr: u16,
-        /// Signed adjustment added to the sampled pointer.
-        adjust: i16,
-    },
-    /// Maximum value of the little-endian 16-bit word at `ptr_addr` sampled across hits at
-    /// the depacker PC.
-    MonitoredMax {
-        /// Zero-page or RAM address of the low byte.
-        ptr_addr: u16,
-    },
-    /// Minimum value of the little-endian 16-bit word at `ptr_addr` sampled across hits at
-    /// the depacker PC.
-    MonitoredMin {
-        /// Zero-page or RAM address of the low byte.
-        ptr_addr: u16,
     },
 }
 
@@ -479,67 +418,10 @@ pub fn read_u16_le_wrapping(mem: &[u8], ptr_addr: u16) -> Option<u16> {
     Some(u16::from_le_bytes([lo, hi]))
 }
 
-/// Runtime sampler for [`AddrSource::PointerAtDepacker`], [`AddrSource::MonitoredMax`],
-/// and [`AddrSource::MonitoredMin`].
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct PointerMonitor {
-    first_at_depacker: Option<u16>,
-    monitored_max: Option<u16>,
-    monitored_min: Option<u16>,
-}
-
-impl PointerMonitor {
-    /// Creates an empty [`PointerMonitor`] with no recorded samples.
-    #[must_use]
-    pub const fn new() -> Self {
-        Self {
-            first_at_depacker: None,
-            monitored_max: None,
-            monitored_min: None,
-        }
-    }
-
-    /// Samples the little-endian 16-bit word at `ptr_addr` from `mem` when execution
-    /// reaches the depacker PC.
-    ///
-    /// - Records `first_at_depacker` only on the first sample.
-    /// - Updates `monitored_max` and `monitored_min` on every sample.
-    pub fn sample_at_depacker(&mut self, mem: &[u8], ptr_addr: u16) {
-        let Some(val) = read_u16_le_wrapping(mem, ptr_addr) else {
-            return;
-        };
-        if self.first_at_depacker.is_none() {
-            self.first_at_depacker = Some(val);
-        }
-        self.monitored_max = Some(self.monitored_max.map_or(val, |cur| cur.max(val)));
-        self.monitored_min = Some(self.monitored_min.map_or(val, |cur| cur.min(val)));
-    }
-
-    /// Returns the value captured on the first depacker hit, if any.
-    #[must_use]
-    pub const fn first_at_depacker(&self) -> Option<u16> {
-        self.first_at_depacker
-    }
-
-    /// Returns the maximum sampled value across depacker hits, if any.
-    #[must_use]
-    pub const fn monitored_max(&self) -> Option<u16> {
-        self.monitored_max
-    }
-
-    /// Returns the minimum sampled value across depacker hits, if any.
-    #[must_use]
-    pub const fn monitored_min(&self) -> Option<u16> {
-        self.monitored_min
-    }
-}
-
 impl AddrSource {
     /// Resolves a detection-time (static) [`AddrSource`] against `image` and `anchor_addr`.
     ///
-    /// Returns `None` for runtime sources (`PointerAfterRun`, `PointerPlusRegister`,
-    /// `PointerAtDepacker`, `MonitoredMax`, `MonitoredMin`) or if an offset/operand is
-    /// out of bounds.
+    /// Returns `None` for [`Self::PointerAfterRun`] or if an offset is out of bounds.
     #[must_use]
     pub fn resolve_static(self, image: &LoadedImage<'_>, anchor_addr: u16) -> Option<u16> {
         match self {
@@ -555,25 +437,14 @@ impl AddrSource {
                 image.read_u16_le(idx)
             }
             Self::AbsoluteLe(addr) => image.read_u16_le(usize::from(addr)),
-            Self::PointerAfterRun { .. }
-            | Self::PointerPlusRegister { .. }
-            | Self::PointerAtDepacker { .. }
-            | Self::MonitoredMax { .. }
-            | Self::MonitoredMin { .. } => None,
+            Self::PointerAfterRun { .. } => None,
         }
     }
 
-    /// Resolves a post-emulation (runtime) [`AddrSource`] using final `mem`, exit `registers`,
-    /// current `(start_addr, detected_end)` bounds, and `monitor`.
+    /// Resolves a post-emulation (runtime) [`AddrSource`] from final `mem` and
+    /// the current `(start_addr, detected_end)` bounds.
     #[must_use]
-    pub fn resolve_post_run(
-        self,
-        mem: &[u8],
-        registers: Registers,
-        start_addr: u16,
-        detected_end: u16,
-        monitor: &PointerMonitor,
-    ) -> Option<u16> {
+    pub fn resolve_post_run(self, mem: &[u8], start_addr: u16, detected_end: u16) -> Option<u16> {
         match self {
             Self::Const(addr) => Some(addr),
             Self::PointerAfterRun {
@@ -587,29 +458,15 @@ impl AddrSource {
                     .accepts(raw, adjusted, start_addr, detected_end)
                     .then_some(adjusted)
             }
-            Self::PointerPlusRegister {
-                ptr_addr,
-                reg,
-                adjust,
-            } => {
-                let raw = read_u16_le_wrapping(mem, ptr_addr)?;
-                let with_reg = raw.wrapping_add(u16::from(registers.get(reg)));
-                Some(with_reg.wrapping_add_signed(adjust))
-            }
-            Self::PointerAtDepacker { adjust, .. } => monitor
-                .first_at_depacker()
-                .map(|raw| raw.wrapping_add_signed(adjust)),
-            Self::MonitoredMax { .. } => monitor.monitored_max(),
-            Self::MonitoredMin { .. } => monitor.monitored_min(),
             Self::BasicStart(_) | Self::OperandLe { .. } | Self::AbsoluteLe(_) => None,
         }
     }
 }
 
-/// Address and execution hints contributed by a [`PackerSpec`].
+/// Address and execution hints from a [`PackerSpec`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Hints {
-    /// Depacker stub start address (`Phase::FindDepacker` → `Phase::Decompress` trigger).
+    /// Depacker stub start address (`Phase::FindDepacker` to `Phase::Decompress` trigger).
     pub dep_addr: Option<AddrSource>,
     /// Unpacked output start address override.
     pub start_addr: Option<AddrSource>,
@@ -652,7 +509,7 @@ pub enum PatchAddr {
 }
 
 impl PatchAddr {
-    /// Resolves this patch address to a 16-bit memory address given `anchor_addr`.
+    /// Resolves this patch address to a 16-bit memory address from `anchor_addr`.
     #[must_use]
     pub fn resolve(self, anchor_addr: u16) -> Option<u16> {
         match self {
@@ -668,18 +525,18 @@ impl PatchAddr {
 /// A pre-emulation RAM modification declared by a [`PackerSpec`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemoryPatch {
-    /// Where to write `bytes`.
+    /// Target address for `bytes`.
     pub addr: PatchAddr,
-    /// Optional guard byte: when `Some(expected)`, the patch is applied only if the
-    /// first target byte currently equals `expected` (e.g. Antiram conditional patch).
+    /// Optional guard byte. When `Some(expected)`, [`Self::apply`] writes `bytes` only if
+    /// the first target byte equals `expected` (for example, Antiram conditional patch).
     pub expected: Option<u8>,
-    /// Replacement byte sequence written directly into `mem` before the snapshot.
+    /// Replacement byte sequence written into `mem` before the snapshot.
     pub bytes: &'static [u8],
 }
 
 impl MemoryPatch {
-    /// Applies this patch to `mem` if its resolved address range lies within `mem`
-    /// and `self.expected` (if any) matches the byte at the resolved start address.
+    /// Applies this patch to `mem` when the resolved address range lies within `mem`
+    /// and `self.expected` (if any) matches the first target byte.
     ///
     /// Returns `true` if the patch was applied.
     pub fn apply(&self, mem: &mut [u8], anchor_addr: u16) -> bool {
@@ -749,7 +606,20 @@ impl<'a> LoadedImage<'a> {
         }
     }
 
-    /// Reads a single byte at `addr`, returning `None` if `addr >= self.mem.len()`.
+    /// Returns the exclusive end bound as a `usize`.
+    ///
+    /// When a binary reaches `$FFFF` inclusive, `load_addr.wrapping_add(len)` wraps
+    /// `load_end` to `0x0000`. This method returns `0x1_0000` in that case.
+    #[must_use]
+    pub const fn effective_load_end(&self) -> usize {
+        if self.load_end == 0 && self.load_addr > 0 {
+            0x1_0000
+        } else {
+            self.load_end as usize
+        }
+    }
+
+    /// Reads one byte at `addr`, returning `None` if `addr >= self.mem.len()`.
     #[must_use]
     pub fn read_u8(&self, addr: usize) -> Option<u8> {
         self.mem.get(addr).copied()
@@ -772,11 +642,10 @@ impl<'a> LoadedImage<'a> {
     }
 }
 
-/// Detection-time output produced by a [`PackerSpec`] (either statically from its
-/// fields or dynamically via [`PackerSpec::resolve`]).
+/// Detection-time output from a [`PackerSpec`] (either static or via [`PackerSpec::resolve`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResolvedSpec {
-    /// Optional display-name override (when `None`, [`PackerSpec::name`] is used).
+    /// Optional display-name override (when `None`, [`PackerSpec::name`] applies).
     pub name: Option<&'static str>,
     /// Effective hints for this match.
     pub hints: Hints,
@@ -821,7 +690,7 @@ impl ResolvedSpec {
 }
 
 /// Result of matching a [`PackerSpec`] against a [`LoadedImage`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SignatureMatch {
     /// Identifier of the matched [`PackerSpec`].
     pub spec_id: PackerId,
@@ -829,26 +698,16 @@ pub struct SignatureMatch {
     pub spec_name: &'static str,
     /// Matched address of the primary signature (`signatures[0]`, or `load_addr` if `signatures` is empty).
     pub anchor_addr: u16,
-    /// Matched address for every signature in [`PackerSpec::signatures`], in slice order.
-    pub match_addrs: Vec<u16>,
     /// Effective hints, patches, and optional name override for this match.
     pub resolved: ResolvedSpec,
 }
 
-impl SignatureMatch {
-    /// Returns the matched address of signature `index`, if present.
-    #[must_use]
-    pub fn signature_addr(&self, index: usize) -> Option<u16> {
-        self.match_addrs.get(index).copied()
-    }
-}
-
 /// Returns `true` if `actual` matches the allowed system entry `allowed`.
 ///
-/// For [`TargetSystem::C64`], this uses [`TargetSystem::is_c64`] (consistent with
-/// [`RomTrapTable::for_system`](crate::unpacker::machine::RomTrapTable::for_system)
-/// and [`C64Bus`](crate::unpacker::C64Bus)), NOT `PartialEq`, so a
-/// `TargetSystem::Custom("Commodore 64")` does not masquerade as [`TargetSystem::C64`].
+/// For [`TargetSystem::C64`], this function calls [`TargetSystem::is_c64`] rather than
+/// `PartialEq`. This matches [`RomTrapTable::for_system`](crate::unpacker::machine::RomTrapTable::for_system)
+/// and [`C64Bus`](crate::unpacker::C64Bus), so `TargetSystem::Custom("Commodore 64")` does
+/// not match [`TargetSystem::C64`].
 #[must_use]
 pub fn system_matches(allowed: &TargetSystem, actual: &TargetSystem) -> bool {
     match (allowed, actual) {
@@ -867,35 +726,33 @@ pub type HooksFactory = fn(&LoadedImage<'_>, &SignatureMatch) -> Box<dyn PackerH
 
 /// Declarative specification of a binary packer variant.
 ///
-/// Note: Derives `Debug`, `Clone`, and `Copy`, but intentionally omits `PartialEq` / `Eq`
-/// to avoid the `unpredictable_function_pointer_comparisons` lint on `resolve` and `hooks`.
-/// Compare specs by [`Self::id`] or [`std::ptr::eq`].
+/// Derives `Debug`, `Clone`, and `Copy`, and omits `PartialEq` and `Eq` to avoid
+/// function-pointer comparisons on `resolve` and `hooks`. Compare specs by [`Self::id`]
+/// or [`std::ptr::eq`].
 #[derive(Debug, Clone, Copy)]
 pub struct PackerSpec {
-    /// Stable identifier (e.g. `"eagle"`, `"exomizer.v3"`).
+    /// Stable identifier (for example, `"eagle"` or `"exomizer.v3"`).
     pub id: PackerId,
-    /// Default human-readable display name (e.g. `"Eagle Cruncher"`).
+    /// Default human-readable display name (for example, `"Eagle Cruncher"`).
     pub name: &'static str,
-    /// Detection priority (strictly increasing across the registry; lower runs first).
+    /// Detection priority in strictly increasing registry order (lower values run first).
     pub priority: u16,
-    /// Target systems on which this spec is eligible to match.
+    /// Target systems on which this spec can match.
     pub systems: &'static [TargetSystem],
-    /// Optional upper bound on `image.load_addr` (e.g. `Some(0x0801)` or `Some(0x080B)`).
+    /// Optional upper bound on `image.load_addr` (for example, `Some(0x0801)` or `Some(0x080B)`).
     pub load_addr_max: Option<u16>,
-    /// Signatures that must ALL match before `resolve` (if any) is evaluated.
+    /// Signatures that must all match before `resolve` runs.
     pub signatures: &'static [Signature],
     /// Static hints used when `resolve` is `None`.
     pub hints: Hints,
     /// Static pre-emulation patches used when `resolve` is `None`.
     pub patches: &'static [MemoryPatch],
-    /// Optional per-position detection escape hatch for computed operands, secondary scans,
-    /// or position-dependent byte checks.
+    /// Optional per-position detection callback for computed operands or secondary scans.
     ///
-    /// Evaluated at *each candidate position* of `signatures[0].anchor` where all
-    /// `signatures` match. Returning `None` advances to the next candidate position
-    /// (ECA `continue` semantics).
+    /// Runs at each candidate position of `signatures[0].anchor` where all `signatures`
+    /// match. Returning `None` advances to the next candidate position.
     pub resolve: Option<ResolveFn>,
-    /// Optional factory producing emulation-time [`PackerHooks`].
+    /// Optional factory that creates emulation-time [`PackerHooks`].
     pub hooks: Option<HooksFactory>,
     /// Minimal synthetic payload bytes placed at `fixture_load_addr` for registry self-tests.
     pub fixture: &'static [u8],
@@ -906,13 +763,11 @@ pub struct PackerSpec {
 impl PackerSpec {
     /// Evaluates whether this [`PackerSpec`] matches `image`.
     ///
-    /// Checks:
+    /// Detection checks:
     /// 1. `image.system` matches at least one entry in `self.systems` via [`system_matches`].
-    /// 2. `image.load_addr <= max_load` if `self.load_addr_max` is `Some(max_load)`.
-    /// 3. For each candidate position of `self.signatures[0]` where `signatures[0]` matches
-    ///    and every secondary signature `self.signatures[1..]` also matches somewhere in
-    ///    `image`, runs `self.resolve` (if `Some`). If `resolve` returns `None`, continues
-    ///    scanning the remaining candidate positions of `signatures[0]`.
+    /// 2. `image.load_addr <= max_load` when `self.load_addr_max` is `Some(max_load)`.
+    /// 3. Each candidate position of `self.signatures[0]` where all `self.signatures` match
+    ///    passes `self.resolve` (if present). Returning `None` from `resolve` continues the scan.
     #[must_use]
     pub fn detect(&self, image: &LoadedImage<'_>) -> Option<SignatureMatch> {
         if !self
@@ -936,13 +791,12 @@ impl PackerSpec {
         };
 
         let Some((first_sig, rest_sigs)) = self.signatures.split_first() else {
-            // A spec with no declarative signatures relies exclusively on `resolve`.
+            // A spec with no declarative signatures uses `resolve` directly.
             let resolve_fn = self.resolve?;
             let prelim = SignatureMatch {
                 spec_id: self.id,
                 spec_name: self.name,
                 anchor_addr: image.load_addr,
-                match_addrs: Vec::new(),
                 resolved: default_resolved,
             };
             let resolved = resolve_fn(image, &prelim)?;
@@ -953,9 +807,9 @@ impl PackerSpec {
             });
         };
 
-        // Secondary signatures are independent of the primary anchor position, so we
-        // only resolve them once after the first primary hit.
-        let mut secondary_addrs: Option<Option<Vec<u16>>> = None;
+        // Secondary signatures do not depend on the primary anchor position.
+        // Evaluate them at most once after the first primary hit.
+        let mut secondaries_matched: Option<bool> = None;
 
         first_sig
             .anchor
@@ -964,36 +818,17 @@ impl PackerSpec {
                     return None;
                 }
 
-                let sec_addrs = match &secondary_addrs {
-                    Some(Some(addrs)) => addrs.as_slice(),
-                    Some(None) => return None,
-                    None => {
-                        if rest_sigs.is_empty() {
-                            secondary_addrs = Some(Some(Vec::new()));
-                            &[]
-                        } else {
-                            let mut addrs = Vec::with_capacity(rest_sigs.len());
-                            for sig in rest_sigs {
-                                let Some(addr) = sig.find_first(image) else {
-                                    secondary_addrs = Some(None);
-                                    return None;
-                                };
-                                addrs.push(addr);
-                            }
-                            secondary_addrs.insert(Some(addrs)).as_deref()?
-                        }
-                    }
-                };
-
-                let mut match_addrs = Vec::with_capacity(1 + sec_addrs.len());
-                match_addrs.push(pos);
-                match_addrs.extend_from_slice(sec_addrs);
+                let all_sec_match = *secondaries_matched.get_or_insert_with(|| {
+                    rest_sigs.iter().all(|sig| sig.find_first(image).is_some())
+                });
+                if !all_sec_match {
+                    return None;
+                }
 
                 let prelim = SignatureMatch {
                     spec_id: self.id,
                     spec_name: self.name,
                     anchor_addr: pos,
-                    match_addrs,
                     resolved: default_resolved,
                 };
 
@@ -1011,8 +846,8 @@ impl PackerSpec {
             })
     }
 
-    /// Builds a 64 KB memory buffer with `self.fixture` loaded at `self.fixture_load_addr`,
-    /// along with `(load_addr, load_end)` suitable for constructing a [`LoadedImage`].
+    /// Builds a 64 KB memory buffer with `self.fixture` loaded at `self.fixture_load_addr`.
+    /// Returns `(mem, load_addr, load_end)` for [`LoadedImage`].
     #[must_use]
     pub fn build_fixture_memory(&self) -> (Vec<u8>, u16, u16) {
         let mut mem = vec![0u8; 0x1_0000];
@@ -1041,23 +876,10 @@ pub struct Registers {
     pub sp: u8,
 }
 
-impl Registers {
-    /// Returns the value of the requested [`Reg`].
-    #[must_use]
-    pub const fn get(self, reg: Reg) -> u8 {
-        match reg {
-            Reg::A => self.a,
-            Reg::X => self.x,
-            Reg::Y => self.y,
-        }
-    }
-}
-
-/// Encapsulated per-instruction context passed to [`PackerHooks::on_step`].
+/// Per-instruction context passed to [`PackerHooks::on_step`].
 ///
-/// Provides a value copy of the CPU registers (`registers`), raw side-effect-free
-/// RAM inspection ([`Self::peek`]), and phase-1 write-bitmap clearing
-/// ([`Self::forget_writes`]) without exposing the `CPU` or `C64Bus` internals.
+/// Provides a value copy of the CPU registers (`registers`), side-effect-free RAM reads
+/// ([`Self::peek`]), and phase-1 write-bitmap clearing ([`Self::forget_writes`]).
 pub struct StepContext<'a> {
     /// Current 6502 program counter.
     pub pc: u16,
@@ -1109,25 +931,18 @@ impl<'a> StepContext<'a> {
         }
     }
 
-    /// Reads the raw RAM byte at `addr` directly from `C64Bus::mem` without going
-    /// through `Bus::get_byte`.
+    /// Reads the raw RAM byte at `addr` directly from `C64Bus::mem` without calling
+    /// `Bus::get_byte`.
     ///
-    /// Never advances `total_cycles`, never steps CIA1/CIA2 timers, and always reads
-    /// underlying RAM even at ROM or I/O addresses.
+    /// Does not advance `total_cycles` or CIA timers, and reads underlying RAM at ROM
+    /// and I/O addresses.
     #[must_use]
     pub fn peek(&self, addr: u16) -> u8 {
         self.bus.mem.get(usize::from(addr)).copied().unwrap_or(0)
     }
 
-    /// Reads a little-endian `u16` from raw RAM at `addr` and `addr.wrapping_add(1)`
-    /// without side effects.
-    #[must_use]
-    pub fn peek_u16_le(&self, addr: u16) -> u16 {
-        u16::from_le_bytes([self.peek(addr), self.peek(addr.wrapping_add(1))])
-    }
-
-    /// Clears write-tracking flags in `C64Bus::written` for every address in `range`,
-    /// leaving `C64Bus::written_phase2` completely untouched.
+    /// Clears write-tracking flags in `C64Bus::written` for every address in `range`.
+    /// Does not modify `C64Bus::written_phase2`.
     pub fn forget_writes(&mut self, range: RangeInclusive<u16>) {
         let start = usize::from(*range.start());
         let end = usize::from(*range.end());
@@ -1157,7 +972,7 @@ pub struct RefineContext<'a> {
     pub written: &'a [bool],
     /// Target machine system profile.
     pub system: &'a System,
-    /// CPU registers at the moment emulation stopped.
+    /// CPU registers when emulation stopped.
     pub registers: Registers,
 }
 
@@ -1174,13 +989,13 @@ pub struct Bounds {
 
 /// Optional emulation-time lifecycle hooks for a [`PackerSpec`].
 ///
-/// Requires `Debug + Send`, but intentionally does not require `Sync`
-/// so hook state can live in a plain struct owned per unpack run.
+/// Requires `Debug + Send` and does not require `Sync` so hook state can live in a
+/// plain struct owned per unpack run.
 pub trait PackerHooks: Debug + Send {
-    /// Invoked once per instruction step during emulation.
+    /// Runs once per instruction step during emulation.
     fn on_step(&mut self, _ctx: &mut StepContext<'_>) {}
 
-    /// Invoked after emulation finishes to refine the output bounds or entry point.
+    /// Runs after emulation finishes to refine the output bounds or entry point.
     fn refine(&self, _ctx: &RefineContext<'_>, _bounds: &mut Bounds) {}
 }
 
@@ -1218,10 +1033,10 @@ mod tests {
         }
     }
 
-    /// `Pat::Mask` exhaustively matches iff `(byte & mask) == eq`, including TBC's `& 0xFD == 0x84`.
+    /// `Pat::Mask` matches when `(byte & mask) == eq`, including TBC `& 0xFD == 0x84`.
     #[test]
     fn pat_mask_exhaustive() {
-        // TBC Multicompactor mask (`tbc.rs:10`): `(b & 0xFD) == 0x84` matches only 0x84 and 0x86.
+        // TBC Multicompactor mask (`tbc.rs:10`) matches only 0x84 and 0x86.
         let tbc = Pat::Mask {
             mask: 0xFD,
             eq: 0x84,
@@ -1229,7 +1044,7 @@ mod tests {
         let matched: Vec<u8> = (0u8..=u8::MAX).filter(|&b| tbc.matches(b)).collect();
         assert_eq!(matched, vec![0x84, 0x86]);
 
-        // Zero mask with eq 0 matches everything; impossible eq (bits outside mask) matches nothing.
+        // Zero mask with eq 0 matches everything. Bits outside mask match nothing.
         let all = Pat::Mask {
             mask: 0x00,
             eq: 0x00,
@@ -1244,7 +1059,7 @@ mod tests {
         }
     }
 
-    /// `Pat::OneOf` matches iff the byte is in the candidate slice (e.g. Exomizer `0x34 | 0x50`).
+    /// `Pat::OneOf` matches when the byte is in the candidate slice.
     #[test]
     fn pat_one_of_exhaustive() {
         let exo = Pat::OneOf(&[0x34, 0x50]);
@@ -1307,7 +1122,7 @@ mod tests {
         );
     }
 
-    /// A signature extending past the end of `mem` or across `$FFFF` neither matches nor panics.
+    /// A signature extending past the end of `mem` or across `$FFFF` does not match or panic.
     #[test]
     fn signature_past_end_of_memory_does_not_match_or_panic() {
         let sig = Signature {
@@ -1358,7 +1173,7 @@ mod tests {
             let image = LoadedImage::new(&mem, system.default_basic_start(), 0x2000, &system);
             assert_eq!(sig.find_first(&image), Some(expected_addr), "{system}");
 
-            // Placing bytes only at C64's $080D must not match on systems with a different BASIC start.
+            // Placing bytes only at C64's $080D does not match on systems with a different BASIC start.
             if expected_addr != 0x080D {
                 let mut wrong_mem = vec![0u8; 0x1_0000];
                 wrong_mem[0x080D..0x0810].copy_from_slice(&[0x78, 0xA9, 0x34]);
@@ -1368,7 +1183,7 @@ mod tests {
             }
         }
 
-        // Overflowing `default_basic_start() + offset` yields no match and does not panic.
+        // Overflowing `default_basic_start() + offset` returns `None` and does not panic.
         let overflow_sig = Signature {
             anchor: Anchor::BasicStart { offset: 0xFFFF },
             pattern: sig![0x00],
@@ -1440,9 +1255,15 @@ mod tests {
             let image = LoadedImage::for_c64(&mem, 0x0801, 0x0900);
             assert_eq!(sig.find_first(&image), expected, "offset={offset:#04X}");
         }
+
+        // Wrapped load_end (0x0000) when binary reaches $FFFF still scans forward.
+        let mut mem = vec![0u8; 0x1_0000];
+        mem[0x0811..0x0815].copy_from_slice(&pat);
+        let wrapped = LoadedImage::for_c64(&mem, 0x0801, 0x0000);
+        assert_eq!(sig.find_first(&wrapped), Some(0x0811));
     }
 
-    /// `Anchor::ScanBackFromEnd` scans descending from `load_end - pattern.len()`.
+    /// `Anchor::ScanBackFromEnd` scans descending from `effective_load_end() - pattern.len()`.
     #[test]
     fn anchor_scan_back_from_end_descending() {
         let sig = Signature {
@@ -1462,6 +1283,12 @@ mod tests {
         mem[0x0850..0x0854].copy_from_slice(&[0xC8, 0xC0, 0x34, 0xD0]);
         let image = LoadedImage::for_c64(&mem, 0x0801, 0x0900);
         assert_eq!(sig.find_first(&image), None);
+
+        // When a binary reaches $FFFF, `load_end` wraps to 0x0000 and scans down from $FFFC.
+        mem.fill(0);
+        mem[0xFFFC..=0xFFFF].copy_from_slice(&[0xC8, 0xC0, 0x34, 0xD0]);
+        let wrapped = LoadedImage::for_c64(&mem, 0x0801, 0x0000);
+        assert_eq!(sig.find_first(&wrapped), Some(0xFFFC));
     }
 
     /// `Anchor::Candidates` probes candidate anchors in exact slice order.
@@ -1486,7 +1313,7 @@ mod tests {
     }
 
     /// When `resolve` returns `None` at the first matching anchor position, scanning
-    /// continues to the next matching position in the anchor window (ECA `continue` semantics).
+    /// continues to the next matching position in the anchor window.
     #[test]
     fn resolve_none_moves_to_next_position() {
         fn eca_like_resolve(
@@ -1541,7 +1368,7 @@ mod tests {
         );
     }
 
-    /// When `resolve` returns `None` at every matching anchor position, the spec is rejected.
+    /// When `resolve` returns `None` at every matching anchor position, `detect` returns `None`.
     #[test]
     fn resolve_none_everywhere_rejects_spec() {
         fn always_none(_: &LoadedImage<'_>, _: &SignatureMatch) -> Option<ResolvedSpec> {
@@ -1574,7 +1401,7 @@ mod tests {
         assert!(spec.detect(&image).is_none());
     }
 
-    /// `resolve` runs only after ALL declarative `signatures` match.
+    /// `resolve` runs only after all declarative `signatures` match.
     #[test]
     fn resolve_runs_only_after_all_signatures_match() {
         static CALLS: AtomicUsize = AtomicUsize::new(0);
@@ -1610,13 +1437,13 @@ mod tests {
 
         CALLS.store(0, Ordering::SeqCst);
         let mut mem = vec![0u8; 0x1_0000];
-        // Only signature 0 matches -> resolve must not be called.
+        // Only signature 0 matches -> resolve must not run.
         mem[0x080D..0x080F].copy_from_slice(&[0x78, 0xA9]);
         let image = LoadedImage::for_c64(&mem, 0x0801, 0x0900);
         assert!(spec.detect(&image).is_none());
         assert_eq!(CALLS.load(Ordering::SeqCst), 0);
 
-        // Both signatures match -> resolve is called exactly once.
+        // Both signatures match -> resolve runs once.
         mem[0x0820..0x0823].copy_from_slice(&[0x4C, 0x00, 0x01]);
         let image = LoadedImage::for_c64(&mem, 0x0801, 0x0900);
         assert!(spec.detect(&image).is_some());
@@ -1665,8 +1492,6 @@ mod tests {
         let image = LoadedImage::for_c64(&mem, 0x0801, 0x0900);
         let m = spec.detect(&image).expect("all 3 signatures present");
         assert_eq!(m.anchor_addr, 0x080D);
-        assert_eq!(m.match_addrs, vec![0x080D, 0x081D, 0x082D]);
-        assert_eq!(m.signature_addr(1), Some(0x081D));
     }
 
     /// Hints and name returned by `resolve` replace the static fields on `PackerSpec`.
@@ -1761,11 +1586,11 @@ mod tests {
         );
     }
 
-    /// `AddrSource::BasicStart(i16)` returns `None` when the signed offset underflows `< 0` or overflows `> $FFFF`.
+    /// `AddrSource::BasicStart(i16)` returns `None` when the signed offset is outside `0..=$FFFF`.
     #[test]
     fn addr_source_basic_start_out_of_range_is_none() {
         let mem = [0u8; 16];
-        // C64 default_basic_start is $0801; -0x0802 underflows below $0000.
+        // On C64 `default_basic_start` is `$0801`. `-0x0802` underflows below `$0000`.
         let c64 = LoadedImage::for_c64(&mem, 0x0801, 0x0810);
         assert_eq!(
             AddrSource::BasicStart(-0x0802).resolve_static(&c64, 0x080D),
@@ -1776,7 +1601,7 @@ mod tests {
             None
         );
 
-        // Drive systems have default_basic_start == $0000; any negative offset underflows.
+        // Drive systems have `default_basic_start == $0000`. Any negative offset underflows.
         let c1541 = LoadedImage::new(&mem, 0x0000, 0x0010, &TargetSystem::C1541);
         assert_eq!(
             AddrSource::BasicStart(-1).resolve_static(&c1541, 0x0000),
@@ -1840,13 +1665,12 @@ mod tests {
         );
     }
 
-    /// `AddrSource::PointerAfterRun` reads LE word with `wrapping_add(1)` for high byte and applies `adjust`.
+    /// `AddrSource::PointerAfterRun` reads a little-endian word with `wrapping_add(1)` and applies `adjust`.
     #[test]
     fn pointer_after_run_reads_le_with_adjust_and_wraps() {
         let mut mem = vec![0u8; 0x1_0000];
         mem[0x00FA] = 0x00;
         mem[0x00FB] = 0x32; // $3200
-        let monitor = PointerMonitor::new();
 
         let src_minus_1 = AddrSource::PointerAfterRun {
             ptr_addr: 0x00FA,
@@ -1854,7 +1678,7 @@ mod tests {
             guard: PointerGuard::None,
         };
         assert_eq!(
-            src_minus_1.resolve_post_run(&mem, Registers::default(), 0x0800, 0x31FF, &monitor),
+            src_minus_1.resolve_post_run(&mem, 0x0800, 0x31FF),
             Some(0x31FF)
         );
 
@@ -1864,7 +1688,7 @@ mod tests {
             guard: PointerGuard::None,
         };
         assert_eq!(
-            src_plus_2.resolve_post_run(&mem, Registers::default(), 0x0800, 0x31FF, &monitor),
+            src_plus_2.resolve_post_run(&mem, 0x0800, 0x31FF),
             Some(0x3202)
         );
 
@@ -1877,16 +1701,15 @@ mod tests {
             guard: PointerGuard::None,
         };
         assert_eq!(
-            src_wrap.resolve_post_run(&mem, Registers::default(), 0x0800, 0x1233, &monitor),
+            src_wrap.resolve_post_run(&mem, 0x0800, 0x1233),
             Some(0x1233)
         );
     }
 
-    /// `PointerGuard::NearDetectedEnd` enforces `raw > start_addr` and `adjusted <= detected_end + slack`.
+    /// `PointerGuard::NearDetectedEnd` requires `raw > start_addr` and `adjusted <= detected_end + slack`.
     #[test]
     fn pointer_guard_near_detected_end() {
         let mut mem = vec![0u8; 0x1_0000];
-        let monitor = PointerMonitor::new();
         let src = AddrSource::PointerAfterRun {
             ptr_addr: 0x00FA,
             adjust: -1,
@@ -1896,33 +1719,23 @@ mod tests {
         // Within slack: detected_end = $3000, slack = $0200 -> max adjusted = $3200 (raw = $3201).
         mem[0x00FA] = 0x01;
         mem[0x00FB] = 0x32;
-        assert_eq!(
-            src.resolve_post_run(&mem, Registers::default(), 0x0800, 0x3000, &monitor),
-            Some(0x3200)
-        );
+        assert_eq!(src.resolve_post_run(&mem, 0x0800, 0x3000), Some(0x3200));
 
         // 1 byte beyond slack (raw = $3202, adjusted = $3201 > $3200) -> rejected.
         mem[0x00FA] = 0x02;
         mem[0x00FB] = 0x32;
-        assert_eq!(
-            src.resolve_post_run(&mem, Registers::default(), 0x0800, 0x3000, &monitor),
-            None
-        );
+        assert_eq!(src.resolve_post_run(&mem, 0x0800, 0x3000), None);
 
         // At or below start_addr (raw = $0800) -> rejected.
         mem[0x00FA] = 0x00;
         mem[0x00FB] = 0x08;
-        assert_eq!(
-            src.resolve_post_run(&mem, Registers::default(), 0x0800, 0x3000, &monitor),
-            None
-        );
+        assert_eq!(src.resolve_post_run(&mem, 0x0800, 0x3000), None);
     }
 
-    /// `PointerGuard::McCrackenEndOfProgram` enforces `start_addr < raw < $FFFF`.
+    /// `PointerGuard::McCrackenEndOfProgram` requires `start_addr < raw < $FFFF`.
     #[test]
     fn pointer_guard_mccracken_matches_legacy() {
         let mut mem = vec![0u8; 0x1_0000];
-        let monitor = PointerMonitor::new();
         let src = AddrSource::PointerAfterRun {
             ptr_addr: 0x00AE,
             adjust: -1,
@@ -1941,124 +1754,11 @@ mod tests {
             mem[0x00AE] = lo;
             mem[0x00AF] = hi;
             assert_eq!(
-                src.resolve_post_run(&mem, Registers::default(), start_addr, 0x1000, &monitor),
+                src.resolve_post_run(&mem, start_addr, 0x1000),
                 expected,
                 "raw={raw:#06X}, start={start_addr:#06X}"
             );
         }
-    }
-
-    /// `AddrSource::PointerPlusRegister` adds the selected register and signed `adjust`.
-    #[test]
-    fn pointer_plus_register() {
-        let mut mem = vec![0u8; 0x1_0000];
-        mem[0x00FE] = 0xF0;
-        mem[0x00FF] = 0x07; // $07F0
-        let monitor = PointerMonitor::new();
-        let regs = Registers {
-            a: 0x05,
-            x: 0x08,
-            y: 0x10,
-            sp: 0xF6,
-        };
-
-        let exo30 = AddrSource::PointerPlusRegister {
-            ptr_addr: 0x00FE,
-            reg: Reg::Y,
-            adjust: 0,
-        };
-        assert_eq!(
-            exo30.resolve_post_run(&mem, regs, 0x0800, 0x2000, &monitor),
-            Some(0x0800)
-        );
-
-        let exo32 = AddrSource::PointerPlusRegister {
-            ptr_addr: 0x00FE,
-            reg: Reg::Y,
-            adjust: 1,
-        };
-        assert_eq!(
-            exo32.resolve_post_run(&mem, regs, 0x0800, 0x2000, &monitor),
-            Some(0x0801)
-        );
-
-        let with_x = AddrSource::PointerPlusRegister {
-            ptr_addr: 0x00FE,
-            reg: Reg::X,
-            adjust: -4,
-        };
-        assert_eq!(
-            with_x.resolve_post_run(&mem, regs, 0x0800, 0x2000, &monitor),
-            Some(0x07F4)
-        );
-    }
-
-    /// `AddrSource::PointerAtDepacker` samples only the first hit at the depacker PC.
-    #[test]
-    fn pointer_at_depacker_samples_first_hit_only() {
-        let mut mem = vec![0u8; 0x1_0000];
-        let mut monitor = PointerMonitor::new();
-        let src = AddrSource::PointerAtDepacker {
-            ptr_addr: 0x002D,
-            adjust: -1,
-        };
-
-        // Before any hit -> None.
-        assert_eq!(
-            src.resolve_post_run(&mem, Registers::default(), 0x0800, 0x2000, &monitor),
-            None
-        );
-
-        // First hit at depacker: $4000.
-        mem[0x002D] = 0x00;
-        mem[0x002E] = 0x40;
-        monitor.sample_at_depacker(&mem, 0x002D);
-
-        // Subsequent hits change $002D/$002E to $5000 and $6000, which must be ignored.
-        mem[0x002D] = 0x00;
-        mem[0x002E] = 0x50;
-        monitor.sample_at_depacker(&mem, 0x002D);
-        mem[0x002E] = 0x60;
-        monitor.sample_at_depacker(&mem, 0x002D);
-
-        assert_eq!(
-            src.resolve_post_run(&mem, Registers::default(), 0x0800, 0x2000, &monitor),
-            Some(0x3FFF)
-        );
-    }
-
-    /// `AddrSource::MonitoredMax` and `MonitoredMin` track extrema across depacker hits.
-    #[test]
-    fn monitored_max_and_min() {
-        let mut mem = vec![0u8; 0x1_0000];
-        let mut monitor = PointerMonitor::new();
-        let max_src = AddrSource::MonitoredMax { ptr_addr: 0x00AE };
-        let min_src = AddrSource::MonitoredMin { ptr_addr: 0x00AE };
-
-        assert_eq!(
-            max_src.resolve_post_run(&mem, Registers::default(), 0x0800, 0x2000, &monitor),
-            None
-        );
-        assert_eq!(
-            min_src.resolve_post_run(&mem, Registers::default(), 0x0800, 0x2000, &monitor),
-            None
-        );
-
-        for sample in [0x2000_u16, 0x0850, 0x9D19, 0x1100, 0x4500] {
-            let [lo, hi] = sample.to_le_bytes();
-            mem[0x00AE] = lo;
-            mem[0x00AF] = hi;
-            monitor.sample_at_depacker(&mem, 0x00AE);
-        }
-
-        assert_eq!(
-            max_src.resolve_post_run(&mem, Registers::default(), 0x0800, 0x2000, &monitor),
-            Some(0x9D19)
-        );
-        assert_eq!(
-            min_src.resolve_post_run(&mem, Registers::default(), 0x0800, 0x2000, &monitor),
-            Some(0x0850)
-        );
     }
 
     /// `Hints::NONE` has all `Option` fields set to `None` and `exact_return == false`.
@@ -2182,7 +1882,7 @@ mod tests {
         }
     }
 
-    /// `StepContext::registers` is a value copy; mutating it does not mutate the CPU.
+    /// `StepContext::registers` is a value copy. Mutating it does not mutate the CPU.
     #[test]
     fn step_context_registers_are_a_copy() {
         let bus = UnpackerMemory::new(TargetSystem::C64, None, None, None);
@@ -2223,7 +1923,7 @@ mod tests {
         assert_eq!(cpu.registers.stack_pointer.0, 0xF6);
     }
 
-    /// The `hooks` factory receives `(&LoadedImage, &SignatureMatch)` and can inspect image bytes.
+    /// The `hooks` factory receives `(&LoadedImage, &SignatureMatch)` and can read image bytes.
     #[test]
     fn hooks_factory_receives_image() {
         #[derive(Debug)]
@@ -2291,7 +1991,7 @@ mod tests {
     fn packer_hooks_is_send() {
         #[derive(Debug)]
         struct NonSyncHook {
-            // `Cell` is `Send` but NOT `Sync`.
+            // `Cell` is `Send` and not `Sync`.
             steps: Cell<u32>,
         }
         impl PackerHooks for NonSyncHook {
@@ -2316,8 +2016,8 @@ mod tests {
         });
     }
 
-    /// [`MemoryPatch`] with [`PatchAddr::Absolute`] writes `bytes` at the exact fixed
-    /// address regardless of `anchor_addr` and rejects out-of-range or empty patches.
+    /// [`MemoryPatch`] with [`PatchAddr::Absolute`] writes `bytes` at the fixed address
+    /// and rejects out-of-range or empty patches.
     #[test]
     fn patch_absolute_applied() {
         let patch = MemoryPatch {
@@ -2350,7 +2050,7 @@ mod tests {
     }
 
     /// [`PatchAddr::FromMatch`] resolves positive, zero, and negative signed offsets
-    /// relative to `anchor_addr` and rejects offsets that underflow `< 0` or overflow `> $FFFF`.
+    /// relative to `anchor_addr` and rejects offsets outside `0..=$FFFF`.
     #[test]
     fn patch_from_match_signed_offset() {
         let anchor_addr: u16 = 0x080C;
@@ -2392,8 +2092,8 @@ mod tests {
         assert!(!underflow_patch.apply(&mut mem, anchor_addr));
     }
 
-    /// [`MemoryPatch::expected`] acts as an "apply only if" guard on the first target
-    /// byte; when the byte at the resolved address differs from `expected`, the patch is skipped.
+    /// [`MemoryPatch::expected`] guards the first target byte.
+    /// When the byte at the resolved address differs from `expected`, [`MemoryPatch::apply`] skips the patch.
     #[test]
     fn patch_expected_mismatch_is_skipped() {
         let patch = MemoryPatch {

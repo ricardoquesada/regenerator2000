@@ -10,7 +10,7 @@ use super::machine::{KernalTrap, Phase, RomTrapTable, SCREEN_CODE_SPACE, get_bas
 use super::{UnpackConfig, UnpackError, UnpackResult, find_sys_address};
 use crate::packers::{
     AddrSource, Bounds, Hints, LoadedImage, PackerHooks, PackerId, PackerInfo, PackerSpec,
-    PointerGuard, PointerMonitor, RefineContext, Registers, StepContext, registry,
+    PointerGuard, RefineContext, Registers, StepContext, registry,
 };
 use crate::state::types::System;
 use std::fmt;
@@ -1164,8 +1164,7 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
                 ..
             },
         ) = raw_hints.end_addr
-        && let Some(resolved_end) =
-            src.resolve_post_run(mem, registers, start_addr, end_addr, &PointerMonitor::new())
+        && let Some(resolved_end) = src.resolve_post_run(mem, start_addr, end_addr)
     {
         end_addr = resolved_end;
         end_source = BoundSource::PointerAfterRun { addr: ptr_addr };

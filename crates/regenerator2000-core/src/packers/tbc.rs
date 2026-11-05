@@ -65,7 +65,7 @@ fn resolve_tbc(image: &LoadedImage<'_>, _sig_match: &SignatureMatch) -> Option<R
     let tbl_len = usize::from(mem[p]);
     let mut q = p + tbl_len;
     let mut max_end: u32 = 0;
-    while q > p && q + 1 < mem.len() {
+    while q > p && q < mem.len() {
         let strtmp = u32::from(u16::from_le_bytes([mem[q - 1], mem[q]]));
         let val = if strtmp == 0 { 0x1_0000 } else { strtmp };
         if val > max_end {
@@ -92,7 +92,7 @@ fn resolve_tbc(image: &LoadedImage<'_>, _sig_match: &SignatureMatch) -> Option<R
     }))
 }
 
-/// Synthetic self-test fixture loaded at `$0820` (`209` bytes covering `$0820..=$08F0`):
+/// Synthetic self-test fixture loaded at `$0820` (`208` bytes covering `$0820..=$08EF`):
 /// - `+0x00..=+0x03` (`$0820..=$0823`): `[0xA2, 0xE9, 0xBD, 0x32]` (normal variant header)
 /// - `+0x0C..=+0x17` (`$082C..=$0837`): 12-byte TBC primary signature (`0x84, 0x01, ...`)
 /// - `+0x2A` (`$084A`): `0x81` (`is_normal`)
@@ -101,7 +101,7 @@ fn resolve_tbc(image: &LoadedImage<'_>, _sig_match: &SignatureMatch) -> Option<R
 /// - `+0xCB` (`$08EB`): `tbl_len = 4` (`q = $08EF`)
 /// - `+0xCC..=+0xCD` (`$08EC..=$08ED`): `start_addr = $0801` (`01 08`)
 /// - `+0xCE..=+0xCF` (`$08EE..=$08EF`): `strtmp = $C948` (`48 C9` -> `end_addr = $C947`)
-const FIXTURE: [u8; 0xD1] = [
+const FIXTURE: [u8; 0xD0] = [
     // +0x00..=+0x0B ($0820..=$082B)
     0xA2, 0xE9, 0xBD, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     // +0x0C..=+0x17 ($082C..=$0837: 12-byte primary signature)
@@ -125,8 +125,8 @@ const FIXTURE: [u8; 0xD1] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    // +0xCB..=+0xD0 ($08EB..=$08F0: tbl_len = 4, start_addr = $0801, strtmp = $C948, pad = 0)
-    0x04, 0x01, 0x08, 0x48, 0xC9, 0x00,
+    // +0xCB..=+0xCF ($08EB..=$08EF: tbl_len = 4, start_addr = $0801, strtmp = $C948)
+    0x04, 0x01, 0x08, 0x48, 0xC9,
 ];
 
 /// Declarative specification for TBC Multicompactor.

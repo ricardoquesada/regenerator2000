@@ -13,6 +13,34 @@ const COMMON_SIGNATURE: Signature = Signature {
     pattern: sig![0x00, 0x78],
 };
 
+/// Declarative header signature for `ALZ64/Quiss` across `$080B..=$082F`.
+const QUISS_HEADER: Signature = Signature {
+    anchor: Anchor::Absolute(0x080B),
+    pattern: sig![
+        0xA2, 0x00, 0x78, 0xB5, // $080B..=$080E
+        __, __, __, __, __, __, __, __, __, __, // $080F..=$0818
+        0xD0, 0xF3, 0xA2, 0x03, // $0819..=$081C
+        __, __, __, __, __, __, __, // $081D..=$0823
+        0xA2, 0x10, 0x89, 0x38, // $0824..=$0827
+        __, __, __, __, // $0828..=$082B
+        0xF1, 0x4C, 0x5E, 0x00 // $082C..=$082F
+    ],
+};
+
+/// Declarative header signature for `ALZ64/Kabuto` across `$080C..=$0838`.
+const KABUTO_HEADER: Signature = Signature {
+    anchor: Anchor::Absolute(0x080C),
+    pattern: sig![
+        0x00, 0x78, 0x86, // $080C..=$080E
+        __, __, __, __, __, __, __, __, __, // $080F..=$0817
+        0xCA, 0xD0, 0xF7, 0xCE, // $0818..=$081B
+        __, __, __, __, __, __, // $081C..=$0821
+        0xD0, 0xEE, 0xA2, 0x03, // $0822..=$0825
+        __, __, __, __, __, __, __, __, __, __, __, __, __, __, __, // $0826..=$0834
+        0xF1, 0x4C, 0x5E, 0x00 // $0835..=$0838
+    ],
+};
+
 /// Pre-emulation memory patch for `ALZ64/Kabuto` (`ALZ64.c:20`: `mem[0x080B] = 0xA2`, `LDX #imm`).
 const KABUTO_PATCHES: [MemoryPatch; 1] = [MemoryPatch {
     addr: PatchAddr::Absolute(0x080B),
@@ -39,7 +67,7 @@ const BASE_HINTS: Hints = Hints {
 /// - Common signature bytes `00 78` at `$080C..=$080D`.
 /// - 16-byte Quiss stub check across `$080B..=$082F`.
 /// - Indirect stub base pointer `p = $0900` at `$0814..=$0815`.
-/// - Tail marker `02 E6 C7 8D 01 08` at `p + $CB..=p + $D0` (`$09CB..=$09D0`, overriding `start_addr = $0801`).
+/// - Tail marker `02 E6 C7 8D 01 08` at `p + $CB..=p + $D0` (`$09CB..=$09D0`, sets `start_addr = $0801`).
 /// - Final `JMP $2000` (`4C 00 20`) at `p + $F1..=p + $F3` (`$09F1..=$09F3`).
 ///
 /// # Examples
@@ -99,7 +127,7 @@ pub const fn build_quiss_fixture() -> [u8; 0x01F4] {
 /// - Common signature bytes `00 78` at `$080C..=$080D`.
 /// - 15-byte Kabuto stub check across `$080C..=$0838`.
 /// - Indirect stub base pointer `p = $0900` at `$0813..=$0814`.
-/// - Tail marker `02 E6 C7 8D 01 08` at `p + $E6..=p + $EB` (`$09E6..=$09EB`, overriding `start_addr = $0801`).
+/// - Tail marker `02 E6 C7 8D 01 08` at `p + $E6..=p + $EB` (`$09E6..=$09EB`, sets `start_addr = $0801`).
 /// - Final `JMP $2000` (`4C 00 20`) at `p + $FD..=p + $FF` (`$09FD..=$09FF`).
 ///
 /// # Examples
@@ -154,92 +182,65 @@ pub const fn build_kabuto_fixture() -> [u8; 0x0200] {
 
 const QUISS_FIXTURE: [u8; 0x01F4] = build_quiss_fixture();
 
-/// Resolves `ALZ64/Quiss` or `ALZ64/Kabuto` metadata from a matched C64 image.
-fn resolve_alz64(image: &LoadedImage<'_>, _sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
+/// Reads `(start_addr, entry_point)` from an ALZ64 tail stub pointed to by `ptr_addr`.
+fn resolve_alz64_tail(
+    image: &LoadedImage<'_>,
+    ptr_addr: usize,
+    scan_start_offset: usize,
+    jmp_offset: usize,
+) -> Option<(u16, u16)> {
     let mem = image.mem;
-    let load_addr = image.load_addr;
-
-    // ALZ64/Quiss (`ALZ64.c:40-66`: `RtAFrc = 1`, `Forced = 0x080B`, no memory patch)
-    if mem.len() > 0x082F
-        && load_addr <= 0x080B
-        && mem[0x080B] == 0xA2
-        && mem[0x080C] == 0x00
-        && mem[0x080D] == 0x78
-        && mem[0x080E] == 0xB5
-        && mem[0x0819] == 0xD0
-        && mem[0x081A] == 0xF3
-        && mem[0x081B] == 0xA2
-        && mem[0x081C] == 0x03
-        && mem[0x0824] == 0xA2
-        && mem[0x0825] == 0x10
-        && mem[0x0826] == 0x89
-        && mem[0x0827] == 0x38
-        && mem[0x082C] == 0xF1
-        && mem[0x082D] == 0x4C
-        && mem[0x082E] == 0x5E
-        && mem[0x082F] == 0x00
-    {
-        let p = u16::from_le_bytes([mem[0x0814], mem[0x0815]]) as usize;
-        if p + 0xF3 < mem.len() && mem[p + 0xF1] == 0x4C {
-            let mut start_addr = 0x080B;
-            for q in (p + 0xCB)..=(p + 0xF0) {
-                if q + 5 < mem.len() && mem[q..q + 4] == [0x02, 0xE6, 0xC7, 0x8D] {
-                    start_addr = u16::from_le_bytes([mem[q + 4], mem[q + 5]]);
-                    break;
-                }
-            }
-            let entry_point = u16::from_le_bytes([mem[p + 0xF2], mem[p + 0xF3]]);
-            return Some(ResolvedSpec::named(
-                "ALZ64/Quiss",
-                Hints {
-                    start_addr: Some(AddrSource::Const(start_addr)),
-                    entry_point: Some(AddrSource::Const(entry_point)),
-                    exact_return: true,
-                    ..BASE_HINTS
-                },
-            ));
+    let p = usize::from(image.read_u16_le(ptr_addr)?);
+    if image.read_u8(p.checked_add(jmp_offset)?)? != 0x4C {
+        return None;
+    }
+    let entry_point = image.read_u16_le(p.checked_add(jmp_offset + 1)?)?;
+    let mut start_addr = 0x080B;
+    for q in (p + scan_start_offset)..=(p + 0xF0) {
+        if mem.get(q..q + 4) == Some(&[0x02, 0xE6, 0xC7, 0x8D])
+            && let Some(addr) = image.read_u16_le(q + 4)
+        {
+            start_addr = addr;
+            break;
         }
     }
+    Some((start_addr, entry_point))
+}
 
-    // ALZ64/Kabuto (`ALZ64.c:12-37`: patches `$080B = 0xA2`, `Forced = 0x080B`, `RtAFrc = 0`)
-    if mem.len() > 0x0838
-        && load_addr <= 0x080B
-        && mem[0x080C] == 0x00
-        && mem[0x080D] == 0x78
-        && mem[0x080E] == 0x86
-        && mem[0x0818] == 0xCA
-        && mem[0x0819] == 0xD0
-        && mem[0x081A] == 0xF7
-        && mem[0x081B] == 0xCE
-        && mem[0x0822] == 0xD0
-        && mem[0x0823] == 0xEE
-        && mem[0x0824] == 0xA2
-        && mem[0x0825] == 0x03
-        && mem[0x0835] == 0xF1
-        && mem[0x0836] == 0x4C
-        && mem[0x0837] == 0x5E
-        && mem[0x0838] == 0x00
+/// Resolves `ALZ64/Quiss` or `ALZ64/Kabuto` metadata from a matched C64 image.
+fn resolve_alz64(image: &LoadedImage<'_>, _sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
+    if image.load_addr > 0x080B {
+        return None;
+    }
+
+    // ALZ64/Quiss (`ALZ64.c:40-66`: `RtAFrc = 1`, `Forced = 0x080B`, no memory patch).
+    if QUISS_HEADER.matches_at(image.mem, 0x080B)
+        && let Some((start_addr, entry_point)) = resolve_alz64_tail(image, 0x0814, 0xCB, 0xF1)
     {
-        let p = u16::from_le_bytes([mem[0x0813], mem[0x0814]]) as usize;
-        if p + 0xFF < mem.len() && mem[p + 0xFD] == 0x4C {
-            let mut start_addr = 0x080B;
-            for q in (p + 0xE6)..=(p + 0xF0) {
-                if q + 5 < mem.len() && mem[q..q + 4] == [0x02, 0xE6, 0xC7, 0x8D] {
-                    start_addr = u16::from_le_bytes([mem[q + 4], mem[q + 5]]);
-                    break;
-                }
-            }
-            let entry_point = u16::from_le_bytes([mem[p + 0xFE], mem[p + 0xFF]]);
-            return Some(ResolvedSpec::with_patches(
-                "ALZ64/Kabuto",
-                Hints {
-                    start_addr: Some(AddrSource::Const(start_addr)),
-                    entry_point: Some(AddrSource::Const(entry_point)),
-                    ..BASE_HINTS
-                },
-                &KABUTO_PATCHES,
-            ));
-        }
+        return Some(ResolvedSpec::named(
+            "ALZ64/Quiss",
+            Hints {
+                start_addr: Some(AddrSource::Const(start_addr)),
+                entry_point: Some(AddrSource::Const(entry_point)),
+                exact_return: true,
+                ..BASE_HINTS
+            },
+        ));
+    }
+
+    // ALZ64/Kabuto (`ALZ64.c:12-37`: patches `$080B = 0xA2`, `Forced = 0x080B`, `RtAFrc = 0`).
+    if KABUTO_HEADER.matches_at(image.mem, 0x080C)
+        && let Some((start_addr, entry_point)) = resolve_alz64_tail(image, 0x0813, 0xE6, 0xFD)
+    {
+        return Some(ResolvedSpec::with_patches(
+            "ALZ64/Kabuto",
+            Hints {
+                start_addr: Some(AddrSource::Const(start_addr)),
+                entry_point: Some(AddrSource::Const(entry_point)),
+                ..BASE_HINTS
+            },
+            &KABUTO_PATCHES,
+        ));
     }
 
     None

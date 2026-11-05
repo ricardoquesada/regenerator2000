@@ -151,68 +151,40 @@ pub const fn build_v2_fixture() -> [u8; 0x0152] {
 
 const V2_FIXTURE: [u8; 0x0152] = build_v2_fixture();
 
-/// Reads a little-endian `u32` at `offset` in `mem`.
-const fn read_u32_le(mem: &[u8], offset: usize) -> u32 {
-    u32::from_le_bytes([
-        mem[offset],
-        mem[offset + 1],
-        mem[offset + 2],
-        mem[offset + 3],
-    ])
-}
-
 /// Resolves `Antiram Packer v1.0` or `Antiram Packer v2.0` metadata from a matched C64 image.
 fn resolve_antiram(image: &LoadedImage<'_>, _sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
-    let mem = image.mem;
-    if mem.len() <= 0x0950 {
+    if image.mem.len() <= 0x0950 {
         return None;
     }
 
-    if read_u32_le(mem, 0x080D) != 0xB900_A078 {
+    if image.read_u32_le(0x080D)? != 0xB900_A078 {
         return None;
     }
 
-    // Antiram Packer v1.0
-    if read_u32_le(mem, 0x081D) == 0xC6FF_004C
-        && read_u32_le(mem, 0x082D) == 0x08C9_AFA5
-        && read_u32_le(mem, 0x08ED) == 0xFF35_4C03
-    {
-        let mut p: usize = 0x0904;
-        if mem[p] == 0x20 {
-            p += 3;
-        }
-        let ret_addr = u16::from_le_bytes([mem[p + 1], mem[p + 2]]);
-        return Some(ResolvedSpec::with_patches(
-            "Antiram Packer v1.0",
-            Hints {
-                entry_point: Some(AddrSource::Const(ret_addr)),
-                ..BASE_HINTS
-            },
-            &V1_PATCHES,
-        ));
-    }
+    let (name, jmp_base, patches): (&'static str, usize, &'static [MemoryPatch]) = match (
+        image.read_u32_le(0x081D)?,
+        image.read_u32_le(0x082D)?,
+        image.read_u32_le(0x08ED)?,
+    ) {
+        (0xC6FF_004C, 0x08C9_AFA5, 0xFF35_4C03) => ("Antiram Packer v1.0", 0x0904, &V1_PATCHES),
+        (0xA9FF_004C, 0xC862_91AE, 0xD0CA_2EE6) => ("Antiram Packer v2.0", 0x0911, &V2_PATCHES),
+        _ => return None,
+    };
 
-    // Antiram Packer v2.0
-    if read_u32_le(mem, 0x081D) == 0xA9FF_004C
-        && read_u32_le(mem, 0x082D) == 0xC862_91AE
-        && read_u32_le(mem, 0x08ED) == 0xD0CA_2EE6
-    {
-        let mut p: usize = 0x0911;
-        if mem[p] == 0x20 {
-            p += 3;
-        }
-        let ret_addr = u16::from_le_bytes([mem[p + 1], mem[p + 2]]);
-        return Some(ResolvedSpec::with_patches(
-            "Antiram Packer v2.0",
-            Hints {
-                entry_point: Some(AddrSource::Const(ret_addr)),
-                ..BASE_HINTS
-            },
-            &V2_PATCHES,
-        ));
-    }
-
-    None
+    let p = if image.read_u8(jmp_base)? == 0x20 {
+        jmp_base + 3
+    } else {
+        jmp_base
+    };
+    let ret_addr = image.read_u16_le(p + 1)?;
+    Some(ResolvedSpec::with_patches(
+        name,
+        Hints {
+            entry_point: Some(AddrSource::Const(ret_addr)),
+            ..BASE_HINTS
+        },
+        patches,
+    ))
 }
 
 /// Declarative specification for `Antiram Packer v1.0` and `Antiram Packer v2.0` (priority `200`).

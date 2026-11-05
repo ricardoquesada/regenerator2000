@@ -78,9 +78,10 @@ fn matches_eca_variant(image: &LoadedImage<'_>, p: usize) -> bool {
     false
 }
 
-/// Resolves the ECA Compactor [`Hints`] at position `p`, using `Const(0x0100)` as the
-/// `dep_addr` fallback and `BasicStart(-1)` (`$0800` on C64) as the
-/// `start_addr` fallback when `mem` is shorter than `p + 0x32` / `p + 0x34`.
+/// Resolves the ECA Compactor [`Hints`] at position `p`.
+///
+/// Uses `Const(0x0100)` as the `dep_addr` fallback and `BasicStart(-1)` (`$0800` on C64)
+/// as the `start_addr` fallback when `mem` is shorter than `p + 0x34`.
 #[must_use]
 pub fn resolve_hints_at(image: &LoadedImage<'_>, p: usize) -> Hints {
     let mem = image.mem;
@@ -97,15 +98,16 @@ pub fn resolve_hints_at(image: &LoadedImage<'_>, p: usize) -> Hints {
         }
     }
 
-    let dep_addr = match image.read_u16_le(p + 0x30) {
-        Some(addr) => Some(AddrSource::Const(addr)),
-        None => Some(AddrSource::Const(0x0100)),
-    };
-
-    let start_addr = match image.read_u16_le(p + 0x32) {
-        Some(addr) => Some(AddrSource::Const(addr)),
-        None => Some(AddrSource::BasicStart(-1)),
-    };
+    let dep_addr = Some(
+        image
+            .read_u16_le(p + 0x30)
+            .map_or(AddrSource::Const(0x0100), AddrSource::Const),
+    );
+    let start_addr = Some(
+        image
+            .read_u16_le(p + 0x32)
+            .map_or(AddrSource::BasicStart(-1), AddrSource::Const),
+    );
 
     let mut end_addr = None;
     for q in 0xED..0x108 {
@@ -130,7 +132,7 @@ pub fn resolve_hints_at(image: &LoadedImage<'_>, p: usize) -> Hints {
 
 /// Per-position `resolve` function for ECA Compactor.
 ///
-/// Returning `None` at candidate `p` causes [`PackerSpec::detect`] to continue scanning
+/// Returning `None` at candidate `p` causes [`PackerSpec::detect`] to scan
 /// the remaining positions in `0x080D..=0x0830`.
 #[must_use]
 fn resolve_eca(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Option<ResolvedSpec> {

@@ -10,7 +10,7 @@ use super::spec::{
 
 /// Variant 1 (`TSCrunch v1.3+`, zero-page depacker at `$0002`) 14-byte signature at `$080D`.
 ///
-/// Matches `SEI; LDX #imm; LDA abs,X; STA $00,X; DEX; BNE rel; JMP $0002`.
+/// Matches `SEI, LDX #imm, LDA abs,X, STA $00,X, DEX, BNE rel, JMP $0002`.
 pub const V1_SIGNATURE: Signature = Signature {
     anchor: Anchor::Absolute(0x080D),
     pattern: sig![
@@ -20,7 +20,7 @@ pub const V1_SIGNATURE: Signature = Signature {
 
 /// Variant 2 (`TSCrunch v1.3+-X2`, stack depacker at `$0100`) 19-byte signature at `$080D`.
 ///
-/// Matches `SEI; LDA #$34; STA $01; LDX #imm; LDA abs,X; STA abs,X; DEX; BNE rel; JMP $0100`.
+/// Matches `SEI, LDA #$34, STA $01, LDX #imm, LDA abs,X, STA abs,X, DEX, BNE rel, JMP $0100`.
 pub const V2_SIGNATURE: Signature = Signature {
     anchor: Anchor::Absolute(0x080D),
     pattern: sig![
@@ -29,15 +29,15 @@ pub const V2_SIGNATURE: Signature = Signature {
     ],
 };
 
-/// Secondary 6-byte sequence (`LDA #$37; STA $01; CLI; JMP $xxxx`) used to locate the
+/// Secondary 6-byte sequence (`LDA #$37, STA $01, CLI, JMP $xxxx`) that locates the
 /// unpacked entry point in `q + 14..q + 0x80` (Variant 1) or `q + 19..q + 0x80` (Variant 2).
 pub const ENTRY_SIGNATURE: Signature = Signature {
     anchor: Anchor::Absolute(0x080D),
     pattern: sig![0xA9, 0x37, 0x85, 0x01, 0x58, 0x4C],
 };
 
-/// Primary 19-byte candidate signature at `$080D` covering both [`V1_SIGNATURE`] and
-/// [`V2_SIGNATURE`] and enforcing `mem.len() > 0x080D + 18`.
+/// Primary 19-byte candidate signature at `$080D` that covers both [`V1_SIGNATURE`] and
+/// [`V2_SIGNATURE`] and enforces `mem.len() > 0x080D + 18`.
 const SIGNATURES: [Signature; 1] = [Signature {
     anchor: Anchor::Absolute(0x080D),
     pattern: sig![
@@ -63,8 +63,8 @@ const SIGNATURES: [Signature; 1] = [Signature {
     ],
 }];
 
-/// Scans `q + start_offset..mem.len().min(q + 0x80)` (when `mem.len() >= q + 0x70`) for
-/// [`ENTRY_SIGNATURE`] (`A9 37 85 01 58 4C lo hi`) and returns the 16-bit `JMP` operand.
+/// Scans `q + start_offset..mem.len().min(q + 0x80)` for [`ENTRY_SIGNATURE`] and
+/// returns the 16-bit `JMP` operand.
 #[must_use]
 fn scan_entry_point(image: &LoadedImage<'_>, q: usize, start_offset: usize) -> Option<AddrSource> {
     let mem = image.mem;
@@ -123,8 +123,7 @@ fn resolve_tscrunch(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Opti
     None
 }
 
-/// Extracts the high-memory stream relocation address (`reloc_start > $0800`) from `image`
-/// for a matched TSCrunch stub:
+/// Extracts the high-memory stream relocation address (`reloc_start > $0800`) from `image`:
 /// - Variant 1 (`TSCrunch v1.3+`): little-endian word at `anchor_addr + 0x10` (`$081D..=$081E`)
 /// - Variant 2 (`TSCrunch v1.3+-X2`): little-endian word at `anchor_addr + 0x18` (`$0825..=$0826`)
 #[must_use]
