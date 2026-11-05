@@ -34,9 +34,9 @@ use crate::state::types::System;
 
 /// Which half of the unp64-style algorithm the CPU is in.
 ///
-/// Some traps only fire in [`Phase::Decompress`]. Example: on the C64, a jump
-/// into the KERNAL IRQ handler (`$EA31`) ends decompression, but while the
-/// depacker is still being located it is just a forced `RTS`.
+/// Some traps only fire in [`Phase::Decompress`]. On the C64, a jump into the
+/// KERNAL IRQ handler (`$EA31`) ends decompression. During [`Phase::FindDepacker`],
+/// it forces an `RTS` instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Phase {
     /// Running from the entry point until the depacker is found.
@@ -51,27 +51,26 @@ pub enum Phase {
 
 /// A KERNAL routine that the sandbox emulates instead of executing.
 ///
-/// The effects are deliberately minimal: just enough register and memory
-/// state for depackers that call these routines to carry on.
+/// The effects are minimal. They provide only the register and memory state
+/// that depackers need to continue.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KernalRoutine {
     /// GETIN: returns the next simulated key press in A
     /// ([`GETIN_RESPONSES`], cycling).
     Getin,
     /// Clear screen / CINT: clears A, X and Y, and fills the system's screen
-    /// RAM with spaces when the table says so
-    /// ([`RomTrapTable::clears_screen_ram`]).
+    /// RAM with spaces when [`RomTrapTable::clears_screen_ram`] is `true`.
     ClearScreen,
-    /// CHROUT: the character is dropped, except that
-    /// [`PETSCII_CLEAR_SCREEN`] clears the screen like
-    /// [`KernalRoutine::ClearScreen`] does (registers untouched).
+    /// CHROUT: drops the character, except that [`PETSCII_CLEAR_SCREEN`]
+    /// clears the screen like [`KernalRoutine::ClearScreen`] (leaving
+    /// registers unchanged).
     Chrout,
     /// SETNAM: stores A (name length) and X/Y (name pointer) in zero page.
     Setnam,
-    /// IOINIT: leaves the processor port and registers as the real routine
-    /// does.
+    /// IOINIT: sets the processor port and registers to their post-routine
+    /// values.
     Ioinit,
-    /// RESTOR: leaves the registers as the real routine does.
+    /// RESTOR: sets the registers to their post-routine values.
     Restor,
 }
 
@@ -148,7 +147,7 @@ impl KernalRoutine {
     /// Applies the routine's effects to `cpu`. The caller performs the
     /// return to the calling code (the forced `RTS`).
     ///
-    /// `getin_index` is the position in [`GETIN_RESPONSES`]; it persists
+    /// `getin_index` is the position in [`GETIN_RESPONSES`]. It persists
     /// across calls within one emulation run.
     pub(crate) fn emulate(
         self,
@@ -222,19 +221,18 @@ impl KernalRoutine {
 /// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct RomTrapTable {
-    /// BASIC interpreter entries that mean "run the BASIC program". The
-    /// engine then takes the entry point from the SYS line. Checked before
-    /// the banking and `written` checks, because packers jump here with RAM
-    /// banked in.
+    /// BASIC interpreter entries that run the BASIC program. The engine then
+    /// reads the entry point from the SYS line. Checked before the banking
+    /// and `written` checks because packers jump here when RAM is mapped.
     pub basic_run_entries: &'static [u16],
     /// BASIC ROM range that ends decompression ([`Phase::Decompress`] only).
     pub basic_exit_range: Option<RangeInclusive<u16>>,
     /// Single BASIC ROM addresses that end decompression, outside
     /// [`Self::basic_exit_range`] ([`Phase::Decompress`] only).
     pub basic_exit_addrs: &'static [u16],
-    /// Trapped KERNAL addresses, as layers searched in order (first match
-    /// wins; addresses are unique across layers, so the order is not
-    /// significant). Every table includes [`GENERIC_KERNAL_TRAPS`].
+    /// Trapped KERNAL addresses, searched in layer order. Addresses are
+    /// unique across layers, so search order does not change the result.
+    /// Every table includes [`GENERIC_KERNAL_TRAPS`].
     pub kernal_traps: &'static [&'static [KernalTrapEntry]],
     /// KERNAL IRQ handler range that ends decompression
     /// ([`Phase::Decompress`] only).
@@ -248,8 +246,7 @@ pub struct RomTrapTable {
 /// addresses: GETIN `$FFE4`, CINT `$FF5B`, CHROUT `$FFD2`, SETNAM `$FFBD`
 /// and LOAD `$FFD5` (exit vector).
 ///
-/// The engine has always trapped these on every system whose KERNAL range
-/// contains them, which is every [`System`].
+/// The engine traps these addresses on every [`System`].
 pub const GENERIC_KERNAL_TRAPS: [KernalTrapEntry; 5] = [
     KernalTrapEntry {
         addr: 0xFFE4,
@@ -342,11 +339,9 @@ static GENERIC_TRAPS: RomTrapTable = RomTrapTable {
 impl RomTrapTable {
     /// Returns the trap table for `system`.
     ///
-    /// The C64 profile is selected with [`System::is_c64`], the predicate the
-    /// bus and the engine use for C64 banking. Every other system, including
-    /// the drives and `Custom` systems (even one named like the C64), gets
-    /// the generic profile ([`GENERIC_KERNAL_TRAPS`]), because the engine has
-    /// always trapped those addresses on every system.
+    /// [`System::is_c64`] selects the C64 profile. Every other system,
+    /// including disk drives and `Custom` systems, uses the generic profile
+    /// ([`GENERIC_KERNAL_TRAPS`]).
     #[must_use]
     pub fn for_system(system: &System) -> &'static RomTrapTable {
         if system.is_c64() {
@@ -395,9 +390,9 @@ impl RomTrapTable {
         (phase == Phase::Decompress && in_irq_handler).then_some(KernalTrap::Exit)
     }
 
-    /// Fills `system`'s screen RAM in `mem` with [`SCREEN_CODE_SPACE`] if this
-    /// table clears the screen ([`Self::clears_screen_ram`]); otherwise, or
-    /// if the system has no screen RAM, leaves `mem` unchanged.
+    /// If [`Self::clears_screen_ram`] is `true`, fills `system`'s screen RAM
+    /// in `mem` with [`SCREEN_CODE_SPACE`]. Otherwise, or if the system has no
+    /// screen RAM, leaves `mem` unchanged.
     pub fn clear_screen(&self, mem: &mut [u8], system: &System) {
         if !self.clears_screen_ram {
             return;
@@ -422,19 +417,15 @@ pub const CARD_CRUNCHER_LOAD_ADDR: u16 = 0x07C0;
 
 /// The BASIC start of a PRG loaded at `load_addr`.
 ///
-/// This is the single source of truth for the BASIC start. The engine uses
-/// it, and so does the corpus classifier's `padding_byte` rule.
+/// This is the single source of truth for the BASIC start. Both the engine
+/// and the corpus classifier's `padding_byte` rule use it.
 ///
-/// A PRG loaded one byte below the C64's default BASIC start (the `$0800`
-/// padding byte, derived from [`System::default_basic_start`] of the C64), or
-/// at [`CARD_CRUNCHER_LOAD_ADDR`], starts its BASIC line at the next byte. Any
-/// other PRG starts it at its load address.
+/// A PRG loaded at `$0800` (one byte below the C64 [`System::default_basic_start`])
+/// or at [`CARD_CRUNCHER_LOAD_ADDR`] starts its BASIC line at `load_addr + 1`.
+/// Any other PRG starts at `load_addr`.
 ///
-/// The convention is the same for every target system: the
-/// engine has always applied it regardless of the system, so, for example, a
-/// C128 load at `$1C00` gives `$1C00`, not the C128's `$1C01`. A
-/// system-aware BASIC start is a recorded follow-up, not part of this
-/// behavior-preserving profile.
+/// Every target system uses this convention. For example, a C128 load at
+/// `$1C00` returns `$1C00`, not `$1C01`.
 ///
 /// # Example
 ///

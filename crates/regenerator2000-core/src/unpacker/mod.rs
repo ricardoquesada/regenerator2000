@@ -1,16 +1,16 @@
-//! 6502 emulation-based binary unpacker for compressed Commodore 8-bit programs.
+//! 6502 emulation unpacker for compressed Commodore 8-bit programs.
 //!
-//! Many Commodore 8-bit programs are distributed packed with tools like Dali, Exomizer,
-//! PUCrunch, TSCrunch, or ByteBoozer. This module emulates the MOS 6502 CPU in a
-//! target-system sandbox to run the packer's decompression stub, tracks modified
-//! memory and bound provenance in [`UnpackReport`], and extracts the unpacked binary.
+//! Tools like Dali, Exomizer, PUCrunch, TSCrunch, and ByteBoozer pack Commodore 8-bit
+//! programs. This module emulates the MOS 6502 CPU in a target-system sandbox to run the
+//! decompression stub. It records memory writes and bound provenance in [`UnpackReport`]
+//! and extracts the unpacked binary.
 //!
-//! The algorithm is inspired by the **unp64** utility and uses a two-phase state machine:
+//! The algorithm follows the **unp64** utility and uses a two-phase state machine:
 //!
 //! - [`Phase::FindDepacker`](machine::Phase::FindDepacker) (Phase 1): Runs from the entry point
 //!   until the program counter reaches the depacker stub or drops below the return boundary.
-//! - [`Phase::Decompress`](machine::Phase::Decompress) (Phase 2): Runs the depacker stub while
-//!   tracking RAM writes until execution jumps to the unpacked program or hits a trapped exit vector.
+//! - [`Phase::Decompress`](machine::Phase::Decompress) (Phase 2): Runs the depacker stub and
+//!   tracks RAM writes until execution reaches the unpacked program or a trapped exit vector.
 
 pub mod bus;
 pub mod cia;
@@ -20,7 +20,7 @@ pub mod machine;
 
 pub use crate::error::UnpackError;
 pub use crate::packers::PackerId;
-pub use bus::{C64Bus, MemoryAccessHook, UnpackerMemory};
+pub use bus::{C64Bus, UnpackerMemory};
 pub use engine::{BoundSource, ExitReason, TRACE_TAIL_CAPACITY, UnpackEngine, UnpackReport};
 
 /// Configuration for the unpacker.
@@ -94,15 +94,14 @@ pub struct UnpackResult {
 /// # Arguments
 ///
 /// * `raw_data` — the raw binary data (without the 2-byte PRG load address header)
-/// * `load_addr` — the address where the binary is loaded in memory
+/// * `load_addr` — the address where the binary loads in memory
 /// * `config` — unpacker configuration
 /// * `progress_callback` — optional callback invoked periodically with the instruction count
 ///
 /// # Errors
 ///
-/// Returns [`UnpackError`] if the input is empty, no entry point is found, nothing is written
-/// to memory, the resolved entry point lies outside the output range, or emulation exceeds
-/// [`UnpackConfig::max_instructions`] without completing.
+/// Returns [`UnpackError`] when the input is empty, the entry point is missing or out of
+/// range, emulation writes no memory, or execution exceeds [`UnpackConfig::max_instructions`].
 pub fn unpack(
     raw_data: &[u8],
     load_addr: u16,

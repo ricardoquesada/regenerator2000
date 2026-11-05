@@ -1,12 +1,12 @@
 //! Decompressed memory boundary and entry point detection heuristics.
 
-use super::bus::{is_basic_rom_mapped, is_io_mapped};
+use super::bus::is_io_mapped;
 
-/// Diff bytes within this distance of a scan ceiling indicate the output continues upward.
+/// Diff bytes within this distance of a scan ceiling indicate that output continues upward.
 const CEILING_PROXIMITY: usize = 256;
 
 /// Distance below a scan ceiling within which `trimmed_end` must lie to escalate
-/// for a disjoint high-memory output region (e.g. TinyCrunch in-place depacking).
+/// for a disjoint high-memory output region (such as TinyCrunch in-place depacking).
 const HIGH_REGION_WINDOW: usize = 0x2000;
 
 /// Minimum written or diffed non-I/O bytes above a scan ceiling that indicate a
@@ -20,111 +20,103 @@ const KERNAL_FALLBACK_START: usize = 0xE000;
 /// End of the Kernal ROM fallback scan window (`$E000`–`$FFFF`).
 const KERNAL_FALLBACK_END: usize = 0xFFFF;
 
-/// Maximum number of pre-RAM written/diff bytes (`< 64`) before `system.ram_start()`
-/// that are treated as low-memory depacker scratch rather than program start when
-/// separated from `ram_start` by more than [`HYBRID_SCAN_GAP`] unchanged bytes.
+/// Maximum pre-RAM changed byte count (`< 64`) before `system.ram_start()`.
+/// The scanner skips these scratch bytes when more than [`HYBRID_SCAN_GAP`]
+/// unchanged bytes separate them from `ram_start`.
 const HYBRID_MIN_BYTES: usize = 64;
 
-/// Minimum number of unchanged bytes (`> 128`) between pre-RAM writes and
-/// `system.ram_start()` required to skip pre-RAM scratch and advance start to `ram_start`.
+/// Minimum unchanged byte count (`> 128`) between pre-RAM writes and
+/// `system.ram_start()` required to skip pre-RAM scratch and start at `ram_start`.
 const HYBRID_SCAN_GAP: usize = 128;
 
-/// Maximum forward extension through written-but-unchanged (trailing zero-fill) bytes.
+/// Maximum forward extension through written trailing zero-fill bytes.
 const MAX_ZERO_FILL_EXTENSION: usize = 512;
 
-/// Minimum offset above `ret_addr` (`+ 0x0300`, 3 pages) for a plausible `JMP $xxxx`
-/// target in the pre-decompression snapshot, skipping initial bootstrap/depacker stubs.
+/// Minimum offset above `ret_addr` (`+ 0x0300`, 3 pages) for a valid `JMP $xxxx`
+/// target in the pre-decompression snapshot, skipping initial bootstrap stubs.
 const SNAPSHOT_ENTRY_MIN_OFFSET: u16 = 0x0300;
 
 /// Maximum forward scan window from `ret_addr` (`0x0400` bytes, 4 pages) searched for a
 /// depacker exit `JMP $xxxx` instruction in the pre-decompression snapshot.
 const SNAPSHOT_ENTRY_SCAN_WINDOW: usize = 0x0400;
 
-/// Number of operand bytes following a 6502 absolute `JMP $xxxx` opcode.
+/// Number of operand bytes after a 6502 absolute `JMP $xxxx` opcode.
 const JMP_ABS_OPERAND_LEN: usize = 2;
 
 /// 6502 absolute `JMP $xxxx` opcode byte.
 const OPCODE_JMP_ABS: u8 = 0x4C;
 
-/// Exclusive upper address ceiling (`< $8000`) for a plausible entry point discovered
+/// Exclusive upper address ceiling (`< $8000`) for a valid entry point found
 /// in the pre-decompression snapshot.
 const SNAPSHOT_ENTRY_MAX_ADDR: u16 = 0x8000;
 
 /// Minimum gap of unchanged bytes (`>= 4`) before a tiny trailing diff cluster
-/// (such as PUCrunch's 10-byte tail) is trimmed.
+/// (such as PUCrunch's 10-byte tail).
 const TRAILING_CLUSTER_GAP: usize = 4;
 
 /// Exclusive upper bound (`< 16` diff bytes) for a tiny trailing diff cluster
-/// trimmed at any gap of at least [`TRAILING_CLUSTER_GAP`] bytes.
+/// trimmed after a gap of at least [`TRAILING_CLUSTER_GAP`] bytes.
 const TRAILING_CLUSTER_MAX_SIZE: usize = 16;
 
 /// Exclusive upper address bound (`< $F000`) on `gap_end` for trimming larger
 /// high-memory depacker workspace clusters.
 const WORKSPACE_CLUSTER_GAP_CEILING: usize = 0xF000;
 
-/// Inclusive lower bound (`128` bytes) on the unchanged gap separating a high-memory
-/// depacker workspace cluster from the main decompressed payload.
+/// Inclusive lower bound (`128` bytes) on the unchanged gap between a high-memory
+/// depacker workspace cluster and the main decompressed payload.
 const WORKSPACE_CLUSTER_MIN_GAP: usize = 128;
 
-/// Exclusive upper bound (`4096` bytes) on the unchanged gap separating a high-memory
-/// depacker workspace cluster from the main decompressed payload.
+/// Exclusive upper bound (`4096` bytes) on the unchanged gap between a high-memory
+/// depacker workspace cluster and the main decompressed payload.
 const WORKSPACE_CLUSTER_MAX_GAP: usize = 4096;
 
 /// Inclusive maximum diff byte count (`<= 512`) of a high-memory depacker workspace
-/// cluster trimmed when separated by [`WORKSPACE_CLUSTER_MIN_GAP`]..[`WORKSPACE_CLUSTER_MAX_GAP`].
+/// cluster trimmed across a gap in [`WORKSPACE_CLUSTER_MIN_GAP`]..[`WORKSPACE_CLUSTER_MAX_GAP`].
 const WORKSPACE_CLUSTER_MAX_SIZE: usize = 512;
 
-/// Detects the modified memory range using the write-tracking bitmap and
-/// a pre-emulation snapshot.
+/// Detects the modified memory range from the `written` bitmap and a pre-emulation `snapshot`.
 ///
-/// `_ret_addr` is reserved for return-address boundary checking (typically `$0800`).
+/// Uses a hybrid scan:
 ///
-/// Uses a hybrid approach:
-/// - **Start address**: determined by the `written` bitmap (catches all writes).
-/// - **End address**: determined by the snapshot diff, then extended forward
-///   through any bytes that were `written` but match the snapshot (trailing
-///   zero-fills). This excludes depacker tables written past the output.
+/// - **Start address**: uses the first byte in the `written` bitmap.
+/// - **End address**: uses the last snapshot diff byte, then extends forward
+///   through written trailing zero-fills. This excludes depacker tables past the output.
 ///
-/// Returns `(start_addr, end_addr)` inclusive, or `None` if nothing was written.
+/// Returns `(start_addr, end_addr)` inclusive, or `None` if emulation wrote no memory.
 #[must_use]
 pub fn detect_output_range(
     mem: &[u8],
     snapshot: &[u8],
     written: &[bool],
-    _ret_addr: u16,
     load_addr: u16,
     system: &crate::state::types::System,
 ) -> Option<(u16, u16)> {
     let scan_start = (load_addr as usize).min(system.ram_start() as usize);
 
     // Cascading scans with progressively wider boundaries.
-    // Each level is only tried if the previous scan's detected end is near
-    // its ceiling (within 256 bytes), indicating the output continues past
-    // that boundary. This keeps the scan range tight so the trim heuristics
-    // work correctly with workspaces that fill high memory.
+    // Each level runs only when the previous scan's detected end lies within
+    // 256 bytes of its ceiling, which indicates that output continues upward.
+    // This keeps the scan range tight so trim heuristics exclude high-memory workspaces.
     //
-    // Level 1: $0800..$9FFF — typical program area
+    // Level 1: $0800..$9FFF — standard program area
     // Level 2: $0800..$CFFF — includes BASIC ROM area (all-RAM mode)
-    // Level 3: $0800..$FFFF — includes I/O + Kernal ROM area (full RAM)
+    // Level 3: $0800..$FFEF — includes I/O and Kernal ROM area (full RAM)
     //
-    // In-place depackers (e.g. TinyCrunch) write to two disjoint regions:
+    // In-place depackers (such as TinyCrunch) write to two disjoint regions:
     // a lower region (e.g. $0801-$7949) and a high region (e.g. $D000-$FFFD),
-    // leaving a gap of unchanged bytes in the middle. The gap means
-    // `untrimmed_end` stops early and `near_ceiling` is false. To handle
-    // this we also escalate when written+diffed bytes exist above the current
-    // boundary.
+    // with unchanged bytes between them. Because `near_ceiling` is false across
+    // that gap, the loop also escalates when written or diffed bytes exist above
+    // the current boundary.
     let boundaries = system.memory_boundaries();
 
     for (i, &boundary) in boundaries.iter().enumerate() {
-        if let Some((start, end, trimmed_end, has_diff)) =
+        if let Some((start, end, trimmed_end)) =
             scan_hybrid_range(mem, snapshot, written, scan_start, boundary, false, system)
         {
             let is_last = i == boundaries.len() - 1;
-            let near_ceiling = has_diff && (trimmed_end as usize) + CEILING_PROXIMITY >= boundary;
+            let near_ceiling = (trimmed_end as usize) + CEILING_PROXIMITY >= boundary;
 
-            // Also escalate when there are written+diffed bytes above the
-            // current boundary — in-place depackers write to a disjoint high
-            // region while leaving unchanged data in between.
+            // Also escalate when written or diffed bytes exist above the current boundary.
             let io_mapped = is_io_mapped(mem, system);
             let next_upper = if !is_last {
                 boundaries[i + 1]
@@ -150,29 +142,6 @@ pub fn detect_output_range(
         }
     }
 
-    let mid_boundary = if boundaries.len() > 1 {
-        boundaries[1]
-    } else {
-        boundaries[0]
-    };
-    let basic_mapped = is_basic_rom_mapped(mem, system);
-    if (boundaries[0] + 1..=mid_boundary).any(|a| {
-        let in_rom = system.is_in_basic_rom(a as u16) && basic_mapped;
-        !in_rom
-            && written.get(a).copied().unwrap_or(false)
-            && mem.get(a).copied().unwrap_or(0) != snapshot.get(a).copied().unwrap_or(0)
-    }) && let Some((s, e, _, _)) = scan_hybrid_range(
-        mem,
-        snapshot,
-        written,
-        scan_start,
-        mid_boundary,
-        false,
-        system,
-    ) {
-        return Some((s, e));
-    }
-
     // Fallback: scan $E000-$FFFF for packers that decompress only into
     // the Kernal ROM area.
     scan_hybrid_range(
@@ -184,19 +153,17 @@ pub fn detect_output_range(
         false,
         system,
     )
-    .map(|(s, e, _, _)| (s, e))
+    .map(|(s, e, _)| (s, e))
 }
 
-/// Scans a range using a hybrid of the `written` bitmap and snapshot diff.
+/// Scans `start..=end` using the `written` bitmap and `snapshot` diff.
 ///
-/// - **Start**: first byte in the `written` bitmap.
-/// - **End**: last byte where `mem != snapshot`, trimmed of any small trailing
-///   diff clusters (depacker tables) separated by matching bytes, then extended
-///   through written zero-fills (`mem == snapshot`).
+/// - **Start**: first byte in the `written` bitmap or snapshot diff.
+/// - **End**: last byte where `mem != snapshot` (or `written` is true), trimmed of
+///   small trailing diff clusters and extended through written zero-fills.
 ///
-/// If `skip_trim` is `true`, the `trim_trailing_clusters` heuristic is bypassed
-/// and the last diff byte (or last written byte if no diff) is used directly.
-/// This is used when escalating due to an in-place depacker output gap.
+/// If `skip_trim` is `true`, this function skips [`trim_trailing_clusters`] and uses
+/// the last changed or written byte directly.
 #[must_use]
 pub fn scan_hybrid_range(
     mem: &[u8],
@@ -206,7 +173,7 @@ pub fn scan_hybrid_range(
     end: usize,
     skip_trim: bool,
     system: &crate::state::types::System,
-) -> Option<(u16, u16, u16, bool)> {
+) -> Option<(u16, u16, u16)> {
     let upper = end
         .min(written.len().saturating_sub(1))
         .min(mem.len().saturating_sub(1))
@@ -242,7 +209,7 @@ pub fn scan_hybrid_range(
         }
     }
 
-    // Find all diff bytes and identify the end of the "main" diff block
+    // Find all diff bytes and identify the end of the main diff block
     // by trimming small trailing clusters separated by non-diff gaps.
     let mut last_diff = None;
     for addr in start..=upper {
@@ -254,7 +221,7 @@ pub fn scan_hybrid_range(
     let diff_end = last_diff?;
 
     // Walk backward from diff_end to detect and trim small trailing clusters,
-    // unless the caller signals that trimming should be skipped (`skip_trim`).
+    // unless `skip_trim` is true.
     let trimmed_end = if !skip_trim {
         trim_trailing_clusters(mem, snapshot, written, first, diff_end)
     } else {
@@ -262,7 +229,7 @@ pub fn scan_hybrid_range(
     };
 
     // Extend past the trimmed end through written bytes that match the snapshot
-    // (trailing zero-fills that are part of the real output).
+    // (trailing zero-fills that belong to the decompressed output).
     let mut extended_end = trimmed_end;
     let max_extend = upper.min(trimmed_end + MAX_ZERO_FILL_EXTENSION);
     for addr in (trimmed_end + 1)..=max_extend {
@@ -273,21 +240,18 @@ pub fn scan_hybrid_range(
         }
     }
 
-    Some((first as u16, extended_end as u16, trimmed_end as u16, true))
+    Some((first as u16, extended_end as u16, trimmed_end as u16))
 }
 
-/// After the depacker transfers control to `ret_addr`, some packers execute
-/// a brief init/bootstrap stub before jumping to the real program entry.
-/// This function scans the **pre-decompression snapshot** within
-/// `ret_addr..ret_addr + SNAPSHOT_ENTRY_SCAN_WINDOW` (`0x0400` bytes) for a
-/// `JMP $xxxx` instruction that targets a plausible entry point
-/// (`>= ret_addr + SNAPSHOT_ENTRY_MIN_OFFSET` (`0x0300`) and `< SNAPSHOT_ENTRY_MAX_ADDR` (`$8000`)).
+/// Scans the pre-decompression `snapshot` within `ret_addr..ret_addr + 0x0400` for a
+/// `JMP $xxxx` instruction that targets a valid entry point (`>= ret_addr + 0x0300`
+/// and `< $8000`).
 ///
-/// The Dali packer, for example, stores `JMP $1100` at `$090A` in its packed
-/// binary. Before decompression, the snapshot preserves this instruction even
-/// though it gets overwritten by decompressed data.
+/// Some packers execute a short bootstrap stub at `ret_addr` before jumping to the
+/// unpacked entry point. For example, Dali stores `JMP $1100` at `$090A` in the
+/// packed binary before decompression overwrites that region.
 ///
-/// Returns the lowest discovered entry point target, or `None` if none is found.
+/// Returns the lowest discovered target address, or `None` if no matching `JMP` exists.
 #[must_use]
 pub fn find_entry_in_snapshot(
     snapshot: &[u8],
@@ -295,31 +259,24 @@ pub fn find_entry_in_snapshot(
     load_size: usize,
     ret_addr: u16,
 ) -> Option<u16> {
-    // Minimum plausible entry point: must be well past the depacker code
-    // (ret_addr + 0x300 skips over common init stubs in the first 3 pages).
+    // Minimum valid entry point: skips common init stubs in the first 3 pages.
     let min_entry = ret_addr.saturating_add(SNAPSHOT_ENTRY_MIN_OFFSET);
-    // Only scan in the depacker's own code region: [ret_addr, ret_addr+0x400].
-    // The depacker exit JMP is typically within the first few pages of the
-    // loaded binary. We avoid scanning deeper to prevent false positives from
-    // JMP instructions in the init/bootstrap code.
+    // Scan only the depacker code region: [ret_addr, ret_addr + 0x400).
     let scan_start = ret_addr as usize;
     let scan_end = (ret_addr as usize)
         .saturating_add(SNAPSHOT_ENTRY_SCAN_WINDOW)
-        .min(load_addr as usize + load_size)
+        .min((load_addr as usize).saturating_add(load_size))
         .min(snapshot.len().saturating_sub(JMP_ABS_OPERAND_LEN));
 
-    // Scan for JMP $xxxx (opcode $4C) targeting a plausible entry address.
-    // Use the LOWEST valid target — the Dali packer stores JMP $1100 as the
-    // first JMP-to-entry in its depacker code.
+    // Scan for JMP $xxxx (opcode $4C) and select the lowest valid target address.
     let mut best: Option<u16> = None;
     for i in scan_start..scan_end {
         if snapshot[i] == OPCODE_JMP_ABS {
             let lo = snapshot[i + 1];
             let hi = snapshot[i + 2];
             let target = u16::from_le_bytes([lo, hi]);
-            // Target must be a plausible entry: above min_entry and in RAM (<$8000)
+            // Target must be above min_entry and in RAM (< $8000)
             if target >= min_entry && target < SNAPSHOT_ENTRY_MAX_ADDR {
-                // Prefer the LOWEST target — closest to the decompressed start
                 match best {
                     None => best = Some(target),
                     Some(prev) if target < prev => best = Some(target),
@@ -331,18 +288,17 @@ pub fn find_entry_in_snapshot(
     best
 }
 
-/// Trims trailing depacker workspace from the detected diff range.
+/// Trims trailing depacker workspace clusters from `start..=end`.
 ///
-/// Walks backward from `end` down to `start` through the diff range, examining each
-/// gap (run of same-as-snapshot bytes):
+/// Walks backward from `end` to `start` and checks each run of unchanged bytes:
 ///
 /// 1. **Tiny trailing cluster**: If `gap_len >= TRAILING_CLUSTER_GAP` (`4` bytes) and the
 ///    trailing cluster has fewer than `TRAILING_CLUSTER_MAX_SIZE` (`16`) diff bytes,
-///    returns `pos` immediately (handles depacker tails such as PUCrunch's 10-byte cluster).
+///    returns `pos` immediately.
 /// 2. **High-memory workspace cluster**: If `gap_end < WORKSPACE_CLUSTER_GAP_CEILING` (`$F000`),
 ///    `gap_len` lies in `WORKSPACE_CLUSTER_MIN_GAP..WORKSPACE_CLUSTER_MAX_GAP` (`128..4096`),
 ///    and the trailing cluster has at most `WORKSPACE_CLUSTER_MAX_SIZE` (`512`) diff bytes,
-///    records `pos` as the candidate trim boundary and continues walking backward.
+///    records `pos` as the trim boundary and continues backward.
 #[must_use]
 pub fn trim_trailing_clusters(
     mem: &[u8],
@@ -376,13 +332,9 @@ pub fn trim_trailing_clusters(
             pos -= 1;
         }
 
-        // Count diff bytes in the cluster immediately following the gap
+        // Count written or changed bytes in the cluster after the gap
         let cluster_diffs: usize = ((gap_end + 1)..=curr_cluster_end)
-            .filter(|&a| {
-                written.get(a).copied().unwrap_or(false)
-                    || mem.get(a) != snapshot.get(a)
-                    || mem.get(a).copied().unwrap_or(0) != 0
-            })
+            .filter(|&a| written.get(a).copied().unwrap_or(false) || mem.get(a) != snapshot.get(a))
             .count();
 
         let gap_len = gap_end - (pos + 1) + 1;
@@ -392,7 +344,7 @@ pub fn trim_trailing_clusters(
             return pos;
         }
 
-        // Check 2: gap (>= 2 bytes) separating high workspace cluster from main decompressed payload.
+        // Check 2: gap separating high workspace cluster from main decompressed payload.
         let main_len = (pos + 1).saturating_sub(start);
         if gap_end < WORKSPACE_CLUSTER_GAP_CEILING
             && (WORKSPACE_CLUSTER_MIN_GAP..WORKSPACE_CLUSTER_MAX_GAP).contains(&gap_len)
@@ -447,14 +399,7 @@ mod tests {
             for w in &mut written[(trimmed_end + 1)..=0xA001] {
                 *w = true;
             }
-            detect_output_range(
-                &mem,
-                &snapshot,
-                &written,
-                0x0800,
-                0x0801,
-                &TargetSystem::C64,
-            )
+            detect_output_range(&mem, &snapshot, &written, 0x0801, &TargetSystem::C64)
         };
 
         // 0x9EFE + 256 = 0x9FFE < 0x9FFF -> does not escalate; extension stops at $9FFF.
@@ -474,14 +419,7 @@ mod tests {
             snapshot[0x01] = 0x37;
             mark_diff_range(&mut mem, &snapshot, &mut written, 0x0801..=trimmed_end);
             mark_diff_range(&mut mem, &snapshot, &mut written, 0xDF00..=0xDF13);
-            detect_output_range(
-                &mem,
-                &snapshot,
-                &written,
-                0x0800,
-                0x0801,
-                &TargetSystem::C64,
-            )
+            detect_output_range(&mem, &snapshot, &written, 0x0801, &TargetSystem::C64)
         };
 
         // 0xCEFE + 256 = 0xCFFE < 0xCFFF -> stops at Level 1 ($CEFE).
@@ -500,18 +438,10 @@ mod tests {
             let (mut mem, snapshot, mut written) = blank_state();
             mark_diff_range(&mut mem, &snapshot, &mut written, 0x0801..=lower_end);
             mark_diff_range(&mut mem, &snapshot, &mut written, 0xB000..=0xB013);
-            detect_output_range(
-                &mem,
-                &snapshot,
-                &written,
-                0x0800,
-                0x0801,
-                &TargetSystem::C64,
-            )
+            detect_output_range(&mem, &snapshot, &written, 0x0801, &TargetSystem::C64)
         };
 
-        // 0x7FFE < 0x9FFF - 0x2000 (0x7FFF): does not escalate at Level 0, nor does
-        // the mid-boundary fallback overwrite the early return from the Level 0 loop.
+        // 0x7FFE < 0x9FFF - 0x2000 (0x7FFF): does not escalate at Level 0.
         assert_eq!(run_case(0x7FFE), Some((0x0801, 0x7FFE)));
         // 0x7FFF == 0x9FFF - 0x2000: escalates to Level 1 ($CFFF) and includes $B000..=$B013.
         assert_eq!(run_case(0x7FFF), Some((0x0801, 0xB013)));
@@ -529,14 +459,7 @@ mod tests {
             for w in &mut written[0x9EFF..(0xA000 + high_count)] {
                 *w = true;
             }
-            detect_output_range(
-                &mem,
-                &snapshot,
-                &written,
-                0x0800,
-                0x0801,
-                &TargetSystem::C64,
-            )
+            detect_output_range(&mem, &snapshot, &written, 0x0801, &TargetSystem::C64)
         };
 
         // 3 written bytes in $A000..=$CFFF (< 4): does not escalate; extension caps at $9FFF.
@@ -561,14 +484,7 @@ mod tests {
                 &mut written,
                 0xE000..(0xE000 + high_count),
             );
-            detect_output_range(
-                &mem,
-                &snapshot,
-                &written,
-                0x0800,
-                0x0801,
-                &TargetSystem::C64,
-            )
+            detect_output_range(&mem, &snapshot, &written, 0x0801, &TargetSystem::C64)
         };
 
         // 3 non-I/O diff bytes above $CFFF (< 4): stops at Level 1 ($B000).
@@ -580,7 +496,7 @@ mod tests {
     /// Pins the 512-byte maximum forward zero-fill extension in `scan_hybrid_range`.
     #[test]
     fn detector_zero_fill_extension_limit() {
-        let run_with_zero_fill = |zero_fill_len: usize| -> Option<(u16, u16, u16, bool)> {
+        let run_with_zero_fill = |zero_fill_len: usize| -> Option<(u16, u16, u16)> {
             let (mut mem, snapshot, mut written) = blank_state();
             mark_diff_range(&mut mem, &snapshot, &mut written, 0x0801..=0x1000);
             for w in &mut written[0x1001..=(0x1000 + zero_fill_len)] {
@@ -598,24 +514,12 @@ mod tests {
         };
 
         // 511 bytes of trailing written zero-fill -> extends full 511 bytes to $11FF.
-        assert_eq!(
-            run_with_zero_fill(511),
-            Some((0x0801, 0x11FF, 0x1000, true))
-        );
+        assert_eq!(run_with_zero_fill(511), Some((0x0801, 0x11FF, 0x1000)));
         // 512 bytes of trailing written zero-fill -> extends full 512 bytes to $1200.
-        assert_eq!(
-            run_with_zero_fill(512),
-            Some((0x0801, 0x1200, 0x1000, true))
-        );
+        assert_eq!(run_with_zero_fill(512), Some((0x0801, 0x1200, 0x1000)));
         // 513 bytes (and 700 bytes) of trailing written zero-fill -> capped at +512 ($1200).
-        assert_eq!(
-            run_with_zero_fill(513),
-            Some((0x0801, 0x1200, 0x1000, true))
-        );
-        assert_eq!(
-            run_with_zero_fill(700),
-            Some((0x0801, 0x1200, 0x1000, true))
-        );
+        assert_eq!(run_with_zero_fill(513), Some((0x0801, 0x1200, 0x1000)));
+        assert_eq!(run_with_zero_fill(700), Some((0x0801, 0x1200, 0x1000)));
     }
 
     /// Pins the pre-RAM diff count (`< 64`) and gap (`> 128`) thresholds in `scan_hybrid_range`.
@@ -623,7 +527,7 @@ mod tests {
     fn detector_hybrid_scan_thresholds() {
         // Part 1: `diffs_below < 64` boundary when `gap_before_ram > 128` (start = $0400,
         // C64 ram_start = $0800, so total span is 1024 bytes and gap is >= 960 > 128).
-        let run_diffs_below = |diffs_below: usize| -> Option<(u16, u16, u16, bool)> {
+        let run_diffs_below = |diffs_below: usize| -> Option<(u16, u16, u16)> {
             let (mut mem, snapshot, mut written) = blank_state();
             mark_diff_range(
                 &mut mem,
@@ -644,13 +548,13 @@ mod tests {
         };
 
         // 63 diffs below $0800 (< 64) with gap 961 (> 128) -> skips pre-RAM diffs to $0801.
-        assert_eq!(run_diffs_below(63), Some((0x0801, 0x1000, 0x1000, true)));
+        assert_eq!(run_diffs_below(63), Some((0x0801, 0x1000, 0x1000)));
         // 64 diffs below $0800 (< 64 is false) -> keeps pre-RAM start $0400.
-        assert_eq!(run_diffs_below(64), Some((0x0400, 0x1000, 0x1000, true)));
+        assert_eq!(run_diffs_below(64), Some((0x0400, 0x1000, 0x1000)));
 
         // Part 2: `gap_before_ram > 128` boundary with 1 diff byte at `first` just below $0800.
         // For a single diff at `first`, `gap_before_ram = (0x0800 - first) - 1`.
-        let run_gap_before_ram = |gap_len: usize| -> Option<(u16, u16, u16, bool)> {
+        let run_gap_before_ram = |gap_len: usize| -> Option<(u16, u16, u16)> {
             let (mut mem, snapshot, mut written) = blank_state();
             let first_pre_ram = 0x0800 - (gap_len + 1);
             mark_diff_range(
@@ -672,15 +576,9 @@ mod tests {
         };
 
         // gap_before_ram == 128 (> 128 is false, first = $077F) -> keeps $077F.
-        assert_eq!(
-            run_gap_before_ram(128),
-            Some((0x077F, 0x1000, 0x1000, true))
-        );
+        assert_eq!(run_gap_before_ram(128), Some((0x077F, 0x1000, 0x1000)));
         // gap_before_ram == 129 (> 128 is true, first = $077E) -> advances start to $0801.
-        assert_eq!(
-            run_gap_before_ram(129),
-            Some((0x0801, 0x1000, 0x1000, true))
-        );
+        assert_eq!(run_gap_before_ram(129), Some((0x0801, 0x1000, 0x1000)));
 
         // Part 3: `skip_trim` bypasses `trim_trailing_clusters`.
         let (mut mem, snapshot, mut written) = blank_state();
@@ -696,7 +594,7 @@ mod tests {
                 false,
                 &TargetSystem::C64
             ),
-            Some((0x0801, 0x1000, 0x1000, true))
+            Some((0x0801, 0x1000, 0x1000))
         );
         assert_eq!(
             scan_hybrid_range(
@@ -708,7 +606,7 @@ mod tests {
                 true,
                 &TargetSystem::C64
             ),
-            Some((0x0801, 0x1015, 0x1015, true))
+            Some((0x0801, 0x1015, 0x1015))
         );
     }
 
@@ -765,6 +663,24 @@ mod tests {
         // gap_end = 0xF000 (main_end = 0xF000 - 200 = 0xEF38) -> not trimmed (0xF000 + 32 = 0xF020).
         assert_eq!(run_cluster(0xEF38, 200, 32), 0xF020);
 
+        // Untouched non-zero bytes in a sub-gap between two small workspace clusters must NOT
+        // count as diff bytes against `WORKSPACE_CLUSTER_MAX_SIZE` (512).
+        let (mut mem_nz, mut snapshot_nz, mut written_nz) = blank_state();
+        mark_diff_range(&mut mem_nz, &snapshot_nz, &mut written_nz, 0x0801..=0x2000);
+        // Fill $2100..=$2500 with non-zero bytes in both `mem_nz` and `snapshot_nz` (untouched).
+        mem_nz[0x2100..=0x2500].fill(0xAA);
+        snapshot_nz[0x2100..=0x2500].fill(0xAA);
+        // Cluster A: 20 diff bytes at $2100..=$2113 (after a 255-byte gap $2001..=$20FF).
+        mark_diff_range(&mut mem_nz, &snapshot_nz, &mut written_nz, 0x2100..=0x2113);
+        // Sub-gap of 100 untouched non-zero bytes at $2114..=$2177 (< 128, so not trimmed alone)
+        // plus 450 untouched non-zero bytes would exceed 512 if untouched non-zero bytes counted.
+        // Cluster B: 20 diff bytes at $2178..=$218B.
+        mark_diff_range(&mut mem_nz, &snapshot_nz, &mut written_nz, 0x2178..=0x218B);
+        assert_eq!(
+            trim_trailing_clusters(&mem_nz, &snapshot_nz, &written_nz, 0x0801, 0x218B),
+            0x2000
+        );
+
         // Degenerate range `end <= start` returns `end` unchanged.
         let (mem, snapshot, written) = blank_state();
         assert_eq!(
@@ -789,7 +705,7 @@ mod tests {
                 None
             );
             assert_eq!(
-                detect_output_range(&mem, &snapshot, &written, 0x0800, 0x0801, &system),
+                detect_output_range(&mem, &snapshot, &written, 0x0801, &system),
                 None
             );
         }
@@ -800,14 +716,7 @@ mod tests {
         let (mut mem_k, snapshot_k, mut written_k) = blank_state();
         mark_diff_range(&mut mem_k, &snapshot_k, &mut written_k, 0xFFF0..=0xFFF5);
         assert_eq!(
-            detect_output_range(
-                &mem_k,
-                &snapshot_k,
-                &written_k,
-                0x0800,
-                0x0801,
-                &TargetSystem::C64
-            ),
+            detect_output_range(&mem_k, &snapshot_k, &written_k, 0x0801, &TargetSystem::C64),
             Some((0xFFF0, 0xFFF5))
         );
     }

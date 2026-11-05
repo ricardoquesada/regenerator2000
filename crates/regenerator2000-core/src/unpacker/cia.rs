@@ -40,26 +40,26 @@ impl Default for CiaState {
 }
 
 impl CiaState {
-    /// Returns `true` if Timer A is running (CRA bit 0 is set).
+    /// Returns `true` if Timer A is active (CRA bit 0 is 1).
     #[must_use]
     #[inline]
     pub fn is_ta_running(&self) -> bool {
         (self.ta_control & 0x01) != 0
     }
 
-    /// Returns `true` if Timer B is running (CRB bit 0 is set).
+    /// Returns `true` if Timer B is active (CRB bit 0 is 1).
     #[must_use]
     #[inline]
     pub fn is_tb_running(&self) -> bool {
         (self.tb_control & 0x01) != 0
     }
 
-    /// Steps active CIA timers by the specified number of CPU clock cycles.
+    /// Steps active CIA timers by `cycles` CPU clock cycles.
     ///
-    /// Decrements active counters, reloads latches on underflow, sets ICR underflow flags
-    /// (bit 0 for Timer A, bit 1 for Timer B), clears the `START` bit in one-shot mode,
-    /// and steps Timer B when chained (`INMODE` = `%10` or `%11`).
-    pub fn step(&mut self, cycles: u32) {
+    /// Decrements active counters and reloads latches on underflow. Sets ICR bits 0 and 1
+    /// on underflow, clears `START` in one-shot mode, and steps chained Timer B (`INMODE`
+    /// `%10` or `%11`).
+    pub fn step_cycles(&mut self, cycles: u32) {
         if self.is_ta_running() {
             for _ in 0..cycles {
                 if !self.is_ta_running() {
@@ -85,25 +85,9 @@ impl CiaState {
                 if !self.is_tb_running() {
                     break;
                 }
-                if self.tb_counter == 0 {
-                    self.tb_counter = self.tb_latch;
-                    self.icr_data |= 0x02; // Timer B underflow flag
-                    if (self.tb_control & 0x08) != 0 {
-                        self.tb_control &= !0x01; // Hardware clears START bit in CRB for one-shot mode
-                    }
-                } else {
-                    self.tb_counter = self.tb_counter.saturating_sub(1);
-                }
+                self.step_tb_underflow();
             }
         }
-    }
-
-    /// Steps active CIA timers by the specified number of CPU clock cycles.
-    ///
-    /// Alias for [`step`](Self::step) providing standard cycle stepping naming.
-    #[inline]
-    pub fn step_cycles(&mut self, cycles: u32) {
-        self.step(cycles);
     }
 
     fn step_tb_underflow(&mut self) {
@@ -120,10 +104,10 @@ impl CiaState {
 
     /// Reads a CIA register offset (`$00`–`$0F`).
     ///
-    /// - `$04` / `$05`: Reads Timer A Counter low/high bytes (reading low byte latches high byte).
-    /// - `$06` / `$07`: Reads Timer B Counter low/high bytes (reading low byte latches high byte).
-    /// - `$0D`: Reads Interrupt Control Register (ICR) with clear-on-read semantics and IR summary bit 7.
-    /// - `$0E` / `$0F`: Reads CRA / CRB control register bytes.
+    /// - `$04` / `$05`: Reads Timer A counter low and high bytes (low-byte read latches high byte).
+    /// - `$06` / `$07`: Reads Timer B counter low and high bytes (low-byte read latches high byte).
+    /// - `$0D`: Reads the Interrupt Control Register (ICR), sets bit 7 on masked match, and clears ICR data.
+    /// - `$0E` / `$0F`: Reads CRA and CRB control register bytes.
     pub fn read_reg(&mut self, reg: u8) -> u8 {
         match reg & 0x0F {
             0x04 => {
@@ -152,10 +136,10 @@ impl CiaState {
 
     /// Writes a CIA register offset (`$00`–`$0F`).
     ///
-    /// - `$04` / `$05`: Updates Timer A latch low/high bytes (high byte write reloads counter if stopped).
-    /// - `$06` / `$07`: Updates Timer B latch low/high bytes (high byte write reloads counter if stopped).
-    /// - `$0D`: Configures ICR interrupt enable mask (bit 7 sets or clears mask bits 0–4).
-    /// - `$0E` / `$0F`: Updates CRA / CRB control registers (bit 4 force-load strobe reloads counter).
+    /// - `$04` / `$05`: Writes Timer A latch low and high bytes (high-byte write reloads stopped counter).
+    /// - `$06` / `$07`: Writes Timer B latch low and high bytes (high-byte write reloads stopped counter).
+    /// - `$0D`: Updates the ICR interrupt mask (bit 7 sets or clears mask bits 0–4).
+    /// - `$0E` / `$0F`: Writes CRA and CRB control registers (bit 4 force-load strobe reloads counter).
     pub fn write_reg(&mut self, reg: u8, val: u8) {
         match reg & 0x0F {
             0x04 => self.ta_latch = (self.ta_latch & 0xFF00) | u16::from(val),
@@ -208,7 +192,7 @@ mod tests {
         cia.write_reg(0x0E, 0x01);
         assert!(cia.is_ta_running());
 
-        cia.step(6);
+        cia.step_cycles(6);
         let icr = cia.read_reg(0x0D);
         assert_eq!(
             icr & 0x01,
@@ -223,7 +207,7 @@ mod tests {
         cia.write_reg(0x04, 0x02);
         cia.write_reg(0x05, 0x00);
         cia.write_reg(0x0E, 0x01);
-        cia.step(3);
+        cia.step_cycles(3);
 
         let first_read = cia.read_reg(0x0D);
         assert_eq!(first_read & 0x01, 0x01, "First read returns underflow flag");
@@ -240,7 +224,7 @@ mod tests {
         cia.write_reg(0x0E, 0x09);
         assert!(cia.is_ta_running());
 
-        cia.step(3);
+        cia.step_cycles(3);
         assert!(
             !cia.is_ta_running(),
             "START bit should be cleared after one-shot underflow"
@@ -263,12 +247,12 @@ mod tests {
         assert!(cia.is_ta_running());
         assert!(cia.is_tb_running());
 
-        cia.step(3);
+        cia.step_cycles(3);
         let icr1 = cia.read_reg(0x0D);
         assert_eq!(icr1 & 0x01, 0x01, "Timer A underflow flag");
         assert_eq!(icr1 & 0x02, 0x00, "Timer B should not have underflowed yet");
 
-        cia.step(3);
+        cia.step_cycles(3);
         let icr2 = cia.read_reg(0x0D);
         assert_eq!(
             icr2 & 0x02,

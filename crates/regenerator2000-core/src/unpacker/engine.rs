@@ -171,7 +171,7 @@ pub struct UnpackReport {
     /// Provenance of [`UnpackResult::entry_point`].
     pub entry_source: BoundSource,
     /// Last [`TRACE_TAIL_CAPACITY`] program counters executed before exit when
-    /// [`UnpackConfig::trace`] is `true`; empty when `false`.
+    /// [`UnpackConfig::trace`] is `true`. Empty when `false`.
     pub trace_tail: Vec<u16>,
 }
 
@@ -212,11 +212,11 @@ impl TraceRing {
 /// Outcome of a single emulation state-machine step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Step {
-    /// Step completed; continue executing in the current [`Phase`].
+    /// Step completed. Continue executing in the current [`Phase`].
     Continue,
-    /// Depacker reached; transition from [`Phase::FindDepacker`] to [`Phase::Decompress`].
+    /// Depacker reached. Transition from [`Phase::FindDepacker`] to [`Phase::Decompress`].
     ToPhase2 { dep_addr: u16 },
-    /// Emulation completed; proceed to [`finish`].
+    /// Emulation completed. Proceed to [`finish`].
     Done(ExitReason),
     /// Global instruction budget exhausted in the given [`Phase`].
     Timeout(Phase),
@@ -225,13 +225,13 @@ enum Step {
 /// Action to take after ROM interception.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RomAction {
-    /// Not in ROM space, continue normally.
+    /// Not in ROM space. Continue normally.
     Continue,
-    /// Intercepted and handled; skip single_step.
+    /// Intercepted and handled. Skip `single_step`.
     Handled,
-    /// Hit an exit vector; break out of the current phase loop.
+    /// Hit an exit vector. Break out of the current phase loop.
     Exit,
-    /// Hit a BASIC RUN vector; re-parse SYS and redirect.
+    /// Hit a BASIC RUN vector. Re-parse `SYS` and redirect.
     BasicRun,
 }
 
@@ -485,7 +485,6 @@ impl<'a> EmulationState<'a> {
             entry_point,
             entry_source,
             dep_addr,
-            ret_addr: self.ret_addr,
             instructions_executed: self.total_instructions,
             find_depacker_instructions: self.find_depacker_instructions,
             decompress_instructions: self.decompress_instructions,
@@ -501,7 +500,12 @@ impl<'a> EmulationState<'a> {
             hints: self.hints.as_ref(),
             raw_hints: self.raw_hints.as_ref(),
             system: &self.system,
-            y_reg: self.cpu.registers.index_y,
+            registers: Registers {
+                a: self.cpu.registers.accumulator,
+                x: self.cpu.registers.index_x,
+                y: self.cpu.registers.index_y,
+                sp: self.cpu.registers.stack_pointer.0,
+            },
         })
     }
 
@@ -606,9 +610,9 @@ impl<'a> EmulationState<'a> {
         let kernal_mapped = is_kernal_rom_mapped(&self.cpu.memory.mem, &self.system);
         let io_mapped = is_io_mapped(&self.cpu.memory.mem, &self.system);
 
-        let in_rom_or_io = (is_in_basic_rom(pc, &self.system) && basic_mapped)
+        let in_rom_or_io = (self.system.is_in_basic_rom(pc) && basic_mapped)
             || (self.system.is_in_io(pc) && io_mapped)
-            || (is_in_kernal_rom(pc, &self.system) && kernal_mapped);
+            || (self.system.is_in_kernal_rom(pc) && kernal_mapped);
 
         // Known-entry 10-instruction guard and `exact_return` (unp64 `RtAFrc`):
         // - A packer's `known_entry` triggers a `Decompress` exit only when the global
@@ -775,7 +779,7 @@ impl<'a> EmulationState<'a> {
                 };
                 // Subtle phase difference: in `Decompress`, `Exit | BasicRun` looks up the
                 // `SYS` line only when `pc` is inside BASIC ROM and falls back to `pc`.
-                let (entry_point, entry_source) = if is_in_basic_rom(pc, &self.system) {
+                let (entry_point, entry_source) = if self.system.is_in_basic_rom(pc) {
                     match find_sys_address(mem, self.basic_start) {
                         Some(sys_ep) => (sys_ep, BoundSource::SysLineLookup),
                         None => (pc, default_source),
@@ -802,14 +806,6 @@ impl<'a> EmulationState<'a> {
 // ---------------------------------------------------------------------------
 // System & zero-page initialization helpers
 // ---------------------------------------------------------------------------
-
-fn is_in_basic_rom(pc: u16, system: &System) -> bool {
-    system.is_in_basic_rom(pc)
-}
-
-fn is_in_kernal_rom(pc: u16, system: &System) -> bool {
-    system.is_in_kernal_rom(pc)
-}
 
 fn init_zero_page(mem: &mut C64Bus, load_addr: u16, data_len: u16, basic_start: u16) {
     let end_addr = load_addr.wrapping_add(data_len);
@@ -876,14 +872,13 @@ fn init_zero_page(mem: &mut C64Bus, load_addr: u16, data_len: u16, basic_start: 
 /// The order of the checks is part of the engine's behavior:
 ///
 /// 1. Outside BASIC and KERNAL ROM space, the code runs (`Continue`).
-/// 2. A BASIC RUN entry wins before the `written` and banking checks:
-///    packers jump to it (C64: `$A7AE`) even with RAM banked in.
+/// 2. A BASIC RUN entry wins before the `written` and banking checks.
+///    Packers jump to it (C64: `$A7AE`) even when RAM is mapped.
 /// 3. Code written under an unmapped ROM runs as RAM.
-/// 4. BASIC ROM: unmapped runs as RAM; a decompress-stage BASIC exit ends
-///    emulation; anything else gets a forced `RTS`.
-/// 5. KERNAL ROM: unmapped runs as RAM; an exit vector ends emulation; a
-///    trapped routine is emulated and returns; anything else gets a forced
-///    `RTS`.
+/// 4. BASIC ROM: unmapped ROM runs as RAM. A decompress-phase BASIC exit ends
+///    emulation, and any other address forces an `RTS`.
+/// 5. KERNAL ROM: unmapped ROM runs as RAM. An exit vector ends emulation, a
+///    trapped routine emulates and returns, and any other address forces an `RTS`.
 fn handle_rom_entry(
     cpu: &mut CPU<C64Bus, Nmos6502>,
     traps: &RomTrapTable,
@@ -893,8 +888,8 @@ fn handle_rom_entry(
     let pc = cpu.registers.program_counter;
     let system = &cpu.memory.system;
 
-    let in_basic = is_in_basic_rom(pc, system);
-    let in_kernal = is_in_kernal_rom(pc, system);
+    let in_basic = system.is_in_basic_rom(pc);
+    let in_kernal = system.is_in_kernal_rom(pc);
 
     // Not in ROM space — fast path for standard RAM code execution
     if !in_basic && !in_kernal {
@@ -1002,7 +997,7 @@ fn emulate_illegal_opcode(cpu: &mut CPU<C64Bus, Nmos6502>) -> bool {
             let target_addr = u16::from_le_bytes([addr_low, addr_high])
                 .wrapping_add(cpu.registers.index_y as u16);
             cpu.memory.set_byte(target_addr, val);
-            cpu.memory.step_cycles(4);
+            cpu.memory.step_cycles(3);
             cpu.registers.program_counter = pc.wrapping_add(3);
             true
         }
@@ -1013,7 +1008,7 @@ fn emulate_illegal_opcode(cpu: &mut CPU<C64Bus, Nmos6502>) -> bool {
             let target_addr = u16::from_le_bytes([addr_low, addr_high])
                 .wrapping_add(cpu.registers.index_x as u16);
             cpu.memory.set_byte(target_addr, val);
-            cpu.memory.step_cycles(4);
+            cpu.memory.step_cycles(3);
             cpu.registers.program_counter = pc.wrapping_add(3);
             true
         }
@@ -1039,8 +1034,6 @@ struct FinishContext<'a> {
     entry_source: BoundSource,
     /// Depacker address resolved at the Phase 1 → Phase 2 transition (or Phase 1 exit).
     dep_addr: u16,
-    /// Return address boundary (`min(load_addr, system.ram_start())` unless forced).
-    ret_addr: u16,
     /// Total instructions executed across both phases.
     instructions_executed: u64,
     /// Instructions executed in [`Phase::FindDepacker`].
@@ -1063,32 +1056,35 @@ struct FinishContext<'a> {
     raw_hints: Option<&'a Hints>,
     /// Target machine system profile.
     system: &'a System,
-    /// CPU Y index register at the moment emulation exited.
-    y_reg: u8,
+    /// CPU register snapshot (`A`, `X`, `Y`, `SP`) at the moment emulation exited.
+    registers: Registers,
 }
 
-/// Finalizes an unpack run by detecting the output address range and applying
-/// packer overrides, post-emulation hooks, and entry/range clamps in a fixed order.
+/// Finalizes an unpack run.
+///
+/// Detects the output address range and applies packer overrides, post-emulation
+/// hooks, and entry/range clamps in a fixed order.
 ///
 /// # Bound and Entry Override Order
 ///
-/// The bounds and entry point are resolved in this exact 10-step sequence:
+/// [`finish`] resolves bounds and the entry point in this 10-step sequence:
+///
 /// 1. [`detect_output_range`] over `mem`, `snapshot`, and `written` ([`UnpackError::NothingWritten`] if `None`).
 /// 2. `hints.start_addr` override.
 /// 3. `hints.end_addr` override.
-/// 4. `hints.end_addr_ptr` override, guarded against the *already overridden* `end_addr`
-///    (`reported_end > start_addr && reported_end.saturating_sub(1) <= end_addr.saturating_add(END_PTR_SLACK)`)
-///    using `ea_ptr.wrapping_add(1)` for the high byte.
+/// 4. `hints.end_addr_ptr` override. Checks the pointer against the overridden `end_addr`
+///    (`reported_end > start_addr && reported_end.saturating_sub(1) <= end_addr.saturating_add(END_PTR_SLACK)`),
+///    reading the high byte at `ea_ptr.wrapping_add(1)`.
 /// 5. `hints.entry_point` override.
 /// 6. `hints.dep_addr` override.
-/// 7. Post-emulation refinement (`PointerGuard::McCrackenEndOfProgram` + `PackerHooks::refine`).
-/// 8. BASIC `SYS` line clamp (`find_sys_address(mem, basic_start)`): replaces `entry_point`
+/// 7. Post-emulation refinement (`PointerGuard::McCrackenEndOfProgram` and `PackerHooks::refine`).
+/// 8. BASIC `SYS` line clamp (`find_sys_address(mem, basic_start)`). Replaces `entry_point`
 ///    when `is_rom_entry || entry_point == basic_start`, and lowers `start_addr` to
 ///    `basic_start` when `start_addr > basic_start`.
-/// 9. Entry clamps: lowers `start_addr` to `entry_point` if `entry_point < start_addr` and
-///    `entry_point >= MIN_VALID_ENTRY_ADDR` (`$0200`), and raises `end_addr` to `entry_point`
-///    if `entry_point > end_addr`.
-/// 10. Range validation: returns [`UnpackError::InvalidAddressRange`] if `entry_point` lies
+/// 9. Entry clamps. Lowers `start_addr` to `entry_point` when `entry_point < start_addr` and
+///    `entry_point >= MIN_VALID_ENTRY_ADDR` (`$0200`). Raises `end_addr` to `entry_point`
+///    when `entry_point > end_addr`.
+/// 10. Range validation. Returns [`UnpackError::InvalidAddressRange`] if `entry_point` is
 ///     outside `start_addr..=end_addr`.
 fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
     let FinishContext {
@@ -1098,7 +1094,6 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
         mut entry_point,
         mut entry_source,
         mut dep_addr,
-        ret_addr,
         instructions_executed,
         find_depacker_instructions,
         decompress_instructions,
@@ -1110,12 +1105,12 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
         hints,
         raw_hints,
         system,
-        y_reg,
+        registers,
     } = ctx;
 
     // 1. Detect initial output range from memory write tracking and pre-emulation snapshot.
     let (mut start_addr, mut end_addr) =
-        detect_output_range(mem, snapshot, written, ret_addr, basic_start, system)
+        detect_output_range(mem, snapshot, written, basic_start, system)
             .ok_or(UnpackError::NothingWritten)?;
     let mut start_source = BoundSource::WriteDiff;
     let mut end_source = BoundSource::WriteDiff;
@@ -1169,16 +1164,8 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
                 ..
             },
         ) = raw_hints.end_addr
-        && let Some(resolved_end) = src.resolve_post_run(
-            mem,
-            Registers {
-                y: y_reg,
-                ..Registers::default()
-            },
-            start_addr,
-            end_addr,
-            &PointerMonitor::new(),
-        )
+        && let Some(resolved_end) =
+            src.resolve_post_run(mem, registers, start_addr, end_addr, &PointerMonitor::new())
     {
         end_addr = resolved_end;
         end_source = BoundSource::PointerAfterRun { addr: ptr_addr };
@@ -1189,10 +1176,7 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
             snapshot,
             written,
             system,
-            registers: Registers {
-                y: y_reg,
-                ..Registers::default()
-            },
+            registers,
         };
         let mut bounds = Bounds {
             start_addr,
@@ -1219,8 +1203,8 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
     // 8. BASIC `SYS` line clamp.
     let basic_mapped = is_basic_rom_mapped(mem, system);
     let kernal_mapped = is_kernal_rom_mapped(mem, system);
-    let is_rom_entry = (is_in_basic_rom(entry_point, system) && basic_mapped)
-        || (is_in_kernal_rom(entry_point, system) && kernal_mapped);
+    let is_rom_entry = (system.is_in_basic_rom(entry_point) && basic_mapped)
+        || (system.is_in_kernal_rom(entry_point) && kernal_mapped);
 
     if let Some(sys_ep) = find_sys_address(mem, basic_start) {
         if is_rom_entry || entry_point == basic_start {
@@ -2094,7 +2078,6 @@ mod tests {
             entry_point: 0x1000,
             entry_source: BoundSource::ExitPc,
             dep_addr: STAGE2_ADDR,
-            ret_addr: PRG_LOAD,
             instructions_executed: 10,
             find_depacker_instructions: 5,
             decompress_instructions: 5,
@@ -2106,8 +2089,54 @@ mod tests {
             hints: None,
             raw_hints: None,
             system: &TargetSystem::C64,
-            y_reg: 0,
+            registers: Registers::default(),
         }
+    }
+
+    /// Verifies that `emulate_illegal_opcode` advances both `total_cycles` and the C64 CIA
+    /// timers in lockstep: 2 cycles for `$AB` (`LAX #imm`) and 4 cycles total (`1` from
+    /// `set_byte` + `3` from `step_cycles(3)`) for `$9E` (`SHX abs,Y`) and `$9C` (`SHY abs,X`).
+    #[test]
+    fn illegal_opcodes_step_bus_and_cia_cycles_in_lockstep() {
+        let cfg = UnpackConfig {
+            forced_entry: Some(STAGE2_ADDR),
+            ..budget(SMALL_BUDGET)
+        };
+        let mut state = EmulationState::new(&cfg, None, &[0xEA], PRG_LOAD).unwrap();
+        state.cpu.memory.cia1.write_reg(0x04, 100);
+        state.cpu.memory.cia1.write_reg(0x05, 0);
+        state.cpu.memory.cia1.write_reg(0x0E, 0x11);
+        state.cpu.memory.total_cycles = 0;
+
+        // 1. `$AB $55` (`LAX #$55`): 2 cycles total.
+        state.cpu.registers.program_counter = 0x1000;
+        state.cpu.memory.mem[0x1000] = 0xAB;
+        state.cpu.memory.mem[0x1001] = 0x55;
+        assert!(emulate_illegal_opcode(&mut state.cpu));
+        assert_eq!(state.cpu.memory.total_cycles, 2);
+        assert_eq!(state.cpu.memory.cia1.read_reg(0x04), 98);
+
+        // 2. `$9E $00 $20` (`SHX $2000,Y`): 1 cycle in `set_byte` + 3 in `step_cycles(3)` = 4 cycles.
+        state.cpu.registers.program_counter = 0x1002;
+        state.cpu.registers.index_x = 0xFF;
+        state.cpu.registers.index_y = 0x04;
+        state.cpu.memory.mem[0x1002] = 0x9E;
+        state.cpu.memory.mem[0x1003] = 0x00;
+        state.cpu.memory.mem[0x1004] = 0x20;
+        assert!(emulate_illegal_opcode(&mut state.cpu));
+        assert_eq!(state.cpu.memory.total_cycles, 6);
+        assert_eq!(state.cpu.memory.cia1.read_reg(0x04), 94);
+
+        // 3. `$9C $00 $21` (`SHY $2100,X`): 1 cycle in `set_byte` + 3 in `step_cycles(3)` = 4 cycles.
+        state.cpu.registers.program_counter = 0x1005;
+        state.cpu.registers.index_x = 0x02;
+        state.cpu.registers.index_y = 0xFF;
+        state.cpu.memory.mem[0x1005] = 0x9C;
+        state.cpu.memory.mem[0x1006] = 0x00;
+        state.cpu.memory.mem[0x1007] = 0x21;
+        assert!(emulate_illegal_opcode(&mut state.cpu));
+        assert_eq!(state.cpu.memory.total_cycles, 10);
+        assert_eq!(state.cpu.memory.cia1.read_reg(0x04), 90);
     }
 
     /// Verifies that `step_find_depacker` reads `cpu.memory.in_phase2` to transition
@@ -2525,8 +2554,8 @@ mod tests {
     }
 
     /// Verifies that `hooks.refine` runs *after* `start_addr`, `end_addr`,
-    /// `end_addr_ptr`, and `entry_point` hints are applied, and *before* the BASIC `SYS`
-    /// line clamp.
+    /// `end_addr_ptr`, and `entry_point` hints are applied, *before* the BASIC `SYS`
+    /// line clamp, and receives all four CPU registers (`a`, `x`, `y`, `sp`).
     #[test]
     fn finish_refine_runs_after_pointer_and_before_sys_clamp() {
         let (mut mem, snapshot, written) = finish_fixture();
@@ -2546,13 +2575,19 @@ mod tests {
             entry_point: Some(0x1500),
             ..empty_packer_info()
         };
+        let expected_regs = Registers {
+            a: 0x11,
+            x: 0x22,
+            y: 0x77,
+            sp: 0xF4,
+        };
         let hooks = MockHooks {
             step_hook: None,
-            refine_hook: Some(Box::new(|ctx, bounds| {
+            refine_hook: Some(Box::new(move |ctx, bounds| {
                 // Verify Steps 2, 3, 4, and 5 already ran before `refine`.
                 assert_eq!((bounds.start_addr, bounds.end_addr), (0x1100, 0x2100));
                 assert_eq!(bounds.entry_point, 0x1500);
-                assert_eq!(ctx.registers.y, 0x77);
+                assert_eq!(ctx.registers, expected_regs);
                 // Refine range and set entry to `PRG_LOAD` so Step 8 (SYS clamp)
                 // subsequently lowers `start_addr` to `PRG_LOAD` and redirects `entry_point`
                 // to `SYS_ENTRY` (`$080D`).
@@ -2564,7 +2599,7 @@ mod tests {
         let res = finish(FinishContext {
             hooks: Some(&hooks),
             hints: Some(&hints),
-            y_reg: 0x77,
+            registers: expected_regs,
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
         .unwrap();
@@ -2720,7 +2755,6 @@ mod tests {
 
         let ctx = FinishContext {
             entry_point: basic_start,
-            ret_addr: load_addr,
             basic_start,
             ..test_finish_ctx(&mem, &snapshot, &written)
         };

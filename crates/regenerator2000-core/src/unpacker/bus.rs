@@ -3,12 +3,6 @@
 use super::cia::CiaState;
 use mos6502::memory::Bus;
 
-/// Optional observer trait for listening to memory access events during emulation.
-pub trait MemoryAccessHook: Send + Sync {
-    /// Triggered on every memory write access.
-    fn on_write(&mut self, addr: u16, val: u8, pc: u16);
-}
-
 /// Custom memory bus for the unpacker.
 ///
 /// Provides flat 64 KB RAM with per-byte write tracking and I/O suppression.
@@ -71,49 +65,43 @@ impl C64Bus {
         }
     }
 
-    /// Steps CIA timers by the specified CPU cycle count.
+    /// Advances `total_cycles` and active C64 CIA timers by `cycles` CPU clock cycles.
     pub fn step_cycles(&mut self, cycles: u32) {
-        self.cia1.step_cycles(cycles);
-        self.cia2.step_cycles(cycles);
+        self.total_cycles = self.total_cycles.wrapping_add(u64::from(cycles));
+        if self.system.is_c64() {
+            self.cia1.step_cycles(cycles);
+            self.cia2.step_cycles(cycles);
+        }
     }
 }
 
 impl Bus for C64Bus {
     fn get_byte(&mut self, addr: u16) -> u8 {
-        self.total_cycles = self.total_cycles.wrapping_add(1);
         self.step_cycles(1);
         let a = addr as usize;
         if self.system.is_c64() {
             // Compute active MOS 6510 processor port bits [2:0] (CHAREN, HIRAM, LORAM).
-            // On a C64, $0000 (DDR6510) sets bit output direction. Bits set to output (1) take
-            // their state from $0001 (R6510), while input bits (0) pull up to 1 (HIGH logic).
+            // On a C64, $0000 (DDR6510) sets bit output direction. Output bits (1) take
+            // their state from $0001 (R6510), and input bits (0) pull up to 1.
             // Reference: https://www.pagetable.com/c64ref/c64mem/
-            let bank = get_c64_bank(&self.mem);
-            let loram = (bank & 0x01) != 0;
-            let hiram = (bank & 0x02) != 0;
-            let charen = (bank & 0x04) != 0;
-
             if (0xA000..=0xBFFF).contains(&addr)
-                && loram
-                && hiram
+                && is_basic_rom_mapped(&self.mem, &self.system)
                 && let Some(ref rom) = self.basic_rom
-                && let Some(offset) = (addr as usize).checked_sub(0xA000)
-                && let Some(&val) = rom.get(offset)
+                && let Some(&val) = rom.get(a - 0xA000)
             {
                 return val;
             }
 
             if (0xE000..=0xFFFF).contains(&addr)
-                && hiram
+                && is_kernal_rom_mapped(&self.mem, &self.system)
                 && let Some(ref rom) = self.kernal_rom
-                && let Some(offset) = (addr as usize).checked_sub(0xE000)
-                && let Some(&val) = rom.get(offset)
+                && let Some(&val) = rom.get(a - 0xE000)
             {
                 return val;
             }
 
             if (0xD000..=0xDFFF).contains(&addr) {
-                if charen && (loram || hiram) {
+                if is_io_mapped(&self.mem, &self.system) {
                     if (0xDC00..=0xDC0F).contains(&addr) {
                         return self.cia1.read_reg((addr & 0x0F) as u8);
                     }
@@ -121,9 +109,9 @@ impl Bus for C64Bus {
                         return self.cia2.read_reg((addr & 0x0F) as u8);
                     }
                     // PAL C64 VIC-II timing: 63 CPU cycles per raster line, 312 lines per frame.
-                    // $D012 provides lower 8 bits of current raster line.
-                    // $D011 bit 7 provides the 9th bit (MSB, set when line >= 256) while
-                    // preserving lower VIC-II control bits [6:0] from shadow_d011.
+                    // $D012 returns the lower 8 bits of the current raster line.
+                    // $D011 bit 7 returns the 9th bit (MSB, 1 when line >= 256) and
+                    // preserves control bits [6:0] from shadow_d011.
                     if addr == 0xD012 {
                         let current_line = (self.total_cycles / 63) % 312;
                         return (current_line & 0xFF) as u8;
@@ -135,11 +123,11 @@ impl Bus for C64Bus {
                     }
                     return 0;
                 }
-                if !charen
-                    && (loram || hiram)
+                let bank = get_c64_bank(&self.mem);
+                if (bank & 0x04) == 0
+                    && (bank & 0x03) != 0
                     && let Some(ref rom) = self.char_rom
-                    && let Some(offset) = (addr as usize).checked_sub(0xD000)
-                    && let Some(&val) = rom.get(offset)
+                    && let Some(&val) = rom.get(a - 0xD000)
                 {
                     return val;
                 }
@@ -149,41 +137,31 @@ impl Bus for C64Bus {
     }
 
     fn set_byte(&mut self, addr: u16, val: u8) {
-        self.total_cycles = self.total_cycles.wrapping_add(1);
         self.step_cycles(1);
         let a = addr as usize;
-        if self.system.is_c64() {
-            let bank = get_c64_bank(&self.mem);
-            let loram = (bank & 0x01) != 0;
-            let hiram = (bank & 0x02) != 0;
-            let charen = (bank & 0x04) != 0;
-
-            // When I/O space is mapped (CHAREN=1 AND (LORAM=1 OR HIRAM=1)), writes to $D000–$DFFF
-            // target I/O chip registers (VIC-II, SID, CIA 1, CIA 2), NOT underlying RAM.
-            // Do NOT mutate `self.mem[a]` here: updating RAM during I/O writes causes depackers
-            // that perform border color flashing (e.g. `INC $D020`) to corrupt RAM bytes beneath
-            // I/O space, which breaks decompression when the depacker later reads those RAM
-            // addresses after switching to RAM bank configuration.
-            if (0xD000..=0xDFFF).contains(&addr) && charen && (loram || hiram) {
-                if (0xDC00..=0xDC0F).contains(&addr) {
-                    self.cia1.write_reg((addr & 0x0F) as u8, val);
-                } else if (0xDD00..=0xDD0F).contains(&addr) {
-                    self.cia2.write_reg((addr & 0x0F) as u8, val);
-                } else if addr == 0xD011 {
-                    self.shadow_d011 = val;
-                }
-                return;
+        // When C64 I/O space is mapped (CHAREN=1 and LORAM=1 or HIRAM=1), writes to $D000–$DFFF
+        // target I/O chip registers (VIC-II, SID, CIA 1, CIA 2) instead of RAM.
+        // Do not mutate `self.mem[a]` here. If I/O writes update RAM, border flashes
+        // (such as `INC $D020`) corrupt the RAM under I/O space. Decompression then fails
+        // when the depacker maps RAM in and reads those addresses.
+        if (0xD000..=0xDFFF).contains(&addr) && is_io_mapped(&self.mem, &self.system) {
+            if (0xDC00..=0xDC0F).contains(&addr) {
+                self.cia1.write_reg((addr & 0x0F) as u8, val);
+            } else if (0xDD00..=0xDD0F).contains(&addr) {
+                self.cia2.write_reg((addr & 0x0F) as u8, val);
+            } else if addr == 0xD011 {
+                self.shadow_d011 = val;
             }
+            return;
         }
 
         self.mem[a] = val;
         self.written[a] = true;
 
-        // Bus-driven stage flip: when code executing below `ram_start`
-        // (e.g. a zero-page, stack, or low-memory depacker stub) writes at or above
-        // `ram_start`, the bus latches `in_phase2 = true` and tracks the write in
-        // `written_phase2`. The engine's `FindDepacker` step reads `in_phase2` to
-        // transition into `Phase::Decompress`.
+        // Bus-driven stage flip: when code below `ram_start` (such as a zero-page,
+        // stack, or low-memory depacker stub) writes at or above `ram_start`, the bus
+        // latches `in_phase2 = true` and records the write in `written_phase2`.
+        // `Phase::FindDepacker` reads `in_phase2` to enter `Phase::Decompress`.
         let ram_start = self.system.ram_start();
         if !self.in_phase2 && self.current_pc < ram_start && addr >= ram_start {
             self.in_phase2 = true;
