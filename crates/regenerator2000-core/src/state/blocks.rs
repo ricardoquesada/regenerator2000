@@ -1,15 +1,33 @@
 //! Block range queries, splitter management, Blocks View item construction, and preamble generation.
 //!
-//! This module implements [`AppState`] methods for querying and mutating [`BlockType`] regions,
-//! toggling manual splitters, splicing manual and virtual (scope-boundary) splitters into
-//! [`BlockItem`] lists for the Blocks View, and generating synthetic preamble [`DisassemblyLine`]s
-//! for external label equates and enum definitions.
+//! This module provides [`AppState`] methods that query and update [`BlockType`] regions,
+//! toggle manual splitters, build [`BlockItem`] lists for the Blocks View, and generate
+//! preamble [`DisassemblyLine`] items for external label equates and enum definitions.
 
 use super::app_state::{AppState, BlockItem};
 use super::project::Block;
 use super::types::{Addr, BlockType, LabelType};
 use crate::disassembler::DisassemblyLine;
 use std::collections::BTreeSet;
+
+/// Builds a synthetic header or blank [`DisassemblyLine`] at address `$0000` with `mnemonic`.
+#[must_use]
+fn header_line(mnemonic: String) -> DisassemblyLine {
+    DisassemblyLine {
+        address: Addr::ZERO,
+        bytes: Vec::new(),
+        mnemonic,
+        operand: String::new(),
+        comment: String::new(),
+        line_comment: None,
+        label: None,
+        opcode: None,
+        show_bytes: true,
+        target_address: None,
+        external_label_address: None,
+        is_collapsed: false,
+    }
+}
 
 impl AppState {
     /// Compresses [`AppState::block_types`] and [`AppState::collapsed_blocks`] into contiguous [`Block`] spans.
@@ -19,8 +37,10 @@ impl AppState {
     }
 
     /// Returns the inclusive `(start_addr, end_addr)` bounds of the contiguous [`BlockType`] sub-block
-    /// containing `address`, stopping at any boundary where [`AppState::is_virtual_splitter`] is `true`,
-    /// or `None` if `address` lies outside the loaded binary.
+    /// at `address`.
+    ///
+    /// The scan stops at any boundary where [`AppState::is_virtual_splitter`] returns `true`.
+    /// Returns `None` if `address` is outside the loaded binary range.
     #[must_use]
     pub fn get_block_range(&self, address: Addr) -> Option<(Addr, Addr)> {
         let origin = self.origin;
@@ -57,12 +77,12 @@ impl AppState {
         Some((start_addr, end_addr))
     }
 
-    /// Applies `new_type` to the byte region spanned by `selection_start..=cursor_index` (or the single
-    /// disassembly line at `cursor_index` when `selection_start` is `None`), refreshes the disassembly,
-    /// and returns the applied [`Command::SetBlockType`](crate::commands::Command::SetBlockType).
+    /// Sets `new_type` on the byte range covered by `selection_start..=cursor_index`.
     ///
-    /// Returns `None` if the selected disassembly lines contain no underlying binary bytes or fall
-    /// outside [`AppState::block_types`].
+    /// When `selection_start` is `None`, this method updates only the line at `cursor_index`.
+    /// It then rebuilds the disassembly and returns the applied
+    /// [`Command::SetBlockType`](crate::commands::Command::SetBlockType).
+    /// Returns `None` if the selected lines contain no binary bytes or fall outside [`AppState::block_types`].
     pub fn set_block_type_region(
         &mut self,
         new_type: BlockType,
@@ -131,19 +151,10 @@ impl AppState {
 
                 let old_types = self.block_types[range.clone()].to_vec();
 
-                let commands = vec![crate::commands::Command::SetBlockType {
-                    range: range.clone(),
+                let command = crate::commands::Command::SetBlockType {
+                    range,
                     new_type,
                     old_types,
-                }];
-
-                let command = if commands.len() == 1 {
-                    commands
-                        .into_iter()
-                        .next()
-                        .unwrap_or(crate::commands::Command::Batch(vec![]))
-                } else {
-                    crate::commands::Command::Batch(commands)
                 };
 
                 command.apply(self);
@@ -154,7 +165,7 @@ impl AppState {
         None
     }
 
-    /// Toggles a manual splitter at `address` in [`AppState::splitters`] and refreshes the disassembly.
+    /// Toggles a manual splitter at `address` in [`AppState::splitters`] and rebuilds the disassembly.
     pub fn toggle_splitter(&mut self, address: Addr) {
         if self.splitters.contains(&address) {
             self.splitters.remove(&address);
@@ -164,12 +175,11 @@ impl AppState {
         self.disassemble();
     }
 
-    /// Builds the ordered list of [`BlockItem`]s (`Scope`, `Splitter`, and `Block`) for the Blocks View.
+    /// Builds the sorted list of [`BlockItem`] entries (`Scope`, `Splitter`, and `Block`) for the Blocks View.
     ///
-    /// Compressed [`Block`] runs are partitioned at both manual splitters ([`AppState::splitters`])
-    /// and lexical scope boundaries (`scopes` starts and `scope_ends_set` exclusive ends), while
-    /// [`BlockItem::Splitter`] items are emitted only for manual splitters. Items are sorted by
-    /// start [`Addr`], with ties broken so [`BlockItem::Scope`] precedes [`BlockItem::Splitter`]
+    /// This method splits compressed [`Block`] runs at manual splitters and lexical scope boundaries.
+    /// It emits [`BlockItem::Splitter`] entries only for manual splitters in [`AppState::splitters`].
+    /// Items are sorted by start [`Addr`] so [`BlockItem::Scope`] precedes [`BlockItem::Splitter`]
     /// and [`BlockItem::Block`] at the same address.
     #[must_use]
     pub fn get_blocks_view_items(&self) -> Vec<BlockItem> {
@@ -274,12 +284,12 @@ impl AppState {
         items
     }
 
-    /// Returns the index in [`AppState::get_blocks_view_items`] matching `address`.
+    /// Returns the index in [`AppState::get_blocks_view_items`] that matches `address`.
     ///
-    /// When `is_splitter` is `true`, matches a [`BlockItem::Splitter`] at `address` (or a
-    /// [`BlockItem::Scope`] spanning `address`). When `is_splitter` is `false`, matches the first
-    /// [`BlockItem::Scope`] or [`BlockItem::Block`] whose inclusive range `start..=end` contains
-    /// `address` (accounting for 16-bit wrap-around when `start > end`).
+    /// When `is_splitter` is `true`, this method matches a [`BlockItem::Splitter`] at `address`
+    /// or a [`BlockItem::Scope`] that contains `address`. When `is_splitter` is `false`, it
+    /// matches the first [`BlockItem::Scope`] or [`BlockItem::Block`] whose inclusive range
+    /// `start..=end` contains `address`.
     #[must_use]
     pub fn get_block_index_for_address(&self, address: Addr, is_splitter: bool) -> Option<usize> {
         let items = self.get_blocks_view_items();
@@ -310,17 +320,68 @@ impl AppState {
         })
     }
 
-    /// Generates synthetic preamble [`DisassemblyLine`]s defining all external and [`BlockType::ExternalFile`]
-    /// labels using the project's configured assembler formatter.
+    /// Builds a single external label equate [`DisassemblyLine`] with side comments and optional cross-references.
+    #[must_use]
+    fn format_external_label_line(
+        &self,
+        addr: u16,
+        name: &str,
+        is_zp: bool,
+        include_xrefs: bool,
+        cp: &str,
+        formatter: &dyn crate::disassembler::formatter::Formatter,
+    ) -> DisassemblyLine {
+        let mut comment_parts = Vec::new();
+        if let Some(entry) = self.annotations.get(Addr(addr)) {
+            if let Some(ref user_comment) = entry.user_side_comment {
+                comment_parts.push(user_comment.clone());
+            } else if let Some(ref sys_comment) = entry.system_comment {
+                comment_parts.push(sys_comment.clone());
+            }
+        }
+
+        if include_xrefs
+            && let Some(refs) = self.cross_refs.get(&Addr(addr))
+            && !refs.is_empty()
+            && self.settings.max_xref_count > 0
+        {
+            comment_parts.push(crate::disassembler::context::format_cross_references(
+                refs,
+                self.settings.max_xref_count,
+            ));
+        }
+
+        let comment = comment_parts.join(&format!(" {cp} "));
+
+        DisassemblyLine {
+            address: Addr(addr),
+            bytes: Vec::new(),
+            mnemonic: formatter.format_definition(name, addr, is_zp),
+            operand: String::new(),
+            comment,
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: Some(Addr(addr)),
+            is_collapsed: false,
+        }
+    }
+
+    /// Generates preamble [`DisassemblyLine`] items for all external and [`BlockType::ExternalFile`]
+    /// labels using the active assembler formatter.
     #[must_use]
     pub fn get_external_label_definitions(&self, include_xrefs: bool) -> Vec<DisassemblyLine> {
         let formatter = self.get_formatter();
         self.get_external_label_definitions_with_formatter(include_xrefs, formatter.as_ref())
     }
 
-    /// Generates synthetic preamble [`DisassemblyLine`]s defining all external and [`BlockType::ExternalFile`]
-    /// labels using the supplied `formatter`, grouped with a prefix legend and annotated with comments
-    /// and (when `include_xrefs` is `true`) cross-reference summaries.
+    /// Generates preamble [`DisassemblyLine`] items for all external and [`BlockType::ExternalFile`]
+    /// labels using `formatter`.
+    ///
+    /// The output includes a prefix legend, side comments, and (when `include_xrefs` is `true`)
+    /// cross-reference summaries.
     #[must_use]
     pub fn get_external_label_definitions_with_formatter(
         &self,
@@ -330,14 +391,11 @@ impl AppState {
         let mut candidates: Vec<(Addr, LabelType, &String)> = Vec::new();
 
         for (addr, labels) in &self.labels {
-            if self.is_external(*addr) {
-                // Only include if setting enabled
-
-                if let Some(label) =
+            if self.is_external(*addr)
+                && let Some(label) =
                     crate::disassembler::resolve_label(labels, (*addr).into(), &self.settings)
-                {
-                    candidates.push((*addr, label.label_type, &label.name));
-                }
+            {
+                candidates.push((*addr, label.label_type, &label.name));
             }
         }
 
@@ -428,182 +486,61 @@ impl AppState {
         ];
 
         // Header comment: "EXTERNAL LABELS"
-        lines.push(DisassemblyLine {
-            address: Addr::ZERO,
-            bytes: vec![],
-            mnemonic: format!("{cp} EXTERNAL LABELS"),
-            operand: String::new(),
-            comment: String::new(),
-            line_comment: None,
-            label: None,
-            opcode: None,
-            show_bytes: true,
-            target_address: None,
-            external_label_address: None,
-            is_collapsed: false,
-        });
+        lines.push(header_line(format!("{cp} EXTERNAL LABELS")));
 
         // Legend: one line per prefix type that is actually used.
         for (prefix, description, group) in legend_entries {
             if flat.iter().any(|(_, _, g, _)| g == group) {
-                lines.push(DisassemblyLine {
-                    address: Addr::ZERO,
-                    bytes: vec![],
-                    mnemonic: format!("{cp}   {prefix} = {description}"),
-                    operand: String::new(),
-                    comment: String::new(),
-                    line_comment: None,
-                    label: None,
-                    opcode: None,
-                    show_bytes: true,
-                    target_address: None,
-                    external_label_address: None,
-                    is_collapsed: false,
-                });
+                lines.push(header_line(format!("{cp}   {prefix} = {description}")));
             }
         }
         if !ext_file_labels.is_empty() {
-            lines.push(DisassemblyLine {
-                address: Addr::ZERO,
-                bytes: vec![],
-                mnemonic: format!("{cp}   (ext) = External File Label"),
-                operand: String::new(),
-                comment: String::new(),
-                line_comment: None,
-                label: None,
-                opcode: None,
-                show_bytes: true,
-                target_address: None,
-                external_label_address: None,
-                is_collapsed: false,
-            });
+            lines.push(header_line(format!("{cp}   (ext) = External File Label")));
         }
 
         // Blank separator line after legend.
-        lines.push(DisassemblyLine {
-            address: Addr::ZERO,
-            bytes: vec![],
-            mnemonic: String::new(),
-            operand: String::new(),
-            comment: String::new(),
-            line_comment: None,
-            label: None,
-            opcode: None,
-            show_bytes: true,
-            target_address: None,
-            external_label_address: None,
-            is_collapsed: false,
-        });
+        lines.push(header_line(String::new()));
 
         // Emit all flat external labels in address order.
         for (addr, name, _, is_zp) in flat {
-            let mut comment_parts = Vec::new();
-            if let Some(entry) = self.annotations.get(Addr(addr)) {
-                if let Some(ref user_comment) = entry.user_side_comment {
-                    comment_parts.push(user_comment.clone());
-                } else if let Some(ref sys_comment) = entry.system_comment {
-                    comment_parts.push(sys_comment.clone());
-                }
-            }
-
-            if include_xrefs
-                && let Some(refs) = self.cross_refs.get(&Addr(addr))
-                && !refs.is_empty()
-                && self.settings.max_xref_count > 0
-            {
-                comment_parts.push(crate::disassembler::context::format_cross_references(
-                    refs,
-                    self.settings.max_xref_count,
-                ));
-            }
-
-            let comment = comment_parts.join(&format!(" {cp} "));
-
-            lines.push(DisassemblyLine {
-                address: Addr(addr),
-                bytes: vec![],
-                mnemonic: formatter.format_definition(name, addr, is_zp),
-                operand: String::new(),
-                comment,
-                line_comment: None,
-                label: None,
-                opcode: None,
-                show_bytes: true,
-                target_address: None,
-                external_label_address: Some(Addr(addr)),
-                is_collapsed: false,
-            });
+            lines.push(self.format_external_label_line(
+                addr,
+                name,
+                is_zp,
+                include_xrefs,
+                cp,
+                formatter,
+            ));
         }
 
         // Emit external-file labels after all the others.
         for (addr, name) in ext_file_labels {
-            let mut comment_parts = Vec::new();
-            if let Some(entry) = self.annotations.get(Addr(addr)) {
-                if let Some(ref user_comment) = entry.user_side_comment {
-                    comment_parts.push(user_comment.clone());
-                } else if let Some(ref sys_comment) = entry.system_comment {
-                    comment_parts.push(sys_comment.clone());
-                }
-            }
-
-            if include_xrefs
-                && let Some(refs) = self.cross_refs.get(&Addr(addr))
-                && !refs.is_empty()
-                && self.settings.max_xref_count > 0
-            {
-                comment_parts.push(crate::disassembler::context::format_cross_references(
-                    refs,
-                    self.settings.max_xref_count,
-                ));
-            }
-
-            let comment = comment_parts.join(&format!(" {cp} "));
-
-            lines.push(DisassemblyLine {
-                address: Addr(addr),
-                bytes: vec![],
-                mnemonic: formatter.format_definition(name, addr, false),
-                operand: String::new(),
-                comment,
-                line_comment: None,
-                label: None,
-                opcode: None,
-                show_bytes: true,
-                target_address: None,
-                external_label_address: Some(Addr(addr)),
-                is_collapsed: false,
-            });
+            lines.push(self.format_external_label_line(
+                addr,
+                name,
+                false,
+                include_xrefs,
+                cp,
+                formatter,
+            ));
         }
 
         // Trailing blank line.
-        lines.push(DisassemblyLine {
-            address: Addr::ZERO,
-            bytes: vec![],
-            mnemonic: String::new(),
-            operand: String::new(),
-            comment: String::new(),
-            line_comment: None,
-            label: None,
-            opcode: None,
-            show_bytes: true,
-            target_address: None,
-            external_label_address: None,
-            is_collapsed: false,
-        });
+        lines.push(header_line(String::new()));
 
         lines
     }
 
-    /// Returns the list of disassembly lines defining all enums used in the project
-    /// using the project's configured assembler formatter.
+    /// Generates preamble [`DisassemblyLine`] items for all enums referenced in the project
+    /// using the active assembler formatter.
     #[must_use]
     pub fn get_enum_definition_lines(&self) -> Vec<DisassemblyLine> {
         let formatter = self.get_formatter();
         self.get_enum_definition_lines_with_formatter(formatter.as_ref())
     }
 
-    /// Returns the list of disassembly lines defining all enums used in the project
-    /// formatted with the supplied `formatter`.
+    /// Generates preamble [`DisassemblyLine`] items for all enums referenced in the project
+    /// using `formatter`.
     #[must_use]
     pub fn get_enum_definition_lines_with_formatter(
         &self,
@@ -628,74 +565,22 @@ impl AppState {
         let cp = formatter.comment_prefix();
 
         // Header: "ENUMS"
-        lines.push(DisassemblyLine {
-            address: Addr::ZERO,
-            bytes: vec![],
-            mnemonic: format!("{cp} ENUMS"),
-            operand: String::new(),
-            comment: String::new(),
-            line_comment: None,
-            label: None,
-            opcode: None,
-            show_bytes: true,
-            target_address: None,
-            external_label_address: None,
-            is_collapsed: false,
-        });
+        lines.push(header_line(format!("{cp} ENUMS")));
 
         for enum_name in used_enum_names {
             if let Some(enum_def) = self.get_enum(&enum_name) {
                 // Separator line before each enum definition
-                lines.push(DisassemblyLine {
-                    address: Addr::ZERO,
-                    bytes: vec![],
-                    mnemonic: format!("{cp}   Enum: {}", enum_def.name),
-                    operand: String::new(),
-                    comment: String::new(),
-                    line_comment: None,
-                    label: None,
-                    opcode: None,
-                    show_bytes: true,
-                    target_address: None,
-                    external_label_address: None,
-                    is_collapsed: false,
-                });
+                lines.push(header_line(format!("{cp}   Enum: {}", enum_def.name)));
 
                 let enum_block = formatter.format_enum_definition(enum_def);
                 for block_line in enum_block.lines() {
-                    lines.push(DisassemblyLine {
-                        address: Addr::ZERO,
-                        bytes: vec![],
-                        mnemonic: block_line.to_string(),
-                        operand: String::new(),
-                        comment: String::new(),
-                        line_comment: None,
-                        label: None,
-                        opcode: None,
-                        show_bytes: true,
-                        target_address: None,
-                        external_label_address: None,
-                        is_collapsed: false,
-                    });
+                    lines.push(header_line(block_line.to_string()));
                 }
             }
         }
 
         // Trailing blank line
-        lines.push(DisassemblyLine {
-            address: Addr::ZERO,
-            bytes: vec![],
-            mnemonic: String::new(),
-            operand: String::new(),
-            comment: String::new(),
-            line_comment: None,
-            label: None,
-            opcode: None,
-            show_bytes: true,
-            target_address: None,
-            external_label_address: None,
-            is_collapsed: false,
-        });
+        lines.push(header_line(String::new()));
 
         lines
     }

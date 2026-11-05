@@ -497,7 +497,7 @@ impl Disassembler {
             cross_refs,
             collapsed_blocks,
             splitters,
-            scope_ends: annotations.scope_ends(),
+            scope_ends: annotations.scope_ends_set(),
             enums: &empty_enums,
             user_global_enums: &empty_enums,
             builtin_enums: &empty_enums,

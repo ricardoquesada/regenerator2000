@@ -1,10 +1,10 @@
 //! Sparse, address-keyed annotation storage and lexical scope indexing.
 //!
-//! This module defines [`AddressEntry`] and [`AnnotationManager`], which store per-address
-//! comments, formatting overrides, bookmarks, enum usages, and lexical symbol scopes.
-//! Empty or whitespace-only entries are automatically pruned from the underlying [`BTreeMap`]
-//! to guarantee deterministic `.regen2000proj` serialization, while secondary `scopes` and
-//! `scope_ends` indices provide `O(log S)` boundary lookups.
+//! This module defines [`AddressEntry`] and [`AnnotationManager`] to store per-address comments,
+//! formatting overrides, bookmarks, enum usages, and lexical symbol scopes.
+//! [`AnnotationManager`] removes empty or whitespace-only entries from the [`BTreeMap`] for
+//! deterministic `.regen2000proj` serialization, while `scopes` and `scope_ends` indices
+//! provide `O(log S)` boundary lookups.
 
 use crate::state::types::{Addr, ImmediateFormat};
 use serde::{Deserialize, Serialize};
@@ -16,13 +16,13 @@ fn is_str_none_or_empty(s: &Option<String>) -> bool {
     s.as_deref().map_or(true, |st| st.trim().is_empty())
 }
 
-/// Compact sparse annotation entry storing user annotations and formatting overrides for an [`Addr`].
+/// Compact sparse annotation entry that stores user annotations and formatting overrides for an [`Addr`].
 ///
-/// Entries are managed via [`AnnotationManager::update`], which normalizes whitespace-only
-/// strings to `None` and prunes completely empty records from the map.
+/// [`AnnotationManager::update`] normalizes whitespace-only strings to `None` and removes empty
+/// entries from the map.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AddressEntry {
-    /// Auto-generated or platform system comment (loaded dynamically from system assets; not saved in `.regen2000proj` files).
+    /// Auto-generated or platform system comment from system assets (not saved in `.regen2000proj` files).
     #[serde(default, skip_serializing)]
     pub system_comment: Option<String>,
 
@@ -42,7 +42,7 @@ pub struct AddressEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bookmark: Option<String>,
 
-    /// Inclusive end [`Addr`] of the lexical symbol scope (`start..=end`) whose `start` is this entry's key in [`AnnotationManager`].
+    /// Inclusive end [`Addr`] of the lexical symbol scope (`start..=end`) that starts at this entry's key.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<Addr>,
 
@@ -103,9 +103,10 @@ impl AddressEntry {
             && is_str_none_or_empty(&self.enum_usage)
     }
 
-    /// Returns `true` if the entry contains user-defined annotations that must be persisted to `.regen2000proj` files.
+    /// Returns `true` if the entry contains user-defined annotations for `.regen2000proj` files.
     ///
-    /// Unlike [`AddressEntry::is_empty`], this excludes `system_comment` because platform comments are reloaded dynamically from system assets.
+    /// Unlike [`AddressEntry::is_empty`], this method excludes `system_comment` because the loader
+    /// reloads platform comments from system assets.
     #[must_use]
     pub fn is_persistent(&self) -> bool {
         !is_str_none_or_empty(&self.user_side_comment)
@@ -117,15 +118,14 @@ impl AddressEntry {
     }
 }
 
-/// Encapsulated manager guaranteeing deterministic [`BTreeMap`] node pruning on empty entries
-/// and maintaining secondary `O(log S)` indices for lexical scopes.
+/// Manager that prunes empty [`BTreeMap`] entries and maintains `O(log S)` indices for lexical scopes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AnnotationManager {
     /// Sparse primary storage of non-empty [`AddressEntry`] records keyed by [`Addr`].
     map: BTreeMap<Addr, AddressEntry>,
     /// Secondary index mapping each lexical scope's inclusive `start` [`Addr`] to its inclusive `end` [`Addr`].
     scopes: BTreeMap<Addr, Addr>,
-    /// Secondary index of exclusive scope end addresses (`end.wrapping_add(1)`), used for `O(log S)` virtual-splitter boundary checks.
+    /// Secondary index of exclusive scope end addresses (`end.wrapping_add(1)`) for `O(log S)` boundary checks.
     scope_ends: BTreeSet<Addr>,
 }
 
@@ -150,14 +150,13 @@ impl serde::Serialize for AnnotationManager {
 }
 
 impl AnnotationManager {
-    /// Fetches an immutable reference to the [`AddressEntry`] at `addr`, if present.
+    /// Gets an immutable reference to the [`AddressEntry`] at `addr`, if present.
     #[must_use]
     pub fn get(&self, addr: Addr) -> Option<&AddressEntry> {
         self.map.get(&addr)
     }
 
-    /// Mutates an [`AddressEntry`] at `addr` in-place, normalizes string fields, automatically
-    /// prunes empty [`BTreeMap`] nodes, and maintains the secondary lexical scope indices.
+    /// Mutates an [`AddressEntry`] at `addr`, normalizes string fields, removes empty nodes, and updates scope indices.
     pub fn update<F>(&mut self, addr: Addr, f: F)
     where
         F: FnOnce(&mut AddressEntry),

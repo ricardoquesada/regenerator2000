@@ -1,40 +1,64 @@
+//! Core domain types for 6502 addresses, target systems, block types, labels, and cross-references.
+
 use serde::{Deserialize, Serialize};
 
 // =============================================================================
 // TargetSystem Enum
 // =============================================================================
 
-/// Strongly typed target machine architecture identifier.
+/// Target 8-bit machine architecture identifier.
 #[derive(Debug, Clone, Eq)]
 pub enum TargetSystem {
+    /// Commodore 64 computer.
     C64,
+    /// Commodore 128 computer.
     C128,
+    /// Commodore VIC-20 computer.
     Vic20,
+    /// Commodore PET 2001 computer with BASIC 2.0.
     Pet20,
+    /// Commodore PET 4000 or 8000 computer with BASIC 4.0.
     Pet40,
+    /// Commodore Plus/4 computer.
     Plus4,
+    /// Commodore 16 computer.
     C16,
+    /// Commodore 1541 disk drive.
     C1541,
+    /// Commodore 1571 disk drive.
     C1571,
+    /// Commodore 1581 disk drive.
     C1581,
+    /// Custom machine architecture name.
     Custom(Box<str>),
 }
 
+/// Type alias for [`TargetSystem`].
 pub type System = TargetSystem;
 
 impl TargetSystem {
+    /// Canonical display name for the Commodore 64.
     pub const C64_NAME: &'static str = "Commodore 64";
+    /// Canonical display name for the Commodore 128.
     pub const C128_NAME: &'static str = "Commodore 128";
+    /// Canonical display name for the Commodore VIC-20.
     pub const VIC20_NAME: &'static str = "Commodore VIC-20";
+    /// Canonical display name for the Commodore PET 2001.
     pub const PET20_NAME: &'static str = "Commodore PET 2001";
+    /// Canonical display name for the Commodore PET 4000.
     pub const PET40_NAME: &'static str = "Commodore PET 4000";
+    /// Canonical display name for the Commodore Plus/4.
     pub const PLUS4_NAME: &'static str = "Commodore Plus4";
+    /// Canonical display name for the Commodore 16.
     pub const C16_NAME: &'static str = "Commodore 16";
+    /// Canonical display name for the Commodore 1541 disk drive.
     pub const C1541_NAME: &'static str = "Commodore 1541";
+    /// Canonical display name for the Commodore 1571 disk drive.
     pub const C1571_NAME: &'static str = "Commodore 1571";
+    /// Canonical display name for the Commodore 1581 disk drive.
     pub const C1581_NAME: &'static str = "Commodore 1581";
 
-    /// Constructs a `TargetSystem` from any string-like reference using string parsing.
+    /// Parses `s` into a [`TargetSystem`].
     #[must_use]
     pub fn new(s: impl AsRef<str>) -> Self {
         match s.as_ref().parse() {
@@ -43,7 +67,7 @@ impl TargetSystem {
         }
     }
 
-    /// Returns the canonical string representation of this system.
+    /// Returns the canonical display name for this system.
     #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
@@ -61,19 +85,19 @@ impl TargetSystem {
         }
     }
 
-    /// Consumes the enum and returns the string representation.
+    /// Consumes the enum and returns its display name as an owned `String`.
     #[must_use]
     pub fn into_inner(self) -> String {
         self.as_str().to_string()
     }
 
-    /// Returns `true` if this system is Commodore 64.
+    /// Returns `true` if this system is a Commodore 64.
     #[must_use]
     pub fn is_c64(&self) -> bool {
         matches!(self, TargetSystem::C64)
     }
 
-    /// Returns the start address of default RAM for this system.
+    /// Returns the default user RAM start address for this system.
     #[must_use]
     pub fn ram_start(&self) -> u16 {
         match self {
@@ -85,7 +109,7 @@ impl TargetSystem {
         }
     }
 
-    /// Returns the default BASIC start address for this system.
+    /// Returns the default BASIC program start address for this system.
     #[must_use]
     pub fn default_basic_start(&self) -> u16 {
         match self {
@@ -97,7 +121,7 @@ impl TargetSystem {
         }
     }
 
-    /// Returns the default screen RAM memory range if defined for this system.
+    /// Returns the default screen RAM address range if this system defines one.
     #[must_use]
     pub fn screen_ram(&self) -> Option<std::ops::RangeInclusive<u16>> {
         match self {
@@ -109,7 +133,7 @@ impl TargetSystem {
         }
     }
 
-    /// Returns the default hardware IRQ vector address and handler value `(vector_addr, handler_addr)`.
+    /// Returns the default hardware IRQ vector address and handler address `(vector_addr, handler_addr)`.
     #[must_use]
     pub fn default_irq(&self) -> Option<(u16, u16)> {
         match self {
@@ -118,7 +142,7 @@ impl TargetSystem {
         }
     }
 
-    /// Returns the scan boundary ceilings for output range detection on this system.
+    /// Returns the upper scan boundary addresses for output range detection on this system.
     #[must_use]
     pub fn memory_boundaries(&self) -> &'static [usize] {
         match self {
@@ -128,7 +152,7 @@ impl TargetSystem {
         }
     }
 
-    /// Returns the hardware I/O memory range for this system, if defined.
+    /// Returns the hardware I/O address range if this system defines one.
     #[must_use]
     pub fn io_range(&self) -> Option<std::ops::RangeInclusive<u16>> {
         match self {
@@ -140,13 +164,13 @@ impl TargetSystem {
         }
     }
 
-    /// Returns `true` if `addr` falls within the hardware I/O memory space for this system.
+    /// Returns `true` if `addr` is in the hardware I/O address range for this system.
     #[must_use]
     pub fn is_in_io(&self, addr: u16) -> bool {
         self.io_range().is_some_and(|r| r.contains(&addr))
     }
 
-    /// Returns `true` if `addr` falls within the BASIC ROM memory space for this system.
+    /// Returns `true` if `addr` is in the BASIC ROM address range for this system.
     #[must_use]
     pub fn is_in_basic_rom(&self, addr: u16) -> bool {
         match self {
@@ -160,7 +184,7 @@ impl TargetSystem {
         }
     }
 
-    /// Returns `true` if `addr` falls within the Kernal ROM memory space for this system.
+    /// Returns `true` if `addr` is in the Kernal ROM address range for this system.
     #[must_use]
     pub fn is_in_kernal_rom(&self, addr: u16) -> bool {
         match self {
@@ -175,7 +199,7 @@ impl TargetSystem {
         }
     }
 
-    /// Returns `true` if `addr` is the main BASIC interpreter execution entry point (e.g. `$A7AE` on C64).
+    /// Returns `true` if `addr` is the main BASIC interpreter entry point for this system.
     #[must_use]
     pub fn is_basic_exec_entry(&self, addr: u16) -> bool {
         match self {
@@ -184,7 +208,7 @@ impl TargetSystem {
         }
     }
 
-    /// Returns `true` if this system uses Commodore BASIC V2 tokenized structure (C64, C128, VIC-20, PET, Plus/4).
+    /// Returns `true` if this system uses tokenized Commodore BASIC lines.
     #[must_use]
     pub fn is_commodore_basic(&self) -> bool {
         matches!(
@@ -199,19 +223,21 @@ impl TargetSystem {
         )
     }
 
-    /// Returns the upper RAM boundary ceiling before hardware vectors ($FFF8..$FFFF).
+    /// Returns the upper RAM limit (`$FFEF`) below the hardware vectors (`$FFF8..=$FFFF`).
     #[must_use]
     pub fn ram_ceiling(&self) -> u16 {
         0xFFEF
     }
 
-    /// Parses a string slice into a standard `TargetSystem` variant without heap allocation.
-    /// Returns `None` if `s` is not a standard machine architecture alias.
+    /// Parses a string slice into a standard [`TargetSystem`] variant without heap allocation.
+    ///
+    /// Returns `None` if `s` does not match a known machine alias.
     #[must_use]
     pub fn parse_standard(s: &str) -> Option<Self> {
         let trimmed = s.trim();
         if trimmed.eq_ignore_ascii_case("c64")
             || trimmed.eq_ignore_ascii_case("commodore 64")
+            || trimmed.eq_ignore_ascii_case("commodore64")
             || trimmed.eq_ignore_ascii_case("commodore_64")
             || trimmed.eq_ignore_ascii_case("c-64")
         {
@@ -219,6 +245,7 @@ impl TargetSystem {
         }
         if trimmed.eq_ignore_ascii_case("c128")
             || trimmed.eq_ignore_ascii_case("commodore 128")
+            || trimmed.eq_ignore_ascii_case("commodore128")
             || trimmed.eq_ignore_ascii_case("commodore_128")
             || trimmed.eq_ignore_ascii_case("c-128")
         {
@@ -228,6 +255,7 @@ impl TargetSystem {
             || trimmed.eq_ignore_ascii_case("vic 20")
             || trimmed.eq_ignore_ascii_case("vic-20")
             || trimmed.eq_ignore_ascii_case("commodore vic-20")
+            || trimmed.eq_ignore_ascii_case("commodorevic20")
             || trimmed.eq_ignore_ascii_case("vc20")
         {
             return Some(TargetSystem::Vic20);
@@ -236,6 +264,7 @@ impl TargetSystem {
             || trimmed.eq_ignore_ascii_case("pet2001")
             || trimmed.eq_ignore_ascii_case("pet 2001")
             || trimmed.eq_ignore_ascii_case("commodore pet 2001")
+            || trimmed.eq_ignore_ascii_case("commodorepet20")
             || trimmed.eq_ignore_ascii_case("pet 2.0")
             || trimmed.eq_ignore_ascii_case("commodore pet 2.0")
         {
@@ -245,6 +274,7 @@ impl TargetSystem {
             || trimmed.eq_ignore_ascii_case("pet4000")
             || trimmed.eq_ignore_ascii_case("pet 4000")
             || trimmed.eq_ignore_ascii_case("commodore pet 4000")
+            || trimmed.eq_ignore_ascii_case("commodorepet40")
             || trimmed.eq_ignore_ascii_case("pet 4.0")
             || trimmed.eq_ignore_ascii_case("commodore pet 4.0")
             || trimmed.eq_ignore_ascii_case("pet")
@@ -263,6 +293,7 @@ impl TargetSystem {
             || trimmed.eq_ignore_ascii_case("plus-4")
             || trimmed.eq_ignore_ascii_case("plus/4")
             || trimmed.eq_ignore_ascii_case("commodore plus4")
+            || trimmed.eq_ignore_ascii_case("commodoreplus4")
         {
             return Some(TargetSystem::Plus4);
         }
@@ -270,24 +301,28 @@ impl TargetSystem {
             || trimmed.eq_ignore_ascii_case("c-16")
             || trimmed.eq_ignore_ascii_case("c 16")
             || trimmed.eq_ignore_ascii_case("commodore 16")
+            || trimmed.eq_ignore_ascii_case("commodore16")
         {
             return Some(TargetSystem::C16);
         }
         if trimmed.eq_ignore_ascii_case("c1541")
             || trimmed.eq_ignore_ascii_case("1541")
             || trimmed.eq_ignore_ascii_case("commodore 1541")
+            || trimmed.eq_ignore_ascii_case("commodore1541")
         {
             return Some(TargetSystem::C1541);
         }
         if trimmed.eq_ignore_ascii_case("c1571")
             || trimmed.eq_ignore_ascii_case("1571")
             || trimmed.eq_ignore_ascii_case("commodore 1571")
+            || trimmed.eq_ignore_ascii_case("commodore1571")
         {
             return Some(TargetSystem::C1571);
         }
         if trimmed.eq_ignore_ascii_case("c1581")
             || trimmed.eq_ignore_ascii_case("1581")
             || trimmed.eq_ignore_ascii_case("commodore 1581")
+            || trimmed.eq_ignore_ascii_case("commodore1581")
         {
             return Some(TargetSystem::C1581);
         }
@@ -481,6 +516,7 @@ impl From<&String> for TargetSystem {
     }
 }
 
+/// Returns the default target system ([`TargetSystem::C64`]).
 #[must_use]
 pub fn default_system() -> TargetSystem {
     TargetSystem::C64
@@ -492,13 +528,9 @@ pub fn default_system() -> TargetSystem {
 
 /// A 16-bit address in the 6502 address space.
 ///
-/// Wraps a `u16` to distinguish *addresses* from other numeric quantities
-/// (lengths, byte values, indices). The inner field is `pub` for easy
-/// interop with existing `u16`-heavy code; the type safety comes from
-/// function signatures, not from hiding the value.
-///
-/// Serialises transparently as a plain JSON number so existing project files
-/// are fully backward-compatible.
+/// This type wraps a `u16` to separate memory addresses from lengths, byte values,
+/// and array indices. It serializes as a plain JSON integer to remain compatible
+/// with existing project files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Addr(pub u16);
 
@@ -569,52 +601,49 @@ impl<'de> Deserialize<'de> for Addr {
 }
 
 impl Addr {
-    /// Wraps a raw `u16` into an `Addr`.
+    /// Creates an [`Addr`] from a raw `u16` value.
     #[must_use]
     pub const fn new(raw: u16) -> Self {
         Self(raw)
     }
 
-    /// Returns the underlying `u16` value.
+    /// Returns the inner `u16` value.
     #[must_use]
     pub const fn raw(self) -> u16 {
         self.0
     }
 
-    /// Wrapping addition, matching the 6502's 16-bit address bus.
+    /// Adds `rhs` with 16-bit wrapping arithmetic.
     #[must_use]
     pub const fn wrapping_add(self, rhs: u16) -> Self {
         Self(self.0.wrapping_add(rhs))
     }
 
-    /// Wrapping subtraction, matching the 6502's 16-bit address bus.
+    /// Subtracts `rhs` with 16-bit wrapping arithmetic.
     #[must_use]
     pub const fn wrapping_sub(self, rhs: u16) -> Self {
         Self(self.0.wrapping_sub(rhs))
     }
 
-    /// Returns the byte offset from `origin` to `self` as a `usize`.
-    ///
-    /// Uses wrapping subtraction so it works correctly even when the address
-    /// space wraps around $FFFF → $0000.
+    /// Returns the wrapping byte offset from `origin` to `self`.
     #[must_use]
     pub const fn offset_from(self, origin: Addr) -> usize {
         self.0.wrapping_sub(origin.0) as usize
     }
 
-    /// Saturating addition.
+    /// Adds `rhs` and saturates at `$FFFF`.
     #[must_use]
     pub const fn saturating_add(self, rhs: u16) -> Self {
         Self(self.0.saturating_add(rhs))
     }
 
-    /// Saturating subtraction.
+    /// Subtracts `rhs` and saturates at `$0000`.
     #[must_use]
     pub const fn saturating_sub(self, rhs: u16) -> Self {
         Self(self.0.saturating_sub(rhs))
     }
 
-    /// Zero address constant.
+    /// Address `$0000` constant.
     pub const ZERO: Addr = Addr(0);
 }
 
@@ -726,21 +755,31 @@ impl std::ops::Shr<u16> for Addr {
     }
 }
 
+/// Character encoding mode for the hex dump view.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum HexdumpViewMode {
+    /// Commodore screencode with shifted (lowercase and uppercase) character set.
     #[default]
     ScreencodeShifted,
+    /// Commodore screencode with unshifted (uppercase and graphics) character set.
     ScreencodeUnshifted,
+    /// PETSCII with shifted (lowercase and uppercase) character set.
     PETSCIIShifted,
+    /// PETSCII with unshifted (uppercase and graphics) character set.
     PETSCIIUnshifted,
 }
 
+/// Target 6502 assembler syntax.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Assembler {
+    /// 64tass turbo macro assembler syntax.
     #[default]
     Tass64,
+    /// ACME cross-assembler syntax.
     Acme,
+    /// cc65 (`ca65`) macro assembler syntax.
     Ca65,
+    /// KickAssembler syntax.
     Kick,
 }
 
@@ -756,6 +795,7 @@ impl std::fmt::Display for Assembler {
 }
 
 impl Assembler {
+    /// Returns a static slice of all supported [`Assembler`] variants.
     #[must_use]
     pub fn all() -> &'static [Assembler] {
         &[
@@ -767,23 +807,36 @@ impl Assembler {
     }
 }
 
+/// Interpretation mode for a range of bytes in memory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlockType {
+    /// Executable 6502 machine instructions.
     Code,
+    /// Raw 8-bit data bytes (`.byte`).
     DataByte,
+    /// Little-endian 16-bit data words (`.word`).
     DataWord,
+    /// Little-endian 16-bit pointers that resolve to symbolic labels.
     Address,
+    /// PETSCII text strings.
     #[serde(alias = "Text")]
     PetsciiText,
+    /// Commodore screen-code text strings.
     #[serde(alias = "Screencode")]
     ScreencodeText,
+    /// Split address table where low bytes precede high bytes.
     #[serde(alias = "LoHi")]
     LoHiAddress,
+    /// Split address table where high bytes precede low bytes.
     #[serde(alias = "HiLo")]
     HiLoAddress,
+    /// Split 16-bit word table where low bytes precede high bytes.
     LoHiWord,
+    /// Split 16-bit word table where high bytes precede low bytes.
     HiLoWord,
+    /// Binary data included from an external file.
     ExternalFile,
+    /// Unclassified bytes.
     Undefined,
 }
 
@@ -807,9 +860,9 @@ impl std::fmt::Display for BlockType {
 }
 
 impl BlockType {
-    /// Returns `true` if `filter` matches this [`BlockType`]'s display name, short tool-schema
-    /// name (`"PETSCII"`, `"Screencode"`), or `r2000_set_data_type` snake_case identifier
-    /// (`"lo_hi_address"`, `"external_file"`, etc.), ignoring ASCII case and surrounding whitespace.
+    /// Returns `true` if `filter` matches this [`BlockType`] name or snake_case identifier.
+    ///
+    /// This comparison ignores ASCII case and surrounding whitespace.
     #[must_use]
     pub fn matches_filter(self, filter: &str) -> bool {
         let f = filter.trim();
@@ -836,35 +889,53 @@ impl BlockType {
     }
 }
 
+/// Origin classification of a symbol label.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LabelKind {
+    /// Label created or renamed by the user.
     User,
+    /// Label generated by the code analyzer.
     Auto,
+    /// Built-in hardware or ROM label for the target system.
     #[serde(alias = "Platform")]
     System,
 }
 
+/// Semantic category of a label based on how instructions reference the address.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum LabelType {
+    /// Zero-page indexed memory field (`zpf_`).
     ZeroPageField = 0,
+    /// Absolute indexed memory field (`f_`).
     Field = 1,
+    /// Zero-page scalar memory address (`zpa_`).
     ZeroPageAbsoluteAddress = 2,
+    /// Absolute scalar memory address (`a_`).
     AbsoluteAddress = 3,
+    /// 16-bit indirect pointer in main memory (`p_`).
     Pointer = 4,
+    /// 16-bit indirect pointer in zero page (`zpp_`).
     ZeroPagePointer = 5,
+    /// Relative conditional branch target (`b_`).
     Branch = 6,
+    /// Unconditional `JMP` target (`j_`).
     Jump = 7,
+    /// Subroutine `JSR` target (`s_`).
     Subroutine = 8,
+    /// Jump target outside the loaded binary range (`e_`).
     ExternalJump = 9,
+    /// Predefined platform label (`L_`).
     Predefined = 10,
+    /// Global user-defined label (`L_`).
     UserDefined = 11,
+    /// Scoped local user-defined label (`L_`).
     LocalUserDefined = 12,
-    /// Target of a branch/JMP/JSR whose first instruction is `RTS` or `RTI`.
-    /// Mirrors IDA Pro's `locret_` convention.
+    /// Target of a branch, `JMP`, or `JSR` whose first instruction is `RTS` or `RTI` (`r_`).
     Return = 13,
 }
 
 impl LabelType {
+    /// Returns the short prefix string for auto-generated label names of this type.
     #[must_use]
     pub fn prefix(&self) -> &'static str {
         match self {
@@ -885,14 +956,12 @@ impl LabelType {
         }
     }
 
-    /// Formats a label name for the given address and label type.
+    /// Formats a default label name for `addr` and this [`LabelType`].
     ///
-    /// For zero-page addresses (0x00-0xFF):
-    /// - `ExternalJump`, `AbsoluteAddress`, Field, Pointer use 4 hex digits (e.g., "a00FF")
-    /// - Other types use 2 hex digits (e.g., "aFF")
-    ///
-    /// For non-zero-page addresses (0x100+):
-    /// - All types use 4 hex digits (e.g., "a1234")
+    /// For zero-page addresses (`$00..=$FF`), [`LabelType::ExternalJump`],
+    /// [`LabelType::AbsoluteAddress`], [`LabelType::Field`], and [`LabelType::Pointer`]
+    /// use 4 hex digits, while other zero-page types use 2 hex digits.
+    /// Addresses above `$00FF` always use 4 hex digits.
     #[must_use]
     pub fn format_label(&self, addr: u16) -> String {
         let prefix = self.prefix();
@@ -919,22 +988,35 @@ impl LabelType {
     }
 }
 
+/// Display format for an 8-bit immediate operand.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImmediateFormat {
+    /// Standard hexadecimal literal (for example, `#$FF`).
     Hex,
+    /// Bitwise-inverted hexadecimal literal (for example, `#~$00`).
     InvertedHex,
+    /// Unsigned decimal literal (for example, `#255`).
     Decimal,
+    /// Signed negative decimal literal (for example, `#-1`).
     NegativeDecimal,
+    /// Binary literal (for example, `#%11111111`).
     Binary,
+    /// Bitwise-inverted binary literal (for example, `#~%00000000`).
     InvertedBinary,
+    /// Low byte of a 16-bit target address (`#<label`).
     LowByte(Addr),
+    /// High byte of a 16-bit target address (`#>label`).
     HighByte(Addr),
 }
 
+/// Precomputed line indices for a control-flow arrow in the disassembly gutter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CachedArrow {
+    /// Source line index in `AppState::disassembly`.
     pub start: usize,
+    /// Destination line index in `AppState::disassembly`.
     pub end: usize,
+    /// Target memory address of the branch or jump.
     pub target_addr: Option<Addr>,
 }
 
@@ -945,34 +1027,37 @@ impl std::ops::Rem<u16> for Addr {
     }
 }
 
+/// Placement category for a disassembly comment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CommentKind {
+    /// Inline comment rendered to the right of an instruction or data line.
     Side,
+    /// Full-line comment block rendered above an instruction or data line.
     Line,
 }
 
 /// Classification of how a cross-reference accesses or targets an address.
 ///
-/// Variant declaration order defines the secondary sort order in [`XRef`]:
+/// The variant declaration order sets the secondary sort order in [`XRef`]:
 /// `Read < Write < ReadModifyWrite < Call < Jump < Offset`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum XRefKind {
-    /// Memory read access (`[R]`): `LDA`, `LDX`, `LDY`, `CMP`, `BIT`, `ADC`, `SBC`, `AND`, `ORA`, `EOR`, `LAX`, etc.
+    /// Memory read access (`[R]`) such as `LDA`, `LDX`, `LDY`, `CMP`, or `BIT`.
     Read,
-    /// Memory write access (`[W]`): `STA`, `STX`, `STY`, `SAX`.
+    /// Memory write access (`[W]`) such as `STA`, `STX`, `STY`, or `SAX`.
     Write,
-    /// Read-modify-write memory access (`[R/W]`): `INC`, `DEC`, `ASL`, `LSR`, `ROL`, `ROR`, `SLO`, `RLA`, `SRE`, `RRA`, `DCP`, `ISC`.
+    /// Read-modify-write access (`[R/W]`) such as `INC`, `DEC`, `ASL`, `LSR`, `ROL`, or `ROR`.
     ReadModifyWrite,
-    /// Subroutine call (`[C]`): `JSR`.
+    /// Subroutine call (`[C]`) via `JSR`.
     Call,
-    /// Unconditional or conditional control-flow transfer (`[J]`): `JMP`, `BPL`, `BMI`, `BVC`, `BVS`, `BCC`, `BCS`, `BNE`, `BEQ`.
+    /// Unconditional or conditional jump (`[J]`) via `JMP` or a branch instruction.
     Jump,
-    /// Symbolic address or offset taken (`[O]`): `#<label`, `#>label`, `.word label`, `.lohi`, `.hilo`.
+    /// Symbolic address or byte-offset reference (`[O]`) such as `#<label`, `#>label`, or `.word label`.
     Offset,
 }
 
 impl XRefKind {
-    /// Returns the short bracketed badge representation used in TUI dialogs and listings.
+    /// Returns the short bracketed badge string used in TUI dialogs and listings.
     ///
     /// # Examples
     /// ```
@@ -992,7 +1077,7 @@ impl XRefKind {
         }
     }
 
-    /// Returns the snake_case identifier used in structured MCP / JSON output.
+    /// Returns the `snake_case` identifier used in structured MCP and JSON output.
     ///
     /// # Examples
     /// ```
@@ -1019,22 +1104,20 @@ impl std::fmt::Display for XRefKind {
     }
 }
 
-/// A typed cross-reference edge from a referencing instruction or data block (`from`)
-/// to a target address, annotated with its access classification (`kind`).
+/// A typed cross-reference edge from a source address (`from`) to a target address.
 ///
-/// Because [`from`](Self::from) is declared before [`kind`](Self::kind), the derived [`Ord`]
-/// implementation sorts primarily by source address (`from` ascending) and breaks ties
-/// deterministically by [`XRefKind`] declaration order.
+/// The derived [`Ord`] implementation sorts first by `from` in ascending order
+/// and then by [`XRefKind`] declaration order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct XRef {
-    /// Source address of the referencing instruction or data-block entry.
+    /// Source address of the instruction or data item that references the target.
     pub from: Addr,
-    /// Semantic access or control-flow classification of this reference.
+    /// Access or control-flow category of this reference.
     pub kind: XRefKind,
 }
 
 impl XRef {
-    /// Creates a new typed cross-reference from `from` with access classification `kind`.
+    /// Creates a typed cross-reference from `from` with category `kind`.
     ///
     /// # Examples
     /// ```
@@ -1054,22 +1137,25 @@ impl XRef {
 // Enum Support Types
 // =============================================================================
 
-/// A runtime representation of a value-to-name enum mapping.
+/// Runtime mapping from 16-bit numeric constants to symbolic enum variant names.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EnumDefinition {
+    /// Identifier of the enum type.
     pub name: String,
+    /// Optional human-readable description of the enum.
     pub description: Option<String>,
+    /// Map from numeric constant value to variant name.
     pub variants: std::collections::BTreeMap<u16, String>,
+    /// Optional path to the TOML file that defined this enum.
     #[serde(skip)]
     pub source_file: Option<String>,
 }
 
 impl EnumDefinition {
-    /// Parse numeric key values (which are represented as string keys in TOML)
-    /// and construct a BTreeMap<u16, String> map. Supports:
-    /// - Decimal strings (e.g., "10", "255")
-    /// - Hex strings with "0x" or "$" prefix (e.g., "0x0a", "$0A")
-    /// - Binary strings with "0b" or "%" prefix (e.g., "0b0101", "%0101")
+    /// Parses string keys from a raw TOML map into a `BTreeMap<u16, String>`.
+    ///
+    /// Keys can use decimal (`"10"`), hexadecimal (`"0x0A"` or `"$0A"`), or
+    /// binary (`"0b0101"` or `"%0101"`) notation.
     #[must_use]
     pub fn parse_variants(
         raw: std::collections::BTreeMap<String, String>,
@@ -1108,11 +1194,14 @@ impl EnumDefinition {
     }
 }
 
-/// TOML-serializable helper representation of an enum file.
+/// TOML-serializable representation of an [`EnumDefinition`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RawEnumDefinition {
+    /// Identifier of the enum type.
     pub name: String,
+    /// Optional human-readable description of the enum.
     pub description: Option<String>,
+    /// Unparsed map from numeric key string to variant name.
     pub variants: std::collections::BTreeMap<String, String>,
 }
 
@@ -1178,6 +1267,10 @@ mod tests {
             TargetSystem::from_str("Commodore 64").ok(),
             Some(TargetSystem::C64)
         );
+        assert_eq!(
+            TargetSystem::from_str("Commodore64").ok(),
+            Some(TargetSystem::C64)
+        );
         assert_eq!(TargetSystem::from_str("c-64").ok(), Some(TargetSystem::C64));
         assert_eq!(
             TargetSystem::from_str("commodore_64").ok(),
@@ -1189,11 +1282,27 @@ mod tests {
             Some(TargetSystem::C128)
         );
         assert_eq!(
+            TargetSystem::from_str("Commodore128").ok(),
+            Some(TargetSystem::C128)
+        );
+        assert_eq!(
             TargetSystem::from_str("vic20").ok(),
             Some(TargetSystem::Vic20)
         );
         assert_eq!(
+            TargetSystem::from_str("CommodoreVIC20").ok(),
+            Some(TargetSystem::Vic20)
+        );
+        assert_eq!(
+            TargetSystem::from_str("CommodorePET20").ok(),
+            Some(TargetSystem::Pet20)
+        );
+        assert_eq!(
             TargetSystem::from_str("pet40").ok(),
+            Some(TargetSystem::Pet40)
+        );
+        assert_eq!(
+            TargetSystem::from_str("CommodorePET40").ok(),
             Some(TargetSystem::Pet40)
         );
         assert_eq!(
@@ -1201,7 +1310,15 @@ mod tests {
             Some(TargetSystem::Plus4)
         );
         assert_eq!(
+            TargetSystem::from_str("CommodorePlus4").ok(),
+            Some(TargetSystem::Plus4)
+        );
+        assert_eq!(
             TargetSystem::from_str("c1541").ok(),
+            Some(TargetSystem::C1541)
+        );
+        assert_eq!(
+            TargetSystem::from_str("Commodore1541").ok(),
             Some(TargetSystem::C1541)
         );
 

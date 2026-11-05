@@ -1,9 +1,7 @@
 //! Central, UI-agnostic application state and core reverse-engineering domain model.
 //!
 //! This module defines [`AppState`], the single source of truth for a loaded binary and its
-//! reverse-engineering project metadata (raw memory, per-byte [`BlockType`] classifications,
-//! labels, [`AnnotationManager`], cross-references, enums, undo/redo history, and live VICE
-//! debugger state), along with supporting domain types [`BlockItem`] and [`FileInfo`].
+//! project metadata. It also defines supporting domain types [`BlockItem`] and [`FileInfo`].
 
 use super::annotations::AnnotationManager;
 use super::project::Label;
@@ -156,8 +154,9 @@ impl Default for AppState {
 }
 
 impl AppState {
-    /// Creates a new, empty [`AppState`] initialized with default document settings and a safe
-    /// temporary configuration path that never overwrites the user's real configuration file.
+    /// Creates a new [`AppState`] with default document settings and a temporary configuration path.
+    ///
+    /// The temporary path ensures that tests never overwrite the user's configuration file.
     #[must_use]
     pub fn new() -> Self {
         // Use default config with a throwaway save path so that tests never
@@ -211,8 +210,9 @@ impl AppState {
         }
     }
 
-    /// Reloads platform-specific system labels, system comments, and excluded address lists
-    /// for the active [`DocumentSettings::system`], preserving user-defined labels and annotations.
+    /// Reloads platform system labels, comments, and excluded addresses for [`DocumentSettings::system`].
+    ///
+    /// Preserves all user-defined labels and annotations.
     pub fn load_system_assets(&mut self) {
         // Clear existing system labels
         for labels in self.labels.values_mut() {
@@ -274,30 +274,22 @@ impl AppState {
         }
     }
 
-    /// Creates a syntax [`Formatter`](crate::disassembler::formatter::Formatter) for the currently configured [`DocumentSettings::assembler`].
+    /// Creates a syntax [`Formatter`](crate::disassembler::formatter::Formatter) for [`DocumentSettings::assembler`].
     #[must_use]
     pub fn get_formatter(&self) -> Box<dyn crate::disassembler::formatter::Formatter> {
         Disassembler::create_formatter(self.settings.assembler)
     }
 
-    /// Runs auto-analysis over the loaded binary, applies a [`Command::SetAnalysisData`](crate::commands::Command::SetAnalysisData)
-    /// updating auto-generated labels and cross-references, and refreshes the disassembly.
+    /// Runs auto-analysis over the loaded binary and refreshes the disassembly.
     ///
-    /// Returns the applied [`Command`](crate::commands::Command) and a status message.
+    /// Applies [`Command::SetAnalysisData`](crate::commands::Command::SetAnalysisData) to update
+    /// auto-generated labels and cross-references. Returns the applied command and a status message.
     pub fn perform_analysis(&mut self) -> (crate::commands::Command, String) {
         #[cfg(test)]
         ANALYSIS_PASS_COUNT.with(|c| c.set(c.get().saturating_add(1)));
 
         let result = crate::analyzer::analyze(self);
-
-        // Capture old labels (more idiomatic with iterator)
-        let old_labels_map = result
-            .labels
-            .keys()
-            .map(|k| (*k, self.labels.get(k).cloned().unwrap_or_default()))
-            .collect();
-
-        // Also capture old cross_refs
+        let old_labels_map = self.labels.clone();
         let old_cross_refs = self.cross_refs.clone();
 
         let command = crate::commands::Command::SetAnalysisData {
@@ -322,7 +314,7 @@ impl AppState {
         ANALYSIS_PASS_COUNT.with(std::cell::Cell::get)
     }
 
-    /// Undoes the most recent command on [`AppState::undo_stack`] and returns a human-readable status message.
+    /// Undoes the most recent command on [`AppState::undo_stack`] and returns a status message.
     pub fn undo_last_command(&mut self) -> String {
         let mut stack = std::mem::take(&mut self.undo_stack);
         let msg = if let Some(msg) = stack.undo(self) {
@@ -334,7 +326,7 @@ impl AppState {
         msg
     }
 
-    /// Redoes the most recently undone command on [`AppState::undo_stack`] and returns a human-readable status message.
+    /// Redoes the most recently undone command on [`AppState::undo_stack`] and returns a status message.
     pub fn redo_last_command(&mut self) -> String {
         let mut stack = std::mem::take(&mut self.undo_stack);
         let msg = if let Some(msg) = stack.redo(self) {
@@ -368,17 +360,26 @@ impl AppState {
     /// Returns summary information and metadata about the loaded binary.
     #[must_use]
     pub fn file_info(&self) -> FileInfo {
-        let start_addr = if self.origin == Addr::ZERO && self.raw_data.is_empty() {
-            Addr(0x0801)
-        } else {
-            self.origin
-        };
         let size = self.raw_data.len();
-        let end_addr = if size == 0 {
-            start_addr
-        } else {
-            start_addr.wrapping_add(size.saturating_sub(1) as u16)
-        };
+        if size == 0 {
+            let start_addr = if self.origin == Addr::ZERO {
+                Addr(self.settings.system.default_basic_start())
+            } else {
+                self.origin
+            };
+            return FileInfo {
+                start_addr,
+                end_addr: start_addr,
+                size: 0,
+                entry_point: self.entry_point,
+                entropy: self.entropy(),
+                is_packed: false,
+                packer_name: None,
+            };
+        }
+
+        let start_addr = self.origin;
+        let end_addr = start_addr.wrapping_add(size.saturating_sub(1) as u16);
 
         let mut mem = vec![0u8; 0x10000];
         let load_start = start_addr.0 as usize;
@@ -427,12 +428,10 @@ impl AppState {
         }
     }
 
-    /// Returns `true` if `addr` is a manual splitter or a lexical scope boundary
-    /// ([`AnnotationManager::is_scope_start`] or [`AnnotationManager::is_scope_end`]).
+    /// Returns `true` if `addr` is a manual splitter or a lexical scope boundary.
     ///
-    /// Lexical scope start and exclusive end (`end.wrapping_add(1)`) addresses act as
-    /// virtual splitters: they partition contiguous [`BlockType`] regions at scope boundaries
-    /// without inserting a visual `{splitter}` pseudo-instruction into the disassembly.
+    /// Scope start and exclusive end (`end.wrapping_add(1)`) addresses partition [`BlockType`]
+    /// regions without inserting a `{splitter}` pseudo-instruction into the disassembly.
     #[must_use]
     pub fn is_virtual_splitter(&self, addr: Addr) -> bool {
         if self.splitters.is_empty() && self.annotations.scopes().is_empty() {
@@ -443,8 +442,9 @@ impl AppState {
             || self.annotations.is_scope_end(addr)
     }
 
-    /// Pushes an already-applied [`Command`](crate::commands::Command) onto [`AppState::undo_stack`],
-    /// invalidating [`AppState::last_saved_pointer`] if the undo history was rewound past the saved state.
+    /// Pushes an applied [`Command`](crate::commands::Command) onto [`AppState::undo_stack`].
+    ///
+    /// Invalidates [`AppState::last_saved_pointer`] if the undo history was rewound past the saved state.
     pub fn push_command(&mut self, command: crate::commands::Command) {
         if self.undo_stack.get_pointer() < self.last_saved_pointer {
             self.last_saved_pointer = usize::MAX;
@@ -452,18 +452,16 @@ impl AppState {
         self.undo_stack.push(command);
     }
 
-    /// Creates a [`SetLabel`](crate::commands::Command::SetLabel) command for a user-defined label at the given address,
-    /// validating that no other address already uses the same name.
+    /// Creates a [`SetLabel`](crate::commands::Command::SetLabel) command for a user label at `address`.
     ///
-    /// If `name` is empty the returned command will **remove** any existing label.
-    /// When `is_local` is true the label receives [`LocalUserDefined`](crate::state::LabelType::LocalUserDefined);
-    /// otherwise the existing label type is preserved (useful when renaming an
-    /// external/system label) or defaults to [`UserDefined`](crate::state::LabelType::UserDefined).
+    /// If `name` is empty, the command removes any existing label at `address`.
+    /// When `is_local` is `true`, the label uses [`LocalUserDefined`](crate::state::LabelType::LocalUserDefined).
+    /// When `is_local` is `false`, the label keeps its existing [`LabelType`](crate::state::LabelType)
+    /// or defaults to [`UserDefined`](crate::state::LabelType::UserDefined).
     ///
     /// # Errors
     ///
-    /// Returns `Err` with a human-readable message when a label with the same
-    /// name already exists at a different address.
+    /// Returns an error message when another address already uses `name`.
     pub fn create_set_user_label_command(
         &self,
         address: Addr,
@@ -525,8 +523,8 @@ impl AppState {
     /// Creates a [`SetUserSideComment`](crate::commands::Command::SetUserSideComment) or
     /// [`SetUserLineComment`](crate::commands::Command::SetUserLineComment) command at `address`.
     ///
-    /// If `comment` is `None`, empty (`""`), or contains only whitespace, `new_comment` is set to
-    /// `None` so the existing comment is removed cleanly from [`AnnotationManager`].
+    /// If `comment` is `None`, empty (`""`), or whitespace-only, `new_comment` is `None` so
+    /// [`AnnotationManager`] removes the existing comment.
     #[must_use]
     pub fn create_set_comment_command(
         &self,
@@ -557,13 +555,13 @@ impl AppState {
     }
 
     /// Validates a proposed name for a new enum.
-    /// Ensures the name is non-empty, alphanumeric/underscores, and does not clash
-    /// with existing local, global, or built-in system enums.
+    ///
+    /// Checks that `name` is non-empty, contains only ASCII alphanumeric characters or underscores,
+    /// and does not collide with local, global, or built-in enums.
     ///
     /// # Errors
     ///
-    /// Returns `Err(String)` containing the validation failure message if the name
-    /// is empty, contains invalid characters, or clashes with an existing enum.
+    /// Returns an error message if `name` is empty, has invalid characters, or already exists.
     pub fn validate_new_enum_name(&self, name: &str) -> Result<(), String> {
         let name = name.trim();
         if name.is_empty() {
@@ -581,8 +579,9 @@ impl AppState {
         Ok(())
     }
 
-    /// Resolve a numeric value at a specific address using the applied enum (if any).
-    /// Checks project-specific enums first, then user global enums, then built-in enums.
+    /// Resolves `value` against the enum annotation at `address`, if present.
+    ///
+    /// Searches project-local, user-global, and built-in enums in precedence order.
     #[must_use]
     pub fn resolve_enum_value(&self, address: Addr, value: u16) -> Option<String> {
         let enum_name = self.annotations.get(address)?.enum_usage.as_ref()?;
@@ -593,7 +592,7 @@ impl AppState {
             .and_then(|enum_def| enum_def.variants.get(&value).cloned())
     }
 
-    /// Retrieve an EnumDefinition by name, checking local, global, and built-in pools.
+    /// Gets an [`EnumDefinition`] by name from project-local, user-global, or built-in enums.
     #[must_use]
     pub fn get_enum(&self, name: &str) -> Option<&EnumDefinition> {
         self.enums
@@ -696,7 +695,7 @@ mod tests {
 
     #[test]
     fn test_file_info_empty() {
-        let app_state = AppState::new();
+        let mut app_state = AppState::new();
         let info = app_state.file_info();
         assert_eq!(info.start_addr, Addr(0x0801));
         assert_eq!(info.end_addr, Addr(0x0801));
@@ -704,6 +703,39 @@ mod tests {
         assert_eq!(info.entry_point, None);
         assert!(!info.is_packed);
         assert_eq!(info.packer_name, None);
+
+        app_state.settings.system = crate::state::System::Vic20;
+        let vic_info = app_state.file_info();
+        assert_eq!(vic_info.start_addr, Addr(0x1001));
+        assert_eq!(vic_info.end_addr, Addr(0x1001));
+    }
+
+    #[test]
+    fn test_perform_analysis_undo_restores_exact_labels() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0xC000);
+        // JSR $C005 ; NOP ; NOP ; RTS
+        app_state.raw_data = vec![0x20, 0x05, 0xC0, 0xEA, 0xEA, 0x60];
+        app_state.block_types = vec![BlockType::Code; 6];
+        // Pre-existing stale auto label at $C003 that analyze() will remove
+        app_state.labels.insert(
+            Addr(0xC003),
+            vec![Label {
+                name: "s_c003".to_string(),
+                kind: LabelKind::Auto,
+                label_type: LabelType::Subroutine,
+            }],
+        );
+        let original_labels = app_state.labels.clone();
+
+        let (cmd, _) = app_state.perform_analysis();
+        app_state.push_command(cmd);
+        assert!(app_state.labels.contains_key(&Addr(0xC005)));
+        assert!(!app_state.labels.contains_key(&Addr(0xC003)));
+
+        app_state.undo_last_command();
+        assert_eq!(app_state.labels, original_labels);
+        assert!(!app_state.labels.contains_key(&Addr(0xC005)));
     }
 
     #[test]

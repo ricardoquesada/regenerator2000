@@ -32,7 +32,7 @@ pub struct DisassemblyContext<'a> {
     /// Set of addresses with manual user block splitters.
     pub splitters: &'a BTreeSet<Addr>,
     /// Pre-computed set of lexical scope end addresses for `O(log S)` boundary checks.
-    pub scope_ends: BTreeSet<Addr>,
+    pub scope_ends: &'a BTreeSet<Addr>,
 
     /// Project-local enum definitions keyed by enum name.
     pub enums: &'a BTreeMap<String, EnumDefinition>,

@@ -776,7 +776,7 @@ mod tests {
             cross_refs,
             collapsed_blocks: &[],
             splitters: &EMPTY_SPLITTERS,
-            scope_ends: annotations_box.scope_ends(),
+            scope_ends: annotations_box.scope_ends_set(),
             enums: &EMPTY_ENUMS,
             user_global_enums: &EMPTY_ENUMS,
             builtin_enums: &EMPTY_ENUMS,

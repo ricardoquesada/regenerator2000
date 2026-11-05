@@ -1,7 +1,10 @@
+//! Disassembly pass execution, control-flow arrow caching, and address-to-line index lookup.
+
 use super::app_state::AppState;
 use super::types::{Addr, CachedArrow};
 
 impl AppState {
+    /// Disassembles [`AppState::raw_data`] into [`AppState::disassembly`] and updates [`AppState::cached_arrows`].
     pub fn disassemble(&mut self) {
         let ctx = crate::disassembler::context::DisassemblyContext {
             data: &self.raw_data,
@@ -13,7 +16,7 @@ impl AppState {
             cross_refs: &self.cross_refs,
             collapsed_blocks: &self.collapsed_blocks,
             splitters: &self.splitters,
-            scope_ends: self.annotations.scope_ends(),
+            scope_ends: self.annotations.scope_ends_set(),
             enums: &self.enums,
             user_global_enums: &self.user_global_enums,
             builtin_enums: &self.builtin_enums,
@@ -33,6 +36,7 @@ impl AppState {
         self.compute_cached_arrows();
     }
 
+    /// Recomputes [`AppState::cached_arrows`] for all in-range control-flow instructions in [`AppState::disassembly`].
     pub fn compute_cached_arrows(&mut self) {
         let mut arrows = Vec::new();
 
@@ -41,14 +45,17 @@ impl AppState {
             return;
         }
 
-        // Build a temporary index for efficient lookup.
-        // We prioritize lines with bytes (instructions/data) over label-only lines.
+        // Build a temporary index for in-range disassembly body lines.
+        // Skip external equate headers and preamble comment rows so arrows never target them.
         // Map: Address -> Line Index
         let mut addr_to_idx = std::collections::BTreeMap::new();
         for (i, line) in self.disassembly.iter().enumerate() {
+            if line.external_label_address.is_some() || self.is_external(line.address) {
+                continue;
+            }
             if !line.bytes.is_empty() || line.is_collapsed {
                 addr_to_idx.insert(line.address, i);
-            } else {
+            } else if line.label.is_some() {
                 addr_to_idx.entry(line.address).or_insert(i);
             }
         }
@@ -67,15 +74,25 @@ impl AppState {
                     let mut dst_idx_opt = addr_to_idx.get(&target_addr).copied();
 
                     // 2. If no exact match, it might be a jump into the middle of an instruction
+                    // or into a collapsed block.
                     if dst_idx_opt.is_none() {
                         // Find the last line with address <= target_addr
                         if let Some((&base_addr, &base_idx)) =
                             addr_to_idx.range(..=target_addr).next_back()
                         {
                             let base_line = &self.disassembly[base_idx];
-                            let len = base_line.bytes.len() as u16;
-                            if target_addr.0 >= base_addr.0
-                                && target_addr.0 < base_addr.0.wrapping_add(len)
+                            let span_len = if base_line.is_collapsed {
+                                let start_offset = base_addr.offset_from(self.origin);
+                                self.collapsed_blocks
+                                    .iter()
+                                    .find(|&&(s, _)| s == start_offset)
+                                    .map_or(0, |&(s, e)| (e.saturating_sub(s) + 1) as u16)
+                            } else {
+                                base_line.bytes.len() as u16
+                            };
+                            if span_len > 0
+                                && target_addr.0 >= base_addr.0
+                                && target_addr.0 < base_addr.0.wrapping_add(span_len)
                             {
                                 dst_idx_opt = Some(base_idx);
                             }
@@ -95,6 +112,9 @@ impl AppState {
         self.cached_arrows = arrows;
     }
 
+    /// Returns the index of the [`DisassemblyLine`](crate::disassembler::DisassemblyLine) best matching `address`.
+    ///
+    /// Prioritizes content lines with bytes over label-only or external equate header lines.
     #[must_use]
     pub fn get_line_index_for_address(&self, address: Addr) -> Option<usize> {
         // First pass: try to find exact match with content (bytes not empty)
@@ -145,6 +165,7 @@ impl AppState {
             .position(|line| line.address >= address)
     }
 
+    /// Returns the index of the [`DisassemblyLine`](crate::disassembler::DisassemblyLine) whose byte span or collapsed range contains `address`.
     #[must_use]
     pub fn get_line_index_containing_address(&self, address: Addr) -> Option<usize> {
         // Check if address is in a collapsed block
@@ -404,5 +425,54 @@ mod tests {
 
         let jmp = jmp_arrow.unwrap();
         assert!(jmp.start > jmp.end, "JMP backward should have start > end");
+    }
+
+    #[test]
+    fn test_compute_cached_arrows_ignores_external_label_equates() {
+        use super::super::project::Label;
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        app_state.raw_data = vec![
+            0x20, 0xD2, 0xFF, // JSR $FFD2
+            0x60, // RTS
+        ];
+        app_state.block_types = vec![BlockType::Code; app_state.raw_data.len()];
+        app_state
+            .labels
+            .entry(Addr(0xFFD2))
+            .or_default()
+            .push(Label {
+                name: "CHROUT".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::ExternalJump,
+            });
+        app_state.settings.all_labels = true;
+
+        app_state.disassemble();
+
+        assert!(
+            app_state.cached_arrows.is_empty(),
+            "JSR to external equate $FFD2 must not produce a cached arrow"
+        );
+    }
+
+    #[test]
+    fn test_compute_cached_arrows_targets_collapsed_block_interior() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0xC000);
+        // $C000: BEQ $C005 (F0 03), followed by 6 NOPs at $C002..=$C007
+        app_state.raw_data = vec![0xF0, 0x03, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA];
+        app_state.block_types = vec![BlockType::Code; 8];
+        // Collapse offsets 2..=6 ($C002..=$C006), so $C005 is inside the collapsed block
+        app_state.collapsed_blocks.push((2, 6));
+
+        app_state.disassemble();
+
+        assert_eq!(app_state.cached_arrows.len(), 1);
+        let arrow = &app_state.cached_arrows[0];
+        assert_eq!(arrow.target_addr, Some(Addr(0xC005)));
+        assert_eq!(app_state.disassembly[arrow.end].address, Addr(0xC002));
+        assert!(app_state.disassembly[arrow.end].is_collapsed);
     }
 }

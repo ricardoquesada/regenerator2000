@@ -1,8 +1,8 @@
 //! Project file (`.regen2000proj`) serialization, payload compression, and block run-length encoding.
 //!
-//! This module defines the on-disk [`ProjectState`] schema, gzip + Base64 binary payload helpers
-//! ([`encode_raw_data_to_base64`] and [`decode_raw_data_from_base64`]), and conversion functions
-//! between per-byte [`BlockType`] vectors and run-length encoded [`Block`] spans
+//! This module defines the on-disk [`ProjectState`] schema and gzip + Base64 binary payload helpers
+//! ([`encode_raw_data_to_base64`] and [`decode_raw_data_from_base64`]).
+//! It also converts between per-byte [`BlockType`] vectors and run-length encoded [`Block`] spans
 //! ([`compress_block_types`] and [`expand_blocks`]).
 
 use super::settings::DocumentSettings;
@@ -18,8 +18,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Read, Write};
 
 /// Current project file format version.
-/// Increment this when making breaking changes to the project file format,
-/// and add a corresponding migration in `AppState::migrate_project()`.
+/// Increment this constant for breaking changes and add a migration in `AppState::migrate_project()`.
 pub const PROJECT_FORMAT_VERSION: u32 = 1;
 
 fn default_project_version() -> u32 {
@@ -37,10 +36,10 @@ pub struct Label {
     pub kind: LabelKind,
 }
 
-/// A run-length encoded contiguous region of bytes sharing a single [`BlockType`] and collapsed state.
+/// A run-length encoded contiguous region of bytes that share one [`BlockType`] and collapsed state.
 ///
-/// Unlike [`BlockItem::Block`](super::app_state::BlockItem::Block) (which stores 16-bit [`Addr`] bounds),
-/// `start` and `end` here are **inclusive zero-based byte offsets** relative to `origin`.
+/// Unlike [`BlockItem::Block`](super::app_state::BlockItem::Block), which stores 16-bit [`Addr`] bounds,
+/// `start` and `end` are inclusive zero-based byte offsets relative to `origin`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Block {
     /// Inclusive starting byte offset relative to `origin`.
@@ -49,15 +48,15 @@ pub struct Block {
     pub end: usize,
     /// Interpretation [`BlockType`] applied to the byte range `start..=end`.
     pub type_: BlockType,
-    /// Whether the block is collapsed into a single summary line in the disassembly view.
+    /// Whether the disassembly view collapses this block into a single summary line.
     #[serde(default)]
     pub collapsed: bool,
 }
 
 /// On-disk JSON representation of a saved `.regen2000proj` project file.
 ///
-/// Uses [`BTreeMap`] and [`BTreeSet`] for all address- and name-keyed collections
-/// to guarantee deterministic serialization order across save/load cycles.
+/// Uses [`BTreeMap`] and [`BTreeSet`] for all address-keyed and name-keyed collections
+/// to guarantee deterministic serialization order across save and load cycles.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectState {
     /// Schema format version (defaults to `1` for legacy project files without a `version` field).
@@ -118,8 +117,7 @@ pub struct ProjectState {
     /// Project-local enum definitions keyed by enum name.
     #[serde(default)]
     pub enums: BTreeMap<String, EnumDefinition>,
-    /// Per-project user-excluded addresses: always excluded from symbolic
-    /// analysis, independent of the `exclude_well_known_labels` setting.
+    /// Per-project user-excluded addresses that symbolic analysis always skips.
     /// Defaults to empty so existing project files load without errors.
     #[serde(default)]
     pub user_excluded_addresses: BTreeSet<Addr>,
@@ -212,11 +210,11 @@ pub fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
     Ok(raw_data)
 }
 
-/// Compresses a slice of per-byte [`BlockType`]s and inclusive collapsed `(start_offset, end_offset)`
-/// ranges into contiguous [`Block`] spans.
+/// Compresses per-byte [`BlockType`]s and inclusive collapsed `(start_offset, end_offset)` ranges
+/// into contiguous [`Block`] spans.
 ///
-/// `collapsed_ranges` may be unsorted, adjacent, or overlapping (with inverted `start > end`
-/// pairs ignored). Runs in `O(N)` when `collapsed_ranges` is empty and `O(N + C log C)` otherwise.
+/// `collapsed_ranges` may be unsorted, adjacent, or overlapping. The function ignores inverted
+/// `start > end` pairs. It runs in `O(N)` when `collapsed_ranges` is empty and `O(N + C log C)` otherwise.
 #[must_use]
 pub fn compress_block_types(
     types: &[BlockType],
@@ -302,11 +300,16 @@ pub fn compress_block_types(
 }
 
 /// Expands run-length encoded [`Block`] spans into a per-byte [`BlockType`] vector of length `len`
-/// (defaulting uncovered indices to [`BlockType::Code`]) and a list of inclusive collapsed `(start, end)` offset ranges.
+/// and a list of inclusive collapsed `(start, end)` offset ranges.
 ///
-/// Any [`Block`] whose `end` exceeds `len - 1` is clamped to `len - 1`.
+/// Uncovered indices default to [`BlockType::Code`]. The function clamps any [`Block::end`] that
+/// exceeds `len - 1` to `len - 1`.
 #[must_use]
 pub fn expand_blocks(ranges: &[Block], len: usize) -> (Vec<BlockType>, Vec<(usize, usize)>) {
+    if len == 0 {
+        return (Vec::new(), Vec::new());
+    }
+
     let mut types = vec![BlockType::Code; len];
     let mut collapsed_ranges = Vec::new();
 
@@ -454,6 +457,19 @@ mod serialization_tests {
 
         assert_eq!(collapsed.len(), 1);
         assert_eq!(collapsed[0], (2, 3));
+    }
+
+    #[test]
+    fn test_expand_blocks_zero_len_with_non_empty_ranges() {
+        let ranges = vec![Block {
+            start: 0,
+            end: 5,
+            type_: BlockType::DataByte,
+            collapsed: true,
+        }];
+        let (types, collapsed) = expand_blocks(&ranges, 0);
+        assert!(types.is_empty());
+        assert!(collapsed.is_empty());
     }
 
     #[test]

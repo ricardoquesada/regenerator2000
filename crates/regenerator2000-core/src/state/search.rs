@@ -4,11 +4,10 @@
 //! matching, wildcard hex-byte pattern scanning, and PETSCII/Screencode string matching across
 //! [`AppState::disassembly`](crate::state::AppState::disassembly) and collapsed memory blocks.
 //!
-//! To keep TUI search highlights synchronized with [`DisassemblyLine`](crate::disassembler::DisassemblyLine)
-//! rendering across all four assemblers, [`get_line_matches`] computes visual sub-line indices
-//! via [`DisassemblyLine::visual_line_counts`](crate::disassembler::DisassemblyLine::visual_line_counts),
-//! distinguishing standalone [`LabelPlacement::OwnLine`](crate::disassembler::LabelPlacement::OwnLine)
-//! label rows from main opcode rows.
+//! [`get_line_matches`] computes visual sub-line indices via
+//! [`DisassemblyLine::visual_line_counts`](crate::disassembler::DisassemblyLine::visual_line_counts).
+//! This keeps TUI search highlights aligned with [`LabelPlacement::OwnLine`](crate::disassembler::LabelPlacement::OwnLine)
+//! label rows and main opcode rows across all four assemblers.
 
 use crate::state::AppState;
 use crate::utils::{petscii_to_unicode, screencode_to_petscii};
@@ -18,7 +17,7 @@ use regex::Regex;
 // SearchFilters
 // ---------------------------------------------------------------------------
 
-/// Domain flags controlling which disassembly columns and byte representations are searched.
+/// Domain flags that control which disassembly columns and byte representations to search.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchFilters {
     /// Match against primary labels and mid-instruction relative labels.
@@ -31,8 +30,7 @@ pub struct SearchFilters {
     pub hex_bytes: bool,
     /// Match against raw binary bytes decoded as PETSCII and Screencode text (plain-text mode only).
     pub text: bool,
-    /// When `true`, the search query is interpreted as a regular expression.
-    /// Hex-byte and PETSCII/Screencode byte scanning are disabled in regex mode.
+    /// Compile the search query as a regular expression and disable raw byte scanning.
     pub use_regex: bool,
 }
 
@@ -101,8 +99,8 @@ impl SearchFilters {
 
 /// A single disassembly line that matched a search query.
 ///
-/// Returned by [`search_disassembly`] so callers can display context
-/// without issuing a follow-up read request.
+/// [`search_disassembly`] returns this struct so callers can display context
+/// without a follow-up read request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchResult {
     /// Address of the matching disassembly line.
@@ -120,6 +118,10 @@ pub struct SearchResult {
 // Hex pattern helpers
 // ---------------------------------------------------------------------------
 
+/// Parses a hex byte pattern string (`"A9 00"`, `"A900"`, or `"A9 ?? D0"`) into optional bytes.
+///
+/// Each `"??"` pair becomes `None` (wildcard byte). Returns `None` if `query` is empty, has an
+/// odd number of hex digits, or contains non-hex characters.
 #[must_use]
 pub fn parse_hex_pattern(query: &str) -> Option<Vec<Option<u8>>> {
     let mut pattern = Vec::new();
@@ -157,11 +159,10 @@ pub fn parse_hex_pattern(query: &str) -> Option<Vec<Option<u8>>> {
     Some(pattern)
 }
 
-/// Compile a case-insensitive regular expression from `query`.
+/// Compiles a case-insensitive regular expression from `query`.
 ///
-/// Wraps the pattern with `(?i)` so matching is case-insensitive, consistent
-/// with plain-text search mode.  Users who need case-sensitive matching can
-/// override this by prefixing their pattern with `(?-i)`.
+/// Prefixes `query` with `(?i)` for case-insensitive matching. Callers can prefix `query` with
+/// `(?-i)` to enforce case-sensitive matching.
 ///
 /// # Errors
 /// Returns a [`regex::Error`] if `query` is not a valid regular expression.
@@ -170,6 +171,7 @@ pub fn compile_regex(query: &str) -> Result<Regex, regex::Error> {
     Regex::new(&pattern)
 }
 
+/// Returns `true` if `pattern` matches `app_state.raw_data` starting at `address`.
 #[must_use]
 pub fn check_hex_pattern(
     address: crate::state::Addr,
@@ -208,8 +210,7 @@ pub fn check_hex_pattern(
 // String pattern helpers (PETSCII / Screencode)
 // ---------------------------------------------------------------------------
 
-/// Check if the query string matches the raw bytes at the given address.
-/// Checks both PETSCII and Screencode encodings, case-insensitively.
+/// Checks if `query` matches the raw bytes at `address` in PETSCII or Screencode encoding.
 #[must_use]
 pub fn check_string_pattern(
     address: crate::state::Addr,
@@ -239,12 +240,17 @@ pub fn check_string_pattern(
         return false;
     }
 
-    // Check PETSCII encoding (both shifted and unshifted)
+    // Check PETSCII encoding (both shifted and unshifted).
+    // `petscii_to_unicode` maps non-printable control codes to '.', so require `byte == b'.'`
+    // when `query_char == '.'`.
     let petscii_match = (0..=1).any(|shift| {
         let shifted = shift == 1;
         query_chars.iter().enumerate().all(|(i, &query_char)| {
             let idx = start_offset + i;
             let byte = app_state.raw_data[idx];
+            if query_char == '.' && byte != b'.' {
+                return false;
+            }
             let petscii_char = petscii_to_unicode(byte, shifted);
             petscii_char.eq_ignore_ascii_case(&query_char)
         })
@@ -254,13 +260,16 @@ pub fn check_string_pattern(
         return true;
     }
 
-    // Check Screencode encoding (convert to PETSCII first, then to Unicode)
+    // Check Screencode encoding (convert to PETSCII first, then to Unicode).
     let screencode_match = (0..=1).any(|shift| {
         let shifted = shift == 1;
         query_chars.iter().enumerate().all(|(i, &query_char)| {
             let idx = start_offset + i;
             let screencode_byte = app_state.raw_data[idx];
             let petscii_byte = screencode_to_petscii(screencode_byte);
+            if query_char == '.' && petscii_byte != b'.' {
+                return false;
+            }
             let sc_char = petscii_to_unicode(petscii_byte, shifted);
             sc_char.eq_ignore_ascii_case(&query_char)
         })
@@ -277,12 +286,10 @@ pub fn check_string_pattern(
 // Instruction / disassembly-line matching
 // ---------------------------------------------------------------------------
 
-/// Test whether `haystack` contains a match for the query.
+/// Tests whether `haystack` contains a match for the query.
 ///
-/// In plain mode (`regex` is `None`) this performs a case-insensitive
-/// substring search using the pre-lowercased `query_lower`.  In regex mode
-/// (`regex` is `Some`) the compiled regex (already `(?i)`-wrapped) is used
-/// directly on the original string.
+/// In plain mode (`regex` is `None`), performs a case-insensitive substring search with
+/// `query_lower`. In regex mode (`regex` is `Some`), matches `re` against `haystack`.
 #[must_use]
 fn text_matches(haystack: &str, query_lower: &str, regex: Option<&Regex>) -> bool {
     match regex {
@@ -293,9 +300,9 @@ fn text_matches(haystack: &str, query_lower: &str, regex: Option<&Regex>) -> boo
 
 /// Returns `true` when the disassembly line's non-label textual content matches the query.
 ///
-/// Checks hex-byte alignment (in plain-text mode), mnemonic, operand, and side comment,
-/// intentionally excluding [`DisassemblyLine::label`](crate::disassembler::DisassemblyLine::label)
-/// so standalone `OwnLine` labels do not also match the opcode row.
+/// Checks hex-byte alignment (in plain-text mode), mnemonic, operand, and side comment.
+/// Excludes [`DisassemblyLine::label`](crate::disassembler::DisassemblyLine::label) so
+/// standalone `OwnLine` labels do not also match the opcode row.
 #[must_use]
 fn match_instruction_content_without_label(
     line: &crate::disassembler::DisassemblyLine,
@@ -345,9 +352,8 @@ fn match_instruction_content_without_label(
 
 /// Returns `true` when the disassembly line's textual content matches the query.
 ///
-/// Hex-byte matching uses alignment-aware byte-level scanning and is disabled
-/// in regex mode (the query is a pattern, not a hex string).  Mnemonic,
-/// operand, comment, and label fields are matched via text matching.
+/// Hex-byte matching uses byte-aligned scanning in plain-text mode only. Mnemonic, operand,
+/// comment, and label fields use text or regex matching.
 #[must_use]
 pub fn match_instruction_content(
     line: &crate::disassembler::DisassemblyLine,
@@ -371,19 +377,18 @@ pub fn match_instruction_content(
 
 /// Returns the list of visual sub-line indices within `line` that match the query.
 ///
-/// Sub-indices follow [`VisualLineCounts`](crate::disassembler::VisualLineCounts) top-to-bottom ordering:
+/// Sub-indices follow [`VisualLineCounts`](crate::disassembler::VisualLineCounts) top-to-bottom order:
 ///
 /// 1. `0..counts.labels`: Resolved mid-instruction relative labels (`* + offset`).
 /// 2. `counts.labels..counts.labels + counts.comments`: Full-line `line_comment` rows.
-/// 3. [`VisualLineCounts::own_line_label_sub_index()`](crate::disassembler::VisualLineCounts::own_line_label_sub_index)
-///    (`counts.labels + counts.comments`, when [`LabelPlacement::OwnLine`](crate::disassembler::LabelPlacement::OwnLine) holds):
-///    Standalone own-line label row.
+/// 3. [`VisualLineCounts::own_line_label_sub_index()`](crate::disassembler::VisualLineCounts::own_line_label_sub_index):
+///    Standalone own-line label row when [`LabelPlacement::OwnLine`](crate::disassembler::LabelPlacement::OwnLine) holds.
 /// 4. [`VisualLineCounts::opcode_sub_index()`](crate::disassembler::VisualLineCounts::opcode_sub_index):
 ///    The main instruction, directive, equate, or scope row.
 ///
 /// # Arguments
 ///
-/// * `query_lower` – Lowercased query string used for plain-text substring search.
+/// * `query_lower` – Lowercased query string for plain-text substring search.
 /// * `hex_pattern` – Pre-parsed hex byte pattern (`None` in regex mode).
 /// * `regex`       – Compiled case-insensitive regex (`None` in plain-text mode).
 #[must_use]
@@ -489,10 +494,9 @@ pub fn get_line_matches(
     matches
 }
 
-/// Search the expanded content of a collapsed block for a match.
+/// Searches the expanded content of a collapsed block for a match.
 ///
-/// Returns `true` as soon as any line in the block matches, without
-/// materialising the full result set.
+/// Returns `true` as soon as any line in the block matches.
 #[must_use]
 pub fn search_collapsed_content(
     app_state: &AppState,
@@ -525,7 +529,7 @@ pub fn search_collapsed_content(
         cross_refs: &app_state.cross_refs,
         collapsed_blocks: &[],
         splitters: &app_state.splitters,
-        scope_ends: app_state.annotations.scope_ends(),
+        scope_ends: app_state.annotations.scope_ends_set(),
         enums: &app_state.enums,
         user_global_enums: &app_state.user_global_enums,
         builtin_enums: &app_state.builtin_enums,
@@ -545,113 +549,104 @@ pub fn search_collapsed_content(
 // Raw-memory byte scan (used by MCP r2000_search_memory)
 // ---------------------------------------------------------------------------
 
-/// Search raw binary data for a byte pattern, supporting multiple encodings.
+/// Searches raw binary data for a hex or text pattern.
 ///
-/// Returns a list of matching addresses (capped at `max_results`).
+/// Returns up to `max_results` matching 16-bit addresses in ascending order.
 ///
 /// # Errors
-/// Returns an error if an unknown encoding is provided.
+/// Returns an error if `encoding` is unknown or if `"hex"` mode receives an invalid hex pattern.
 pub fn search_memory_raw(
     app_state: &AppState,
     query: &str,
     encoding: Option<&str>,
     max_results: usize,
 ) -> Result<Vec<u16>, String> {
+    if query.trim().is_empty() || max_results == 0 || app_state.raw_data.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    fn strip_hex_prefix(s: &str) -> &str {
+        s.trim_start_matches("0x")
+            .trim_start_matches("0X")
+            .trim_start_matches('$')
+    }
+
     // Determine mode
     let mode = if let Some(enc) = encoding {
         enc
+    } else if query.contains(' ')
+        && query.split_whitespace().all(|s| {
+            let clean = strip_hex_prefix(s);
+            clean == "??" || u8::from_str_radix(clean, 16).is_ok()
+        })
+    {
+        "hex"
     } else {
-        // Simple heuristic: if query contains space and hex-like chars, try hex
-        if query.contains(' ')
-            && query
-                .split_whitespace()
-                .all(|s| u8::from_str_radix(s, 16).is_ok())
-        {
-            "hex"
-        } else {
-            "text"
-        }
+        "text"
     };
 
-    // Build one or more byte-patterns to scan for.
-    let patterns: Vec<Vec<u8>> = match mode {
+    let data_len = app_state.raw_data.len();
+    let origin = app_state.origin;
+    let mut matches = Vec::new();
+
+    match mode {
         "hex" => {
-            let mut bytes = Vec::new();
-            for part in query.split_whitespace() {
-                let clean_part = part
-                    .trim_start_matches("0x")
-                    .trim_start_matches("0X")
-                    .trim_start_matches('$');
-                if let Ok(b) = u8::from_str_radix(clean_part, 16) {
-                    bytes.push(b);
+            let normalized: String = query
+                .split_whitespace()
+                .map(strip_hex_prefix)
+                .collect::<Vec<_>>()
+                .join(" ");
+            let pattern = parse_hex_pattern(&normalized)
+                .ok_or_else(|| format!("Invalid hex pattern: {query}"))?;
+            if pattern.len() > data_len {
+                return Ok(Vec::new());
+            }
+            for i in 0..=data_len - pattern.len() {
+                let addr = origin.wrapping_add(i as u16);
+                if check_hex_pattern(addr, &pattern, app_state) {
+                    matches.push(addr.0);
+                    if matches.len() >= max_results {
+                        break;
+                    }
                 }
             }
-            vec![bytes]
         }
         "text" => {
-            // Search both PETSCII and Screencode encodings.
-            let petscii_bytes: Vec<u8> = query.chars().map(ascii_char_to_petscii).collect();
-            let screencode_bytes: Vec<u8> = petscii_bytes
-                .iter()
-                .map(|&p| petscii_to_screencode_simple(p))
-                .collect();
-            if petscii_bytes == screencode_bytes {
-                vec![petscii_bytes]
-            } else {
-                vec![petscii_bytes, screencode_bytes]
+            let filters = SearchFilters::default();
+            let query_len = query.chars().count();
+            if query_len == 0 || query_len > data_len {
+                return Ok(Vec::new());
+            }
+            for i in 0..=data_len - query_len {
+                let addr = origin.wrapping_add(i as u16);
+                if check_string_pattern(addr, query, app_state, &filters) {
+                    matches.push(addr.0);
+                    if matches.len() >= max_results {
+                        break;
+                    }
+                }
             }
         }
         _ => {
             return Err(format!("Unknown encoding: {mode}"));
         }
-    };
-
-    if patterns.iter().all(std::vec::Vec::is_empty) {
-        return Ok(Vec::new());
     }
 
-    let data = &app_state.raw_data;
-    let origin = app_state.origin;
-
-    // Collect matching addresses from all patterns, deduplicated and sorted.
-    let mut found_set = std::collections::BTreeSet::new();
-
-    for pattern in &patterns {
-        if pattern.is_empty() || data.len() < pattern.len() {
-            continue;
-        }
-        for i in 0..=data.len() - pattern.len() {
-            if data[i..i + pattern.len()] == pattern[..] {
-                found_set.insert(origin.wrapping_add(i as u16));
-                if found_set.len() >= max_results {
-                    break;
-                }
-            }
-        }
-        if found_set.len() >= max_results {
-            break;
-        }
-    }
-
-    Ok(found_set.into_iter().map(|a| a.0).collect())
+    Ok(matches)
 }
 
 // ---------------------------------------------------------------------------
 // search_disassembly
 // ---------------------------------------------------------------------------
 
-/// Search all disassembly lines for `query`, returning structured results.
+/// Searches all disassembly lines for `query` and returns up to `max_results` structured matches.
 ///
-/// `filters.use_regex` controls whether the query is compiled as a
-/// case-insensitive regular expression (via [`compile_regex`]) or treated as
-/// a plain case-insensitive substring.  `filters.hex_bytes` and `filters.text`
-/// are ignored here — raw-byte scanning is not meaningful for disassembly text.
-///
-/// Results are capped at `max_results`.
+/// When `filters.use_regex` is `true`, compiles `query` as a case-insensitive regular expression
+/// via [`compile_regex`]. When `filters.use_regex` is `false`, matches `query` as a case-insensitive
+/// substring across the enabled [`SearchFilters`] fields.
 ///
 /// # Errors
-/// Returns a `String` error if `filters.use_regex` is `true` and `query` is
-/// not a valid regular expression.
+/// Returns a `String` error if `filters.use_regex` is `true` and `query` is not a valid regular expression.
 #[must_use = "search results should be inspected or returned to the caller"]
 pub fn search_disassembly(
     app_state: &AppState,
@@ -689,29 +684,6 @@ pub fn search_disassembly(
     }
 
     Ok(results)
-}
-
-// ---------------------------------------------------------------------------
-// Encoding helpers (moved from mcp/handler.rs)
-// ---------------------------------------------------------------------------
-
-fn ascii_char_to_petscii(c: char) -> u8 {
-    let b = c as u8;
-    match b {
-        b'a'..=b'z' => b - 32, // 'a' (97) -> 'A' (65) (Unshifted PETSCII)
-        b'A'..=b'Z' => b + 32, // 'A' (65) -> 'a' (97) (Shifted PETSCII / Graphics)
-        _ => b,                // Numbers, punctuation mostly map 1:1 for basic ASCII
-    }
-}
-
-fn petscii_to_screencode_simple(petscii: u8) -> u8 {
-    match petscii {
-        0x40..=0x5F => petscii - 0x40,
-        0x20..=0x3F => petscii,
-        0x60..=0x7F => petscii - 0x20,
-        0xA0..=0xBF => petscii - 0x40,
-        _ => petscii, // Fallback
-    }
 }
 
 // ===========================================================================
@@ -1224,5 +1196,137 @@ mod tests_string {
             }
         }
         assert!(found_at_any_offset, "Should find 'landing' at offset 1");
+    }
+
+    #[test]
+    fn test_check_string_pattern_dot_does_not_match_control_bytes() {
+        let mut app_state = AppState::new();
+        app_state.raw_data = vec![0x00, 0x0D, 0x80, b'.'];
+        app_state.origin = crate::state::Addr(0x1000);
+        let filters = SearchFilters::default();
+
+        assert!(!check_string_pattern(
+            crate::state::Addr(0x1000),
+            ".",
+            &app_state,
+            &filters,
+        ));
+        assert!(!check_string_pattern(
+            crate::state::Addr(0x1001),
+            ".",
+            &app_state,
+            &filters,
+        ));
+        assert!(!check_string_pattern(
+            crate::state::Addr(0x1002),
+            ".",
+            &app_state,
+            &filters,
+        ));
+        assert!(check_string_pattern(
+            crate::state::Addr(0x1003),
+            ".",
+            &app_state,
+            &filters,
+        ));
+    }
+
+    #[test]
+    fn test_search_memory_raw_hex_and_text() {
+        let mut app_state = AppState::new();
+        // $1000: A9 00 8D 20 D0
+        // $1005: 48 45 4C 4C 4F ("HELLO" PETSCII)
+        // $100A: 08 05 0C 0C 0F ("hello" Screencode)
+        app_state.raw_data = vec![
+            0xA9, 0x00, 0x8D, 0x20, 0xD0, 0x48, 0x45, 0x4C, 0x4C, 0x4F, 0x08, 0x05, 0x0C, 0x0C,
+            0x0F,
+        ];
+        app_state.origin = crate::state::Addr(0x1000);
+
+        // Hex search (spaced, prefixed, unspaced, wildcard)
+        assert_eq!(
+            search_memory_raw(&app_state, "A9 00", Some("hex"), 10).unwrap(),
+            vec![0x1000]
+        );
+        assert_eq!(
+            search_memory_raw(&app_state, "0x8D $20", Some("hex"), 10).unwrap(),
+            vec![0x1002]
+        );
+        assert_eq!(
+            search_memory_raw(&app_state, "8D20D0", Some("hex"), 10).unwrap(),
+            vec![0x1002]
+        );
+        assert_eq!(
+            search_memory_raw(&app_state, "A9 ?? 8D", Some("hex"), 10).unwrap(),
+            vec![0x1000]
+        );
+
+        // Invalid hex returns Err
+        assert!(search_memory_raw(&app_state, "A9 ZZ", Some("hex"), 10).is_err());
+
+        // Text search matches both PETSCII and Screencode case-insensitively
+        let text_hits = search_memory_raw(&app_state, "hello", Some("text"), 10).unwrap();
+        assert_eq!(text_hits, vec![0x1005, 0x100A]);
+
+        // Unknown encoding returns Err
+        assert!(search_memory_raw(&app_state, "hello", Some("octal"), 10).is_err());
+    }
+
+    #[test]
+    fn test_search_collapsed_content_and_search_disassembly() {
+        let mut app_state = AppState::new();
+        // $1000: LDA #$00 (A9 00)
+        // $1002: STA $D020 (8D 20 D0)
+        // $1005: RTS (60)
+        app_state.raw_data = vec![0xA9, 0x00, 0x8D, 0x20, 0xD0, 0x60];
+        app_state.origin = crate::state::Addr(0x1000);
+        app_state.block_types = vec![crate::state::BlockType::Code; 6];
+        app_state
+            .annotations
+            .update(crate::state::Addr(0x1002), |e| {
+                e.user_side_comment = Some("border_color_write".to_string());
+            });
+        app_state.disassemble();
+
+        // Plain-text disassembly search
+        let default_filters = SearchFilters::default();
+        let hits =
+            search_disassembly(&app_state, "border_color_write", &default_filters, 10).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].address, crate::state::Addr(0x1002));
+
+        // Regex disassembly search
+        let regex_filters = SearchFilters {
+            use_regex: true,
+            ..SearchFilters::default()
+        };
+        let regex_hits = search_disassembly(&app_state, r"^\$d020$", &regex_filters, 10).unwrap();
+        assert_eq!(regex_hits.len(), 1);
+        assert_eq!(regex_hits[0].address, crate::state::Addr(0x1002));
+
+        // Invalid regex returns Err
+        assert!(search_disassembly(&app_state, "[unclosed", &regex_filters, 10).is_err());
+
+        // Collapse bytes 0..=4 ($1000..=$1004) and verify search_collapsed_content finds the inner comment
+        app_state.collapsed_blocks.push((0, 4));
+        app_state.disassemble();
+        assert!(search_collapsed_content(
+            &app_state,
+            0,
+            4,
+            "border_color_write",
+            None,
+            None,
+            &default_filters,
+        ));
+        assert!(!search_collapsed_content(
+            &app_state,
+            0,
+            4,
+            "nonexistent_token",
+            None,
+            None,
+            &default_filters,
+        ));
     }
 }

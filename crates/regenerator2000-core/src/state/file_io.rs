@@ -1,3 +1,5 @@
+//! File and project loading, saving, binary unpacking integration, and VICE label import/export.
+
 use super::app_state::AppState;
 use super::project::{
     LoadedProjectData, PROJECT_FORMAT_VERSION, ProjectSaveContext, ProjectState,
@@ -11,14 +13,14 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 /// Controls whether entry-point flow analysis and the `"start"` user label
-/// are applied when loading or importing a binary.
+/// run when the application loads or imports a binary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EntryAnalysisMode {
-    /// Run flow analysis from the entry point, mark reachable ranges as
-    /// [`BlockType::Code`], and attach a `"start"` user label at the entry point.
+    /// Runs flow analysis from the entry point, marks reachable ranges as
+    /// [`BlockType::Code`], and adds a `"start"` user label at the entry point.
     #[default]
     AnalyzeAndLabel,
-    /// Do not mark reachable ranges as code or attach a `"start"` user label.
+    /// Skips entry-point flow analysis and does not add a `"start"` user label.
     SkipEntryAnalysis,
 }
 
@@ -28,17 +30,17 @@ pub type UnpackEntryMode = EntryAnalysisMode;
 /// Summary and metadata returned by [`AppState::apply_unpack_result`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnpackOutcome {
-    /// Human-readable summary suitable for the TUI status bar and MCP response.
+    /// Human-readable summary for the TUI status bar and MCP response.
     pub summary: String,
     /// Start address (origin) of the unpacked image.
     pub start_addr: Addr,
-    /// End address (inclusive) of the unpacked image.
+    /// Inclusive end address of the unpacked image.
     pub end_addr: Addr,
-    /// Entry point address of the unpacked image.
+    /// Entry-point address of the unpacked image.
     pub entry_point: Addr,
     /// Detected packer display name, if any.
     pub packer_name: Option<String>,
-    /// Why emulation stopped.
+    /// Reason why emulation stopped.
     pub exit_reason: crate::unpacker::ExitReason,
 }
 
@@ -78,135 +80,144 @@ impl std::fmt::Display for UnpackOutcome {
 }
 
 impl AppState {
-    /// Loads a file into the application state.
-    ///
-    /// # Errors
-    /// Returns an error if the file cannot be read, parsed, or if the extension is unsupported.
-    pub fn load_file(&mut self, path: impl AsRef<std::path::Path>) -> Result<LoadedProjectData> {
-        let path = path.as_ref();
-        let data = std::fs::read(path).with_path(path)?;
-        self.file_path = Some(path.to_path_buf());
-        self.project_path = None; // clear project path
-        self.export_asm_path = None; // clear export paths
+    /// Resets per-document state fields before a new binary or project replaces the active document.
+    fn reset_document_state(&mut self, file_path: Option<PathBuf>, project_path: Option<PathBuf>) {
+        self.file_path = file_path;
+        self.project_path = project_path;
+        self.export_asm_path = None;
         self.export_html_path = None;
-        self.labels.clear(); // clear existing labels
-        self.settings = DocumentSettings::default(); // reset settings
+        self.entry_point = None;
+        self.labels.clear();
+        self.settings = DocumentSettings::default();
         self.annotations.clear();
+        self.cross_refs.clear();
         self.enums.clear();
-        self.collapsed_blocks.clear(); // clear collapsed blocks
-        self.splitters.clear(); // clear splitters
+        self.collapsed_blocks.clear();
+        self.splitters.clear();
         self.user_excluded_addresses.clear();
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
         self.last_export_asm_filename = None;
         self.last_export_html_filename = None;
+        self.undo_stack = crate::commands::UndoStack::new();
+        self.last_saved_pointer = 0;
+    }
 
-        let mut cursor_start = None;
-        let hex_cursor_start = None;
-        let mut suggested_system = None;
-
-        if let Some(ext) = self
-            .file_path
-            .as_ref()
-            .and_then(|p| p.extension())
-            .and_then(|e| e.to_str())
-        {
-            if ext.eq_ignore_ascii_case("regen2000proj") {
-                // If we loaded a project successfully, update system config
-                let res = self.load_project(path);
-                if res.is_ok() {
-                    let abs_path =
-                        std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-                    self.system_config.last_project_path = Some(abs_path.clone());
-                    self.system_config.add_recent_project(abs_path);
-                    let _ = self.system_config.save();
-                }
-                return res;
-            }
-
-            if ext.eq_ignore_ascii_case("dis65") {
-                let res = self.load_dis65_project(path);
-                if res.is_ok() {
-                    let abs_path =
-                        std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-                    self.system_config.last_project_path = Some(abs_path);
-                    let _ = self.system_config.save();
-                }
-                return res;
-            }
-
-            if ext.eq_ignore_ascii_case("prg") || ext.eq_ignore_ascii_case("t64") {
-                let prg_bytes_holder;
-                let prg_ref = if ext.eq_ignore_ascii_case("prg") {
-                    &data
-                } else {
-                    prg_bytes_holder = crate::parser::t64::parse_t64(&data).map_err(|e| {
-                        CoreError::ParseFailed {
-                            format: "t64".to_string(),
-                            message: format!("{e:#}"),
-                        }
-                    })?;
-                    &prg_bytes_holder
-                };
-                let prg_data =
-                    crate::parser::prg::parse_prg(prg_ref).map_err(|e| CoreError::ParseFailed {
-                        format: "prg".to_string(),
-                        message: format!("{e:#}"),
-                    })?;
-                self.origin = Addr(prg_data.origin);
-                self.raw_data = prg_data.raw_data;
-                let default_system = if ext.eq_ignore_ascii_case("t64") {
-                    Some(System::new(System::C64))
-                } else {
-                    None
-                };
-                suggested_system = prg_data.suggested_system.or(default_system);
-                cursor_start = prg_data.suggested_entry_point;
-            } else if ext.eq_ignore_ascii_case("crt") {
-                let (origin, raw_data) =
-                    crate::parser::crt::parse_crt(&data).map_err(|e| CoreError::ParseFailed {
-                        format: "crt".to_string(),
-                        message: format!("{e:#}"),
-                    })?;
-                self.origin = Addr(origin);
-                self.raw_data = raw_data;
-            } else if ext.eq_ignore_ascii_case("vsf") {
-                let vsf_data = crate::parser::vice_vsf::parse_vsf(&data).map_err(|e| {
-                    CoreError::ParseFailed {
-                        format: "vsf".to_string(),
-                        message: format!("{e:#}"),
-                    }
-                })?;
-                self.origin = Addr::ZERO;
-                self.raw_data = vsf_data.memory;
-                cursor_start = vsf_data.start_address;
-                suggested_system = match vsf_data.machine_name.as_str() {
-                    "C64" => Some(System::C64),
-                    "C128" => Some(System::C128),
-                    "VIC20" => Some(System::Vic20),
-                    "PET" => Some(System::Pet40),
-                    "PLUS4" => Some(System::Plus4),
-                    _ => None,
-                };
-            } else if ext.eq_ignore_ascii_case("bin") || ext.eq_ignore_ascii_case("raw") {
-                self.origin = Addr::ZERO; // Default for .bin
-                self.raw_data = data;
-            } else {
-                return Err(CoreError::ParseFailed {
-                    format: ext.to_string(),
-                    message: format!(
-                        "Unsupported file extension: .{ext}\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .dis65, .regen2000proj"
-                    ),
-                });
-            }
-        } else {
+    /// Loads a binary or project file from `path` into the application state.
+    ///
+    /// If reading or parsing fails, the existing document state remains unchanged.
+    ///
+    /// # Errors
+    /// Returns an error if `path` has no supported extension, cannot be read, or fails to parse.
+    pub fn load_file(&mut self, path: impl AsRef<std::path::Path>) -> Result<LoadedProjectData> {
+        let path = path.as_ref();
+        let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
             return Err(CoreError::ParseFailed {
                 format: "none".to_string(),
                 message: "File has no extension.\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .regen2000proj".to_string(),
             });
+        };
+
+        if ext.eq_ignore_ascii_case("regen2000proj") {
+            let res = self.load_project(path);
+            if res.is_ok() {
+                let abs_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+                self.system_config.last_project_path = Some(abs_path.clone());
+                self.system_config.add_recent_project(abs_path);
+                let _ = self.system_config.save();
+            }
+            return res;
         }
 
+        if ext.eq_ignore_ascii_case("dis65") {
+            let res = self.load_dis65_project(path);
+            if res.is_ok() {
+                let abs_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+                self.system_config.last_project_path = Some(abs_path);
+                let _ = self.system_config.save();
+            }
+            return res;
+        }
+
+        let is_supported_binary = ext.eq_ignore_ascii_case("prg")
+            || ext.eq_ignore_ascii_case("t64")
+            || ext.eq_ignore_ascii_case("crt")
+            || ext.eq_ignore_ascii_case("vsf")
+            || ext.eq_ignore_ascii_case("bin")
+            || ext.eq_ignore_ascii_case("raw");
+
+        if !is_supported_binary {
+            return Err(CoreError::ParseFailed {
+                format: ext.to_string(),
+                message: format!(
+                    "Unsupported file extension: .{ext}\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .dis65, .regen2000proj"
+                ),
+            });
+        }
+
+        let data = std::fs::read(path).with_path(path)?;
+        let mut cursor_start = None;
+        let hex_cursor_start = None;
+        let mut suggested_system = None;
+
+        let (parsed_origin, parsed_raw_data) = if ext.eq_ignore_ascii_case("prg")
+            || ext.eq_ignore_ascii_case("t64")
+        {
+            let prg_bytes_holder;
+            let prg_ref = if ext.eq_ignore_ascii_case("prg") {
+                &data
+            } else {
+                prg_bytes_holder =
+                    crate::parser::t64::parse_t64(&data).map_err(|e| CoreError::ParseFailed {
+                        format: "t64".to_string(),
+                        message: format!("{e:#}"),
+                    })?;
+                &prg_bytes_holder
+            };
+            let prg_data =
+                crate::parser::prg::parse_prg(prg_ref).map_err(|e| CoreError::ParseFailed {
+                    format: "prg".to_string(),
+                    message: format!("{e:#}"),
+                })?;
+            let default_system = if ext.eq_ignore_ascii_case("t64") {
+                Some(System::new(System::C64))
+            } else {
+                None
+            };
+            suggested_system = prg_data.suggested_system.or(default_system);
+            cursor_start = prg_data.suggested_entry_point;
+            (Addr(prg_data.origin), prg_data.raw_data)
+        } else if ext.eq_ignore_ascii_case("crt") {
+            let (origin, raw_data) =
+                crate::parser::crt::parse_crt(&data).map_err(|e| CoreError::ParseFailed {
+                    format: "crt".to_string(),
+                    message: format!("{e:#}"),
+                })?;
+            (Addr(origin), raw_data)
+        } else if ext.eq_ignore_ascii_case("vsf") {
+            let vsf_data =
+                crate::parser::vice_vsf::parse_vsf(&data).map_err(|e| CoreError::ParseFailed {
+                    format: "vsf".to_string(),
+                    message: format!("{e:#}"),
+                })?;
+            cursor_start = vsf_data.start_address;
+            suggested_system = match vsf_data.machine_name.as_str() {
+                "C64" => Some(System::C64),
+                "C128" => Some(System::C128),
+                "VIC20" => Some(System::Vic20),
+                "PET" => Some(System::Pet40),
+                "PLUS4" => Some(System::Plus4),
+                _ => None,
+            };
+            (Addr::ZERO, vsf_data.memory)
+        } else {
+            (Addr::ZERO, data)
+        };
+
+        self.reset_document_state(Some(path.to_path_buf()), None);
+        self.origin = parsed_origin;
+        self.raw_data = parsed_raw_data;
         self.entry_point = cursor_start.map(Addr);
         self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
         let initial_block_type = if self.system_config.default_is_unexplored {
@@ -215,16 +226,12 @@ impl AppState {
             BlockType::Code
         };
         self.block_types = vec![initial_block_type; self.raw_data.len()];
-        self.undo_stack = crate::commands::UndoStack::new();
-        self.last_saved_pointer = 0;
 
         self.load_system_assets();
-        self.disassemble();
-        self.load_system_assets();
-        self.disassemble();
-
         if self.settings.auto_analyze {
             self.perform_analysis();
+        } else {
+            self.disassemble();
         }
 
         Ok(LoadedProjectData {
@@ -246,11 +253,12 @@ impl AppState {
         })
     }
 
-    /// Loads binary data directly into the application state.
+    /// Loads raw binary `data` at `origin` into the application state.
     ///
     /// # Errors
-    /// Returns an error if the internal project structures cannot be initialized.
+    /// Returns an error if internal project structures cannot be initialized.
     pub fn load_binary(&mut self, origin: Addr, data: Vec<u8>) -> Result<LoadedProjectData> {
+        self.reset_document_state(None, None);
         self.origin = origin;
         self.raw_data = data;
         self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
@@ -260,32 +268,12 @@ impl AppState {
             BlockType::Code
         };
         self.block_types = vec![initial_block_type; self.raw_data.len()];
-        self.undo_stack = crate::commands::UndoStack::new();
-        self.last_saved_pointer = 0;
-        self.project_path = None;
-        self.file_path = None;
-        self.export_asm_path = None;
-        self.export_html_path = None;
-        self.labels.clear();
-        self.settings = DocumentSettings::default();
-        self.annotations.clear();
-        self.enums.clear();
-        self.collapsed_blocks.clear();
-        self.splitters.clear();
-        self.user_excluded_addresses.clear();
-        self.last_import_labels_path = None;
-        self.last_export_labels_filename = None;
-        self.last_save_as_filename = None;
-        self.last_export_asm_filename = None;
-        self.last_export_html_filename = None;
 
         self.load_system_assets();
-        self.disassemble();
-        self.load_system_assets();
-        self.disassemble();
-
         if self.settings.auto_analyze {
             self.perform_analysis();
+        } else {
+            self.disassemble();
         }
 
         Ok(LoadedProjectData {
@@ -307,9 +295,8 @@ impl AppState {
         })
     }
 
-    /// Resets binary data, block types, labels, annotations, and undo stack for an
-    /// unpacked binary while preserving existing document properties (such as
-    /// settings, file/project/export paths, enums, and user-excluded addresses).
+    /// Resets binary data, block types, labels, annotations, and the undo stack for an
+    /// unpacked binary while keeping document settings, paths, enums, and excluded addresses.
     fn reset_for_unpacked_binary(
         &mut self,
         origin: Addr,
@@ -337,11 +324,10 @@ impl AppState {
         self.load_system_assets();
     }
 
-    /// Loads unpacked binary data directly into the application state while preserving
-    /// existing document properties (such as settings, project paths, and enums).
+    /// Loads unpacked binary `data` at `origin` while keeping document settings, paths, and enums.
     ///
     /// # Errors
-    /// Returns an error if the internal project structures cannot be initialized.
+    /// Returns an error if internal project structures cannot be initialized.
     pub fn load_unpacked_binary(
         &mut self,
         origin: Addr,
@@ -376,19 +362,18 @@ impl AppState {
         })
     }
 
-    /// Applies an [`crate::unpacker::UnpackResult`] to the application state using
+    /// Applies an [`crate::unpacker::UnpackResult`] to the application state with
     /// [`EntryAnalysisMode::AnalyzeAndLabel`].
     ///
-    /// This loads the unpacked binary at [`crate::unpacker::UnpackResult::start_addr`],
+    /// This method loads the unpacked binary at [`crate::unpacker::UnpackResult::start_addr`],
     /// runs flow analysis from [`crate::unpacker::UnpackResult::entry_point`] to mark
-    /// reachable ranges as [`BlockType::Code`], attaches a single `"start"` user label
-    /// at the entry point, and runs a single analysis or disassembly pass.
+    /// reachable ranges as [`BlockType::Code`], adds a `"start"` user label at the entry point,
+    /// and runs one analysis or disassembly pass.
     pub fn apply_unpack_result(&mut self, result: &crate::unpacker::UnpackResult) -> UnpackOutcome {
         self.apply_unpack_result_with_mode(result, EntryAnalysisMode::AnalyzeAndLabel)
     }
 
-    /// Applies an [`crate::unpacker::UnpackResult`] to the application state using
-    /// the specified [`EntryAnalysisMode`].
+    /// Applies an [`crate::unpacker::UnpackResult`] to the application state using `mode`.
     pub fn apply_unpack_result_with_mode(
         &mut self,
         result: &crate::unpacker::UnpackResult,
@@ -516,11 +501,11 @@ impl AppState {
         self.cross_refs.clear();
     }
 
-    /// Marks reachable code blocks from `entry` via flow analysis and attaches
+    /// Marks reachable code blocks from `entry` via flow analysis and adds
     /// the `"start"` user label when `mode` is [`EntryAnalysisMode::AnalyzeAndLabel`].
     ///
-    /// This method is idempotent for an unchanged `(entry, mode)` pair and rolls back
-    /// previously applied entry code marks and `"start"` label if `entry` or `mode` changes.
+    /// This method is idempotent for an unchanged `(entry, mode)` pair. If `entry` or
+    /// `mode` changes, it rolls back previously applied entry code marks and the `"start"` label.
     pub fn mark_entry_code_and_label(&mut self, entry: Addr, mode: EntryAnalysisMode) {
         if mode == EntryAnalysisMode::AnalyzeAndLabel
             && self.entry_point == Some(entry)
@@ -555,14 +540,12 @@ impl AppState {
         }
     }
 
-    /// Applies the import context (target system, origin address, entry point,
-    /// and entry-analysis mode) to the current binary in a single analysis pass.
+    /// Applies the import context (`system`, `origin`, `entry`, and `mode`) to the loaded
+    /// binary in a single analysis pass.
     ///
-    /// When called after [`Self::apply_unpack_result`] with identical `(system, origin,
-    /// entry, mode)`, this method is idempotent: it does not create a duplicate `"start"`
-    /// label or push duplicate commands onto [`Self::undo_stack`]. When the entry point,
-    /// origin, or analysis mode changes, any previously auto-applied entry code marks
-    /// and `"start"` label are cleanly rolled back before the new entry context is applied.
+    /// When called after [`Self::apply_unpack_result`] with the same parameters, this method
+    /// is idempotent and does not duplicate the `"start"` label or undo commands. When any
+    /// parameter changes, it rolls back prior entry code marks and the `"start"` label first.
     pub fn apply_import_context(
         &mut self,
         system: System,
@@ -618,6 +601,10 @@ impl AppState {
         }
     }
 
+    /// Loads `file_to_load` if provided, or reopens the last saved project when
+    /// `system_config.open_last_project` is enabled.
+    ///
+    /// Returns `None` if no initial file is requested or configured.
     pub fn resolve_initial_load(
         &mut self,
         file_to_load: Option<&str>,
@@ -635,10 +622,10 @@ impl AppState {
         }
     }
 
-    /// Loads a `.regen2000proj` project file.
+    /// Loads a `.regen2000proj` project file from `path`.
     ///
     /// # Errors
-    /// Returns an error if the file cannot be read, parsed, or if the format version is unsupported.
+    /// Returns an error if the file cannot be read, parsed, or uses an unsupported format version.
     pub fn load_project(&mut self, path: impl AsRef<std::path::Path>) -> Result<LoadedProjectData> {
         let path = path.as_ref();
         let data = std::fs::read_to_string(path).with_path(path)?;
@@ -657,16 +644,17 @@ impl AppState {
             .into());
         }
 
-        self.project_path = Some(path.to_path_buf());
-        self.schema_version = project.version;
-        self.origin = project.origin;
-
-        // Decode raw data
-        self.raw_data =
+        // Decode raw data before mutating self so a corrupt base64 payload leaves state intact
+        let decoded_raw_data =
             decode_raw_data_from_base64(&project.raw_data).map_err(|e| CoreError::ParseFailed {
                 format: "base64".to_string(),
                 message: format!("{e:#}"),
             })?;
+
+        self.reset_document_state(Some(path.to_path_buf()), Some(path.to_path_buf()));
+        self.schema_version = project.version;
+        self.origin = project.origin;
+        self.raw_data = decoded_raw_data;
         self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
 
         // Expand address types and collapsed blocks
@@ -677,26 +665,8 @@ impl AppState {
         self.annotations = project.annotations;
         self.enums = project.enums;
         self.settings = project.settings;
-
-        // Migration for legacy system names
-        match self.settings.system.as_str() {
-            "Commodore64" => self.settings.system = System::C64,
-            "Commodore128" => self.settings.system = System::C128,
-            "Commodore1541" => self.settings.system = System::C1541,
-            "CommodorePET20" => self.settings.system = System::Pet20,
-            "CommodorePET40" => self.settings.system = System::Pet40,
-            "CommodorePlus4" => self.settings.system = System::Plus4,
-            "CommodoreVIC20" => self.settings.system = System::Vic20,
-            _ => {}
-        }
-
         self.splitters = project.splitters;
         self.user_excluded_addresses = project.user_excluded_addresses;
-        self.last_import_labels_path = None;
-        self.last_export_labels_filename = None;
-        self.last_save_as_filename = None;
-        self.last_export_asm_filename = None;
-        self.last_export_html_filename = None;
 
         self.load_system_assets();
 
@@ -708,8 +678,6 @@ impl AppState {
         }
 
         self.collapsed_blocks = collapsed_ranges;
-        self.undo_stack = crate::commands::UndoStack::new();
-        self.last_saved_pointer = 0;
 
         self.disassemble();
         Ok(LoadedProjectData {
@@ -731,10 +699,11 @@ impl AppState {
         })
     }
 
-    /// Loads a `.dis65` project file.
+    /// Loads a `.dis65` project file and its companion binary from `path`.
     ///
     /// # Errors
-    /// Returns an error if the file cannot be read, parsed, or if the CRC32 validation fails.
+    /// Returns an error if the `.dis65` file or companion binary cannot be read, fails to parse,
+    /// or fails CRC32 verification.
     pub fn load_dis65_project(
         &mut self,
         path: impl AsRef<std::path::Path>,
@@ -770,6 +739,7 @@ impl AppState {
             .into());
         }
 
+        self.reset_document_state(Some(path.to_path_buf()), None);
         self.raw_data = binary_data;
         self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
 
@@ -847,14 +817,7 @@ impl AppState {
             }
         }
 
-        self.undo_stack = crate::commands::UndoStack::new();
-        self.last_saved_pointer = 0;
-
         self.load_system_assets();
-        self.disassemble();
-        self.load_system_assets();
-        self.disassemble();
-
         self.perform_analysis(); // We need xrefs first!
 
         // === LocalOrGlobalAddr Heuristic (Iterative Fixed-Point) ===
@@ -920,10 +883,10 @@ impl AppState {
         })
     }
 
-    /// Saves the current project state.
+    /// Saves the current project state to [`AppState::project_path`].
     ///
     /// # Errors
-    /// Returns an error if the project path is not set or if writing the file fails.
+    /// Returns an error if [`AppState::project_path`] is `None` or if writing the file fails.
     pub fn save_project(
         &mut self,
         ctx: ProjectSaveContext,
@@ -1211,6 +1174,100 @@ mod load_file_tests {
         assert!(err_msg.contains("has no extension"));
 
         let _ = std::fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn test_load_file_error_preserves_existing_state() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0xC000);
+        app_state.raw_data = vec![0xA9, 0x01, 0x60];
+        app_state.settings.system = System::Vic20;
+        app_state.annotations.update(Addr(0xC000), |e| {
+            e.user_side_comment = Some("keep_me".to_string());
+        });
+
+        let dir = std::env::temp_dir();
+        let bad_ext_path = dir.join("test_preserve_state.xyz");
+        let corrupt_prg_path = dir.join("test_preserve_corrupt.prg");
+        std::fs::write(&bad_ext_path, b"dummy").unwrap();
+        // 1-byte .prg is invalid (requires at least 2-byte load address)
+        std::fs::write(&corrupt_prg_path, [0x01]).unwrap();
+
+        assert!(app_state.load_file(&bad_ext_path).is_err());
+        assert!(app_state.load_file(&corrupt_prg_path).is_err());
+
+        assert_eq!(app_state.origin, Addr(0xC000));
+        assert_eq!(app_state.raw_data, vec![0xA9, 0x01, 0x60]);
+        assert_eq!(app_state.settings.system, System::Vic20);
+        assert_eq!(
+            app_state
+                .annotations
+                .get(Addr(0xC000))
+                .and_then(|e| e.user_side_comment.as_deref()),
+            Some("keep_me")
+        );
+
+        let _ = std::fs::remove_file(bad_ext_path);
+        let _ = std::fs::remove_file(corrupt_prg_path);
+    }
+
+    #[test]
+    fn test_load_binary_and_project_clear_entry_point_and_cross_refs() {
+        let mut app_state = AppState::new();
+        app_state.entry_point = Some(Addr(0x080D));
+        app_state
+            .cross_refs
+            .insert(Addr(0x1000), vec![XRef::new(Addr(0x080D), XRefKind::Call)]);
+        app_state.settings.auto_analyze = false;
+
+        // load_binary with auto_analyze = false must clear entry_point and cross_refs
+        app_state.settings.auto_analyze = false;
+        let _ = app_state.load_binary(Addr(0x2000), vec![0xEA]).unwrap();
+        assert_eq!(app_state.entry_point, None);
+        assert!(app_state.cross_refs.is_empty());
+
+        // Set entry_point and cross_refs again, then load a project with auto_analyze = false
+        app_state.entry_point = Some(Addr(0x2000));
+        app_state
+            .cross_refs
+            .insert(Addr(0x3000), vec![XRef::new(Addr(0x2000), XRefKind::Jump)]);
+
+        let settings = crate::state::DocumentSettings {
+            auto_analyze: false,
+            ..Default::default()
+        };
+        let project = crate::state::ProjectState {
+            version: 1,
+            origin: Addr(0x4000),
+            raw_data: crate::state::encode_raw_data_to_base64(&[0x60]).unwrap(),
+            blocks: vec![],
+            labels: std::collections::BTreeMap::new(),
+            annotations: crate::state::AnnotationManager::default(),
+            settings,
+            cursor_address: None,
+            hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
+            charset_cursor_address: None,
+            bitmap_cursor_address: None,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
+            bitmap_multicolor_mode: false,
+            hexdump_view_mode: HexdumpViewMode::default(),
+            splitters: std::collections::BTreeSet::new(),
+            blocks_view_cursor: None,
+            enums: std::collections::BTreeMap::new(),
+            user_excluded_addresses: std::collections::BTreeSet::new(),
+        };
+        let dir = std::env::temp_dir();
+        let proj_path = dir.join("test_clear_entry_and_xrefs.regen2000proj");
+        std::fs::write(&proj_path, serde_json::to_string(&project).unwrap()).unwrap();
+
+        let _ = app_state.load_project(&proj_path).unwrap();
+        assert_eq!(app_state.entry_point, None);
+        assert!(app_state.cross_refs.is_empty());
+
+        let _ = std::fs::remove_file(proj_path);
     }
 }
 

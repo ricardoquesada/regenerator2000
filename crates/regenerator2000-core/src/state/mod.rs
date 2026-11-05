@@ -1,3 +1,5 @@
+//! Application state, project serialization, annotations, search, and core domain types.
+
 pub mod actions;
 pub mod annotations;
 pub mod app_state;

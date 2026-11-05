@@ -902,7 +902,7 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
         cross_refs: &state.cross_refs,
         collapsed_blocks: &[],
         splitters: &state.splitters,
-        scope_ends: state.annotations.scope_ends(),
+        scope_ends: state.annotations.scope_ends_set(),
         enums: &state.enums,
         user_global_enums: &state.user_global_enums,
         builtin_enums: &state.builtin_enums,
