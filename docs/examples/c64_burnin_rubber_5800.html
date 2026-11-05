@@ -1360,7 +1360,7 @@ let currentTheme = urlParams.get('theme') || 'dark';
 function updateLinks() {
   document.querySelectorAll('a').forEach(link => {
     let href = link.getAttribute('href');
-    if (href && !href.startsWith('#')) {
+    if (href && !href.startsWith('#') && !href.startsWith('http://') && !href.startsWith('https://')) {
       let parts = href.split('?');
       let base = parts[0];
       let params = new URLSearchParams(parts[1] || '');

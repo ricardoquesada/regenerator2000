@@ -2538,7 +2538,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr><td></td><td></td><td colspan="3" class="cc"><span class="mn">.enc</span><span class="op">"screen"</span></td></tr>
 <tr id="L1FF7"><td class="ad"><a href="#L1FF7">$1FF7</a></td><td></td><td colspan="3" class="cc"><span class="il">txt_game_over</span><span class="mn">.text</span><span class="op">"GAME OVER"</span><span class="cm">; x-ref: <a href="#L4612">$4612</a></span></td></tr>
 <tr><td></td><td></td><td colspan="3" class="cc"><span class="mn">.endencode</span><span class="op"></span></td></tr>
-<tr><td class="ad">$2000</td><td></td><td colspan="3" class="cc"><span class="mn">.binary</span><span class="op">"<a href="c64_burnin_rubber_2000.html">c64_burnin_rubber_2000.html</a>"</span></td></tr>
+<tr id="L2000"><td class="ad"><a href="#L2000">$2000</a></td><td></td><td colspan="3" class="cc"><span class="mn">.binary</span><span class="op">"<a href="c64_burnin_rubber_2000.html">c64_burnin_rubber_2000.html</a>"</span></td></tr>
 <tr><td></td><td></td><td colspan="3" class="cc"><span class="mn">.encode</span><span class="op"></span></td></tr>
 <tr><td></td><td></td><td colspan="3" class="cc"><span class="mn">.enc</span><span class="op">"screen"</span></td></tr>
 <tr id="L2400"><td class="ad"><a href="#L2400">$2400</a></td><td></td><td colspan="3" class="cc"><span class="il">f_2400</span><span class="mn">.text</span><span class="op">"SC:0000000 HI:0000000 RO:00 CAR:00 LI:00"</span><span class="cm">; x-ref: <a href="#L1054">$1054</a></span></td></tr>
@@ -2633,7 +2633,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L2FD0"><td class="ad"><a href="#L2FD0">$2FD0</a></td><td></td><td colspan="3" class="cc"><span class="mn">.text</span><span class="op">"YOU AREN""T IN THE FIVE BEST SCORESY  Z  "</span><span class="cm">; x-ref: <a href="#L1DFE">$1dfe</a></span></td></tr>
 <tr id="L2FF8"><td class="ad"><a href="#L2FF8">$2FF8</a></td><td></td><td colspan="3" class="cc"><span class="mn">.text</span><span class="op">"EST SC X"</span></td></tr>
 <tr><td></td><td></td><td colspan="3" class="cc"><span class="mn">.endencode</span><span class="op"></span></td></tr>
-<tr><td class="ad">$3000</td><td></td><td colspan="3" class="cc"><span class="mn">.binary</span><span class="op">"<a href="c64_burnin_rubber_3000.html">c64_burnin_rubber_3000.html</a>"</span></td></tr>
+<tr id="L3000"><td class="ad"><a href="#L3000">$3000</a></td><td></td><td colspan="3" class="cc"><span class="mn">.binary</span><span class="op">"<a href="c64_burnin_rubber_3000.html">c64_burnin_rubber_3000.html</a>"</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; Detects collisions between NPC cars (enemy slots 0..2 vs 1..3).</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; If two active cars are within 16x16 pixels, calculates a bounce response,</span></td></tr>
@@ -6497,7 +6497,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L5798"><td class="ad"><a href="#L5798">$5798</a></td><td></td><td colspan="3" class="cc"><span class="mn">.text</span><span class="op">"ussels  1983  "</span></td></tr>
 <tr><td></td><td></td><td colspan="3" class="cc"><span class="mn">.endencode</span><span class="op"></span></td></tr>
 <tr id="L57A6"><td class="ad"><a href="#L57A6">$57A6</a></td><td></td><td colspan="3" class="cc"><span class="mn">.fill</span><span class="op">90, $00</span></td></tr>
-<tr><td class="ad">$5800</td><td></td><td colspan="3" class="cc"><span class="mn">.binary</span><span class="op">"<a href="c64_burnin_rubber_5800.html">c64_burnin_rubber_5800.html</a>"</span></td></tr>
+<tr id="L5800"><td class="ad"><a href="#L5800">$5800</a></td><td></td><td colspan="3" class="cc"><span class="mn">.binary</span><span class="op">"<a href="c64_burnin_rubber_5800.html">c64_burnin_rubber_5800.html</a>"</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=</span></td></tr>
 <tr id="L8000"><td class="ad"><a href="#L8000">$8000</a></td><td></td><td colspan="3" class="cc"><span class="mn">.word</span><span class="op">KERNAL_RESET_VECTOR, <a href="#L12F0">cartridge_reset_entry</a></span></td></tr>
 <tr id="L8004"><td class="ad"><a href="#L8004">$8004</a></td><td></td><td colspan="3" class="cc"><span class="mn">.byte</span><span class="op">$c3, $c2, $cd, $38, $30, $20, $20, $20</span><span class="cm">; CBM80</span></td></tr>
@@ -6950,7 +6950,7 @@ let currentTheme = urlParams.get('theme') || 'dark';
 function updateLinks() {
   document.querySelectorAll('a').forEach(link => {
     let href = link.getAttribute('href');
-    if (href && !href.startsWith('#')) {
+    if (href && !href.startsWith('#') && !href.startsWith('http://') && !href.startsWith('https://')) {
       let parts = href.split('?');
       let base = parts[0];
       let params = new URLSearchParams(parts[1] || '');
