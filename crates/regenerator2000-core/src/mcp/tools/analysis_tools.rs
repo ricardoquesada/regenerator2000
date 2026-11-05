@@ -529,22 +529,40 @@ pub(crate) fn get_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec
     blocks
 }
 
-/// Helper function to retrieve cross-references referencing a specific memory address [`Addr`].
+/// Retrieves all typed cross-references ([`XRef`](crate::state::XRef)) targeting `address`.
 ///
 /// # Arguments
 ///
 /// * `app_state` - Reference to the application state [`AppState`].
-/// * `address` - Target address [`Addr`] to query references for.
+/// * `address` - Target memory address [`Addr`] to query incoming references for.
 ///
 /// # Returns
 ///
-/// A sorted and deduplicated vector of referencing [`Addr`] locations.
-pub(crate) fn get_cross_references_impl(app_state: &AppState, address: Addr) -> Vec<Addr> {
+/// A sorted and deduplicated vector of JSON [`Value`] objects (ordered by `(from, kind)`),
+/// where each object contains:
+/// - `"address"`: Numeric referencing address (`u16`).
+/// - `"from_address"`: Numeric referencing address (`u16`).
+/// - `"from_hex"`: Uppercase 4-digit hex string (for example, `"$C010"`).
+/// - `"kind"`: Snake-case [`XRefKind::as_str`](crate::state::XRefKind::as_str) classification (`"read"`, `"write"`, `"read_modify_write"`, `"call"`, `"jump"`, or `"offset"`).
+/// - `"badge"`: Bracketed [`XRefKind::badge`](crate::state::XRefKind::badge) label (`"[R]"`, `"[W]"`, `"[R/W]"`, `"[C]"`, `"[J]"`, or `"[O]"`).
+pub(crate) fn get_cross_references_impl(app_state: &AppState, address: Addr) -> Vec<Value> {
     if let Some(refs) = app_state.cross_refs.get(&address) {
         let mut sorted_refs = refs.clone();
         sorted_refs.sort_unstable();
         sorted_refs.dedup();
         sorted_refs
+            .into_iter()
+            .map(|xref| {
+                let ref_addr = xref.from;
+                json!({
+                    "address": ref_addr,
+                    "from_address": ref_addr.0,
+                    "from_hex": format!("${:04X}", ref_addr.0),
+                    "kind": xref.kind.as_str(),
+                    "badge": xref.kind.badge(),
+                })
+            })
+            .collect()
     } else {
         Vec::new()
     }
@@ -649,7 +667,13 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
     Ok(symbols)
 }
 
-/// Helper function to retrieve detailed metadata for a single memory address [`Addr`].
+/// Retrieves detailed metadata for a single memory address [`Addr`].
+///
+/// When incoming cross-references ([`XRef`](crate::state::XRef)) exist for `address`, the returned
+/// `metadata` object populates both:
+/// - `"cross_refs_in"`: Sorted, deduplicated array of numeric source addresses (`Vec<Addr>`).
+/// - `"typed_cross_refs_in"`: Array of typed cross-reference objects (`address`, `from_address`,
+///   `from_hex`, `kind`, and `badge`) produced by [`get_cross_references_impl`].
 ///
 /// # Arguments
 ///
@@ -658,7 +682,8 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
 ///
 /// # Returns
 ///
-/// A JSON [`Value`] containing detailed memory address metadata (semantics, labels, comments, cross-references, block type).
+/// A JSON [`Value`] containing detailed memory address metadata (instruction semantics, labels,
+/// comments, incoming cross-references, and block type).
 ///
 /// # Errors
 ///
@@ -705,7 +730,13 @@ pub(crate) fn get_address_details_impl(
     }
 
     if let Some(refs) = app_state.cross_refs.get(&address) {
-        details["metadata"]["cross_refs_in"] = json!(refs);
+        // Preserve `cross_refs_in` as a sorted, deduplicated integer array for backward compatibility.
+        let mut addrs: Vec<Addr> = refs.iter().map(|x| x.from).collect();
+        addrs.sort_unstable();
+        addrs.dedup();
+        details["metadata"]["cross_refs_in"] = json!(addrs);
+        details["metadata"]["typed_cross_refs_in"] =
+            json!(get_cross_references_impl(app_state, address));
     }
 
     if let Some(labels) = app_state.labels.get(&address) {
@@ -1233,11 +1264,81 @@ mod tests {
     #[test]
     fn test_r2000_get_cross_references_existing_target() {
         let mut app_state = make_app_state(0x1000, 256);
-        app_state
-            .cross_refs
-            .insert(Addr(0x1000), vec![Addr(0x1020), Addr(0x1050)]);
+        app_state.cross_refs.insert(
+            Addr(0x1000),
+            vec![
+                crate::state::XRef::new(Addr(0x1020), crate::state::XRefKind::Call),
+                crate::state::XRef::new(Addr(0x1050), crate::state::XRefKind::Read),
+            ],
+        );
         let refs = get_cross_references_impl(&app_state, Addr(0x1000));
-        assert_eq!(refs, vec![Addr(0x1020), Addr(0x1050)]);
+        assert_eq!(refs.len(), 2);
+        assert_eq!(refs[0]["address"], 0x1020);
+        assert_eq!(refs[0]["kind"], "call");
+        assert_eq!(refs[0]["badge"], "[C]");
+        assert_eq!(refs[1]["address"], 0x1050);
+        assert_eq!(refs[1]["kind"], "read");
+        assert_eq!(refs[1]["badge"], "[R]");
+    }
+
+    #[test]
+    fn test_r2000_get_cross_references_includes_kind_and_badge() {
+        let mut app_state = make_app_state(0x1000, 256);
+        app_state.cross_refs.insert(
+            Addr(0x1000),
+            vec![
+                crate::state::XRef::new(Addr(0x1050), crate::state::XRefKind::Write),
+                crate::state::XRef::new(Addr(0x1020), crate::state::XRefKind::Read),
+                crate::state::XRef::new(Addr(0x1050), crate::state::XRefKind::Write),
+            ],
+        );
+        let refs = get_cross_references_impl(&app_state, Addr(0x1000));
+        assert_eq!(refs.len(), 2);
+        assert_eq!(refs[0]["address"], 0x1020);
+        assert_eq!(refs[0]["from_address"], 0x1020);
+        assert_eq!(refs[0]["from_hex"], "$1020");
+        assert_eq!(refs[0]["kind"], "read");
+        assert_eq!(refs[0]["badge"], "[R]");
+        assert_eq!(refs[1]["address"], 0x1050);
+        assert_eq!(refs[1]["from_address"], 0x1050);
+        assert_eq!(refs[1]["from_hex"], "$1050");
+        assert_eq!(refs[1]["kind"], "write");
+        assert_eq!(refs[1]["badge"], "[W]");
+    }
+
+    #[test]
+    fn test_r2000_get_address_details_typed_cross_refs() {
+        let mut app_state = make_app_state(0x1000, 256);
+        app_state.cross_refs.insert(
+            Addr(0x1000),
+            vec![
+                crate::state::XRef::new(Addr(0x1010), crate::state::XRefKind::ReadModifyWrite),
+                crate::state::XRef::new(Addr(0x1005), crate::state::XRefKind::Call),
+                crate::state::XRef::new(Addr(0x1005), crate::state::XRefKind::Offset),
+            ],
+        );
+        let details = get_address_details_impl(&app_state, Addr(0x1000))
+            .expect("Should return address details");
+        assert_eq!(
+            details["metadata"]["cross_refs_in"],
+            json!([0x1005, 0x1010])
+        );
+        let typed_refs = details["metadata"]["typed_cross_refs_in"]
+            .as_array()
+            .expect("Should have typed_cross_refs_in array");
+        assert_eq!(typed_refs.len(), 3);
+        assert_eq!(typed_refs[0]["from_address"], 0x1005);
+        assert_eq!(typed_refs[0]["from_hex"], "$1005");
+        assert_eq!(typed_refs[0]["kind"], "call");
+        assert_eq!(typed_refs[0]["badge"], "[C]");
+        assert_eq!(typed_refs[1]["from_address"], 0x1005);
+        assert_eq!(typed_refs[1]["from_hex"], "$1005");
+        assert_eq!(typed_refs[1]["kind"], "offset");
+        assert_eq!(typed_refs[1]["badge"], "[O]");
+        assert_eq!(typed_refs[2]["from_address"], 0x1010);
+        assert_eq!(typed_refs[2]["from_hex"], "$1010");
+        assert_eq!(typed_refs[2]["kind"], "read_modify_write");
+        assert_eq!(typed_refs[2]["badge"], "[R/W]");
     }
 
     #[test]

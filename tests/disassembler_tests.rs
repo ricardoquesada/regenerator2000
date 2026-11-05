@@ -345,8 +345,14 @@ fn test_xref_formatting_with_dollar() {
     cross_refs.insert(
         regenerator2000_core::state::Addr(0x1000),
         vec![
-            regenerator2000_core::state::Addr(0x2000),
-            regenerator2000_core::state::Addr(0x3000),
+            regenerator2000_core::state::XRef::new(
+                regenerator2000_core::state::Addr(0x2000),
+                regenerator2000_core::state::XRefKind::Read,
+            ),
+            regenerator2000_core::state::XRef::new(
+                regenerator2000_core::state::Addr(0x3000),
+                regenerator2000_core::state::XRefKind::Read,
+            ),
         ],
     );
 
@@ -396,12 +402,30 @@ fn test_xref_count_configurable() {
     cross_refs.insert(
         regenerator2000_core::state::Addr(0x1000),
         vec![
-            regenerator2000_core::state::Addr(0x2000),
-            regenerator2000_core::state::Addr(0x2001),
-            regenerator2000_core::state::Addr(0x2002),
-            regenerator2000_core::state::Addr(0x2003),
-            regenerator2000_core::state::Addr(0x2004),
-            regenerator2000_core::state::Addr(0x2005),
+            regenerator2000_core::state::XRef::new(
+                regenerator2000_core::state::Addr(0x2000),
+                regenerator2000_core::state::XRefKind::Read,
+            ),
+            regenerator2000_core::state::XRef::new(
+                regenerator2000_core::state::Addr(0x2001),
+                regenerator2000_core::state::XRefKind::Read,
+            ),
+            regenerator2000_core::state::XRef::new(
+                regenerator2000_core::state::Addr(0x2002),
+                regenerator2000_core::state::XRefKind::Read,
+            ),
+            regenerator2000_core::state::XRef::new(
+                regenerator2000_core::state::Addr(0x2003),
+                regenerator2000_core::state::XRefKind::Read,
+            ),
+            regenerator2000_core::state::XRef::new(
+                regenerator2000_core::state::Addr(0x2004),
+                regenerator2000_core::state::XRefKind::Read,
+            ),
+            regenerator2000_core::state::XRef::new(
+                regenerator2000_core::state::Addr(0x2005),
+                regenerator2000_core::state::XRefKind::Read,
+            ),
         ],
     );
 

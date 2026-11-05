@@ -236,7 +236,7 @@ impl ExportComment {
                     Some(cleaned_after.to_string())
                 };
 
-                let mut all_refs = refs.clone();
+                let mut all_refs: Vec<Addr> = refs.iter().map(|r| r.from).collect();
                 all_refs.sort_unstable();
                 all_refs.dedup();
                 let xrefs_truncated = all_refs.len() > settings.max_xref_count;
@@ -307,7 +307,7 @@ impl ExportComment {
             return None;
         }
 
-        let mut all_refs = refs.clone();
+        let mut all_refs: Vec<Addr> = refs.iter().map(|r| r.from).collect();
         all_refs.sort_unstable();
         all_refs.dedup();
         let xrefs_truncated = all_refs.len() > settings.max_xref_count;
@@ -1525,7 +1525,12 @@ mod tests {
         // Address $1000: internal ($1500), external ($C000), and truncated 3rd ($1800)
         state.cross_refs.insert(
             Addr(0x1000),
-            vec![Addr(0xC000), Addr(0x1500), Addr(0x1800), Addr(0x1500)],
+            vec![
+                crate::state::XRef::new(Addr(0xC000), crate::state::XRefKind::Read),
+                crate::state::XRef::new(Addr(0x1500), crate::state::XRefKind::Read),
+                crate::state::XRef::new(Addr(0x1800), crate::state::XRefKind::Read),
+                crate::state::XRef::new(Addr(0x1500), crate::state::XRefKind::Read),
+            ],
         );
 
         // 1. Prefix only (no xrefs at $1002)
@@ -1608,9 +1613,14 @@ mod tests {
         let mut state = make_state_with_internal_labels(0x1000, 0x1000, &[]);
         state.settings.max_xref_count = 2;
         // One internal ($1500), one external ($C000), plus one truncated ($D000)
-        state
-            .cross_refs
-            .insert(Addr(0x1000), vec![Addr(0x1500), Addr(0xC000), Addr(0xD000)]);
+        state.cross_refs.insert(
+            Addr(0x1000),
+            vec![
+                crate::state::XRef::new(Addr(0x1500), crate::state::XRefKind::Read),
+                crate::state::XRef::new(Addr(0xC000), crate::state::XRefKind::Read),
+                crate::state::XRef::new(Addr(0xD000), crate::state::XRefKind::Read),
+            ],
+        );
 
         for (asm, cp) in [
             (Assembler::Tass64, ";"),
@@ -1650,7 +1660,13 @@ mod tests {
         // wrapper lines and populated only on `.text "HI"`.
         state.raw_data = vec![0x48, 0x49];
         state.block_types = vec![BlockType::PetsciiText; 2];
-        state.cross_refs.insert(Addr(0x1000), vec![Addr(0x1001)]);
+        state.cross_refs.insert(
+            Addr(0x1000),
+            vec![crate::state::XRef::new(
+                Addr(0x1001),
+                crate::state::XRefKind::Read,
+            )],
+        );
         state.annotations.update(Addr(0x1000), |e| {
             e.user_side_comment = Some("Greeting".to_string());
         });

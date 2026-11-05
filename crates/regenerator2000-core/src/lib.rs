@@ -47,6 +47,7 @@ pub mod navigation;
 pub mod packers;
 pub mod parser;
 pub mod state;
+pub use state::{XRef, XRefKind};
 pub mod unpacker;
 pub mod utils;
 pub mod vice;

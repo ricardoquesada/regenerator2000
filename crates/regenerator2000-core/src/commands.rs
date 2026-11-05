@@ -34,11 +34,11 @@ pub enum Command {
         /// New label mapping by address.
         labels: BTreeMap<Addr, Vec<Label>>,
         /// New cross-reference mapping by target address.
-        cross_refs: BTreeMap<Addr, Vec<Addr>>,
+        cross_refs: BTreeMap<Addr, Vec<crate::state::XRef>>,
         /// Previous label mapping (for undo).
         old_labels: BTreeMap<Addr, Vec<Label>>,
         /// Previous cross-reference mapping (for undo).
-        old_cross_refs: BTreeMap<Addr, Vec<Addr>>,
+        old_cross_refs: BTreeMap<Addr, Vec<crate::state::XRef>>,
     },
     /// Sets or removes an inline side comment on an instruction row.
     SetUserSideComment {
@@ -130,7 +130,7 @@ pub enum Command {
         /// Previous labels before exclusion (for undo).
         old_labels: BTreeMap<Addr, Vec<crate::state::Label>>,
         /// Previous cross-references before exclusion (for undo).
-        old_cross_refs: BTreeMap<Addr, Vec<Addr>>,
+        old_cross_refs: BTreeMap<Addr, Vec<crate::state::XRef>>,
     },
     /// Applies or clears an enum usage annotation [`EnumDefinition`] at an address.
     SetEnumUsage {

@@ -198,7 +198,7 @@ pub async fn run_server_with_shutdown(
 /// event, and enables deterministic ephemeral-port (`127.0.0.1:0`) testing without port collisions.
 ///
 /// # Errors
-/// Returns an error if [`axum::serve`] encounters an I/O error while serving.
+/// Returns an error if [`axum::serve()`] encounters an I/O error while serving.
 pub async fn serve_listener_with_shutdown(
     listener: tokio::net::TcpListener,
     sender: Sender<McpRequest>,

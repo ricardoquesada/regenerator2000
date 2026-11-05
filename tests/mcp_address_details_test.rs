@@ -136,6 +136,14 @@ mod tests {
         // Actually, let's just assert that if refs are present, they are correct.
         if let Some(refs) = details["metadata"]["cross_refs_in"].as_array() {
             assert!(refs.iter().any(|v| v.as_u64() == Some(0x1005)));
+            let typed_refs = details["metadata"]["typed_cross_refs_in"]
+                .as_array()
+                .expect("typed_cross_refs_in should exist when cross_refs_in exists");
+            assert!(typed_refs.iter().any(|r| {
+                r["from_address"].as_u64() == Some(0x1005)
+                    && r["kind"].as_str() == Some("jump")
+                    && r["badge"].as_str() == Some("[J]")
+            }));
         } else {
             println!("No cross refs generated (expected if analysis didn't run)");
             // Force analysis to verification
@@ -150,6 +158,14 @@ mod tests {
                 .as_array()
                 .expect("Cross refs should exist after analysis");
             assert!(refs.iter().any(|v| v.as_u64() == Some(0x1005)));
+            let typed_refs = details_after["metadata"]["typed_cross_refs_in"]
+                .as_array()
+                .expect("typed_cross_refs_in should exist after analysis");
+            assert!(typed_refs.iter().any(|r| {
+                r["from_address"].as_u64() == Some(0x1005)
+                    && r["kind"].as_str() == Some("jump")
+                    && r["badge"].as_str() == Some("[J]")
+            }));
         }
     }
 

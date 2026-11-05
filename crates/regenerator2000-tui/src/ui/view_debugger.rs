@@ -119,7 +119,7 @@ impl Widget for DebuggerView {
             let empty_labels: BTreeMap<crate::state::Addr, Vec<crate::state::Label>> =
                 BTreeMap::new();
             let empty_annotations = crate::state::AnnotationManager::default();
-            let empty_xrefs: BTreeMap<crate::state::Addr, Vec<crate::state::Addr>> =
+            let empty_xrefs: BTreeMap<crate::state::Addr, Vec<crate::state::XRef>> =
                 BTreeMap::new();
             let empty_splitters: BTreeSet<crate::state::Addr> = BTreeSet::new();
             let settings = DocumentSettings::default();

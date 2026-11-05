@@ -1738,9 +1738,13 @@ mod tests {
                 label_type: LabelType::UserDefined,
             }],
         );
-        app_state
-            .cross_refs
-            .insert(Addr(0x1001), vec![Addr(0x1005)]);
+        app_state.cross_refs.insert(
+            Addr(0x1001),
+            vec![regenerator2000_core::state::XRef::new(
+                Addr(0x1005),
+                regenerator2000_core::state::XRefKind::Jump,
+            )],
+        );
 
         let ext_line = DisassemblyLine {
             address: Addr::ZERO,

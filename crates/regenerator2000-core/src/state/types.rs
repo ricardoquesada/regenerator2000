@@ -951,6 +951,105 @@ pub enum CommentKind {
     Line,
 }
 
+/// Classification of how a cross-reference accesses or targets an address.
+///
+/// Variant declaration order defines the secondary sort order in [`XRef`]:
+/// `Read < Write < ReadModifyWrite < Call < Jump < Offset`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum XRefKind {
+    /// Memory read access (`[R]`): `LDA`, `LDX`, `LDY`, `CMP`, `BIT`, `ADC`, `SBC`, `AND`, `ORA`, `EOR`, `LAX`, etc.
+    Read,
+    /// Memory write access (`[W]`): `STA`, `STX`, `STY`, `SAX`.
+    Write,
+    /// Read-modify-write memory access (`[R/W]`): `INC`, `DEC`, `ASL`, `LSR`, `ROL`, `ROR`, `SLO`, `RLA`, `SRE`, `RRA`, `DCP`, `ISC`.
+    ReadModifyWrite,
+    /// Subroutine call (`[C]`): `JSR`.
+    Call,
+    /// Unconditional or conditional control-flow transfer (`[J]`): `JMP`, `BPL`, `BMI`, `BVC`, `BVS`, `BCC`, `BCS`, `BNE`, `BEQ`.
+    Jump,
+    /// Symbolic address or offset taken (`[O]`): `#<label`, `#>label`, `.word label`, `.lohi`, `.hilo`.
+    Offset,
+}
+
+impl XRefKind {
+    /// Returns the short bracketed badge representation used in TUI dialogs and listings.
+    ///
+    /// # Examples
+    /// ```
+    /// use regenerator2000_core::state::XRefKind;
+    /// assert_eq!(XRefKind::Read.badge(), "[R]");
+    /// assert_eq!(XRefKind::ReadModifyWrite.badge(), "[R/W]");
+    /// ```
+    #[must_use]
+    pub const fn badge(self) -> &'static str {
+        match self {
+            Self::Read => "[R]",
+            Self::Write => "[W]",
+            Self::ReadModifyWrite => "[R/W]",
+            Self::Call => "[C]",
+            Self::Jump => "[J]",
+            Self::Offset => "[O]",
+        }
+    }
+
+    /// Returns the snake_case identifier used in structured MCP / JSON output.
+    ///
+    /// # Examples
+    /// ```
+    /// use regenerator2000_core::state::XRefKind;
+    /// assert_eq!(XRefKind::Write.as_str(), "write");
+    /// assert_eq!(XRefKind::ReadModifyWrite.as_str(), "read_modify_write");
+    /// ```
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Read => "read",
+            Self::Write => "write",
+            Self::ReadModifyWrite => "read_modify_write",
+            Self::Call => "call",
+            Self::Jump => "jump",
+            Self::Offset => "offset",
+        }
+    }
+}
+
+impl std::fmt::Display for XRefKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.badge())
+    }
+}
+
+/// A typed cross-reference edge from a referencing instruction or data block (`from`)
+/// to a target address, annotated with its access classification (`kind`).
+///
+/// Because [`from`](Self::from) is declared before [`kind`](Self::kind), the derived [`Ord`]
+/// implementation sorts primarily by source address (`from` ascending) and breaks ties
+/// deterministically by [`XRefKind`] declaration order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct XRef {
+    /// Source address of the referencing instruction or data-block entry.
+    pub from: Addr,
+    /// Semantic access or control-flow classification of this reference.
+    pub kind: XRefKind,
+}
+
+impl XRef {
+    /// Creates a new typed cross-reference from `from` with access classification `kind`.
+    ///
+    /// # Examples
+    /// ```
+    /// use regenerator2000_core::state::{Addr, XRef, XRefKind};
+    ///
+    /// let xref = XRef::new(Addr(0xC000), XRefKind::Call);
+    /// assert_eq!(xref.from, Addr(0xC000));
+    /// assert_eq!(xref.kind, XRefKind::Call);
+    /// ```
+    #[must_use]
+    pub const fn new(from: Addr, kind: XRefKind) -> Self {
+        Self { from, kind }
+    }
+}
+
 // =============================================================================
 // Enum Support Types
 // =============================================================================
@@ -1225,5 +1324,55 @@ mod tests {
         assert!(BlockType::Undefined.matches_filter("Undefined"));
         assert!(BlockType::Undefined.matches_filter("undefined"));
         assert!(!BlockType::Code.matches_filter("Undefined"));
+    }
+
+    #[test]
+    fn test_xref_kind_badges_and_as_str() {
+        let cases = [
+            (XRefKind::Read, "[R]", "read"),
+            (XRefKind::Write, "[W]", "write"),
+            (XRefKind::ReadModifyWrite, "[R/W]", "read_modify_write"),
+            (XRefKind::Call, "[C]", "call"),
+            (XRefKind::Jump, "[J]", "jump"),
+            (XRefKind::Offset, "[O]", "offset"),
+        ];
+
+        for (kind, expected_badge, expected_str) in cases {
+            assert_eq!(kind.badge(), expected_badge);
+            assert_eq!(kind.as_str(), expected_str);
+            assert_eq!(kind.to_string(), expected_badge);
+        }
+    }
+
+    #[test]
+    fn test_xref_ordering_and_deduplication() {
+        let mut refs = vec![
+            XRef::new(Addr(0x2000), XRefKind::Jump),
+            XRef::new(Addr(0x1000), XRefKind::Offset),
+            XRef::new(Addr(0x1000), XRefKind::Read),
+            XRef::new(Addr(0x1000), XRefKind::Write),
+            XRef::new(Addr(0x1000), XRefKind::ReadModifyWrite),
+            XRef::new(Addr(0x1000), XRefKind::Call),
+            XRef::new(Addr(0x1000), XRefKind::Jump),
+            // Exact duplicates
+            XRef::new(Addr(0x1000), XRefKind::Read),
+            XRef::new(Addr(0x2000), XRefKind::Jump),
+        ];
+
+        refs.sort_unstable();
+        refs.dedup();
+
+        assert_eq!(
+            refs,
+            vec![
+                XRef::new(Addr(0x1000), XRefKind::Read),
+                XRef::new(Addr(0x1000), XRefKind::Write),
+                XRef::new(Addr(0x1000), XRefKind::ReadModifyWrite),
+                XRef::new(Addr(0x1000), XRefKind::Call),
+                XRef::new(Addr(0x1000), XRefKind::Jump),
+                XRef::new(Addr(0x1000), XRefKind::Offset),
+                XRef::new(Addr(0x2000), XRefKind::Jump),
+            ]
+        );
     }
 }

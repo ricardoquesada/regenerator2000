@@ -18,7 +18,10 @@ fn test_tass_label_placement_on_text() {
     let mut cross_refs = BTreeMap::new();
     cross_refs.insert(
         regenerator2000_core::state::Addr(0x1000),
-        vec![regenerator2000_core::state::Addr(0x2000)],
+        vec![regenerator2000_core::state::XRef::new(
+            regenerator2000_core::state::Addr(0x2000),
+            regenerator2000_core::state::XRefKind::Read,
+        )],
     );
 
     // Label at start of text block

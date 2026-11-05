@@ -1037,7 +1037,13 @@ mod tests {
                 label_type: LabelType::UserDefined,
             }],
         );
-        state.cross_refs.insert(Addr(0x1001), vec![Addr(0x1000)]);
+        state.cross_refs.insert(
+            Addr(0x1001),
+            vec![crate::state::XRef::new(
+                Addr(0x1000),
+                crate::state::XRefKind::Read,
+            )],
+        );
 
         // Exactly 19-char label name at $1003 -> formatted by KickAssembler as `"nineteen_char_label:"` (20 chars == LABEL_COLUMN_WIDTH)
         state.labels.insert(

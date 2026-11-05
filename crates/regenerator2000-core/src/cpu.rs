@@ -1,36 +1,66 @@
+//! MOS 6502/6510 opcode table, addressing modes, and cross-reference access classification.
+//!
+//! This module defines all 256 byte opcodes of the MOS 6502/6510 processor (both documented
+//! instructions and undocumented/illegal opcodes), their [`AddressingMode`]s, instruction
+//! sizes, cycle counts, and semantic cross-reference classifications ([`Opcode::xref_kind`]).
+
+use crate::state::XRefKind;
+
+/// Addressing modes supported by the MOS 6502/6510 instruction set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
 pub enum AddressingMode {
+    /// Single-byte instruction with no explicit operand (for example, `RTS`, `CLC`, `NOP`).
     Implied,
+    /// Single-byte instruction operating directly on the accumulator register `A` (for example, `ASL A`, `ROR A`).
     Accumulator,
+    /// Two-byte instruction with an 8-bit literal constant operand (`#$nn`).
     Immediate,
+    /// Two-byte instruction addressing zero-page memory `$0000..=$00FF` (`$nn`).
     ZeroPage,
+    /// Two-byte instruction addressing zero-page memory indexed by `X` (`$nn,X`).
     ZeroPageX,
+    /// Two-byte instruction addressing zero-page memory indexed by `Y` (`$nn,Y`).
     ZeroPageY,
+    /// Two-byte conditional branch instruction with a signed 8-bit PC-relative offset.
     Relative,
+    /// Three-byte instruction addressing a full 16-bit memory location (`$nnnn`).
     Absolute,
+    /// Three-byte instruction addressing a 16-bit memory location indexed by `X` (`$nnnn,X`).
     AbsoluteX,
+    /// Three-byte instruction addressing a 16-bit memory location indexed by `Y` (`$nnnn,Y`).
     AbsoluteY,
+    /// Three-byte indirect jump instruction dereferencing a 16-bit pointer (`JMP ($nnnn)`).
     Indirect,
+    /// Two-byte indexed indirect instruction dereferencing a zero-page pointer table (`($nn,X)`).
     IndirectX,
+    /// Two-byte indirect indexed instruction dereferencing a zero-page base pointer (`($nn),Y`).
     IndirectY,
-    // For undocumented or special cases if needed
+    /// Sentinel mode for undecodable or unknown opcodes.
     Unknown,
 }
 
+/// Metadata describing a single MOS 6502/6510 opcode byte (`0x00..=0xFF`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Opcode {
+    /// Canonical uppercase instruction mnemonic (for example, `"LDA"`, `"STA"`, `"JSR"`).
     pub mnemonic: &'static str,
+    /// Operand [`AddressingMode`] used by this opcode.
     pub mode: AddressingMode,
+    /// Total instruction length in bytes (`1..=3`).
     pub size: u8,
+    /// Base execution time in CPU clock cycles.
     #[allow(dead_code)]
     pub cycles: u8,
+    /// Short human-readable summary of the instruction's behavior.
     #[allow(dead_code)]
     pub description: &'static str,
+    /// `true` if this opcode is an undocumented/illegal 6502 instruction.
     pub illegal: bool,
 }
 
 impl Opcode {
+    /// Creates a documented 6502 [`Opcode`] descriptor (`illegal = false`).
     #[must_use]
     pub const fn new(
         mnemonic: &'static str,
@@ -49,6 +79,7 @@ impl Opcode {
         }
     }
 
+    /// Creates an undocumented/illegal 6502 [`Opcode`] descriptor (`illegal = true`).
     #[must_use]
     pub const fn new_illegal(
         mnemonic: &'static str,
@@ -96,8 +127,71 @@ impl Opcode {
             false
         }
     }
+
+    /// Classifies the cross-reference access kind ([`XRefKind`]) for this opcode when it
+    /// references a memory or control-flow target address.
+    ///
+    /// # Classification Rules
+    ///
+    /// - **Non-addressing modes**: Returns `None` for [`AddressingMode::Implied`],
+    ///   [`AddressingMode::Accumulator`], [`AddressingMode::Immediate`], and
+    ///   [`AddressingMode::Unknown`] because those modes do not address memory.
+    ///   [`analyzer::analyze`](crate::analyzer::analyze) classifies immediate operands with
+    ///   [`ImmediateFormat::LowByte`](crate::state::ImmediateFormat::LowByte) or
+    ///   [`ImmediateFormat::HighByte`](crate::state::ImmediateFormat::HighByte) separately as [`XRefKind::Offset`].
+    /// - **[`XRefKind::Read`]**: Load, bitwise, arithmetic, and compare opcodes
+    ///   (`LDA`, `LDX`, `LDY`, `EOR`, `AND`, `ORA`, `ADC`, `SBC`, `CMP`, `CPX`, `CPY`, `BIT`, `LAX`).
+    /// - **[`XRefKind::Write`]**: Store opcodes (`STA`, `STX`, `STY`, `SAX`).
+    /// - **[`XRefKind::ReadModifyWrite`]**: Memory shift, rotate, increment, and decrement
+    ///   opcodes (`ASL`, `LSR`, `ROL`, `ROR`, `INC`, `DEC`, `SLO`, `RLA`, `SRE`, `RRA`, `DCP`, `ISC`, `ISB`).
+    /// - **[`XRefKind::Call`]**: Subroutine call (`JSR`).
+    /// - **[`XRefKind::Jump`]**: Unconditional jumps (`JMP`, absolute and indirect) and
+    ///   relative branches (`BPL`, `BMI`, `BVC`, `BVS`, `BCC`, `BCS`, `BNE`, `BEQ`).
+    ///
+    /// # Examples
+    /// ```
+    /// use regenerator2000_core::cpu::{AddressingMode, Opcode, get_opcodes};
+    /// use regenerator2000_core::state::XRefKind;
+    ///
+    /// let opcodes = get_opcodes();
+    /// // $AD: LDA Absolute -> Read
+    /// assert_eq!(opcodes[0xAD].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Read));
+    /// // $8D: STA Absolute -> Write
+    /// assert_eq!(opcodes[0x8D].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Write));
+    /// // $0A: ASL Accumulator -> None (register-only), whereas $0E: ASL Absolute -> ReadModifyWrite
+    /// assert_eq!(opcodes[0x0A].as_ref().and_then(Opcode::xref_kind), None);
+    /// assert_eq!(opcodes[0x0E].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::ReadModifyWrite));
+    /// // $20: JSR Absolute -> Call
+    /// assert_eq!(opcodes[0x20].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Call));
+    /// ```
+    #[must_use]
+    pub fn xref_kind(&self) -> Option<XRefKind> {
+        if matches!(
+            self.mode,
+            AddressingMode::Implied
+                | AddressingMode::Accumulator
+                | AddressingMode::Immediate
+                | AddressingMode::Unknown
+        ) {
+            return None;
+        }
+
+        match self.mnemonic {
+            "LDA" | "LDX" | "LDY" | "EOR" | "AND" | "ORA" | "ADC" | "SBC" | "CMP" | "CPX"
+            | "CPY" | "BIT" | "LAX" => Some(XRefKind::Read),
+            "STA" | "STX" | "STY" | "SAX" => Some(XRefKind::Write),
+            "ASL" | "LSR" | "ROL" | "ROR" | "INC" | "DEC" | "SLO" | "RLA" | "SRE" | "RRA"
+            | "DCP" | "ISC" | "ISB" => Some(XRefKind::ReadModifyWrite),
+            "JSR" => Some(XRefKind::Call),
+            "JMP" | "BPL" | "BMI" | "BVC" | "BVS" | "BCC" | "BCS" | "BNE" | "BEQ" => {
+                Some(XRefKind::Jump)
+            }
+            _ => None,
+        }
+    }
 }
 
+/// Returns the complete 256-entry MOS 6502/6510 opcode lookup table indexed by opcode byte (`0x00..=0xFF`).
 #[must_use]
 pub fn get_opcodes() -> [Option<Opcode>; 256] {
     const UNKNOWN: Option<Opcode> = None;
@@ -1438,4 +1532,190 @@ pub fn get_opcodes() -> [Option<Opcode>; 256] {
     add_lax_imm(0xAB, AddressingMode::Immediate, 2, 2);
 
     opcodes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_opcode_xref_kind_documented_opcodes() {
+        let opcodes = get_opcodes();
+
+        let read_mnemonics = [
+            "LDA", "LDX", "LDY", "EOR", "AND", "ORA", "ADC", "SBC", "CMP", "CPX", "CPY", "BIT",
+        ];
+        let write_mnemonics = ["STA", "STX", "STY"];
+        let rmw_mnemonics = ["ASL", "LSR", "ROL", "ROR", "INC", "DEC"];
+        let branch_mnemonics = ["BPL", "BMI", "BVC", "BVS", "BCC", "BCS", "BNE", "BEQ"];
+        let implied_mnemonics = [
+            "NOP", "RTS", "RTI", "BRK", "PHA", "PLA", "PHP", "PLP", "CLC", "SEC", "CLI", "SEI",
+            "CLV", "CLD", "SED", "TAX", "TXA", "DEX", "INX", "TAY", "TYA", "DEY", "INY", "TXS",
+            "TSX",
+        ];
+
+        let mut documented_count = 0usize;
+
+        for (byte, maybe_opcode) in opcodes.iter().enumerate() {
+            let Some(opcode) = maybe_opcode else {
+                continue;
+            };
+            if opcode.illegal {
+                continue;
+            }
+            documented_count += 1;
+
+            let expected = match opcode.mode {
+                AddressingMode::Implied
+                | AddressingMode::Accumulator
+                | AddressingMode::Immediate
+                | AddressingMode::Unknown => None,
+                AddressingMode::ZeroPage
+                | AddressingMode::ZeroPageX
+                | AddressingMode::ZeroPageY
+                | AddressingMode::Absolute
+                | AddressingMode::AbsoluteX
+                | AddressingMode::AbsoluteY
+                | AddressingMode::IndirectX
+                | AddressingMode::IndirectY => {
+                    if read_mnemonics.contains(&opcode.mnemonic) {
+                        Some(XRefKind::Read)
+                    } else if write_mnemonics.contains(&opcode.mnemonic) {
+                        Some(XRefKind::Write)
+                    } else if rmw_mnemonics.contains(&opcode.mnemonic) {
+                        Some(XRefKind::ReadModifyWrite)
+                    } else if opcode.mnemonic == "JSR" {
+                        Some(XRefKind::Call)
+                    } else if opcode.mnemonic == "JMP" {
+                        Some(XRefKind::Jump)
+                    } else {
+                        panic!(
+                            "Unexpected documented memory opcode ${byte:02X}: {} {:?}",
+                            opcode.mnemonic, opcode.mode
+                        );
+                    }
+                }
+                AddressingMode::Relative => {
+                    assert!(
+                        branch_mnemonics.contains(&opcode.mnemonic),
+                        "Unexpected relative opcode ${byte:02X}: {}",
+                        opcode.mnemonic
+                    );
+                    Some(XRefKind::Jump)
+                }
+                AddressingMode::Indirect => {
+                    assert_eq!(opcode.mnemonic, "JMP");
+                    Some(XRefKind::Jump)
+                }
+            };
+
+            assert_eq!(
+                opcode.xref_kind(),
+                expected,
+                "Mismatch for documented opcode ${byte:02X} ({} {:?})",
+                opcode.mnemonic,
+                opcode.mode
+            );
+        }
+
+        // Standard 6502 has 151 documented opcodes
+        assert_eq!(documented_count, 151);
+
+        // Explicit spot checks required by the Test Plan:
+        // JSR Absolute ($20) -> Call
+        assert_eq!(
+            opcodes[0x20].as_ref().unwrap().xref_kind(),
+            Some(XRefKind::Call)
+        );
+        // JMP Absolute ($4C) and Indirect ($6C) -> Jump
+        assert_eq!(
+            opcodes[0x4C].as_ref().unwrap().xref_kind(),
+            Some(XRefKind::Jump)
+        );
+        assert_eq!(
+            opcodes[0x6C].as_ref().unwrap().xref_kind(),
+            Some(XRefKind::Jump)
+        );
+        // ASL/LSR/ROL/ROR Accumulator ($0A, $4A, $2A, $6A) -> None
+        for acc_op in [0x0A, 0x4A, 0x2A, 0x6A] {
+            let op = opcodes[acc_op].as_ref().unwrap();
+            assert_eq!(op.mode, AddressingMode::Accumulator);
+            assert_eq!(op.xref_kind(), None);
+        }
+        // Implied instructions -> None
+        for mnemonic in implied_mnemonics {
+            let found = opcodes
+                .iter()
+                .flatten()
+                .find(|op| !op.illegal && op.mnemonic == mnemonic)
+                .unwrap_or_else(|| panic!("Missing documented implied mnemonic {mnemonic}"));
+            assert_eq!(found.xref_kind(), None);
+        }
+    }
+
+    #[test]
+    fn test_opcode_xref_kind_illegal_undocumented_opcodes() {
+        let opcodes = get_opcodes();
+
+        // Read: LAX ($A7, $B7, $AF, $BF, $A3, $B3)
+        for code in [0xA7, 0xB7, 0xAF, 0xBF, 0xA3, 0xB3] {
+            let op = opcodes[code].as_ref().unwrap();
+            assert!(op.illegal);
+            assert_eq!(op.mnemonic, "LAX");
+            assert_eq!(
+                op.xref_kind(),
+                Some(XRefKind::Read),
+                "LAX ${code:02X} should be Read"
+            );
+        }
+
+        // LAX Immediate ($AB) has no memory target -> None
+        assert_eq!(opcodes[0xAB].as_ref().unwrap().xref_kind(), None);
+
+        // Write: SAX ($87, $97, $8F, $83)
+        for code in [0x87, 0x97, 0x8F, 0x83] {
+            let op = opcodes[code].as_ref().unwrap();
+            assert!(op.illegal);
+            assert_eq!(op.mnemonic, "SAX");
+            assert_eq!(
+                op.xref_kind(),
+                Some(XRefKind::Write),
+                "SAX ${code:02X} should be Write"
+            );
+        }
+
+        // ReadModifyWrite: SLO, RLA, SRE, RRA, DCP, ISC
+        let rmw_sets: &[(&str, &[usize])] = &[
+            ("SLO", &[0x07, 0x17, 0x0F, 0x1F, 0x1B, 0x03, 0x13]),
+            ("RLA", &[0x27, 0x37, 0x2F, 0x3F, 0x3B, 0x23, 0x33]),
+            ("SRE", &[0x47, 0x57, 0x4F, 0x5F, 0x5B, 0x43, 0x53]),
+            ("RRA", &[0x67, 0x77, 0x6F, 0x7F, 0x7B, 0x63, 0x73]),
+            ("DCP", &[0xC7, 0xD7, 0xCF, 0xDF, 0xDB, 0xC3, 0xD3]),
+            ("ISC", &[0xE7, 0xF7, 0xEF, 0xFF, 0xFB, 0xE3, 0xF3]),
+        ];
+
+        for (expected_mnemonic, codes) in rmw_sets {
+            for &code in *codes {
+                let op = opcodes[code].as_ref().unwrap();
+                assert!(op.illegal);
+                assert_eq!(op.mnemonic, *expected_mnemonic);
+                assert_eq!(
+                    op.xref_kind(),
+                    Some(XRefKind::ReadModifyWrite),
+                    "{expected_mnemonic} ${code:02X} should be ReadModifyWrite"
+                );
+            }
+        }
+
+        // Verify "ISB" alias for "ISC" is also classified as ReadModifyWrite
+        let isb_opcode = Opcode::new_illegal("ISB", AddressingMode::Absolute, 3, 6, "INC + SBC");
+        assert_eq!(isb_opcode.xref_kind(), Some(XRefKind::ReadModifyWrite));
+
+        // Illegal immediate opcodes (ANC, ASR, ARR, SBX) -> None
+        for code in [0x0B, 0x2B, 0x4B, 0x6B, 0xCB] {
+            let op = opcodes[code].as_ref().unwrap();
+            assert!(op.illegal);
+            assert_eq!(op.xref_kind(), None);
+        }
+    }
 }

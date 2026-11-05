@@ -633,7 +633,7 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
 // ---------------------------------------------------------------------------
 
 /// Processes a single [`KeyEvent`] synchronously through the full TUI input-routing pipeline
-/// (modal dialogs -> menu bar -> inline Vim search -> active view -> [`crate::ui::navigable::Navigable`] trait -> global shortcuts -> [`Core::apply_action`])
+/// (modal dialogs -> menu bar -> inline Vim search -> active view -> `crate::ui::navigable::Navigable` trait -> global shortcuts -> [`Core::apply_action`])
 /// and performs the per-frame view synchronization contract (`sync_views_before_render` and
 /// `UIState::sync_tui_to_core`).
 ///

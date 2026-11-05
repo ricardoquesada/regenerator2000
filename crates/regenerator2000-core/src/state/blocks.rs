@@ -805,7 +805,13 @@ mod tests {
         );
 
         // Add X-Ref to $D020 from $1000
-        state.cross_refs.insert(Addr(0xD020), vec![Addr(0x1000)]);
+        state.cross_refs.insert(
+            Addr(0xD020),
+            vec![crate::state::XRef::new(
+                Addr(0x1000),
+                crate::state::XRefKind::Read,
+            )],
+        );
         state.settings.max_xref_count = 5;
 
         // Test with include_xrefs = true
@@ -1135,7 +1141,13 @@ mod tests {
         state.annotations.update(Addr(0x0002), |e| {
             e.user_side_comment = Some("ZP temp".to_string());
         });
-        state.cross_refs.insert(Addr(0x0002), vec![Addr(0x2000)]);
+        state.cross_refs.insert(
+            Addr(0x0002),
+            vec![crate::state::XRef::new(
+                Addr(0x2000),
+                crate::state::XRefKind::Read,
+            )],
+        );
 
         for assembler in [
             Assembler::Tass64,

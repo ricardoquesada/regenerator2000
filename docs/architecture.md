@@ -84,11 +84,11 @@ flowchart TB
 | :--- | :--- |
 | `core.rs` | Engine central hub (`Core`) combining `AppState` and `CoreViewState`. |
 | `action_handlers/` | Modular domain action dispatchers (`file_handler`, `disassembly_handler`, `debug_handler`, `navigation_handler`). |
-| `state/` | Domain models (`AppState`, `Addr`, `BlockType`, `TargetSystem`), sparse `AnnotationManager`, and `.regen2000proj` persistence. |
+| `state/` | Domain models (`AppState`, `Addr`, `BlockType`, `TargetSystem`, `XRef`, `XRefKind`), sparse `AnnotationManager`, and `.regen2000proj` persistence. |
 | `disassembler/` | Disassembly pipeline, symbol resolution, data block formatters, and 4 assembler backends (`64tass`, `ACME`, `ca65`, `KickAss`). |
-| `cpu.rs` | MOS 6502/6510 256-opcode table, cycle counts, addressing modes, and undocumented opcodes. |
+| `cpu.rs` | MOS 6502/6510 256-opcode table, cycle counts, addressing modes, `Opcode::xref_kind()`, and undocumented opcodes. |
 | `commands.rs` | Reversible `Command` enum and `UndoStack` for atomic undo/redo and batch execution. |
-| `analyzer.rs` | Recursive control-flow tracer, cross-reference builder, fill-run detector, and auto-label generator. |
+| `analyzer.rs` | Recursive control-flow tracer, typed cross-reference (`XRef` / `XRefKind`) builder, fill-run detector, and auto-label generator. |
 | `parser/` | Container and symbol parsers (`.prg`, BASIC `SYS`, `.crt`, `.d64`/`.d71`/`.d81`, `.t64`, `.dis65`, `.lbl`, `.vsf`). |
 | `exporter/` | 3-stage Exporter IR pipeline (`ir.rs`), pure ASM/HTML backends (`asm.rs`, `html.rs`), and roundtrip assembler verification (`verify.rs`). |
 | `unpacker/` | 2-phase 6502 emulation sandbox (`bus.rs`, `cia.rs`, `machine.rs`, `engine.rs`, `detector.rs`). |
@@ -179,7 +179,7 @@ pub struct AppState {
     pub labels: BTreeMap<Addr, Vec<Label>>,
     pub settings: DocumentSettings,
     pub annotations: AnnotationManager,
-    pub cross_refs: BTreeMap<Addr, Vec<Addr>>,
+    pub cross_refs: BTreeMap<Addr, Vec<XRef>>,
     pub enums: BTreeMap<String, EnumDefinition>,
     pub user_global_enums: BTreeMap<String, EnumDefinition>,
     pub builtin_enums: BTreeMap<String, EnumDefinition>,
@@ -216,6 +216,7 @@ pub struct AppState {
 -   **[`Addr`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs#L503)**: Wraps a 16-bit memory address (`pub struct Addr(pub u16)`). Implements wrapping 16-bit address arithmetic, hexadecimal formatting, and numeric JSON serialization.
 -   **[`BlockType`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs#L771)**: Classifies memory regions (`Code`, `DataByte`, `DataWord`, `Address`, `PetsciiText`, `ScreencodeText`, `LoHiAddress`, `HiLoAddress`, `LoHiWord`, `HiLoWord`, `ExternalFile`, and `Undefined`).
 -   **[`Assembler`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs#L739)**: Selects the target assembler syntax (`Tass64`, `Acme`, `Ca65`, or `Kick`).
+-   **[`XRef`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs#L1029) & [`XRefKind`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs#L959)**: Represent a typed cross-reference edge (`from: Addr`, `kind: XRefKind`) and its semantic access or control-flow classification: `Read` (`[R]`), `Write` (`[W]`), `ReadModifyWrite` (`[R/W]`), `Call` (`[C]`), `Jump` (`[J]`), and `Offset` (`[O]`). Sorted deterministically by `(from, kind)`.
 
 ---
 
@@ -267,7 +268,7 @@ flowchart TB
 
 The CPU module defines all 256 opcode bytes of the MOS 6502/6510 processor:
 
--   **`Opcode`**: Stores the mnemonic, addressing mode, byte length (1–3), cycle count, description, and illegal-opcode flag.
+-   **`Opcode`**: Stores the mnemonic, addressing mode, byte length (1–3), cycle count, description, illegal-opcode flag, and [`Opcode::xref_kind()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/cpu.rs#L110) classifier (`Read`, `Write`, `ReadModifyWrite`, `Call`, or `Jump`).
 -   **`AddressingMode`**: Enumerates all 13 addressing modes (`Implied`, `Accumulator`, `Immediate`, `ZeroPage`, `ZeroPageX`, `ZeroPageY`, `Relative`, `Absolute`, `AbsoluteX`, `AbsoluteY`, `Indirect`, `IndirectX`, and `IndirectY`), plus an `Unknown` sentinel for undecodable bytes.
 -   **Undocumented Opcodes**: Supports undocumented 6502 opcodes (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`, `ALR`, `ANC`, `ARR`, `AXS`, multi-byte `NOP` variants, and `KIL`/`JAM`). If you disable `use_illegal_opcodes` in Document Settings, the disassembler formats undocumented opcodes as raw `.byte` values.
 
@@ -281,7 +282,7 @@ Every state mutation in Regenerator 2000 executes as an atomic, reversible [`Com
 pub enum Command {
     SetBlockType { range: Range<usize>, new_type: BlockType, old_types: Vec<BlockType> },
     SetLabel { address: Addr, new_label: Option<Vec<Label>>, old_label: Option<Vec<Label>> },
-    SetAnalysisData { labels: BTreeMap<Addr, Vec<Label>>, cross_refs: BTreeMap<Addr, Vec<Addr>>, old_labels: BTreeMap<Addr, Vec<Label>>, old_cross_refs: BTreeMap<Addr, Vec<Addr>> },
+    SetAnalysisData { labels: BTreeMap<Addr, Vec<Label>>, cross_refs: BTreeMap<Addr, Vec<XRef>>, old_labels: BTreeMap<Addr, Vec<Label>>, old_cross_refs: BTreeMap<Addr, Vec<XRef>> },
     SetUserSideComment { address: Addr, new_comment: Option<String>, old_comment: Option<String> },
     SetUserLineComment { address: Addr, new_comment: Option<String>, old_comment: Option<String> },
     ChangeOrigin { new_origin: Addr, old_origin: Addr },
@@ -293,7 +294,7 @@ pub enum Command {
     AddScope { start: Addr, end: Addr, old_end: Option<Addr> },
     RemoveScope { address: Addr, old_end: Addr },
     SetBookmark { address: Addr, new_name: Option<String>, old_name: Option<String> },
-    SetUserExcludedAddress { address: Addr, add: bool, old_labels: BTreeMap<Addr, Vec<Label>>, old_cross_refs: BTreeMap<Addr, Vec<Addr>> },
+    SetUserExcludedAddress { address: Addr, add: bool, old_labels: BTreeMap<Addr, Vec<Label>>, old_cross_refs: BTreeMap<Addr, Vec<XRef>> },
     SetEnumUsage { address: Addr, new_enum: Option<String>, old_enum: Option<String> },
     SetEnumDefinition { name: String, new_definition: Option<EnumDefinition>, old_definition: Option<EnumDefinition> },
     Batch(Vec<Command>),
@@ -309,7 +310,7 @@ pub enum Command {
 
 ### 3.6 Control-Flow & Heuristic Analyzer ([`analyzer.rs`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/analyzer.rs))
 
-The analyzer scans the binary memory buffer to discover subroutines, jump targets, data references, and fill runs:
+The analyzer scans the binary memory buffer to discover subroutines, jump targets, typed cross-references (`BTreeMap<Addr, Vec<XRef>>`), and fill runs:
 
 ```mermaid
 flowchart TB
@@ -317,11 +318,16 @@ flowchart TB
     Trace["Step 1 — Recursive Control-Flow Tracing<br/>Walks JSR, Bxx, JMP, RTS & RTI instruction graph"]
     Classify["Step 2 — Operand Symbol Classification<br/>Resolves usage counts & semantic address roles"]
     Labels["Step 3 — Auto-Label Generation<br/>Assigns deterministic prefixes (s_, j_, b_, r_, p_, zpp_, f_, etc.)"]
-    XRefs["Step 4 — Cross-Reference Construction<br/>Builds inverted index (target Addr → referencing Addr list)"]
+    XRefs["Step 4 — Typed Cross-Reference Construction<br/>Builds inverted index (target Addr → sorted Vec&lt;XRef&gt; with XRefKind)"]
     Fill["Step 5 — Fill Run Detection<br/>Identifies consecutive identical byte sequences ≥ threshold"]
 
     Mem --> Trace --> Classify --> Labels --> XRefs --> Fill
 ```
+
+The analyzer records each reference as a typed [`XRef`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/state/types.rs#L1029) (`from: Addr`, `kind: XRefKind`) and deduplicates entries in `(from, kind)` order:
+
+-   **Instruction Operands**: [`Opcode::xref_kind()`](file:///Users/ricardoq/progs/regenerator2000/crates/regenerator2000-core/src/cpu.rs#L173) classifies operands as `Read` (`[R]`), `Write` (`[W]`), `ReadModifyWrite` (`[R/W]`), `Call` (`[C]`), or `Jump` (`[J]`). Indirect jump targets resolved through `Address` blocks (`JMP ($xxxx)`) also emit `XRefKind::Jump`.
+-   **Symbolic Offsets & Address Tables**: Immediate low/high byte formats (`ImmediateFormat::LowByte(Addr)` / `HighByte(Addr)`) and 16-bit address blocks (`BlockType::Address`, `LoHiAddress`, `HiLoAddress`) emit `XRefKind::Offset` (`[O]`).
 
 #### Auto-Generated Label Prefixes
 

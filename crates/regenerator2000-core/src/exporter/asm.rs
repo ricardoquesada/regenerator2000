@@ -397,9 +397,13 @@ mod tests {
 
         state.raw_data = vec![0xEA];
         state.block_types = vec![BlockType::Code; 1];
-        state
-            .cross_refs
-            .insert(Addr(0x1000), vec![Addr(0x2000), Addr(0x3000)]);
+        state.cross_refs.insert(
+            Addr(0x1000),
+            vec![
+                crate::state::XRef::new(Addr(0x2000), crate::state::XRefKind::Read),
+                crate::state::XRef::new(Addr(0x3000), crate::state::XRefKind::Read),
+            ],
+        );
 
         let bundle = render_asm(&state, Path::new("test_xref_export.asm"));
         let content = &bundle.primary_content;
@@ -1117,9 +1121,13 @@ mod tests {
                 label_type: LabelType::UserDefined,
             }],
         );
-        state
-            .cross_refs
-            .insert(Addr(0x1001), vec![Addr(0x2000), Addr(0x1003)]);
+        state.cross_refs.insert(
+            Addr(0x1001),
+            vec![
+                crate::state::XRef::new(Addr(0x2000), crate::state::XRefKind::Read),
+                crate::state::XRef::new(Addr(0x1003), crate::state::XRefKind::Read),
+            ],
+        );
 
         // 1. 64tass syntax + `; x-ref: $1003, $2000`
         state.settings.assembler = Assembler::Tass64;

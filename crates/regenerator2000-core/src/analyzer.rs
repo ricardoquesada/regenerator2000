@@ -1,21 +1,46 @@
+//! Static control-flow and data-reference analyzer for MOS 6502 binaries.
+//!
+//! This module scans [`AppState`] memory blocks, decodes 6502 instructions and address tables,
+//! generates canonical auto-labels ([`LabelType`]), builds the typed cross-reference index
+//! (`BTreeMap<Addr, Vec<XRef>>`), resolves indirect jump tables (`JMP ($xxxx)`), and performs
+//! recursive control-flow tracing ([`flow_analyze`]).
+
 use crate::cpu::{AddressingMode, Opcode};
-use crate::state::{Addr, AppState, BlockType};
+use crate::state::{Addr, AppState, BlockType, LabelType, XRef, XRefKind};
 use std::collections::BTreeMap;
 
-use crate::state::LabelType;
-
-/// Result of the analysis pass.
+/// Output of a full binary analysis pass produced by [`analyze`].
 pub struct AnalysisResult {
+    /// Address-keyed map of preserved user/system labels and newly generated [`LabelKind::Auto`](crate::state::LabelKind::Auto) labels.
     pub labels: BTreeMap<Addr, Vec<crate::state::Label>>,
-    pub cross_refs: BTreeMap<Addr, Vec<Addr>>,
+    /// Inverted index mapping each target [`Addr`] to a sorted, deduplicated list of typed [`XRef`]s referencing it.
+    pub cross_refs: BTreeMap<Addr, Vec<XRef>>,
 }
 
+/// Per-target accumulator tracking reference counts by [`LabelType`], incoming [`XRef`] edges,
+/// and the first [`LabelType`] observed during the linear scan.
 type UsageData = (
     BTreeMap<LabelType, usize>,
-    Vec<Addr>,
+    Vec<XRef>,
     LabelType, // first overall
 );
 
+/// Performs a full static analysis pass over `state`, generating labels and typed cross-references.
+///
+/// The analyzer executes five stages:
+///
+/// 1. **Linear instruction and data-block scan**: Decodes [`BlockType::Code`] instructions via
+///    `analyze_instruction` and extracts 16-bit target addresses from [`BlockType::Address`],
+///    [`BlockType::LoHiAddress`], and [`BlockType::HiLoAddress`] blocks as [`XRefKind::Offset`].
+/// 2. **Return-stub promotion**: Promotes branch, jump, and subroutine targets whose first
+///    instruction is `RTS` (`$60`) or `RTI` (`$40`) to [`LabelType::Return`].
+/// 3. **Immediate low/high byte offset collection**: Records [`XRefKind::Offset`] references for
+///    instructions annotated with [`ImmediateFormat::LowByte`](crate::state::ImmediateFormat::LowByte)
+///    or [`ImmediateFormat::HighByte`](crate::state::ImmediateFormat::HighByte).
+/// 4. **Canonical label and [`XRef`] normalization**: Sorts and deduplicates each target's
+///    `Vec<XRef>` by `(from, kind)` and generates auto-labels while preserving user and system labels.
+/// 5. **Indirect jump resolution**: Traces `JMP ($xxxx)` instructions through internal
+///    [`BlockType::Address`] jump tables via `follow_indirect_jumps`.
 #[must_use]
 pub fn analyze(state: &AppState) -> AnalysisResult {
     // We want to track ALL usages, illegal or not, and then pick the best ones.
@@ -79,7 +104,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                         &mut usage_map,
                         val,
                         LabelType::AbsoluteAddress,
-                        origin.wrapping_add(pc as u16),
+                        XRef::new(origin.wrapping_add(pc as u16), XRefKind::Offset),
                     );
                     pc += 2;
                 } else {
@@ -114,7 +139,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                                 &mut usage_map,
                                 val,
                                 LabelType::AbsoluteAddress,
-                                origin.wrapping_add((pc + i) as u16),
+                                XRef::new(origin.wrapping_add((pc + i) as u16), XRefKind::Offset),
                             );
                         }
                     }
@@ -147,7 +172,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                                 &mut usage_map,
                                 val,
                                 LabelType::AbsoluteAddress,
-                                origin.wrapping_add((pc + i) as u16),
+                                XRef::new(origin.wrapping_add((pc + i) as u16), XRefKind::Offset),
                             );
                         }
                     }
@@ -182,7 +207,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
 
     // Generate labels
     let mut labels: BTreeMap<Addr, Vec<crate::state::Label>> = BTreeMap::new();
-    let mut cross_refs: BTreeMap<Addr, Vec<Addr>> = BTreeMap::new();
+    let mut cross_refs: BTreeMap<Addr, Vec<XRef>> = BTreeMap::new();
 
     // 0. Pre-populate labels from immediate_value_formats (LoHi/HiLo)
     for (addr, entry) in state.annotations.iter() {
@@ -195,17 +220,24 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
 
             if let Some(target_addr) = target {
                 // Add to usage map to ensure it's tracked
-                update_usage(&mut usage_map, *target_addr, LabelType::Pointer, addr);
+                update_usage(
+                    &mut usage_map,
+                    *target_addr,
+                    LabelType::Pointer,
+                    XRef::new(addr, XRefKind::Offset),
+                );
             }
         }
     }
 
     // 1. Process all used addresses
-    for (addr, (_types_map, refs, first_type)) in usage_map {
+    for (addr, (_types_map, mut refs, first_type)) in usage_map {
         let mut addr_labels = Vec::new();
 
         // Populate cross_refs
         if !refs.is_empty() {
+            refs.sort_unstable();
+            refs.dedup();
             cross_refs.insert(addr, refs);
         }
         if let Some(existing_vec) = state.labels.get(&addr) {
@@ -284,6 +316,11 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
     AnalysisResult { labels, cross_refs }
 }
 
+/// Decodes a single instruction's operand target address and records its [`LabelType`] and typed
+/// [`XRef`] in `usage_map`.
+///
+/// The access classification is determined via [`Opcode::xref_kind`], defaulting to
+/// [`XRefKind::Read`] for any addressing mode that reaches a target branch in the match.
 fn analyze_instruction(
     _state: &AppState,
     opcode: &Opcode,
@@ -291,20 +328,23 @@ fn analyze_instruction(
     address: Addr,
     usage_map: &mut BTreeMap<Addr, UsageData>,
 ) {
+    let kind = opcode.xref_kind().unwrap_or(XRefKind::Read);
+    let xref = XRef::new(address, kind);
+
     match opcode.mode {
         AddressingMode::Implied | AddressingMode::Accumulator | AddressingMode::Immediate => {}
         AddressingMode::ZeroPage => {
             if !operands.is_empty() {
                 let addr = Addr(u16::from(operands[0]));
                 // "a: Zero Page Address"
-                update_usage(usage_map, addr, LabelType::ZeroPageAbsoluteAddress, address);
+                update_usage(usage_map, addr, LabelType::ZeroPageAbsoluteAddress, xref);
             }
         }
         AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
             if !operands.is_empty() {
                 let addr = Addr(u16::from(operands[0]));
                 // Indexed zero page often used for arrays/fields
-                update_usage(usage_map, addr, LabelType::ZeroPageField, address);
+                update_usage(usage_map, addr, LabelType::ZeroPageField, xref);
             }
         }
         AddressingMode::Relative => {
@@ -312,7 +352,7 @@ fn analyze_instruction(
                 let offset = operands[0] as i8;
                 let target = Addr((address.0.wrapping_add(2)).wrapping_add(offset as u16));
                 // "b: ... branch opcodes"
-                update_usage(usage_map, target, LabelType::Branch, address);
+                update_usage(usage_map, target, LabelType::Branch, xref);
             }
         }
         AddressingMode::Absolute => {
@@ -320,12 +360,12 @@ fn analyze_instruction(
                 let target = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
 
                 if opcode.mnemonic == "JSR" {
-                    update_usage(usage_map, target, LabelType::Subroutine, address);
+                    update_usage(usage_map, target, LabelType::Subroutine, xref);
                 } else if opcode.mnemonic == "JMP" {
-                    update_usage(usage_map, target, LabelType::Jump, address);
+                    update_usage(usage_map, target, LabelType::Jump, xref);
                 } else {
                     // "a: ... absolute address"
-                    update_usage(usage_map, target, LabelType::AbsoluteAddress, address);
+                    update_usage(usage_map, target, LabelType::AbsoluteAddress, xref);
                 }
             }
         }
@@ -333,7 +373,7 @@ fn analyze_instruction(
             if operands.len() >= 2 {
                 let target = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 // Indexed absolute is also "absolute address" usage
-                update_usage(usage_map, target, LabelType::Field, address);
+                update_usage(usage_map, target, LabelType::Field, xref);
             }
         }
         AddressingMode::Indirect => {
@@ -341,7 +381,7 @@ fn analyze_instruction(
                 let pointer_addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 // "p: if this is a pointer"
                 // The address `pointer_addr` is BEING USED a pointer.
-                update_usage(usage_map, pointer_addr, LabelType::Pointer, address);
+                update_usage(usage_map, pointer_addr, LabelType::Pointer, xref);
             }
         }
         AddressingMode::IndirectX => {
@@ -350,14 +390,14 @@ fn analyze_instruction(
                 // (base, X) -> points to a table of pointers in ZP? Or just ZP pointer?
                 // It is "Indirect" X. The address `base` (and base+1) holds the address.
                 // So `base` is a pointer.
-                update_usage(usage_map, base, LabelType::ZeroPagePointer, address);
+                update_usage(usage_map, base, LabelType::ZeroPagePointer, xref);
             }
         }
         AddressingMode::IndirectY => {
             if !operands.is_empty() {
                 let base = Addr(u16::from(operands[0]));
                 // (base), Y -> base is a ZP pointer.
-                update_usage(usage_map, base, LabelType::ZeroPagePointer, address);
+                update_usage(usage_map, base, LabelType::ZeroPagePointer, xref);
             }
         }
         AddressingMode::Unknown => {}
@@ -411,21 +451,20 @@ fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageD
     }
 }
 
-fn update_usage(
-    map: &mut BTreeMap<Addr, UsageData>,
-    addr: Addr,
-    priority: LabelType,
-    from_addr: Addr,
-) {
+/// Records an incoming [`XRef`] and increments the [`LabelType`] usage counter for `addr`.
+///
+/// The first [`LabelType`] recorded for `addr` is retained as the canonical auto-label type
+/// unless later promoted by `promote_return_labels`.
+fn update_usage(map: &mut BTreeMap<Addr, UsageData>, addr: Addr, priority: LabelType, xref: XRef) {
     map.entry(addr)
         .and_modify(|(types, refs, _first)| {
             *types.entry(priority).or_insert(0) += 1;
-            refs.push(from_addr);
+            refs.push(xref);
         })
         .or_insert_with(|| {
             let mut types = BTreeMap::new();
             types.insert(priority, 1);
-            let refs = vec![from_addr];
+            let refs = vec![xref];
             (types, refs, priority)
         });
 }
@@ -434,13 +473,16 @@ fn update_usage(
 // Pass 1: Follow JMP (Indirect) through jump tables
 // =============================================================================
 
-/// When we see `JMP ($xxxx)`, check if `$xxxx` points to an Address-typed block
-/// inside our binary. If so, read the 16-bit pointer stored there and register
-/// it as a jump target label + cross-reference.
+/// Resolves `JMP ($xxxx)` (`$6C`) indirect jumps when `$xxxx` points to an internal
+/// [`BlockType::Address`] block.
+///
+/// This pass reads the 16-bit target address from `state.raw_data`. It then adds an auto-generated
+/// jump label ([`LabelType::Jump`] or [`LabelType::ExternalJump`]) and a [`XRefKind::Jump`]
+/// cross-reference from the `JMP ($xxxx)` instruction address.
 fn follow_indirect_jumps(
     state: &AppState,
     labels: &mut BTreeMap<Addr, Vec<crate::state::Label>>,
-    cross_refs: &mut BTreeMap<Addr, Vec<Addr>>,
+    cross_refs: &mut BTreeMap<Addr, Vec<XRef>>,
 ) {
     let data = &state.raw_data;
     let origin = state.origin;
@@ -520,8 +562,11 @@ fn follow_indirect_jumps(
                     });
                 }
 
-                // Add cross-reference
-                cross_refs.entry(target).or_default().push(jmp_addr);
+                // Append the resolved jump edge and re-normalize `(from, kind)` ordering.
+                let refs = cross_refs.entry(target).or_default();
+                refs.push(XRef::new(jmp_addr, XRefKind::Jump));
+                refs.sort_unstable();
+                refs.dedup();
             }
         }
 
@@ -529,6 +574,8 @@ fn follow_indirect_jumps(
     }
 }
 
+/// Performs a breadth-first control-flow reachability trace starting from `start`, returning
+/// the byte-offset ranges of reachable code segments within `state.raw_data`.
 #[must_use]
 pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<std::ops::Range<usize>> {
     let mut visited = std::collections::HashSet::new();
@@ -1444,6 +1491,222 @@ mod tests {
             LabelType::Return.format_label(0x10),
             "r_10",
             "Return label in ZP must use 2 hex digits"
+        );
+    }
+
+    #[test]
+    fn test_analyze_typed_xrefs_read_write_rmw_call_jump() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: LDA $2000 (AD 00 20) -> Read
+        // $1003: STA $2000 (8D 00 20) -> Write
+        // $1006: INC $2000 (EE 00 20) -> ReadModifyWrite
+        // $1009: JSR $1012 (20 12 10) -> Call
+        // $100C: JMP $1012 (4C 12 10) -> Jump
+        // $100F: BNE $1012 (D0 01)    -> Jump
+        // $1011: NOP       (EA)
+        // $1012: RTS       (60)
+        state.raw_data = vec![
+            0xAD, 0x00, 0x20, // $1000
+            0x8D, 0x00, 0x20, // $1003
+            0xEE, 0x00, 0x20, // $1006
+            0x20, 0x12, 0x10, // $1009
+            0x4C, 0x12, 0x10, // $100C
+            0xD0, 0x01, // $100F
+            0xEA, // $1011
+            0x60, // $1012
+        ];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
+
+        let result = analyze(&state);
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x2000)),
+            Some(&vec![
+                XRef::new(Addr(0x1000), XRefKind::Read),
+                XRef::new(Addr(0x1003), XRefKind::Write),
+                XRef::new(Addr(0x1006), XRefKind::ReadModifyWrite),
+            ])
+        );
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x1012)),
+            Some(&vec![
+                XRef::new(Addr(0x1009), XRefKind::Call),
+                XRef::new(Addr(0x100C), XRefKind::Jump),
+                XRef::new(Addr(0x100F), XRefKind::Jump),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_analyze_typed_xrefs_illegal_opcodes_and_indirect_zp() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        state.settings.use_illegal_opcodes = true;
+        // $1000: LAX ($FB),Y (B3 FB) -> Read
+        // $1002: STA ($FB),Y (91 FB) -> Write
+        // $1004: SAX $FB     (87 FB) -> Write
+        // $1006: SLO ($FB),Y (13 FB) -> ReadModifyWrite
+        // $1008: RLA $FB     (27 FB) -> ReadModifyWrite
+        // $100A: SRE $FB     (47 FB) -> ReadModifyWrite
+        // $100C: RRA $FB     (67 FB) -> ReadModifyWrite
+        // $100E: DCP $FB     (C7 FB) -> ReadModifyWrite
+        // $1010: ISC $FB     (E7 FB) -> ReadModifyWrite
+        state.raw_data = vec![
+            0xB3, 0xFB, // $1000
+            0x91, 0xFB, // $1002
+            0x87, 0xFB, // $1004
+            0x13, 0xFB, // $1006
+            0x27, 0xFB, // $1008
+            0x47, 0xFB, // $100A
+            0x67, 0xFB, // $100C
+            0xC7, 0xFB, // $100E
+            0xE7, 0xFB, // $1010
+        ];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
+
+        let result = analyze(&state);
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x00FB)),
+            Some(&vec![
+                XRef::new(Addr(0x1000), XRefKind::Read),
+                XRef::new(Addr(0x1002), XRefKind::Write),
+                XRef::new(Addr(0x1004), XRefKind::Write),
+                XRef::new(Addr(0x1006), XRefKind::ReadModifyWrite),
+                XRef::new(Addr(0x1008), XRefKind::ReadModifyWrite),
+                XRef::new(Addr(0x100A), XRefKind::ReadModifyWrite),
+                XRef::new(Addr(0x100C), XRefKind::ReadModifyWrite),
+                XRef::new(Addr(0x100E), XRefKind::ReadModifyWrite),
+                XRef::new(Addr(0x1010), XRefKind::ReadModifyWrite),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_analyze_typed_xrefs_immediate_low_high_byte_is_offset() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: LDA #$34 (A9 34) with LowByte($1234)
+        // $1002: LDY #$12 (A0 12) with HighByte($1234)
+        state.raw_data = vec![0xA9, 0x34, 0xA0, 0x12];
+        state.block_types = vec![BlockType::Code; 4];
+        state.annotations.update(Addr(0x1000), |e| {
+            e.immediate_format = Some(crate::state::ImmediateFormat::LowByte(Addr(0x1234)));
+        });
+        state.annotations.update(Addr(0x1002), |e| {
+            e.immediate_format = Some(crate::state::ImmediateFormat::HighByte(Addr(0x1234)));
+        });
+
+        let result = analyze(&state);
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x1234)),
+            Some(&vec![
+                XRef::new(Addr(0x1000), XRefKind::Offset),
+                XRef::new(Addr(0x1002), XRefKind::Offset),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_analyze_typed_xrefs_jmp_indirect_pointer_and_resolved_target() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: JMP ($1006) (6C 06 10)
+        // $1003..$1005: NOP (EA EA EA)
+        // $1006..=$1007: .word $2000 (00 20) as BlockType::Address
+        state.raw_data = vec![0x6C, 0x06, 0x10, 0xEA, 0xEA, 0xEA, 0x00, 0x20];
+        state.block_types = vec![
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Address,
+            BlockType::Address,
+        ];
+
+        let result = analyze(&state);
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x1006)),
+            Some(&vec![XRef::new(Addr(0x1000), XRefKind::Jump)])
+        );
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x2000)),
+            Some(&vec![
+                XRef::new(Addr(0x1000), XRefKind::Jump),
+                XRef::new(Addr(0x1006), XRefKind::Offset),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_analyze_typed_xrefs_data_blocks_address_lohi_hilo() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000..=$1001: BlockType::Address -> $3000 (00 30)
+        // $1002..=$1005: BlockType::LoHiAddress -> $3001 (lo 01 at $1002, hi 30 at $1004), $3002 (lo 02 at $1003, hi 30 at $1005)
+        // $1006..=$1009: BlockType::HiLoAddress -> $3003 (hi 30 at $1006, lo 03 at $1008), $3004 (hi 30 at $1007, lo 04 at $1009)
+        state.raw_data = vec![
+            0x00, 0x30, // Address $3000
+            0x01, 0x02, 0x30, 0x30, // LoHiAddress $3001, $3002
+            0x30, 0x30, 0x03, 0x04, // HiLoAddress $3003, $3004
+        ];
+        state.block_types = vec![
+            BlockType::Address,
+            BlockType::Address,
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress,
+            BlockType::HiLoAddress,
+            BlockType::HiLoAddress,
+            BlockType::HiLoAddress,
+            BlockType::HiLoAddress,
+        ];
+
+        let result = analyze(&state);
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x3000)),
+            Some(&vec![XRef::new(Addr(0x1000), XRefKind::Offset)])
+        );
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x3001)),
+            Some(&vec![XRef::new(Addr(0x1002), XRefKind::Offset)])
+        );
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x3002)),
+            Some(&vec![XRef::new(Addr(0x1003), XRefKind::Offset)])
+        );
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x3003)),
+            Some(&vec![XRef::new(Addr(0x1006), XRefKind::Offset)])
+        );
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x3004)),
+            Some(&vec![XRef::new(Addr(0x1007), XRefKind::Offset)])
+        );
+    }
+
+    #[test]
+    fn test_analyze_typed_xrefs_sorted_and_deduplicated() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: LDA $2000 (AD 00 20) -> Read from $1000 AND LowByte($2000) annotation at $1000 -> Offset from $1000
+        // $1003: STA $2000 (8D 00 20) -> Write from $1003
+        state.raw_data = vec![0xAD, 0x00, 0x20, 0x8D, 0x00, 0x20];
+        state.block_types = vec![BlockType::Code; 6];
+        state.annotations.update(Addr(0x1000), |e| {
+            e.immediate_format = Some(crate::state::ImmediateFormat::LowByte(Addr(0x2000)));
+        });
+
+        let result = analyze(&state);
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x2000)),
+            Some(&vec![
+                XRef::new(Addr(0x1000), XRefKind::Read),
+                XRef::new(Addr(0x1000), XRefKind::Offset),
+                XRef::new(Addr(0x1003), XRefKind::Write),
+            ])
         );
     }
 }

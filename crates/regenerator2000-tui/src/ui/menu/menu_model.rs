@@ -13,7 +13,7 @@ pub struct MenuState {
 impl MenuState {
     /// Constructs the canonical menu bar hierarchy with shortcut labels and [`AppAction`] bindings.
     ///
-    /// Every shortcut declared here is verified against [`crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::get_shortcuts`]
+    /// Every shortcut declared here is verified against `ShortcutsDialog::get_shortcuts`
     /// and `docs/keyboard_shortcuts.md` by the Pillar 3 synchronization contract test.
     #[must_use]
     pub fn new() -> Self {

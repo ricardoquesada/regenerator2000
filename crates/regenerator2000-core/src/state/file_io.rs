@@ -867,7 +867,8 @@ impl AppState {
             let mut newbies = Vec::new();
             for &l in &must_be_local {
                 if let Some(refs) = self.cross_refs.get(&l) {
-                    for &r in refs {
+                    for xref in refs {
+                        let r = xref.from;
                         for &c in &candidates {
                             if !must_be_local.contains(&c)
                                 && !newbies.contains(&c)

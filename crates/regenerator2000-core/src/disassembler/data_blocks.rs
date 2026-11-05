@@ -942,7 +942,7 @@ mod tests {
     fn make_fill_ctx<'a>(
         data: &'a [u8],
         block_types: &'a [BlockType],
-        cross_refs: &'a BTreeMap<Addr, Vec<Addr>>,
+        cross_refs: &'a BTreeMap<Addr, Vec<crate::state::XRef>>,
         line_comments: &'a BTreeMap<Addr, String>,
         side_comments: &'a BTreeMap<Addr, String>,
         threshold: usize,
@@ -1020,8 +1020,14 @@ mod tests {
     fn test_fill_run_interrupted_by_xref() {
         let data = vec![0x00u8; 10];
         let block_types = vec![BlockType::DataByte; 10];
-        let mut cross_refs: BTreeMap<Addr, Vec<Addr>> = BTreeMap::new();
-        cross_refs.insert(Addr(0xc005), vec![Addr(0xd000)]);
+        let mut cross_refs: BTreeMap<Addr, Vec<crate::state::XRef>> = BTreeMap::new();
+        cross_refs.insert(
+            Addr(0xc005),
+            vec![crate::state::XRef::new(
+                Addr(0xd000),
+                crate::state::XRefKind::Read,
+            )],
+        );
 
         let m1 = empty_map();
         let m2 = empty_map();
@@ -1078,7 +1084,8 @@ mod tests {
         block_types: &'a [BlockType],
         side_comments: &'a BTreeMap<Addr, String>,
     ) -> DisassemblyContext<'a> {
-        static EMPTY_XREFS: LazyLock<BTreeMap<Addr, Vec<Addr>>> = LazyLock::new(BTreeMap::new);
+        static EMPTY_XREFS: LazyLock<BTreeMap<Addr, Vec<crate::state::XRef>>> =
+            LazyLock::new(BTreeMap::new);
         static EMPTY_LINE: LazyLock<BTreeMap<Addr, String>> = LazyLock::new(BTreeMap::new);
         make_fill_ctx(
             data,

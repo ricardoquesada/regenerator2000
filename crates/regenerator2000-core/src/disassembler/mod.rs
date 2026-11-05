@@ -543,7 +543,7 @@ impl Disassembler {
         origin: Addr,
         settings: &crate::state::DocumentSettings,
         annotations: &crate::state::AnnotationManager,
-        cross_refs: &std::collections::BTreeMap<Addr, Vec<Addr>>,
+        cross_refs: &std::collections::BTreeMap<Addr, Vec<crate::state::XRef>>,
         collapsed_blocks: &[(usize, usize)],
         splitters: &std::collections::BTreeSet<Addr>,
     ) -> Vec<DisassemblyLine> {

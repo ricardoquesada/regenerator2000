@@ -326,7 +326,7 @@ Runs recursive flow disassembly from the specified start address.
 
 ### `r2000_get_address_details`
 
-Returns instruction semantics, cross-references, labels, comments, and block type for a specific memory address.
+Returns instruction semantics, cross-references, labels, comments, and the block type for a memory address. The `metadata` object includes `cross_refs_in` (numeric source addresses) and `typed_cross_refs_in` (objects with `address`, `from_address`, `from_hex`, `kind`, and `badge`).
 
 **Arguments:**
 
@@ -365,7 +365,7 @@ Returns user-defined comments and their addresses with optional filters.
 
 ### `r2000_get_cross_references`
 
-Returns all addresses that reference the target address (such as `JSR`, `JMP`, and memory load/store instructions).
+Returns a sorted, deduplicated list of typed references to the target address. Each object contains `address`, `from_address`, `from_hex` (`"$XXXX"`), `kind` (`"read"`, `"write"`, `"read_modify_write"`, `"call"`, `"jump"`, or `"offset"`), and `badge` (`"[R]"`, `"[W]"`, `"[R/W]"`, `"[C]"`, `"[J]"`, or `"[O]"`).
 
 **Arguments:**
 

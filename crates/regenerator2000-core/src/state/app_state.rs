@@ -104,8 +104,8 @@ pub struct AppState {
     pub settings: DocumentSettings,
     /// Sparse address-keyed annotations (comments, immediate formats, bookmarks, enums, and indexed lexical scopes).
     pub annotations: AnnotationManager,
-    /// Cross-reference map from target [`Addr`] to referencing instruction [`Addr`]s.
-    pub cross_refs: BTreeMap<Addr, Vec<Addr>>,
+    /// Cross-reference map from target [`Addr`] to typed [`XRef`](super::types::XRef)s.
+    pub cross_refs: BTreeMap<Addr, Vec<super::types::XRef>>,
 
     // Enums State
     /// Project-local enum definitions keyed by enum name.

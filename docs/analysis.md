@@ -71,11 +71,22 @@ After the scan completes, the analyzer maps every referenced address to its usag
 
 ### Step 4: Cross-Reference Building
 
-When an instruction references an address, the analyzer records a **cross-reference** (x-ref) from the instruction address to the target. The disassembly view displays these x-refs as side comments. Press ++ctrl+x++ (Find References) to navigate to them.
+When an instruction or data block references an address, the analyzer records a typed **cross-reference** (`XRef`) from the source address to the target. The analyzer classifies each cross-reference into one of six kinds:
+
+| Badge   | Kind                | Source Instructions and Blocks                                                                   |
+|:--------|:--------------------|:-------------------------------------------------------------------------------------------------|
+| `[R]`   | Read                | Memory load, bitwise, arithmetic, and compare instructions (`LDA`, `LDX`, `LDY`, `CMP`, `BIT`, `LAX`) |
+| `[W]`   | Write               | Memory store instructions (`STA`, `STX`, `STY`, `SAX`)                                           |
+| `[R/W]` | Read-Modify-Write   | In-place shift, rotate, increment, and decrement instructions (`INC`, `DEC`, `ASL`, `LSR`, `ROL`, `ROR`, `ISC`) |
+| `[C]`   | Call                | Subroutine call instructions (`JSR`)                                                             |
+| `[J]`   | Jump                | Unconditional jumps (`JMP`) and relative branches (`BNE`, `BEQ`, `BCC`, `BCS`)                   |
+| `[O]`   | Offset              | Immediate low/high byte operands (`#<label`, `#>label`) and address tables (`Address`, `Lo/Hi Address`, `Hi/Lo Address`) |
+
+The disassembly view shows deduplicated source addresses in side comments (`; x-ref: $xxxx, $yyyy`). Press ++ctrl+x++ (**Find References**) to view the typed badges. Press ++enter++ on an entry to jump to that source address.
 
 ### Step 5: Indirect Jump Resolution
 
-In the final pass, the analyzer inspects `JMP ($xxxx)` instructions where `$xxxx` points to an internal **Address** block. If the analyzer finds a match, it reads the 16-bit pointer and registers the destination as a jump target with a label and cross-reference.
+In the final pass, the analyzer checks `JMP ($xxxx)` instructions where `$xxxx` points to an internal **Address** block. If it finds a match, it reads the 16-bit pointer and records a jump label and a `[J]` (`Jump`) cross-reference.
 
 ---
 
