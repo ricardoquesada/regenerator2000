@@ -1,21 +1,20 @@
-//! Pure in-memory and disk-backed Assembler (`.asm` + `.bin` sidecars) exporter backend.
+//! In-memory and disk-backed assembler (`.asm` and `.bin` sidecars) exporter backend.
 //!
-//! This module implements **Stage 2 (ASM Backend)** of the exporter pipeline.
-//! [`render_asm_document`] consumes a pre-lowered [`ExportDocument`] and produces an in-memory
-//! [`ExportBundle`] with zero filesystem I/O:
+//! This module implements Stage 2 (ASM Backend) of the exporter pipeline.
+//! [`render_asm_document`] converts a lowered [`ExportDocument`] into an in-memory
+//! [`ExportBundle`] without filesystem I/O:
 //!
-//! - [`ExportRow::Equate`] and [`ExportRow::EnumLine`] rows are emitted directly at column 0 so
-//!   multi-line `64tass` (`.block` / `.bend`) and `ca65` (`.enum` / `.endenum`) enum blocks are
-//!   never erroneously indented by [`LABEL_COLUMN_WIDTH`].
-//! - [`ExportRow::FileDirective`] rows (such as `.macpack cbm` in `ca65`) are emitted outside the
-//!   top header comment banner with optional side comments aligned to [`DEFINITION_COLUMN_WIDTH`].
-//! - [`ExportRow::ExternalFile`] blocks record a raw binary [`ExportSidecar`] (`{stem}_{start:04x}_{end:04x}.bin`)
-//!   and emit the assembler-specific binary include directive after [`ExportRow::Origin`].
-//! - Implied and operand-less instructions are emitted without trailing whitespace.
+//! - Emits [`ExportRow::Equate`] and [`ExportRow::EnumLine`] rows at column 0 so multi-line
+//!   `64tass` and `ca65` enum blocks do not shift by [`LABEL_COLUMN_WIDTH`].
+//! - Emits [`ExportRow::FileDirective`] rows outside the header banner and aligns optional
+//!   side comments to [`DEFINITION_COLUMN_WIDTH`].
+//! - Records an [`ExportSidecar`] (`{stem}_{start:04x}_{end:04x}.bin`) for each
+//!   [`ExportRow::ExternalFile`] block and emits the binary include directive after [`ExportRow::Origin`].
+//! - Emits implied and operand-less instructions without trailing whitespace.
 
 use super::ir::{
-    ExportBundle, ExportDocument, ExportOptions, ExportRow, ExportSidecar, LabelPlacement,
-    build_export_document,
+    ExportBundle, ExportComment, ExportDocument, ExportOptions, ExportRow, ExportSidecar,
+    LabelPlacement, build_export_document,
 };
 use crate::disassembler::{DEFINITION_COLUMN_WIDTH, INSTRUCTION_COLUMN_WIDTH, LABEL_COLUMN_WIDTH};
 use crate::error::CoreError;
@@ -23,11 +22,26 @@ use crate::state::AppState;
 use std::fmt::Write as _;
 use std::path::Path;
 
-/// Renders a pre-lowered [`ExportDocument`] into an in-memory `.asm` [`ExportBundle`].
+fn writeln_with_side_comment(
+    output: &mut String,
+    text: &str,
+    width: usize,
+    side_comment: Option<&ExportComment>,
+    comment_prefix: &str,
+) {
+    if let Some(comment) = side_comment {
+        let comment_text = comment.format_plain(comment_prefix);
+        let _ = writeln!(output, "{text:<width$} {comment_prefix} {comment_text}");
+    } else {
+        let _ = writeln!(output, "{text}");
+    }
+}
+
+/// Renders a lowered [`ExportDocument`] into an in-memory `.asm` [`ExportBundle`].
 ///
-/// This function performs zero filesystem I/O. Any [`ExportRow::ExternalFile`] blocks in `doc`
-/// are emitted as binary include directives in `primary_content` and added as `.bin` payloads
-/// in `bundle.sidecars`.
+/// This function does not read or write the filesystem. It emits [`ExportRow::ExternalFile`]
+/// blocks as binary include directives in `primary_content` and adds `.bin` payloads to
+/// `bundle.sidecars`.
 #[must_use]
 pub fn render_asm_document(doc: &ExportDocument, path: &Path) -> ExportBundle {
     let mut output = String::new();
@@ -60,33 +74,29 @@ pub fn render_asm_document(doc: &ExportDocument, path: &Path) -> ExportBundle {
                 directive,
                 side_comment,
             } => {
-                if let Some(comment) = side_comment {
-                    let comment_text = comment.format_plain(comment_prefix);
-                    let _ = writeln!(
-                        output,
-                        "{directive:<DEFINITION_COLUMN_WIDTH$} {comment_prefix} {comment_text}"
-                    );
-                } else {
-                    let _ = writeln!(output, "{directive}");
-                }
+                writeln_with_side_comment(
+                    &mut output,
+                    directive,
+                    DEFINITION_COLUMN_WIDTH,
+                    side_comment.as_ref(),
+                    comment_prefix,
+                );
             }
             ExportRow::Equate {
                 definition,
                 side_comment,
                 ..
             } => {
-                if let Some(comment) = side_comment {
-                    let comment_text = comment.format_plain(comment_prefix);
-                    let _ = writeln!(
-                        output,
-                        "{definition:<DEFINITION_COLUMN_WIDTH$} {comment_prefix} {comment_text}"
-                    );
-                } else {
-                    let _ = writeln!(output, "{definition}");
-                }
+                writeln_with_side_comment(
+                    &mut output,
+                    definition,
+                    DEFINITION_COLUMN_WIDTH,
+                    side_comment.as_ref(),
+                    comment_prefix,
+                );
             }
             ExportRow::EnumLine { text } => {
-                // Emit enum lines verbatim at column 0 so formatter-specific indentation is preserved.
+                // Emit enum lines at column 0 to preserve formatter-specific indentation.
                 let _ = writeln!(output, "{text}");
             }
             ExportRow::Origin { directive, .. } => {
@@ -115,22 +125,19 @@ pub fn render_asm_document(doc: &ExportDocument, path: &Path) -> ExportBundle {
                     let _ = writeln!(output, "{comment_prefix} {comment_line}");
                 }
 
-                // Mid-instruction relative labels are emitted at column 0 with optional cross-reference
-                // comments padded to `DEFINITION_COLUMN_WIDTH` (matching preamble equates).
+                // Emit mid-instruction relative labels at column 0 and pad cross-reference
+                // comments to `DEFINITION_COLUMN_WIDTH`.
                 for mid in &inst.mid_labels {
-                    if let Some(comment) = &mid.side_comment {
-                        let comment_text = comment.format_plain(comment_prefix);
-                        let _ = writeln!(
-                            output,
-                            "{:<DEFINITION_COLUMN_WIDTH$} {comment_prefix} {comment_text}",
-                            mid.definition
-                        );
-                    } else {
-                        let _ = writeln!(output, "{}", mid.definition);
-                    }
+                    writeln_with_side_comment(
+                        &mut output,
+                        &mid.definition,
+                        DEFINITION_COLUMN_WIDTH,
+                        mid.side_comment.as_ref(),
+                        comment_prefix,
+                    );
                 }
 
-                // Avoid appending a trailing space on implied/operand-less instructions (`nop`, `rts`).
+                // Omit trailing spaces on implied and operand-less instructions (`nop`, `rts`).
                 let instruction_part = if inst.operand_text.is_empty() {
                     inst.mnemonic.clone()
                 } else if inst.mnemonic.is_empty() {
@@ -140,58 +147,43 @@ pub fn render_asm_document(doc: &ExportDocument, path: &Path) -> ExportBundle {
                 };
 
                 if inst.is_scope_brace {
-                    // KickAssembler scope braces (`{` / `}`) are emitted at column 0, with any
-                    // attached scope label placed on the preceding line.
+                    // Emit KickAssembler scope braces (`{` and `}`) at column 0 and place
+                    // any attached scope label on the preceding line.
                     if let Some(label_text) = &inst.label {
                         let _ = writeln!(output, "{label_text}");
                     }
-                    if let Some(comment) = &inst.side_comment {
-                        let comment_text = comment.format_plain(comment_prefix);
-                        let _ = writeln!(
-                            output,
-                            "{instruction_part:<INSTRUCTION_COLUMN_WIDTH$} {comment_prefix} {comment_text}"
-                        );
-                    } else {
-                        let _ = writeln!(output, "{instruction_part}");
-                    }
+                    writeln_with_side_comment(
+                        &mut output,
+                        &instruction_part,
+                        INSTRUCTION_COLUMN_WIDTH,
+                        inst.side_comment.as_ref(),
+                        comment_prefix,
+                    );
                 } else {
-                    let inst_line = match inst.label_placement {
+                    let label_part = match inst.label_placement {
                         LabelPlacement::OwnLine => {
                             if let Some(label_text) = &inst.label {
                                 let _ = writeln!(output, "{label_text}");
                             }
-                            if instruction_part.is_empty() && inst.side_comment.is_none() {
-                                String::new()
-                            } else {
-                                format!("{:<LABEL_COLUMN_WIDTH$}{instruction_part}", "")
-                            }
+                            ""
                         }
-                        LabelPlacement::Inline => {
-                            let label_part = inst.label.as_deref().unwrap_or("");
-                            if instruction_part.is_empty() && inst.side_comment.is_none() {
-                                label_part.to_string()
-                            } else {
-                                format!("{label_part:<LABEL_COLUMN_WIDTH$}{instruction_part}")
-                            }
-                        }
-                        LabelPlacement::None => {
-                            if instruction_part.is_empty() && inst.side_comment.is_none() {
-                                String::new()
-                            } else {
-                                format!("{:<LABEL_COLUMN_WIDTH$}{instruction_part}", "")
-                            }
-                        }
+                        LabelPlacement::Inline => inst.label.as_deref().unwrap_or(""),
+                        LabelPlacement::None => "",
                     };
 
-                    if let Some(comment) = &inst.side_comment {
-                        let comment_text = comment.format_plain(comment_prefix);
-                        let _ = writeln!(
-                            output,
-                            "{inst_line:<INSTRUCTION_COLUMN_WIDTH$} {comment_prefix} {comment_text}"
-                        );
+                    let inst_line = if instruction_part.is_empty() && inst.side_comment.is_none() {
+                        label_part.to_string()
                     } else {
-                        let _ = writeln!(output, "{inst_line}");
-                    }
+                        format!("{label_part:<LABEL_COLUMN_WIDTH$}{instruction_part}")
+                    };
+
+                    writeln_with_side_comment(
+                        &mut output,
+                        &inst_line,
+                        INSTRUCTION_COLUMN_WIDTH,
+                        inst.side_comment.as_ref(),
+                        comment_prefix,
+                    );
                 }
             }
         }
@@ -215,17 +207,17 @@ pub fn render_asm_with_options(
     render_asm_document(&doc, path)
 }
 
-/// Lowers `state` using the assembler in `state.settings` and renders an in-memory `.asm` [`ExportBundle`].
+/// Lowers `state` with the assembler in `state.settings` and renders an in-memory `.asm` [`ExportBundle`].
 #[must_use]
 pub fn render_asm(state: &AppState, path: &Path) -> ExportBundle {
     let options = ExportOptions::from_state_and_path(state, path);
     render_asm_with_options(state, path, &options)
 }
 
-/// Exports the disassembly to a file formatted for the current assembler.
+/// Exports the disassembly to disk for the current assembler.
 ///
 /// # Errors
-/// Returns [`CoreError::Export`] if the file cannot be written or an external binary cannot be saved.
+/// Returns [`CoreError::Export`] if the primary `.asm` file or an external `.bin` sidecar cannot be written.
 pub fn export_asm<P: AsRef<Path>>(state: &AppState, path: P) -> Result<(), CoreError> {
     render_asm(state, path.as_ref()).write_to_disk()
 }
@@ -990,7 +982,7 @@ mod tests {
             .annotations
             .update(Addr(0x1000), |e| e.enum_usage = Some("Colors".to_string()));
 
-        // 1. 64tass: `.block` and `.bend` lack `=`; must NOT be indented by 20 spaces
+        // 1. 64tass: `.block` and `.bend` lack `=` and must not shift by 20 spaces
         state.settings.assembler = Assembler::Tass64;
         let tass_bundle = render_asm(&state, Path::new("enums_tass.asm"));
         let tass_content = &tass_bundle.primary_content;
@@ -1007,7 +999,7 @@ mod tests {
             "64tass .bend must not be shifted by LABEL_COLUMN_WIDTH"
         );
 
-        // 2. ca65: `.enum Colors` and `.endenum` lack `=`; must start at column 0
+        // 2. ca65: `.enum Colors` and `.endenum` lack `=` and must start at column 0
         state.settings.assembler = Assembler::Ca65;
         let ca65_bundle = render_asm(&state, Path::new("enums_ca65.asm"));
         let ca65_content = &ca65_bundle.primary_content;

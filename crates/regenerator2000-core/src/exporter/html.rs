@@ -1,19 +1,18 @@
-//! Pure in-memory and disk-backed interactive HTML (`.html` + `_{addr:04x}.html` sidecars)
+//! In-memory and disk-backed interactive HTML (`.html` and `_{addr:04x}.html` sidecars)
 //! exporter backend.
 //!
-//! This module implements **Stage 2 (HTML Backend)** of the exporter pipeline.
-//! [`render_html_document`] consumes a pre-lowered [`ExportDocument`] and produces an in-memory
-//! [`ExportBundle`] with zero filesystem I/O:
+//! This module implements Stage 2 (HTML Backend) of the exporter pipeline.
+//! [`render_html_document`] converts a lowered [`ExportDocument`] into an in-memory
+//! [`ExportBundle`] without filesystem I/O:
 //!
-//! - **Strict HTML Escaping:** Every interpolated string (`source_name`, `build_command_lines`,
-//!   comments, labels, mnemonics, and [`OperandToken`] text) passes through [`html_escape`] so
-//!   low/high-byte operands like `lda #<label` never inject raw `<label>` tags into the DOM.
-//! - **Unique Anchor IDs (`emitted_anchors`):** Row anchor attributes (`id="L{:04X}"`) are tracked
-//!   in a per-document `HashSet<Addr>` and emitted at most once per address on [`ExportRow::Equate`],
-//!   [`super::ir::MidLabel`], and the first instruction/data `<tr>` for a given address — never on
-//!   [`ExportRow::EnumLine`] or standalone [`LabelPlacement::OwnLine`] rows.
-//! - **External File Sub-Pages:** [`ExportRow::ExternalFile`] blocks render their `inner_rows` into
-//!   a standalone HTML sidecar (`{stem}_{start:04x}.html`) stored in [`ExportBundle::sidecars`].
+//! - Escapes every interpolated string (`source_name`, `build_command_lines`, comments, labels,
+//!   mnemonics, and [`OperandToken`] text) with [`html_escape`]. Low-byte operands like `lda #<label`
+//!   never inject raw `<label>` tags into the DOM.
+//! - Tracks row anchor attributes (`id="L{:04X}"`) in a per-document `HashSet<Addr>`. It emits each
+//!   address anchor at most once on [`ExportRow::Equate`], [`super::ir::MidLabel`],
+//!   [`ExportRow::ExternalFile`], or the first instruction/data `<tr>` for that address.
+//! - Renders [`ExportRow::ExternalFile`] blocks into standalone HTML sidecar pages
+//!   (`{stem}_{start:04x}.html`) stored in [`ExportBundle::sidecars`].
 
 use super::ir::{
     ExportBundle, ExportComment, ExportDocument, ExportOptions, ExportRow, ExportSidecar,
@@ -109,7 +108,7 @@ let currentTheme = urlParams.get('theme') || 'dark';
 function updateLinks() {
   document.querySelectorAll('a').forEach(link => {
     let href = link.getAttribute('href');
-    if (href && !href.startsWith('#')) {
+    if (href && !href.startsWith('#') && !href.startsWith('http://') && !href.startsWith('https://')) {
       let parts = href.split('?');
       let base = parts[0];
       let params = new URLSearchParams(parts[1] || '');
@@ -216,8 +215,8 @@ fn render_rows_html(
                 );
             }
             ExportRow::EnumLine { text } => {
-                // Enum definition lines are not tied to a memory address and must never emit
-                // `id="L0000"`, preventing duplicate HTML element IDs and `#L0000` link collisions.
+                // Enum definition lines do not bind to a memory address. Omit `id="L0000"`
+                // to prevent duplicate HTML element IDs and `#L0000` link collisions.
                 let escaped = html_escape(text);
                 let _ = writeln!(
                     output,
@@ -225,8 +224,7 @@ fn render_rows_html(
                 );
             }
             ExportRow::Origin { .. } => {
-                // HTML table rows display their own `$XXXX` address in column 1;
-                // no standalone `* = $XXXX` row is emitted.
+                // HTML table rows display `$XXXX` in column 1, so skip standalone origin rows.
             }
             ExportRow::ExternalFile {
                 start_address,
@@ -255,6 +253,11 @@ fn render_rows_html(
                     ext_doc.into_bytes(),
                 ));
 
+                let tr_id = if emitted_anchors.insert(*start_address) {
+                    format!(" id=\"L{:04X}\"", start_address.0)
+                } else {
+                    String::new()
+                };
                 let (mnemonic, operand) = html_directive;
                 let escaped_mnemonic = html_escape(mnemonic);
                 let escaped_filename = html_escape(html_filename);
@@ -265,8 +268,8 @@ fn render_rows_html(
                 );
                 let _ = writeln!(
                     output,
-                    "<tr><td class=\"ad\">${:04X}</td><td></td><td colspan=\"3\" class=\"cc\"><span class=\"mn\">{escaped_mnemonic}</span><span class=\"op\">{linked_operand}</span></td></tr>",
-                    start_address.0
+                    "<tr{tr_id}><td class=\"ad\"><a href=\"#L{:04X}\">${:04X}</a></td><td></td><td colspan=\"3\" class=\"cc\"><span class=\"mn\">{escaped_mnemonic}</span><span class=\"op\">{linked_operand}</span></td></tr>",
+                    start_address.0, start_address.0
                 );
             }
             ExportRow::Instruction(inst) => {
@@ -295,7 +298,7 @@ fn render_rows_html(
                     );
                 }
 
-                // 3. Label placement (`OwnLine` vs `Inline` vs `None`)
+                // 3. Label placement (`OwnLine`, `Inline`, or `None`)
                 let mut inline_label_html = String::new();
                 match inst.label_placement {
                     LabelPlacement::OwnLine => {
@@ -317,9 +320,9 @@ fn render_rows_html(
                 }
 
                 // 4. Address cell and unique row anchor ID.
-                // Multi-line directives (e.g. `.encode` / `.text` / `.endencode` in 64tass) emit
-                // multiple rows sharing the same `inst.address`; `emitted_anchors.insert` ensures
-                // only the first row with `has_addr` receives `id="L{:04X}"`.
+                // Multi-line directives (such as `.encode`, `.text`, and `.endencode` in 64tass)
+                // emit multiple rows for the same `inst.address`. `emitted_anchors.insert` assigns
+                // `id="L{:04X}"` only to the first row with `has_addr`.
                 let has_addr = !inst.bytes.is_empty() || inst.label.is_some();
                 let address_td = if has_addr {
                     format!(
@@ -348,16 +351,15 @@ fn render_rows_html(
                     "<td></td>".to_string()
                 };
 
-                // 6. Code cell (label/scope brace, mnemonic, operand, side comment)
+                // 6. Code cell (label or scope brace, mnemonic, operand, side comment)
                 let operand_html = render_operand_tokens_html(&inst.operand_tokens);
                 let comment_part =
                     render_side_comment_html(inst.side_comment.as_ref(), comment_prefix);
                 let escaped_mnemonic = html_escape(&inst.mnemonic);
 
                 if inst.is_scope_brace {
-                    // Scope braces (`{` and `}`) are placed in the 20ch label column (`.il`)
-                    // so they render at column 0 instead of being indented 20ch by
-                    // `.cc > .mn:first-child`.
+                    // Place scope braces (`{` and `}`) in the 20ch label column (`.il`) so they
+                    // render at column 0 instead of shifting 20ch via `.cc > .mn:first-child`.
                     let _ = writeln!(
                         output,
                         "<tr{tr_id}>{address_td}{bytes_td}<td colspan=\"3\" class=\"cc\"><span class=\"il\">{escaped_mnemonic}</span><span class=\"mn\"></span><span class=\"op\">{operand_html}</span>{comment_part}</td></tr>"
@@ -375,10 +377,10 @@ fn render_rows_html(
     output
 }
 
-/// Renders a pre-lowered [`ExportDocument`] into an in-memory `.html` [`ExportBundle`].
+/// Renders a lowered [`ExportDocument`] into an in-memory `.html` [`ExportBundle`].
 ///
-/// This function performs zero filesystem I/O. Any [`ExportRow::ExternalFile`] blocks in `doc`
-/// are rendered as standalone HTML sub-page sidecars in `bundle.sidecars` and linked from
+/// This function does not read or write the filesystem. It renders [`ExportRow::ExternalFile`]
+/// blocks as standalone HTML sidecar pages in `bundle.sidecars` and links to them from
 /// `primary_content`.
 #[must_use]
 pub fn render_html_document(doc: &ExportDocument, path: &Path) -> ExportBundle {
@@ -473,17 +475,17 @@ pub fn render_html_with_options(
     render_html_document(&doc, path)
 }
 
-/// Lowers `state` using the assembler in `state.settings` and renders an in-memory `.html` [`ExportBundle`].
+/// Lowers `state` with the assembler in `state.settings` and renders an in-memory `.html` [`ExportBundle`].
 #[must_use]
 pub fn render_html(state: &AppState, path: &Path) -> ExportBundle {
     let options = ExportOptions::from_state_and_path(state, path);
     render_html_with_options(state, path, &options)
 }
 
-/// Exports the disassembly to an HTML file (and any external-file HTML sidecars).
+/// Exports the disassembly to an HTML file and any external-file HTML sidecars.
 ///
 /// # Errors
-/// Returns [`CoreError::Export`] if the primary HTML file or any sidecar file cannot be written.
+/// Returns [`CoreError::Export`] if the primary HTML file or a sidecar file cannot be written.
 pub fn export_html<P: AsRef<Path>>(state: &AppState, path: P) -> Result<(), CoreError> {
     render_html(state, path.as_ref()).write_to_disk()
 }
@@ -1125,13 +1127,27 @@ mod tests {
         let primary_path = Path::new("/tmp/nonexistent_dir_for_in_memory_test/demo.html");
         let bundle = render_html(&state, primary_path);
 
-        // 1. Primary HTML contains link row pointing to `demo_1001.html`
+        // 1. Primary HTML contains link row with `id="L1001"`, `<a href="#L1001">$1001</a>`,
+        // and a hyperlink to `demo_1001.html`.
+        assert!(
+            bundle
+                .primary_content
+                .contains("<tr id=\"L1001\"><td class=\"ad\"><a href=\"#L1001\">$1001</a></td>"),
+            "ExternalFile row must emit id=\"L1001\" and self-linked address cell: {}",
+            bundle.primary_content
+        );
         assert!(
             bundle
                 .primary_content
                 .contains("<a href=\"demo_1001.html\">demo_1001.html</a>"),
             "Primary HTML must contain hyperlink to sidecar HTML file: {}",
             bundle.primary_content
+        );
+        assert!(
+            bundle
+                .primary_content
+                .contains("!href.startsWith('http://') && !href.startsWith('https://')"),
+            "updateLinks() must skip external http/https URLs"
         );
 
         // 2. Sidecar bundle is populated in memory without touching disk

@@ -1,24 +1,26 @@
-//! Roundtrip assembly verification (**Stage 3** of the exporter pipeline).
+//! Roundtrip assembly verification (Stage 3 of the exporter pipeline).
 //!
 //! [`verify_roundtrip`] and [`verify_all_assemblers`] export [`crate::state::AppState`] to a
-//! temporary `.asm` bundle via [`ExportOptions::for_assembler`] and [`render_asm_with_options`]
-//! (with zero [`crate::state::AppState`] cloning, preserving all project, global, and built-in
-//! enum definitions), invoke the external cross-assembler binary, and compare the reassembled
-//! payload byte-for-byte against `state.raw_data`.
+//! temporary `.asm` bundle with [`ExportOptions::for_assembler`] and [`render_asm_with_options`].
+//! This path avoids cloning [`crate::state::AppState`] and preserves all project, global, and
+//! built-in enum definitions. It then runs the external cross-assembler and compares both the
+//! 2-byte PRG load-address header and the reassembled payload byte-for-byte against `state.raw_data`.
 
 use super::asm::render_asm_with_options;
 use super::ir::ExportOptions;
+use std::fmt::Write as _;
+use std::path::{Path, PathBuf};
 
-/// Result of a roundtrip verification for a single cross-assembler.
+/// Result of a roundtrip verification for one cross-assembler.
 #[derive(Debug)]
 pub struct VerifyResult {
-    /// Target cross-assembler that was verified.
+    /// Target cross-assembler that ran verification.
     pub assembler: crate::state::Assembler,
-    /// `true` if the reassembled binary matches `state.raw_data` byte-for-byte.
+    /// `true` when the 2-byte PRG load address and reassembled payload match `state`.
     pub success: bool,
     /// Diagnostic message when `success` is `false` (empty on success).
     pub message: String,
-    /// Number of bytes that differ (`0` = identical).
+    /// Number of payload bytes that differ (`0` = identical).
     pub diff_count: usize,
     /// Total bytes compared against `state.raw_data`.
     pub total_bytes: usize,
@@ -38,25 +40,25 @@ impl std::fmt::Display for VerifyResult {
     }
 }
 
-/// Performs an export → assemble → byte-diff roundtrip for a specific [`crate::state::Assembler`].
+/// Runs an export, assemble, and byte-diff roundtrip for a [`crate::state::Assembler`].
 ///
-/// Returns a [`VerifyResult`] indicating whether the assembled output is
+/// Returns a [`VerifyResult`] that indicates whether the assembled PRG output is
 /// byte-identical to the original binary.
 ///
-/// The function:
-/// 1. Constructs [`ExportOptions::for_assembler`] without cloning [`crate::state::AppState`].
-/// 2. Renders and writes `.asm` (and any `.bin` sidecars) to a unique temporary directory via
+/// This function performs five steps:
+/// 1. Builds [`ExportOptions::for_assembler`] without cloning [`crate::state::AppState`].
+/// 2. Renders and writes `.asm` and `.bin` sidecars to a unique temporary directory via
 ///    [`render_asm_with_options`] and [`super::ir::ExportBundle::write_to_disk`].
-/// 3. Invokes the external assembler (`64tass`, `acme`, `cl65`, or `KickAss.jar`).
-/// 4. Compares the assembled output (the raw bytes after the 2-byte PRG load-address header)
+/// 3. Runs the external assembler (`64tass`, `acme`, `cl65`, or `KickAss.jar`).
+/// 4. Compares the 2-byte PRG load-address header against `state.origin` and the payload
 ///    against `state.raw_data`.
-/// 5. Cleans up the temporary directory.
+/// 5. Deletes the temporary directory.
 #[must_use]
 pub fn verify_roundtrip(
     state: &crate::state::AppState,
     assembler: crate::state::Assembler,
 ) -> VerifyResult {
-    // Use a unique subdirectory per invocation to avoid parallel test conflicts
+    // Create a unique subdirectory per call to prevent parallel test collisions.
     static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let unique_id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!(
@@ -70,11 +72,11 @@ pub fn verify_roundtrip(
     let asm_file = dir.join(format!("{asm_stem}.asm"));
     let prg_file = dir.join(format!("{asm_stem}.prg"));
 
-    // Cleanup any previous run artifacts
+    // Remove stale files from prior runs if present.
     let _ = std::fs::remove_file(&asm_file);
     let _ = std::fs::remove_file(&prg_file);
 
-    // 1. Export ASM using ExportOptions::for_assembler (zero AppState cloning)
+    // 1. Export ASM using ExportOptions::for_assembler without cloning AppState.
     let options = ExportOptions::for_assembler(state, &asm_file, assembler);
     if let Err(e) = render_asm_with_options(state, &asm_file, &options).write_to_disk() {
         let _ = std::fs::remove_dir_all(&dir);
@@ -87,7 +89,7 @@ pub fn verify_roundtrip(
         };
     }
 
-    // 2. Assemble
+    // 2. Assemble the exported source file.
     let assemble_result = run_assembler(
         assembler,
         &asm_file,
@@ -113,70 +115,10 @@ pub fn verify_roundtrip(
         }
     }
 
-    // 3. Compare
+    // 3. Compare the assembled PRG output against `state.origin` and `state.raw_data`.
     let result = match std::fs::read(&prg_file) {
         Ok(assembled_bytes) => {
-            // PRG files have a 2-byte load address header — strip it for comparison.
-            // ca65/cl65 also produces a PRG with load address.
-            // KickAssembler produces a PRG by default.
-            let payload = if assembled_bytes.len() >= 2 {
-                &assembled_bytes[2..]
-            } else {
-                &assembled_bytes[..]
-            };
-
-            let total = state.raw_data.len();
-            let diff_count = count_diffs(&state.raw_data, payload);
-
-            if diff_count == 0 && payload.len() == total {
-                VerifyResult {
-                    assembler,
-                    success: true,
-                    message: String::new(),
-                    diff_count: 0,
-                    total_bytes: total,
-                }
-            } else {
-                let mut msg = String::new();
-                if payload.len() != total {
-                    msg.push_str(&format!(
-                        "size mismatch: original={} assembled={}",
-                        total,
-                        payload.len()
-                    ));
-                }
-                if diff_count > 0 {
-                    if !msg.is_empty() {
-                        msg.push_str("; ");
-                    }
-                    let compare_len = total.min(payload.len());
-                    msg.push_str(&format!("{diff_count} of {compare_len} bytes differ"));
-
-                    // Show first few diffs for debugging
-                    let mut shown = 0;
-                    for (i, (a, b)) in state.raw_data.iter().zip(payload.iter()).enumerate() {
-                        if a != b {
-                            if shown < 5 {
-                                let addr = state.origin.wrapping_add(i as u16);
-                                msg.push_str(&format!(
-                                    "\n    ${addr:04x}: expected ${a:02x}, got ${b:02x}"
-                                ));
-                            }
-                            shown += 1;
-                        }
-                    }
-                    if shown > 5 {
-                        msg.push_str(&format!("\n    ... and {} more", shown - 5));
-                    }
-                }
-                VerifyResult {
-                    assembler,
-                    success: false,
-                    message: msg,
-                    diff_count,
-                    total_bytes: total,
-                }
-            }
+            compare_assembled_prg(state.origin, &state.raw_data, &assembled_bytes, assembler)
         }
         Err(e) => VerifyResult {
             assembler,
@@ -187,13 +129,13 @@ pub fn verify_roundtrip(
         },
     };
 
-    // 4. Cleanup — remove the entire unique temp directory
+    // 4. Delete the temporary directory.
     let _ = std::fs::remove_dir_all(&dir);
 
     result
 }
 
-/// Verify roundtrip for all 4 assemblers. Returns results for each.
+/// Verifies roundtrip assembly for all four supported assemblers.
 #[must_use]
 pub fn verify_all_assemblers(state: &crate::state::AppState) -> Vec<VerifyResult> {
     use crate::state::Assembler;
@@ -205,6 +147,93 @@ pub fn verify_all_assemblers(state: &crate::state::AppState) -> Vec<VerifyResult
 
 // ---- Helper functions for verification ----
 
+fn compare_assembled_prg(
+    origin: crate::state::Addr,
+    expected: &[u8],
+    assembled_bytes: &[u8],
+    assembler: crate::state::Assembler,
+) -> VerifyResult {
+    let total = expected.len();
+    if assembled_bytes.len() < 2 {
+        return VerifyResult {
+            assembler,
+            success: false,
+            message: format!(
+                "assembled PRG is too short ({} bytes, expected 2-byte load address header)",
+                assembled_bytes.len()
+            ),
+            diff_count: total,
+            total_bytes: total,
+        };
+    }
+
+    let assembled_origin = u16::from_le_bytes([assembled_bytes[0], assembled_bytes[1]]);
+    // In 64tass, ACME, and KickAssembler, the origin directive sets the 2-byte PRG header.
+    // In ca65, `c64-asm.cfg` always writes its default `$0801` linker start address.
+    let origin_matches = assembler == crate::state::Assembler::Ca65 || assembled_origin == origin.0;
+    let payload = &assembled_bytes[2..];
+    let diff_count = count_diffs(expected, payload);
+
+    if origin_matches && diff_count == 0 && payload.len() == total {
+        return VerifyResult {
+            assembler,
+            success: true,
+            message: String::new(),
+            diff_count: 0,
+            total_bytes: total,
+        };
+    }
+
+    let mut msg = String::new();
+    if !origin_matches {
+        let _ = write!(
+            msg,
+            "load address mismatch: expected ${:04x}, got ${assembled_origin:04x}",
+            origin.0
+        );
+    }
+    if payload.len() != total {
+        if !msg.is_empty() {
+            msg.push_str("; ");
+        }
+        let _ = write!(
+            msg,
+            "size mismatch: original={total} assembled={}",
+            payload.len()
+        );
+    }
+    if diff_count > 0 {
+        if !msg.is_empty() {
+            msg.push_str("; ");
+        }
+        let compare_len = total.min(payload.len());
+        let _ = write!(msg, "{diff_count} of {compare_len} bytes differ");
+
+        // List the first five differing bytes for debugging.
+        let mut shown = 0;
+        for (i, (a, b)) in expected.iter().zip(payload.iter()).enumerate() {
+            if a != b {
+                if shown < 5 {
+                    let addr = origin.wrapping_add(i as u16);
+                    let _ = write!(msg, "\n    ${addr:04x}: expected ${a:02x}, got ${b:02x}");
+                }
+                shown += 1;
+            }
+        }
+        if shown > 5 {
+            let _ = write!(msg, "\n    ... and {} more", shown - 5);
+        }
+    }
+
+    VerifyResult {
+        assembler,
+        success: false,
+        message: msg,
+        diff_count,
+        total_bytes: total,
+    }
+}
+
 fn assembler_file_suffix(asm: crate::state::Assembler) -> &'static str {
     use crate::state::Assembler;
     match asm {
@@ -215,19 +244,16 @@ fn assembler_file_suffix(asm: crate::state::Assembler) -> &'static str {
     }
 }
 
-/// Run the assembler and produce a PRG file. Returns `Ok(stderr)` on success.
+/// Runs the external cross-assembler to produce a PRG file and returns `Ok(stderr)` on success.
 fn run_assembler(
     assembler: crate::state::Assembler,
-    asm_file: &std::path::Path,
-    prg_file: &std::path::Path,
-    work_dir: &std::path::Path,
+    asm_file: &Path,
+    prg_file: &Path,
+    work_dir: &Path,
     use_illegal_opcodes: bool,
 ) -> Result<String, String> {
     use crate::state::Assembler;
     use std::process::Command;
-
-    let asm_path = asm_file.to_str().unwrap_or("verify.asm");
-    let prg_path = prg_file.to_str().unwrap_or("verify.prg");
 
     let output = match assembler {
         Assembler::Tass64 => {
@@ -237,8 +263,8 @@ fn run_assembler(
                 cmd.arg("-i");
             }
             cmd.arg("-o")
-                .arg(prg_path)
-                .arg(asm_path)
+                .arg(prg_file)
+                .arg(asm_file)
                 .current_dir(work_dir)
                 .output()
         }
@@ -250,14 +276,13 @@ fn run_assembler(
             cmd.arg("--format")
                 .arg("cbm")
                 .arg("-o")
-                .arg(prg_path)
-                .arg(asm_path)
+                .arg(prg_file)
+                .arg(asm_file)
                 .current_dir(work_dir)
                 .output()
         }
         Assembler::Ca65 => {
-            // ca65 requires a two-step process: assemble then link
-            // cl65 wraps both steps
+            // cl65 runs both the ca65 assembler and the ld65 linker in one step.
             let mut cmd = Command::new("cl65");
             cmd.arg("-t").arg("c64");
             if use_illegal_opcodes {
@@ -265,24 +290,24 @@ fn run_assembler(
             }
             cmd.arg("-C")
                 .arg("c64-asm.cfg")
-                .arg(asm_path)
+                .arg(asm_file)
                 .arg("-o")
-                .arg(prg_path)
+                .arg(prg_file)
                 .current_dir(work_dir)
                 .output()
         }
         Assembler::Kick => {
-            // KickAssembler: java -jar KickAss.jar input.asm -o output.prg
-            // Use KICKASS_JAR env var for the absolute path to the jar file,
-            // since current_dir is set to a temp directory.
-            let jar_path =
+            // Resolve relative KICKASS_JAR paths before changing current_dir to work_dir.
+            let raw_jar =
                 std::env::var("KICKASS_JAR").unwrap_or_else(|_| "KickAss.jar".to_string());
+            let jar_path =
+                std::fs::canonicalize(&raw_jar).unwrap_or_else(|_| PathBuf::from(&raw_jar));
             Command::new("java")
                 .arg("-jar")
                 .arg(&jar_path)
-                .arg(asm_path)
+                .arg(asm_file)
                 .arg("-o")
-                .arg(prg_path)
+                .arg(prg_file)
                 .current_dir(work_dir)
                 .output()
         }
@@ -295,7 +320,7 @@ fn run_assembler(
             if out.status.success() {
                 Ok(stderr)
             } else {
-                // KickAssembler reports "Unable to access jarfile" when not installed
+                // KickAssembler reports "Unable to access jarfile" when the jar is not installed.
                 if stderr.contains("Unable to access jarfile")
                     || stdout.contains("Unable to access jarfile")
                 {
@@ -325,7 +350,7 @@ fn count_diffs(a: &[u8], b: &[u8]) -> usize {
             diffs += 1;
         }
     }
-    // Bytes beyond the shorter slice count as diffs
+    // Count bytes beyond the shorter slice as differences.
     diffs += a.len().abs_diff(b.len());
     diffs
 }
@@ -338,10 +363,41 @@ mod tests {
     use std::path::Path;
 
     #[test]
+    fn test_compare_assembled_prg_checks_load_address_header_and_payload() {
+        let origin = Addr(0x0801);
+        let payload = [0xA9, 0x00, 0x60];
+
+        // 1. Valid 2-byte little-endian load address ($0801 -> 01 08) + matching payload
+        let valid_prg = [0x01, 0x08, 0xA9, 0x00, 0x60];
+        let ok_res = compare_assembled_prg(origin, &payload, &valid_prg, Assembler::Tass64);
+        assert!(ok_res.success);
+        assert_eq!(ok_res.diff_count, 0);
+
+        // 2. Wrong load address ($1000 -> 00 10) with matching payload must fail verification
+        let wrong_origin_prg = [0x00, 0x10, 0xA9, 0x00, 0x60];
+        let bad_origin =
+            compare_assembled_prg(origin, &payload, &wrong_origin_prg, Assembler::Tass64);
+        assert!(!bad_origin.success);
+        assert!(
+            bad_origin
+                .message
+                .contains("load address mismatch: expected $0801, got $1000"),
+            "Unexpected message: {}",
+            bad_origin.message
+        );
+
+        // 3. Truncated PRG (< 2 bytes) must fail verification
+        let truncated_prg = [0x01];
+        let short_res = compare_assembled_prg(origin, &payload, &truncated_prg, Assembler::Tass64);
+        assert!(!short_res.success);
+        assert!(short_res.message.contains("assembled PRG is too short"));
+    }
+
+    #[test]
     fn test_verify_roundtrip_preserves_enums_without_cloning_state() {
         let mut state = AppState::new();
         state.origin = Addr(0x1000);
-        // LDA #$00; LDX #$01; LDY #$02; RTS
+        // LDA #$00, LDX #$01, LDY #$02, RTS
         state.raw_data = vec![0xA9, 0x00, 0xA2, 0x01, 0xA0, 0x02, 0x60];
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
         state.settings.assembler = Assembler::Tass64;
