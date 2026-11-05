@@ -1,53 +1,58 @@
+//! Symbol precedence resolution, lexical scope mapping, and operand target extraction.
+//!
+//! This module resolves the highest-priority [`Label`] at an address, formats scoped and local
+//! symbol names, and extracts target addresses from decoded 6502 instructions.
+
 use crate::cpu::Opcode;
 use crate::disassembler::context::DisassemblyContext;
 use crate::disassembler::formatter::Formatter;
 use crate::state::{Addr, DocumentSettings, Label, LabelKind, LabelType};
 use std::collections::BTreeMap;
 
-/// Resolves the single label with the highest priority score at a given address.
+/// Prepends `local_prefix` to `name` when `label_type` is [`LabelType::LocalUserDefined`]
+/// and `name` does not already start with `local_prefix`.
+#[must_use]
+pub(crate) fn apply_local_prefix(
+    name: &str,
+    label_type: LabelType,
+    local_prefix: Option<&str>,
+) -> String {
+    if label_type == LabelType::LocalUserDefined
+        && let Some(p) = local_prefix
+        && !name.starts_with(p)
+    {
+        format!("{p}{name}")
+    } else {
+        name.to_string()
+    }
+}
+
+/// Resolves the single label with the highest priority at an address.
 ///
-/// Precedence:
-/// 1. User label (score 100)
-/// 2. System label (score 50)
-/// 3. Auto label (score 0)
+/// Precedence order:
 ///
-/// Tie-break: alphabetically smaller label name.
+/// 1. [`LabelKind::User`]
+/// 2. [`LabelKind::System`]
+/// 3. [`LabelKind::Auto`]
+///
+/// When two labels have the same [`LabelKind`], the alphabetically smaller name wins.
 #[must_use]
 pub fn resolve_label<'a>(
     labels: &'a [Label],
     _address: u16,
     _settings: &DocumentSettings,
 ) -> Option<&'a Label> {
-    if labels.is_empty() {
-        return None;
-    }
-
-    let get_priority = |k: &LabelKind| -> u8 {
-        match k {
-            LabelKind::User => 100,
-            LabelKind::System => 50,
-            LabelKind::Auto => 0,
-        }
-    };
-
-    let mut best_label: Option<&Label> = None;
-
-    for label in labels {
-        if let Some(curr) = best_label {
-            let curr_prio = get_priority(&curr.kind);
-            let new_prio = get_priority(&label.kind);
-
-            if new_prio > curr_prio || (new_prio == curr_prio && label.name < curr.name) {
-                best_label = Some(label);
-            }
-        } else {
-            best_label = Some(label);
-        }
-    }
-    best_label
+    labels.iter().min_by_key(|label| {
+        let rank = match label.kind {
+            LabelKind::User => 0u8,
+            LabelKind::System => 1,
+            LabelKind::Auto => 2,
+        };
+        (rank, &label.name)
+    })
 }
 
-/// Resolves the label name for a given address considering scopes, local labels, and prefixes.
+/// Resolves the symbol name for `address` across local labels, prefixes, and lexical scopes.
 #[must_use]
 #[allow(clippy::too_many_arguments)]
 pub fn resolve_label_name(
@@ -60,48 +65,28 @@ pub fn resolve_label_name(
     scope_separator: &str,
     local_prefix: Option<&str>,
 ) -> Option<String> {
-    let mut base_name_opt = None;
-    let mut is_local_user_defined = false;
+    // 1. Check formatter-generated local label names (for example, `l00`).
+    let base_name = if let Some(name) = local_label_names.and_then(|names| names.get(&address)) {
+        name.clone()
+    } else {
+        // 2. Fall back to standard label resolution and local prefixing.
+        let v = labels.get(&address)?;
+        let l = resolve_label(v, address.0, settings)?;
+        apply_local_prefix(&l.name, l.label_type, local_prefix)
+    };
 
-    // 1. Local label names (from formatter, e.g. l15)
-    if let Some(names) = local_label_names
-        && let Some(name) = names.get(&address)
-    {
-        base_name_opt = Some(name.clone());
-    }
-
-    // 2. Standard label resolution
-    if base_name_opt.is_none()
-        && let Some(v) = labels.get(&address)
-        && let Some(l) = resolve_label(v, address.0, settings)
-    {
-        base_name_opt = Some(l.name.clone());
-        is_local_user_defined = l.label_type == LabelType::LocalUserDefined;
-    }
-
-    let mut base_name = base_name_opt?;
-
-    if is_local_user_defined
-        && let Some(p) = local_prefix
-        && !base_name.starts_with(p)
-    {
-        base_name = format!("{}{}", p, base_name);
-    }
-
-    // 3. Scope scoping
-    if let Some(scope_names) = label_scope_names
-        && let Some(scope_name) = scope_names.get(&address)
-    {
+    // 3. Prepend enclosing scope name when referenced from outside that scope.
+    if let Some(scope_name) = label_scope_names.and_then(|scopes| scopes.get(&address)) {
         let same_scope = current_scope_name.is_some_and(|curr| curr == scope_name);
         if !same_scope && &base_name != scope_name {
-            return Some(format!("{}{}{}", scope_name, scope_separator, base_name));
+            return Some(format!("{scope_name}{scope_separator}{base_name}"));
         }
     }
 
     Some(base_name)
 }
 
-/// Computes local label names within a given PC range `[start_pc, end_pc]`.
+/// Computes local label names within the byte-offset range `[start_pc, end_pc]`.
 #[must_use]
 pub fn compute_local_label_names(
     opcodes: &[Option<Opcode>; 256],
@@ -126,17 +111,15 @@ pub fn compute_local_label_names(
             if check_pc > end_pc {
                 break;
             }
-            let current_addr = ctx.origin.wrapping_add(check_pc as u16);
-
             if check_pc == start_pc {
                 continue;
             }
 
+            let current_addr = ctx.origin.wrapping_add(check_pc as u16);
             if let Some(labels_at_addr) = ctx.labels.get(&current_addr) {
-                let has_user_or_system = labels_at_addr.iter().any(|l| {
-                    l.kind == crate::state::LabelKind::User
-                        || l.kind == crate::state::LabelKind::System
-                });
+                let has_user_or_system = labels_at_addr
+                    .iter()
+                    .any(|l| l.kind == LabelKind::User || l.kind == LabelKind::System);
 
                 if !has_user_or_system && let Some(name) = formatter.format_local_label(local_count)
                 {
@@ -151,7 +134,7 @@ pub fn compute_local_label_names(
     local_names
 }
 
-/// Maps all addresses within annotated scopes to their scope names.
+/// Maps all addresses inside annotated lexical scopes to their enclosing scope names.
 #[must_use]
 pub fn compute_scope_names(
     ctx: &DisassemblyContext<'_>,
@@ -185,7 +168,7 @@ pub fn compute_scope_names(
     scope_names
 }
 
-/// Helper for retrieving a formatted label name at `address`.
+/// Gets the formatted label name at `address`, if any.
 #[must_use]
 pub fn get_label_name(
     address: Addr,
@@ -193,37 +176,28 @@ pub fn get_label_name(
     formatter: &dyn Formatter,
     settings: &DocumentSettings,
 ) -> Option<String> {
-    labels.get(&address).and_then(|v| {
-        resolve_label(v, address.0, settings).map(|l| {
-            let mut name = l.name.clone();
-            if l.label_type == LabelType::LocalUserDefined
-                && let Some(p) = formatter.local_label_prefix()
-                && !name.starts_with(p)
-            {
-                name = format!("{}{}", p, name);
-            }
-            formatter.format_label(&name)
-        })
-    })
+    let v = labels.get(&address)?;
+    let l = resolve_label(v, address.0, settings)?;
+    let prefixed = apply_local_prefix(&l.name, l.label_type, formatter.local_label_prefix());
+    Some(formatter.format_label(&prefixed))
 }
 
-/// Returns the target address of flow control instructions (JMP, JSR, branches).
+/// Resolves the line label at `address`, checking `local_label_names` before [`get_label_name`].
 #[must_use]
-pub fn get_arrow_target_address(
-    opcodes: &[Option<Opcode>; 256],
-    data: &[u8],
-    pc: usize,
-    origin: Addr,
-) -> Option<Addr> {
-    let opcode_byte = *data.get(pc)?;
-    let opcode = opcodes.get(opcode_byte as usize)?.as_ref()?;
-    let address = origin.wrapping_add(pc as u16);
-    let end_idx = (pc + opcode.size as usize).min(data.len());
-    let bytes = data.get(pc..end_idx)?;
-    get_arrow_target_address_for_opcode(opcode, bytes, address)
+pub(crate) fn resolve_line_label(
+    address: Addr,
+    local_label_names: Option<&BTreeMap<Addr, String>>,
+    labels: &BTreeMap<Addr, Vec<Label>>,
+    formatter: &dyn Formatter,
+    settings: &DocumentSettings,
+) -> Option<String> {
+    if let Some(local_name) = local_label_names.and_then(|names| names.get(&address)) {
+        return Some(local_name.clone());
+    }
+    get_label_name(address, labels, formatter, settings)
 }
 
-/// Helper returning arrow target address for a decoded opcode.
+/// Gets the control-flow target address for a decoded `JMP`, `JSR`, or branch opcode.
 #[must_use]
 pub fn get_arrow_target_address_for_opcode(
     opcode: &Opcode,
@@ -251,23 +225,7 @@ pub fn get_arrow_target_address_for_opcode(
     }
 }
 
-/// Returns the address referenced by the instruction (memory access, jump, etc.).
-#[must_use]
-pub fn get_referenced_address(
-    opcodes: &[Option<Opcode>; 256],
-    data: &[u8],
-    pc: usize,
-    origin: Addr,
-) -> Option<Addr> {
-    let opcode_byte = *data.get(pc)?;
-    let opcode = opcodes.get(opcode_byte as usize)?.as_ref()?;
-    let address = origin.wrapping_add(pc as u16);
-    let end_idx = (pc + opcode.size as usize).min(data.len());
-    let bytes = data.get(pc..end_idx)?;
-    get_referenced_address_for_opcode(opcode, bytes, address)
-}
-
-/// Helper returning referenced address for a decoded opcode.
+/// Gets the memory or branch address that a decoded opcode references.
 #[must_use]
 pub fn get_referenced_address_for_opcode(
     opcode: &Opcode,
@@ -277,12 +235,19 @@ pub fn get_referenced_address_for_opcode(
     use crate::cpu::AddressingMode;
 
     match opcode.mode {
-        AddressingMode::Absolute | AddressingMode::AbsoluteX | AddressingMode::AbsoluteY => {
+        AddressingMode::Absolute
+        | AddressingMode::AbsoluteX
+        | AddressingMode::AbsoluteY
+        | AddressingMode::Indirect => {
             let b1 = *bytes.get(1)?;
             let b2 = *bytes.get(2)?;
             Some(Addr(u16::from(b2) << 8 | u16::from(b1)))
         }
-        AddressingMode::ZeroPage | AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
+        AddressingMode::ZeroPage
+        | AddressingMode::ZeroPageX
+        | AddressingMode::ZeroPageY
+        | AddressingMode::IndirectX
+        | AddressingMode::IndirectY => {
             let b1 = *bytes.get(1)?;
             Some(Addr(u16::from(b1)))
         }
@@ -290,15 +255,6 @@ pub fn get_referenced_address_for_opcode(
             let b1 = *bytes.get(1)?;
             let offset = b1 as i8;
             Some(address.wrapping_add(2).wrapping_add(offset as u16))
-        }
-        AddressingMode::Indirect => {
-            let b1 = *bytes.get(1)?;
-            let b2 = *bytes.get(2)?;
-            Some(Addr(u16::from(b2) << 8 | u16::from(b1)))
-        }
-        AddressingMode::IndirectX | AddressingMode::IndirectY => {
-            let b1 = *bytes.get(1)?;
-            Some(Addr(u16::from(b1)))
         }
         _ => None,
     }

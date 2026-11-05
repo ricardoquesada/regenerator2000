@@ -1,7 +1,12 @@
+//! Block-level handlers for split low/high byte tables (`LoHiAddress`, `HiLoAddress`,
+//! `LoHiWord`, `HiLoWord`) and undefined bytes (`Undefined`).
+
 use super::DisassemblyLine;
 use super::context::{DisassemblyContext, HandleArgs};
+use super::symbols::{resolve_label_name, resolve_line_label};
 use crate::state::{Addr, BlockType};
 
+/// Disassembles a split address table where the low bytes precede the high bytes.
 #[must_use]
 pub fn handle_lohi_address(
     ctx: &DisassemblyContext,
@@ -10,6 +15,7 @@ pub fn handle_lohi_address(
     handle_split_byte_table(ctx, BlockType::LoHiAddress, false, args)
 }
 
+/// Disassembles a split address table where the high bytes precede the low bytes.
 #[must_use]
 pub fn handle_hilo_address(
     ctx: &DisassemblyContext,
@@ -18,6 +24,7 @@ pub fn handle_hilo_address(
     handle_split_byte_table(ctx, BlockType::HiLoAddress, true, args)
 }
 
+/// Disassembles a split 16-bit word table where the low bytes precede the high bytes.
 #[must_use]
 pub fn handle_lohi_word(
     ctx: &DisassemblyContext,
@@ -26,6 +33,7 @@ pub fn handle_lohi_word(
     handle_split_byte_table(ctx, BlockType::LoHiWord, false, args)
 }
 
+/// Disassembles a split 16-bit word table where the high bytes precede the low bytes.
 #[must_use]
 pub fn handle_hilo_word(
     ctx: &DisassemblyContext,
@@ -34,6 +42,11 @@ pub fn handle_hilo_word(
     handle_split_byte_table(ctx, BlockType::HiLoWord, true, args)
 }
 
+/// Disassembles a contiguous split-byte table of `target_type`.
+///
+/// The table consists of `pair_count` low bytes and `pair_count` high bytes.
+/// When `hi_first` is `true`, the high-byte half comes first; otherwise the low-byte half
+/// comes first.
 fn handle_split_byte_table(
     ctx: &DisassemblyContext,
     target_type: BlockType,
@@ -53,7 +66,6 @@ fn handle_split_byte_table(
     } = args;
 
     let mut count = 0;
-    // Find extent of block
     while pc + count < ctx.data.len() {
         let current_pc = pc + count;
 
@@ -62,20 +74,8 @@ fn handle_split_byte_table(
             if ctx.is_virtual_splitter(current_addr) {
                 break;
             }
-            if ctx
-                .annotations
-                .get(current_addr)
-                .and_then(|e| e.user_line_comment.as_ref())
-                .is_some()
-            {
-                break;
-            }
-            // Stop if a side comment exists on an interior byte.
-            if ctx
-                .annotations
-                .get(current_addr)
-                .and_then(|e| e.user_side_comment.as_ref())
-                .is_some()
+            if let Some(entry) = ctx.annotations.get(current_addr)
+                && (entry.user_line_comment.is_some() || entry.user_side_comment.is_some())
             {
                 break;
             }
@@ -100,17 +100,16 @@ fn handle_split_byte_table(
                 line_comment,
                 local_label_names,
                 label_scope_names,
-                current_scope_name: current_scope_name.clone(),
+                current_scope_name,
             },
         );
     }
 
     let total_bytes = pair_count * 2;
     let split_offset = pair_count;
+    let is_address_block =
+        target_type == BlockType::LoHiAddress || target_type == BlockType::HiLoAddress;
 
-    let mut lines = Vec::new();
-
-    // Helper to generate operand string
     let get_operand = |idx: usize, is_lo: bool| -> String {
         let val = if hi_first {
             let hi = ctx.data[pc + idx];
@@ -122,11 +121,8 @@ fn handle_split_byte_table(
             u16::from(hi) << 8 | u16::from(lo)
         };
 
-        // Try to resolve label only for Address blocks.
-        let is_address_block =
-            target_type == BlockType::LoHiAddress || target_type == BlockType::HiLoAddress;
         let label_part = if is_address_block {
-            crate::disassembler::resolve_label_name(
+            resolve_label_name(
                 Addr(val),
                 ctx.labels,
                 ctx.settings,
@@ -148,102 +144,68 @@ fn handle_split_byte_table(
         }
     };
 
-    // Output First Chunk lines
-    let mut i = 0;
-    while i < pair_count {
-        let chunk_size = (pair_count - i).min(ctx.settings.addresses_per_line);
-        let mut bytes = Vec::new();
-        let mut operands = Vec::new();
+    let mut lines = Vec::new();
 
-        for k in 0..chunk_size {
-            bytes.push(ctx.data[pc + i + k]);
-            // If hi_first is true, inputs are Hi bytes, so we output > format (is_lo=false)
-            // If hi_first is false, inputs are Lo bytes, so we output < format (is_lo=true)
-            operands.push(get_operand(i + k, !hi_first));
+    for (chunk_offset, is_lo) in [(0, !hi_first), (split_offset, hi_first)] {
+        let mut i = 0;
+        while i < pair_count {
+            let chunk_size = (pair_count - i).min(ctx.settings.addresses_per_line);
+            let mut bytes = Vec::with_capacity(chunk_size);
+            let mut operands = Vec::with_capacity(chunk_size);
+
+            for k in 0..chunk_size {
+                bytes.push(ctx.data[pc + chunk_offset + i + k]);
+                operands.push(get_operand(i + k, is_lo));
+            }
+
+            let is_first_line = chunk_offset == 0 && i == 0;
+            let current_line_addr = ctx.origin.wrapping_add((pc + chunk_offset + i) as u16);
+
+            let (line_label, line_side_comment, line_line_comment) = if is_first_line {
+                (
+                    label_name.clone(),
+                    side_comment.clone(),
+                    line_comment.clone(),
+                )
+            } else {
+                (
+                    resolve_line_label(
+                        current_line_addr,
+                        local_label_names,
+                        ctx.labels,
+                        formatter,
+                        ctx.settings,
+                    ),
+                    ctx.get_side_comment(current_line_addr, formatter.comment_prefix()),
+                    ctx.annotations
+                        .get(current_line_addr)
+                        .and_then(|e| e.user_line_comment.clone()),
+                )
+            };
+
+            lines.push(DisassemblyLine {
+                address: current_line_addr,
+                bytes,
+                mnemonic: formatter.byte_directive().to_string(),
+                operand: operands.join(", "),
+                comment: line_side_comment,
+                line_comment: line_line_comment,
+                label: line_label,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            });
+
+            i += chunk_size;
         }
-
-        let current_line_addr = ctx.origin.wrapping_add((pc + i) as u16);
-
-        lines.push(DisassemblyLine {
-            address: current_line_addr,
-            bytes,
-            mnemonic: formatter.byte_directive().to_string(),
-            operand: operands.join(", "),
-            comment: if i == 0 {
-                side_comment.clone()
-            } else {
-                ctx.get_side_comment(current_line_addr, formatter.comment_prefix())
-            },
-            line_comment: if i == 0 {
-                line_comment.clone()
-            } else {
-                ctx.annotations
-                    .get(current_line_addr)
-                    .and_then(|e| e.user_line_comment.clone())
-            },
-            label: if i == 0 {
-                label_name.clone()
-            } else {
-                ctx.labels
-                    .get(&current_line_addr)
-                    .and_then(|v| v.first())
-                    .map(|l| l.name.clone())
-            },
-            opcode: None,
-            show_bytes: false,
-            target_address: None,
-            external_label_address: None,
-            is_collapsed: false,
-        });
-
-        i += chunk_size;
-    }
-
-    // Output Second Chunk lines
-    let mut i = 0;
-    while i < pair_count {
-        let chunk_size = (pair_count - i).min(ctx.settings.addresses_per_line);
-        let mut bytes = Vec::new();
-        let mut operands = Vec::new();
-
-        for k in 0..chunk_size {
-            bytes.push(ctx.data[pc + split_offset + i + k]);
-            // If hi_first is true, second chunk is Lo bytes, so output < (is_lo=true)
-            // If hi_first is false, second chunk is Hi bytes, so output > (is_lo=false)
-            operands.push(get_operand(i + k, hi_first));
-        }
-
-        let current_line_addr = ctx.origin.wrapping_add((pc + split_offset + i) as u16);
-        let chunk_label = ctx
-            .labels
-            .get(&current_line_addr)
-            .and_then(|v| v.first())
-            .map(|l| l.name.clone());
-
-        lines.push(DisassemblyLine {
-            address: current_line_addr,
-            bytes,
-            mnemonic: formatter.byte_directive().to_string(),
-            operand: operands.join(", "),
-            comment: ctx.get_side_comment(current_line_addr, formatter.comment_prefix()),
-            line_comment: ctx
-                .annotations
-                .get(current_line_addr)
-                .and_then(|e| e.user_line_comment.clone()),
-            label: chunk_label,
-            opcode: None,
-            show_bytes: false,
-            target_address: None,
-            external_label_address: None,
-            is_collapsed: false,
-        });
-
-        i += chunk_size;
     }
 
     (total_bytes, lines)
 }
 
+/// Disassembles a single undefined byte (`BlockType::Undefined`) as a 1-byte directive.
 #[must_use]
 pub fn handle_undefined_byte(
     ctx: &DisassemblyContext,
@@ -256,9 +218,7 @@ pub fn handle_undefined_byte(
         label_name,
         side_comment,
         line_comment,
-        local_label_names: _,
-        label_scope_names: _,
-        current_scope_name: _,
+        ..
     } = args;
     let b = ctx.data[pc];
     (

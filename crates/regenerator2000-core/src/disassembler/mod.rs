@@ -1,25 +1,24 @@
 //! 6502/6510 disassembly pipeline, cross-assembler formatting, and shared per-line semantic lowering.
 //!
-//! This module coordinates decoding raw program bytes and [`AppState`] metadata into [`DisassemblyLine`]
-//! rows across four target assemblers (`64tass`, `ACME`, `ca65`, and `KickAssembler`).
+//! This module decodes raw program bytes and [`AppState`] metadata into [`DisassemblyLine`] rows
+//! across four target assemblers (`64tass`, `ACME`, `ca65`, and `KickAssembler`).
 //!
-//! In addition to instruction decoding, this module defines the **shared per-[`DisassemblyLine`]
-//! semantic lowering and visual sub-line geometry layer** consumed by both the batch exporter IR
-//! ([`crate::exporter::ir`]) and interactive 2D-cursor consumers (the TUI disassembly view, search
-//! engine, navigation helpers, and action handlers):
+//! This module also defines the shared per-[`DisassemblyLine`] semantic lowering and visual
+//! sub-line geometry layer. Both the batch exporter IR ([`crate::exporter::ir`]) and interactive
+//! 2D-cursor consumers (the TUI disassembly view, search engine, navigation helpers, and action
+//! handlers) consume this layer:
 //!
 //! - [`DisassemblyLineKind`] and [`DisassemblyLine::classify_kind`]: Classify lines without ad-hoc
-//!   string-sniffing.
+//!   string matching.
 //! - [`LabelPlacement`] and [`DisassemblyLine::label_placement`]: Determine whether a formatted
 //!   label fits inline within [`LABEL_COLUMN_WIDTH`] (`20` columns) or wraps onto its own preceding
 //!   visual row (`OwnLine`).
 //! - [`MidInstructionLabel`] and [`DisassemblyLine::mid_instruction_labels`]: Resolve at most one
 //!   highest-priority relative label (`* + offset`) per intermediate instruction byte via
 //!   [`resolve_label`].
-//! - [`VisualLineCounts`] and [`DisassemblyLine::visual_line_counts`]: Compute the exact vertical
+//! - [`VisualLineCounts`] and [`DisassemblyLine::visual_line_counts`]: Compute the vertical
 //!   sub-row breakdown (`0..labels`, `labels..labels + comments`, optional `OwnLine` label row, and
-//!   `opcode_sub_index()`) and map bidirectionally between 6502 [`Addr`] values and visual
-//!   sub-cursor indices.
+//!   `opcode_sub_index()`), and map between 6502 [`Addr`] values and visual sub-cursor indices.
 
 use crate::cpu::Opcode;
 use crate::state::{Addr, AppState, Assembler, LabelType};
@@ -40,16 +39,16 @@ pub use symbols::{resolve_label, resolve_label_name};
 
 /// Column width (`20`) reserved for inline labels before the instruction mnemonic column.
 ///
-/// Labels whose formatted definition (`formatter.format_label_definition(name)`, including any
-/// trailing `:` added by `ca65` or `KickAssembler`) has length `>= LABEL_COLUMN_WIDTH` wrap onto
-/// their own preceding visual line ([`LabelPlacement::OwnLine`]). Must match `.cc .il { width: 20ch }`
-/// and `.cc > .mn:first-child { padding-left: 20ch }` in the HTML exporter CSS.
+/// Labels whose formatted definition (`formatter.format_label_definition(name)`) has length
+/// `>= LABEL_COLUMN_WIDTH` wrap onto their own preceding visual line ([`LabelPlacement::OwnLine`]).
+/// This constant must match `.cc .il { width: 20ch }` and `.cc > .mn:first-child { padding-left: 20ch }`
+/// in the HTML exporter CSS.
 pub const LABEL_COLUMN_WIDTH: usize = 20;
 
 /// Column width (`40`) for the `name = $value` portion of equate and mid-instruction relative
 /// label definition lines in the batch ASM and HTML exporters.
 ///
-/// Must match `.cc.as .lb { min-width: 40ch }` in the HTML exporter CSS.
+/// This constant must match `.cc.as .lb { min-width: 40ch }` in the HTML exporter CSS.
 pub const DEFINITION_COLUMN_WIDTH: usize = 40;
 
 /// Column width (`40`) for the `label + mnemonic + operand` portion of instruction lines
@@ -61,17 +60,17 @@ pub const INSTRUCTION_COLUMN_WIDTH: usize = 40;
 ///
 /// In the TUI disassembly renderer, normal instruction rows occupy `20` (label) + `6` (`"{:<5} "`
 /// mnemonic) + `15` (operand) = `41` columns before the side comment. Padding mid-instruction
-/// relative labels and external equates to `CODE_COLUMN_WIDTH` ensures that trailing cross-reference
-/// and side comments align at column `41` across all row kinds.
+/// relative labels and external equates to `CODE_COLUMN_WIDTH` aligns trailing cross-reference
+/// and side comments at column `41` across all row kinds.
 pub const CODE_COLUMN_WIDTH: usize = INSTRUCTION_COLUMN_WIDTH + 1;
 
-/// Canonical virtual mnemonic (`"{splitter}"`) used for block splitter rows in [`DisassemblyLine`].
+/// Canonical virtual mnemonic (`"{splitter}"`) for block splitter rows in [`DisassemblyLine`].
 pub const SPLITTER_MNEMONIC: &str = "{splitter}";
 
 /// High-level semantic classification of a [`DisassemblyLine`].
 ///
-/// Replaces ad-hoc string-sniffing (`line.mnemonic == "{splitter}"`,
-/// `line.mnemonic == "{" || line.mnemonic == "}"`, etc.) across the exporter IR,
+/// Replaces ad-hoc string matching (`line.mnemonic == "{splitter}"`,
+/// `line.mnemonic == "{" || line.mnemonic == "}"`, and similar checks) across the exporter IR,
 /// search engine, action handlers, and TUI disassembly renderer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisassemblyLineKind {
@@ -83,35 +82,31 @@ pub enum DisassemblyLineKind {
     CollapsedBlock,
     /// External label equate definition (`external_label_address == Some(addr)`).
     ExternalEquate(Addr),
-    /// Preamble enum definition line emitted when `settings.all_labels` is enabled
-    /// (`bytes.is_empty() && address == Addr::ZERO && external_label_address.is_none()
-    /// && !mnemonic.is_empty() && !mnemonic.starts_with(comment_prefix)`).
+    /// Preamble enum definition line emitted when `settings.all_labels` is active.
     ///
-    /// Checked before [`Self::ScopeDelimiter`] so a closing `}` of a KickAssembler
-    /// `.namespace` enum at [`Addr::ZERO`] is classified as an `EnumDefinition` rather than a
-    /// lexical `ScopeDelimiter`.
+    /// [`DisassemblyLine::classify_kind`] checks this variant before [`Self::ScopeDelimiter`] so
+    /// a closing `}` of a KickAssembler `.namespace` enum at [`Addr::ZERO`] classifies as
+    /// `EnumDefinition` rather than `ScopeDelimiter`.
     EnumDefinition,
     /// Unindented lexical scope delimiter (`(mnemonic == "{" || mnemonic == "}") && !is_enum`).
     ScopeDelimiter,
-    /// Full-line comment or assembler header directive stored inside `mnemonic`
-    /// (`bytes.is_empty() && label.is_none() && mnemonic.starts_with(comment_prefix)`).
+    /// Full-line comment or assembler header directive stored inside `mnemonic`.
     HeaderComment,
     /// Standard instruction or data directive row (including standalone `line_comment` carriers).
     Instruction,
 }
 
-/// How a label on an instruction or directive line is placed relative to the
+/// Placement of a label on an instruction or directive line relative to the
 /// mnemonic column ([`LABEL_COLUMN_WIDTH`] = `20`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LabelPlacement {
     /// The line has no label, or is an external equate row whose label is embedded in `mnemonic`.
     None,
-    /// The formatted label (for example, `main_loop:`) is strictly shorter than
-    /// [`LABEL_COLUMN_WIDTH`] (`20` chars) and sits inline to the left of the mnemonic.
+    /// The formatted label (for example, `main_loop:`) is shorter than [`LABEL_COLUMN_WIDTH`]
+    /// (`20` characters) and fits inline to the left of the mnemonic.
     Inline,
-    /// The formatted label is `>= 20` characters long, or sits on an unindented
-    /// scope delimiter (`{` / `}`), so it wraps onto its own dedicated visual row above the
-    /// instruction or scope brace.
+    /// The formatted label is at least `20` characters long, or sits on an unindented scope
+    /// delimiter (`{` or `}`), and wraps onto its own dedicated visual row above the instruction.
     OwnLine,
 }
 
@@ -123,39 +118,33 @@ pub struct MidInstructionLabel {
     pub address: Addr,
     /// Highest-priority resolved label name at `address`.
     pub name: String,
-    /// Semantic [`LabelType`] of the resolved label (used to prepend
-    /// [`Formatter::local_label_prefix`](formatter::Formatter::local_label_prefix) when
-    /// `label_type == LabelType::LocalUserDefined`).
+    /// Semantic [`LabelType`] of the resolved label.
     pub label_type: LabelType,
     /// Byte offset from `line.address` (`1..line.bytes.len()`).
     pub offset: usize,
 }
 
 impl MidInstructionLabel {
-    /// Formats this mid-instruction relative label definition using `formatter`,
-    /// automatically applying [`Formatter::local_label_prefix`](formatter::Formatter::local_label_prefix)
-    /// when `self.label_type == LabelType::LocalUserDefined` and `!self.name.starts_with(prefix)`.
+    /// Formats this mid-instruction relative label definition using `formatter`.
+    ///
+    /// Applies [`Formatter::local_label_prefix`](formatter::Formatter::local_label_prefix) when
+    /// `self.label_type == LabelType::LocalUserDefined` and `!self.name.starts_with(prefix)`.
     #[must_use]
     pub fn format_definition(&self, formatter: &dyn formatter::Formatter) -> String {
-        // Guard `!self.name.starts_with(prefix)` so local labels that already carry an
-        // assembler-specific prefix (`_`, `.`, or `@`) are never double-prefixed.
-        let effective_name = if self.label_type == LabelType::LocalUserDefined
-            && let Some(prefix) = formatter.local_label_prefix()
-            && !self.name.starts_with(prefix)
-        {
-            format!("{prefix}{}", self.name)
-        } else {
-            self.name.clone()
-        };
+        let effective_name = symbols::apply_local_prefix(
+            &self.name,
+            self.label_type,
+            formatter.local_label_prefix(),
+        );
         formatter.format_relative_label(&effective_name, self.offset)
     }
 }
 
 /// Breakdown of visual sub-lines occupied by a single [`DisassemblyLine`].
 ///
-/// Visual sub-lines are ordered top-to-bottom as:
+/// Visual sub-lines order top-to-bottom as:
 ///
-/// 1. `0..labels`: Mid-instruction relative label definitions (`* + 1`, etc.).
+/// 1. `0..labels`: Mid-instruction relative label definitions (`* + 1`, and so on).
 /// 2. `labels..labels + comments`: Full-line `line_comment` rows.
 /// 3. `labels + comments` (only when `instruction == 2`): Standalone [`LabelPlacement::OwnLine`] label row.
 /// 4. [`Self::opcode_sub_index()`]: The main instruction, directive, splitter, or scope row.
@@ -177,7 +166,7 @@ impl VisualLineCounts {
     }
 
     /// Returns `true` when the line's label wraps onto its own dedicated visual row
-    /// above the opcode/directive row (`instruction == 2`).
+    /// above the opcode or directive row (`instruction == 2`).
     #[must_use]
     pub const fn has_own_line_label(&self) -> bool {
         self.instruction > 1
@@ -204,11 +193,11 @@ impl VisualLineCounts {
     }
 }
 
-/// A single decoded instruction, data directive, equate, scope delimiter, or virtual marker line
+/// One decoded instruction, data directive, equate, scope delimiter, or virtual marker line
 /// produced by the disassembler pipeline.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DisassemblyLine {
-    /// Base 6502 memory address of this line (or [`Addr::ZERO`] for preamble equates/enums).
+    /// Base 6502 memory address of this line (or [`Addr::ZERO`] for preamble equates and enums).
     pub address: Addr,
     /// Raw machine bytes covered by this instruction or data directive.
     pub bytes: Vec<u8>,
@@ -216,7 +205,7 @@ pub struct DisassemblyLine {
     pub mnemonic: String,
     /// Formatted instruction or directive operand string.
     pub operand: String,
-    /// Trailing side comment text (including user/system side comments and formatted x-refs).
+    /// Trailing side comment text (including user/system side comments and formatted cross-references).
     pub comment: String,
     /// Optional multi-line block comment rendered on dedicated sub-rows above the instruction.
     pub line_comment: Option<String>,
@@ -224,9 +213,9 @@ pub struct DisassemblyLine {
     pub label: Option<String>,
     /// Decoded MOS 6502/6510 [`Opcode`] metadata when this line represents a code instruction.
     pub opcode: Option<Opcode>,
-    /// Whether the TUI and HTML renderers should display raw hex `bytes` in the byte column.
+    /// Whether the TUI and HTML renderers show raw hex `bytes` in the byte column.
     pub show_bytes: bool,
-    /// Resolved control-flow target address for branches and jumps (used to draw control-flow arrows).
+    /// Resolved control-flow target address for branches and jumps.
     pub target_address: Option<Addr>,
     /// Target address for preamble external label equate rows (`label = $addr`).
     pub external_label_address: Option<Addr>,
@@ -235,6 +224,24 @@ pub struct DisassemblyLine {
 }
 
 impl DisassemblyLine {
+    /// Iterates over resolved mid-instruction labels at intermediate byte offsets (`1..self.bytes.len()`).
+    fn iter_mid_instruction_labels<'a>(
+        &'a self,
+        state: &'a AppState,
+    ) -> impl Iterator<Item = (usize, Addr, &'a crate::state::Label)> + 'a {
+        let max_offset = if self.external_label_address.is_some() {
+            0
+        } else {
+            self.bytes.len()
+        };
+        (1..max_offset).filter_map(move |offset| {
+            let mid_addr = self.address.wrapping_add(offset as u16);
+            let label_vec = state.labels.get(&mid_addr)?;
+            let label = symbols::resolve_label(label_vec, mid_addr.0, &state.settings)?;
+            Some((offset, mid_addr, label))
+        })
+    }
+
     /// Returns `true` if this line is a virtual `{splitter}` marker ([`SPLITTER_MNEMONIC`]).
     #[must_use]
     pub fn is_splitter(&self) -> bool {
@@ -242,7 +249,7 @@ impl DisassemblyLine {
     }
 
     /// Returns `true` if this line is a preamble enum definition line emitted when
-    /// `settings.all_labels` is enabled.
+    /// `settings.all_labels` is active.
     #[must_use]
     pub fn is_enum_definition(&self, comment_prefix: &str) -> bool {
         self.bytes.is_empty()
@@ -282,7 +289,7 @@ impl DisassemblyLine {
             return DisassemblyLineKind::Splitter;
         }
         // Check `is_enum_definition` before `is_unindented_scope` so a KickAssembler
-        // `.namespace` enum closing brace `}` at `Addr::ZERO` is not misclassified as a scope brace.
+        // `.namespace` enum closing brace `}` at `Addr::ZERO` classifies as an enum line.
         if self.is_enum_definition(comment_prefix) {
             return DisassemblyLineKind::EnumDefinition;
         }
@@ -290,8 +297,8 @@ impl DisassemblyLine {
             return DisassemblyLineKind::ScopeDelimiter;
         }
         if self.bytes.is_empty() && self.label.is_none() {
-            // Require `line_comment.is_none()` so standalone line-comment carriers are classified
-            // as `Instruction` rows rather than `Blank` and are never dropped during export.
+            // Require `line_comment.is_none()` so standalone line-comment carriers classify
+            // as `Instruction` rows rather than `Blank`.
             if self.mnemonic.is_empty() && self.comment.is_empty() && self.line_comment.is_none() {
                 return DisassemblyLineKind::Blank;
             }
@@ -310,21 +317,20 @@ impl DisassemblyLine {
         Some(formatter.format_label_definition(label))
     }
 
-    /// Computes how this line's label (if any) is placed relative to the
-    /// mnemonic column using `formatter`.
+    /// Computes how this line's label (if any) sits relative to the mnemonic column
+    /// under `formatter`.
     #[must_use]
     pub fn label_placement(&self, formatter: &dyn formatter::Formatter) -> LabelPlacement {
-        // External equate rows embed their label directly inside `mnemonic` (`name = $addr`)
-        // and never render a separate inline or own-line label column.
+        // External equate rows embed their label inside `mnemonic` (`name = $addr`) and
+        // never render a separate label column.
         if self.external_label_address.is_some() {
             return LabelPlacement::None;
         }
         let Some(formatted) = self.formatted_label(formatter) else {
             return LabelPlacement::None;
         };
-        // Evaluate length on the *formatted* label (which appends `:` in ca65 and KickAssembler)
-        // and force `OwnLine` on unindented `{` / `}` scope delimiters so named scopes always
-        // place their label above the opening brace.
+        // Measure the formatted label (which includes `:` in `ca65` and `KickAssembler`)
+        // and force `OwnLine` on unindented `{` / `}` scope delimiters.
         if formatted.len() >= LABEL_COLUMN_WIDTH
             || self.is_unindented_scope(formatter.comment_prefix())
         {
@@ -335,49 +341,27 @@ impl DisassemblyLine {
     }
 
     /// Counts how many intermediate byte addresses (`1..self.bytes.len()`) have a
-    /// resolved mid-instruction label in `state`, without allocating a `Vec` or `String`s.
+    /// resolved mid-instruction label in `state` without heap allocation.
     #[must_use]
     pub fn mid_instruction_label_count(&self, state: &AppState) -> usize {
-        if self.bytes.len() <= 1 || self.external_label_address.is_some() {
-            return 0;
-        }
-        let mut count = 0;
-        for offset in 1..self.bytes.len() {
-            let mid_addr = self.address.wrapping_add(offset as u16);
-            if let Some(label_vec) = state.labels.get(&mid_addr)
-                && symbols::resolve_label(label_vec, mid_addr.0, &state.settings).is_some()
-            {
-                count += 1;
-            }
-        }
-        count
+        self.iter_mid_instruction_labels(state).count()
     }
 
     /// Resolves all mid-instruction labels (`offset` in `1..self.bytes.len()`)
-    /// using the canonical priority rules in [`symbols::resolve_label`].
+    /// using [`symbols::resolve_label`].
     #[must_use]
     pub fn mid_instruction_labels(&self, state: &AppState) -> Vec<MidInstructionLabel> {
-        if self.bytes.len() <= 1 || self.external_label_address.is_some() {
-            return Vec::new();
-        }
-        let mut out = Vec::new();
-        for offset in 1..self.bytes.len() {
-            let mid_addr = self.address.wrapping_add(offset as u16);
-            if let Some(label_vec) = state.labels.get(&mid_addr)
-                && let Some(label) = symbols::resolve_label(label_vec, mid_addr.0, &state.settings)
-            {
-                out.push(MidInstructionLabel {
-                    address: mid_addr,
-                    name: label.name.clone(),
-                    label_type: label.label_type,
-                    offset,
-                });
-            }
-        }
-        out
+        self.iter_mid_instruction_labels(state)
+            .map(|(offset, address, label)| MidInstructionLabel {
+                address,
+                name: label.name.clone(),
+                label_type: label.label_type,
+                offset,
+            })
+            .collect()
     }
 
-    /// Computes the exact visual sub-line counts for this line under `formatter`.
+    /// Computes the visual sub-line counts for this line under `formatter`.
     #[must_use]
     pub fn visual_line_counts(
         &self,
@@ -406,52 +390,30 @@ impl DisassemblyLine {
 
     /// Maps a visual `sub_index` back to the specific 6502 [`Addr`] it represents.
     ///
-    /// If `sub_index` points to one of the mid-instruction relative label rows
-    /// (`0..labels`), returns that intermediate byte's [`Addr`]; otherwise returns
+    /// When `sub_index` points to a mid-instruction relative label row (`0..labels`), this
+    /// method returns that intermediate byte's [`Addr`]. Otherwise it returns
     /// `self.external_label_address.unwrap_or(self.address)`.
     #[must_use]
     pub fn address_at_sub_index(&self, state: &AppState, sub_index: usize) -> Addr {
         let base_addr = self.external_label_address.unwrap_or(self.address);
-        if self.bytes.len() <= 1 || self.external_label_address.is_some() {
-            return base_addr;
-        }
-        let mut current_sub = 0;
-        for offset in 1..self.bytes.len() {
-            let mid_addr = self.address.wrapping_add(offset as u16);
-            if let Some(label_vec) = state.labels.get(&mid_addr)
-                && symbols::resolve_label(label_vec, mid_addr.0, &state.settings).is_some()
-            {
-                if current_sub == sub_index {
-                    return mid_addr;
-                }
-                current_sub += 1;
-            }
-        }
-        base_addr
+        self.iter_mid_instruction_labels(state)
+            .nth(sub_index)
+            .map_or(base_addr, |(_, mid_addr, _)| mid_addr)
     }
 
-    /// Maps a target [`Addr`] within this line to its corresponding visual sub-line index.
+    /// Maps a target [`Addr`] within this line to its visual sub-line index.
     ///
     /// - If `target_addr` matches a resolved mid-instruction label (`self.address + offset`),
     ///   returns that mid-instruction label's sub-line index (`0..labels`).
-    /// - Otherwise returns [`VisualLineCounts::opcode_sub_index()`] (pointing directly at the opcode,
-    ///   directive, collapsed block, or equate row, even when an [`LabelPlacement::OwnLine`] label or
-    ///   multi-line `line_comment` precedes it).
+    /// - Otherwise returns [`VisualLineCounts::opcode_sub_index()`], pointing at the opcode,
+    ///   directive, collapsed block, or equate row.
     #[must_use]
     pub fn get_sub_index_for_address(&self, state: &AppState, target_addr: Addr) -> usize {
-        if self.bytes.len() > 1 && self.external_label_address.is_none() {
-            let mut sub_index = 0;
-            for offset in 1..self.bytes.len() {
-                let mid_addr = self.address.wrapping_add(offset as u16);
-                if let Some(label_vec) = state.labels.get(&mid_addr)
-                    && symbols::resolve_label(label_vec, mid_addr.0, &state.settings).is_some()
-                {
-                    if mid_addr == target_addr {
-                        return sub_index;
-                    }
-                    sub_index += 1;
-                }
-            }
+        if let Some(sub_index) = self
+            .iter_mid_instruction_labels(state)
+            .position(|(_, mid_addr, _)| mid_addr == target_addr)
+        {
+            return sub_index;
         }
         let formatter = Disassembler::formatter(state.settings.assembler);
         self.visual_line_counts(state, formatter).opcode_sub_index()
@@ -482,7 +444,7 @@ impl Disassembler {
 
     /// Returns a zero-allocation static reference to the [`Formatter`](formatter::Formatter) for `assembler`.
     ///
-    /// Prefer this over [`Self::create_formatter`] in hot 60 FPS viewport layout, rendering, and
+    /// Prefer this over [`Self::create_formatter`] in 60 FPS viewport layout, rendering, and
     /// search loops because all four formatter implementations are zero-sized unit structs.
     #[must_use]
     pub fn formatter(assembler: Assembler) -> &'static dyn formatter::Formatter {
@@ -509,30 +471,7 @@ impl Disassembler {
         }
     }
 
-    /// Computes local label display names within the lexical scope spanning `[start_pc..=end_pc]`.
-    #[must_use]
-    pub fn compute_local_label_names(
-        &self,
-        ctx: &DisassemblyContext,
-        start_pc: usize,
-        end_pc: usize,
-        formatter: &dyn formatter::Formatter,
-    ) -> std::collections::BTreeMap<Addr, String> {
-        symbols::compute_local_label_names(&self.opcodes, ctx, start_pc, end_pc, formatter)
-    }
-
-    /// Maps each scoped address to the name of its enclosing lexical scope.
-    #[must_use]
-    pub fn compute_scope_names(
-        &self,
-        ctx: &DisassemblyContext,
-        formatter: &dyn formatter::Formatter,
-    ) -> std::collections::BTreeMap<Addr, String> {
-        symbols::compute_scope_names(ctx, formatter)
-    }
-
-    /// Convenience wrapper that constructs a [`DisassemblyContext`] and disassembles `data` into
-    /// a sequence of [`DisassemblyLine`] items.
+    /// Constructs a [`DisassemblyContext`] and disassembles `data` into [`DisassemblyLine`] items.
     #[allow(clippy::too_many_arguments)]
     #[must_use]
     pub fn disassemble(
@@ -576,7 +515,8 @@ impl Disassembler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{Label, LabelKind};
+    use crate::state::{AnnotationManager, BlockType, DocumentSettings, Label, LabelKind, XRef};
+    use std::collections::{BTreeMap, BTreeSet};
 
     fn make_base_line() -> DisassemblyLine {
         DisassemblyLine {
@@ -667,7 +607,7 @@ mod tests {
         );
         assert!(splitter_line.is_navigable());
 
-        // 4. EnumDefinition vs ScopeDelimiter (KickAssembler .namespace closing `}` vs lexical scope `{` / `}`)
+        // 4. EnumDefinition vs ScopeDelimiter
         let mut kick_enum_close = make_base_line();
         kick_enum_close.address = Addr::ZERO;
         kick_enum_close.bytes.clear();
@@ -709,7 +649,7 @@ mod tests {
         );
         assert!(header_comment.is_navigable());
 
-        // 6. Blank vs line_comment (Landmine 3)
+        // 6. Blank vs line_comment
         let mut blank_line = make_base_line();
         blank_line.bytes.clear();
         blank_line.mnemonic.clear();
@@ -752,14 +692,14 @@ mod tests {
         assert_eq!(line.formatted_label(tass), None);
         assert_eq!(line.label_placement(tass), LabelPlacement::None);
 
-        // ExternalEquate with long label -> LabelPlacement::None (Edge Case D)
+        // ExternalEquate with long label -> LabelPlacement::None
         let mut ext_line = make_base_line();
         ext_line.external_label_address = Some(Addr(0xD020));
         ext_line.label = Some("very_long_external_label_name".to_string());
         assert_eq!(ext_line.label_placement(tass), LabelPlacement::None);
         assert_eq!(ext_line.label_placement(ca65), LabelPlacement::None);
 
-        // 19-character label ("nineteen_char_label", raw length 19) — Defect D1 regression test
+        // 19-character label ("nineteen_char_label", raw length 19)
         line.label = Some("nineteen_char_label".to_string());
         assert_eq!("nineteen_char_label".len(), 19);
         assert_eq!(
@@ -811,7 +751,7 @@ mod tests {
         assert_eq!(mid_local.format_definition(ca65), "@loop =*+$01");
         assert_eq!(mid_local.format_definition(kick), ".label loop = * + 1");
 
-        // LocalUserDefined WITH existing leading prefix (Landmine 1 — must NOT double-prefix)
+        // LocalUserDefined with existing leading prefix must not double-prefix
         let mid_tass_prefixed = MidInstructionLabel {
             address: Addr(0x1001),
             name: "_loop".to_string(),
@@ -989,5 +929,115 @@ mod tests {
         ext_line.external_label_address = Some(Addr(0xD020));
         assert_eq!(ext_line.address_at_sub_index(&state, 0), Addr(0xD020));
         assert_eq!(ext_line.get_sub_index_for_address(&state, Addr(0xD020)), 0);
+    }
+
+    #[test]
+    fn test_scope_at_end_of_buffer_and_on_data_block_does_not_leak_or_duplicate_label() {
+        let data = vec![0x01, 0x02];
+        let block_types = vec![BlockType::DataByte, BlockType::DataByte];
+        let mut labels = BTreeMap::new();
+        labels.insert(
+            Addr(0x1000),
+            vec![Label {
+                name: "data_scope".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        let mut annotations = AnnotationManager::default();
+        annotations.update(Addr(0x1000), |e| {
+            e.scope = Some(Addr(0x1001));
+            e.user_line_comment = Some("scope header".to_string());
+        });
+        let settings = DocumentSettings {
+            assembler: Assembler::Tass64,
+            ..Default::default()
+        };
+        let cross_refs: BTreeMap<Addr, Vec<XRef>> = BTreeMap::new();
+        let splitters = BTreeSet::new();
+
+        let lines = Disassembler::new().disassemble(
+            &data,
+            &block_types,
+            &labels,
+            Addr(0x1000),
+            &settings,
+            &annotations,
+            &cross_refs,
+            &[],
+            &splitters,
+        );
+
+        let block_lines: Vec<_> = lines.iter().filter(|l| l.mnemonic == ".block").collect();
+        assert_eq!(block_lines.len(), 1);
+        assert_eq!(block_lines[0].label.as_deref(), Some("data_scope"));
+        assert_eq!(block_lines[0].line_comment.as_deref(), Some("scope header"));
+
+        let byte_lines: Vec<_> = lines.iter().filter(|l| l.mnemonic == ".byte").collect();
+        assert_eq!(byte_lines.len(), 1);
+        assert_eq!(
+            byte_lines[0].label, None,
+            "DataByte row inside scope start must not duplicate the scope label"
+        );
+        assert_eq!(
+            byte_lines[0].line_comment, None,
+            "DataByte row inside scope start must not duplicate the scope line comment"
+        );
+
+        assert_eq!(
+            lines.last().map(|l| l.mnemonic.as_str()),
+            Some(".bend"),
+            "Scope ending on the last byte of data must still emit its closing directive"
+        );
+    }
+
+    #[test]
+    fn test_split_byte_table_second_chunk_uses_label_priority_and_local_prefix() {
+        let data = vec![0x00, 0x10, 0x20, 0x30];
+        let block_types = vec![BlockType::LoHiWord; 4];
+        let mut labels = BTreeMap::new();
+        // Insert Auto label first and User local label second at the high-byte chunk start ($1002).
+        labels.insert(
+            Addr(0x1002),
+            vec![
+                Label {
+                    name: "a1002".to_string(),
+                    kind: LabelKind::Auto,
+                    label_type: LabelType::AbsoluteAddress,
+                },
+                Label {
+                    name: "hi_bytes".to_string(),
+                    kind: LabelKind::User,
+                    label_type: LabelType::LocalUserDefined,
+                },
+            ],
+        );
+        let annotations = AnnotationManager::default();
+        let settings = DocumentSettings {
+            assembler: Assembler::Tass64,
+            ..Default::default()
+        };
+        let cross_refs: BTreeMap<Addr, Vec<XRef>> = BTreeMap::new();
+        let splitters = BTreeSet::new();
+
+        let lines = Disassembler::new().disassemble(
+            &data,
+            &block_types,
+            &labels,
+            Addr(0x1000),
+            &settings,
+            &annotations,
+            &cross_refs,
+            &[],
+            &splitters,
+        );
+
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[1].address, Addr(0x1002));
+        assert_eq!(
+            lines[1].label.as_deref(),
+            Some("_hi_bytes"),
+            "Second chunk of split-byte table must resolve highest-priority User label and apply local prefix"
+        );
     }
 }

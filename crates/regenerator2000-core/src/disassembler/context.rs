@@ -1,8 +1,8 @@
 //! Disassembly execution context and inline cross-reference comment formatting.
 //!
-//! This module defines [`DisassemblyContext`], which bundles all read-only project state required
-//! by the disassembly pipeline, [`HandleArgs`], which carries per-iteration decoding state, and
-//! [`format_cross_references`], which renders inline `"x-ref: $xxxx, $yyyy"` side comments.
+//! This module defines [`DisassemblyContext`] to hold read-only project state for the pipeline.
+//! It also defines [`HandleArgs`] for per-iteration state and [`format_cross_references`] for
+//! inline `"x-ref: $xxxx, $yyyy"` side comments.
 
 use crate::state::{
     Addr, AnnotationManager, BlockType, DocumentSettings, EnumDefinition, Label, XRef,
@@ -11,9 +11,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::formatter::Formatter;
 
-/// Read-only context containing all state references needed during a disassembly pass.
+/// Read-only context that holds all state references for a disassembly pass.
 pub struct DisassemblyContext<'a> {
-    /// Raw binary byte slice being disassembled.
+    /// Raw binary byte slice to disassemble.
     pub data: &'a [u8],
     /// Per-byte [`BlockType`] classification parallel to [`Self::data`].
     pub block_types: &'a [BlockType],
@@ -25,7 +25,7 @@ pub struct DisassemblyContext<'a> {
     pub settings: &'a DocumentSettings,
     /// Sparse per-address annotations (comments, immediate formats, bookmarks, scopes, enums).
     pub annotations: &'a AnnotationManager,
-    /// Inverted cross-reference index mapping target [`Addr`]s to typed [`XRef`]s.
+    /// Inverted cross-reference index that maps target [`Addr`]s to typed [`XRef`]s.
     pub cross_refs: &'a BTreeMap<Addr, Vec<XRef>>,
     /// Inclusive `(start_offset, end_offset)` byte-offset ranges of collapsed blocks.
     pub collapsed_blocks: &'a [(usize, usize)],
@@ -42,7 +42,7 @@ pub struct DisassemblyContext<'a> {
     pub builtin_enums: &'a BTreeMap<String, EnumDefinition>,
 }
 
-/// Per-iteration values computed in the disassembly loop and passed to each block handler.
+/// Per-iteration values for the disassembly loop and block handlers.
 pub struct HandleArgs<'a> {
     /// Current byte offset within [`DisassemblyContext::data`].
     pub pc: usize,
@@ -52,71 +52,57 @@ pub struct HandleArgs<'a> {
     pub formatter: &'a dyn Formatter,
     /// Primary formatted label name at `address`, if any.
     pub label_name: Option<String>,
-    /// Assembled inline side comment (combining user/system side comments and cross-references).
+    /// Combined inline side comment (user or system side comment plus cross-references).
     pub side_comment: String,
-    /// Optional preceding block/line comment at `address`.
+    /// Optional preceding block comment at `address`.
     pub line_comment: Option<String>,
-    /// Optional local label display names within the current lexical scope.
+    /// Optional local label names within the current lexical scope.
     pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
-    /// Optional mapping of scoped addresses to their enclosing scope names.
+    /// Optional map from scoped addresses to their enclosing scope names.
     pub label_scope_names: Option<&'a BTreeMap<Addr, String>>,
-    /// Name of the lexical scope currently enclosing `address`, if any.
+    /// Name of the lexical scope that encloses `address`, if any.
     pub current_scope_name: Option<String>,
 }
 
-impl<'a> DisassemblyContext<'a> {
-    /// Constructs a [`DisassemblyContext`] and pre-computes [`Self::scope_ends`] from `annotations`.
-    #[allow(clippy::too_many_arguments)]
-    #[must_use]
-    pub fn minimal(
-        data: &'a [u8],
-        block_types: &'a [BlockType],
-        labels: &'a BTreeMap<Addr, Vec<Label>>,
-        origin: Addr,
-        settings: &'a DocumentSettings,
-        annotations: &'a AnnotationManager,
-        cross_refs: &'a BTreeMap<Addr, Vec<XRef>>,
-        collapsed_blocks: &'a [(usize, usize)],
-        splitters: &'a BTreeSet<Addr>,
-        enums: &'a BTreeMap<String, EnumDefinition>,
-        user_global_enums: &'a BTreeMap<String, EnumDefinition>,
-        builtin_enums: &'a BTreeMap<String, EnumDefinition>,
-    ) -> Self {
-        let scope_ends = annotations.scope_ends();
-        Self {
-            data,
-            block_types,
-            labels,
-            origin,
-            settings,
-            annotations,
-            cross_refs,
-            collapsed_blocks,
-            splitters,
-            scope_ends,
-            enums,
-            user_global_enums,
-            builtin_enums,
-        }
-    }
+/// Resolves `value` against the enum annotation at `address`.
+///
+/// Searches `enums`, `user_global_enums`, and `builtin_enums` in precedence order.
+#[must_use]
+pub(crate) fn resolve_enum_at(
+    annotations: &AnnotationManager,
+    enums: &BTreeMap<String, EnumDefinition>,
+    user_global_enums: &BTreeMap<String, EnumDefinition>,
+    builtin_enums: &BTreeMap<String, EnumDefinition>,
+    address: Addr,
+    value: u16,
+) -> Option<(String, String)> {
+    let entry = annotations.get(address)?;
+    let enum_name = entry.enum_usage.as_ref()?;
+    let enum_def = enums
+        .get(enum_name)
+        .or_else(|| user_global_enums.get(enum_name))
+        .or_else(|| builtin_enums.get(enum_name))?;
+    let variant = enum_def.variants.get(&value)?;
+    Some((enum_name.clone(), variant.clone()))
+}
 
-    /// Resolves `value` against the enum annotation attached to `address`, searching project-local,
-    /// user-global, and built-in enum tables in precedence order.
+impl DisassemblyContext<'_> {
+    /// Resolves `value` against the enum annotation at `address`.
+    ///
+    /// Searches project-local, user-global, and built-in enum tables in precedence order.
     #[must_use]
     pub fn resolve_enum_value(&self, address: Addr, value: u16) -> Option<(String, String)> {
-        let entry = self.annotations.get(address)?;
-        let enum_name = entry.enum_usage.as_ref()?;
-        let enum_def = self
-            .enums
-            .get(enum_name)
-            .or_else(|| self.user_global_enums.get(enum_name))
-            .or_else(|| self.builtin_enums.get(enum_name))?;
-        let variant = enum_def.variants.get(&value)?;
-        Some((enum_name.clone(), variant.clone()))
+        resolve_enum_at(
+            self.annotations,
+            self.enums,
+            self.user_global_enums,
+            self.builtin_enums,
+            address,
+            value,
+        )
     }
 
-    /// Returns `true` if `addr` acts as a block-splitting boundary (manual user splitter, lexical
-    /// scope start, or lexical scope end).
+    /// Returns `true` if `addr` is a manual splitter, scope start, or scope end.
     #[must_use]
     pub fn is_virtual_splitter(&self, addr: Addr) -> bool {
         if self.splitters.contains(&addr) {
@@ -128,8 +114,18 @@ impl<'a> DisassemblyContext<'a> {
         self.scope_ends.contains(&addr)
     }
 
-    /// Builds the inline side comment for `address`, combining any user or system side comment
-    /// with formatted cross-references (`"x-ref: $xxxx, ..."`).
+    /// Returns `true` if `addr` forces a new line inside a multi-byte data block.
+    #[must_use]
+    pub fn breaks_data_group(&self, addr: Addr) -> bool {
+        if self.is_virtual_splitter(addr) || self.labels.contains_key(&addr) {
+            return true;
+        }
+        self.annotations
+            .get(addr)
+            .is_some_and(|e| e.user_line_comment.is_some() || e.user_side_comment.is_some())
+    }
+
+    /// Builds the inline side comment for `address` from annotations and cross-references.
     #[must_use]
     pub fn get_side_comment(&self, address: Addr, comment_prefix: &str) -> String {
         let mut comment_parts = Vec::new();
@@ -149,14 +145,14 @@ impl<'a> DisassemblyContext<'a> {
             comment_parts.push(format_cross_references(refs, self.settings.max_xref_count));
         }
 
-        let separator = format!(" {comment_prefix} "); // e.g. " ; " or " // "
+        let separator = format!(" {comment_prefix} ");
         comment_parts.join(&separator)
     }
 
-    /// Retrieves a descriptive comment associated with an instruction's operand `target_addr`
-    /// (such as hardware register descriptions or data-target user comments).
+    /// Gets a descriptive comment for an operand `target_addr`, such as a hardware register note.
     #[must_use]
     pub fn get_target_comment(&self, target_addr: Addr) -> Option<&str> {
+        let entry = self.annotations.get(target_addr)?;
         let is_code_target = target_addr
             .0
             .checked_sub(self.origin.0)
@@ -164,28 +160,21 @@ impl<'a> DisassemblyContext<'a> {
             .is_some_and(|bt| *bt == BlockType::Code);
 
         if is_code_target {
-            self.annotations
-                .get(target_addr)
-                .and_then(|e| e.system_comment.as_deref())
-        } else if let Some(c) = self
-            .annotations
-            .get(target_addr)
-            .and_then(|e| e.user_side_comment.as_deref())
-        {
-            Some(c)
+            entry.system_comment.as_deref()
         } else {
-            self.annotations
-                .get(target_addr)
-                .and_then(|e| e.system_comment.as_deref())
+            entry
+                .user_side_comment
+                .as_deref()
+                .or(entry.system_comment.as_deref())
         }
     }
 }
 
-/// Formats a slice of typed [`XRef`]s into an inline assembly side comment (`"x-ref: $xxxx, $yyyy"`).
+/// Formats a slice of typed [`XRef`]s into an inline side comment (`"x-ref: $xxxx, $yyyy"`).
 ///
-/// This function extracts, sorts, and deduplicates `r.from` addresses before truncating to `max_count`.
-/// A source address with multiple [`XRefKind`](crate::state::XRefKind) values appears only once, which
-/// preserves byte-for-byte export roundtrip compatibility.
+/// This function extracts, sorts, and deduplicates `r.from` addresses before it truncates to
+/// `max_count`. Each source address appears once even when it has multiple
+/// [`XRefKind`](crate::state::XRefKind) values.
 ///
 /// Returns an empty `String` if `refs` is empty or `max_count == 0`.
 ///
@@ -207,10 +196,10 @@ pub fn format_cross_references(refs: &[XRef], max_count: usize) -> String {
         return String::new();
     }
 
-    // Inline side comments keep `"x-ref: $xxxx, $yyyy"` without badges because the TUI and IR
+    // Inline side comments keep `"x-ref: $xxxx, $yyyy"` without badges because TUI and IR
     // navigation parsers split on `", "` and parse bare hex addresses.
     // `FindReferencesDialog` and MCP tools expose the typed `[R]`/`[W]`/`[R/W]`/`[C]`/`[J]`/`[O]` badges.
-    // Extract unique source addresses so multi-kind edges from the same address do not repeat `$xxxx`.
+    // Deduplicate source addresses so multi-kind edges from one address do not repeat `$xxxx`.
     let mut all_refs: Vec<Addr> = refs.iter().map(|r| r.from).collect();
     all_refs.sort_unstable();
     all_refs.dedup();

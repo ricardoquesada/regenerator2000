@@ -1,8 +1,27 @@
-use super::formatter::Formatter;
-use crate::cpu::AddressingMode;
-use crate::state::{Addr, LabelType};
+//! `64tass` cross-assembler syntax formatter.
 
+use super::formatter::{Formatter, TextFragment};
+use crate::state::Addr;
+use std::fmt::Write;
+
+/// Syntax formatter for the `64tass` cross-assembler.
 pub struct TassFormatter;
+
+impl TassFormatter {
+    fn format_fragments(fragments: &[TextFragment]) -> String {
+        fragments
+            .iter()
+            .map(|fragment| match fragment {
+                TextFragment::Text(s) => {
+                    let escaped = s.replace('"', "\"\"");
+                    format!("\"{escaped}\"")
+                }
+                TextFragment::Byte(b) => format!("${b:02x}"),
+            })
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
 
 impl Formatter for TassFormatter {
     fn name(&self) -> &'static str {
@@ -37,177 +56,12 @@ impl Formatter for TassFormatter {
         format!("${:04x}", address.0)
     }
 
-    fn format_operand(&self, ctx: &super::formatter::FormatContext) -> String {
-        let opcode = ctx.opcode;
-        let operands = ctx.operands;
-        let address = ctx.address;
-        let _target_context = ctx.target_context;
-        let _labels = ctx.labels;
-        let settings = ctx.settings;
-        let immediate_format = ctx
-            .annotations
-            .get(address)
-            .and_then(|e| e.immediate_format);
-        let get_label =
-            |addr: Addr, _l_type: LabelType| -> Option<String> { ctx.resolve_label(addr) };
+    fn accumulator_operand(&self) -> &'static str {
+        "a"
+    }
 
-        match opcode.mode {
-            AddressingMode::Implied => String::new(),
-            AddressingMode::Accumulator => "a".to_string(),
-            AddressingMode::Immediate => {
-                let val = operands[0];
-                if let Some((enum_name, variant_name)) = ctx.resolve_enum_value(val as u16) {
-                    format!("#{}", self.format_enum_reference(&enum_name, &variant_name))
-                } else {
-                    match immediate_format {
-                        Some(crate::state::ImmediateFormat::InvertedHex) => {
-                            format!("#~${:02x}", !val)
-                        }
-                        Some(crate::state::ImmediateFormat::Decimal) => format!("#{val}"),
-                        Some(crate::state::ImmediateFormat::NegativeDecimal) => {
-                            format!("#{}", val as i8)
-                        }
-                        Some(crate::state::ImmediateFormat::Binary) => format!("#%{val:08b}"),
-                        Some(crate::state::ImmediateFormat::InvertedBinary) => {
-                            format!("#~%{:08b}", !val)
-                        }
-                        Some(crate::state::ImmediateFormat::LowByte(target)) => {
-                            let name = get_label(target, LabelType::AbsoluteAddress)
-                                .unwrap_or_else(|| {
-                                    if target.0 <= 0xFF {
-                                        format!("${target:02x}")
-                                    } else {
-                                        format!("${target:04x}")
-                                    }
-                                });
-                            format!("#<{name}")
-                        }
-                        Some(crate::state::ImmediateFormat::HighByte(target)) => {
-                            let name = get_label(target, LabelType::AbsoluteAddress)
-                                .unwrap_or_else(|| {
-                                    if target.0 <= 0xFF {
-                                        format!("${target:02x}")
-                                    } else {
-                                        format!("${target:04x}")
-                                    }
-                                });
-                            format!("#>{name}")
-                        }
-                        _ => format!("#${val:02x}"),
-                    }
-                }
-            }
-            AddressingMode::ZeroPage => {
-                let addr = Addr::from(u16::from(operands[0])); // Zero page address
-                if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
-                    name
-                } else {
-                    format!("${addr:02x}")
-                }
-            }
-            AddressingMode::ZeroPageX => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{name},x")
-                } else {
-                    format!("${addr:02x},x")
-                }
-            }
-            AddressingMode::ZeroPageY => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{name},y")
-                } else {
-                    format!("${addr:02x},y")
-                }
-            }
-            AddressingMode::Relative => {
-                let offset = operands[0] as i8;
-                let target = address.wrapping_add(2).wrapping_add(offset as u16);
-                if let Some(name) = get_label(target, LabelType::Branch) {
-                    name
-                } else {
-                    format!("${target:04x}")
-                }
-            }
-            AddressingMode::Absolute => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                let l_type = if opcode.mnemonic == "JSR" {
-                    LabelType::Subroutine
-                } else if opcode.mnemonic == "JMP" {
-                    LabelType::Jump
-                } else {
-                    LabelType::AbsoluteAddress
-                };
-
-                let base = if let Some(name) = get_label(addr, l_type) {
-                    name
-                } else {
-                    format!("${addr:04x}")
-                };
-
-                if settings.preserve_long_bytes && addr <= 0xFF {
-                    format!("@w {base}")
-                } else {
-                    base
-                }
-            }
-            AddressingMode::AbsoluteX => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                let base = if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{name},x")
-                } else {
-                    format!("${addr:04x},x")
-                };
-
-                if settings.preserve_long_bytes && addr <= 0xFF {
-                    format!("@w {base}")
-                } else {
-                    base
-                }
-            }
-            AddressingMode::AbsoluteY => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                let base = if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{name},y")
-                } else {
-                    format!("${addr:04x},y")
-                };
-
-                if settings.preserve_long_bytes && addr <= 0xFF {
-                    format!("@w {base}")
-                } else {
-                    base
-                }
-            }
-
-            AddressingMode::Indirect => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::Pointer) {
-                    format!("({name})")
-                } else {
-                    format!("(${addr:04x})")
-                }
-            }
-            AddressingMode::IndirectX => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({name},x)")
-                } else {
-                    format!("(${addr:02x},x)")
-                }
-            }
-            AddressingMode::IndirectY => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({name}),y")
-                } else {
-                    format!("(${addr:02x}),y")
-                }
-            }
-
-            AddressingMode::Unknown => "???".to_string(),
-        }
+    fn absolute_zero_page_prefix(&self) -> Option<&'static str> {
+        Some("@w ")
     }
 
     fn format_mnemonic(&self, mnemonic: &str) -> String {
@@ -224,11 +78,10 @@ impl Formatter for TassFormatter {
 
     fn format_text(
         &self,
-        fragments: &[super::formatter::TextFragment],
+        fragments: &[TextFragment],
         is_start: bool,
         is_end: bool,
     ) -> Vec<(String, String, bool)> {
-        use super::formatter::TextFragment;
         let mut lines = Vec::new();
 
         if is_start {
@@ -236,17 +89,7 @@ impl Formatter for TassFormatter {
             lines.push((".enc".to_string(), "\"none\"".to_string(), false));
         }
 
-        let mut parts = Vec::new();
-        for fragment in fragments {
-            match fragment {
-                TextFragment::Text(s) => {
-                    let escaped = s.replace('"', "\"\"");
-                    parts.push(format!("\"{escaped}\""));
-                }
-                TextFragment::Byte(b) => parts.push(format!("${b:02x}")),
-            }
-        }
-        lines.push((".text".to_string(), parts.join(", "), true));
+        lines.push((".text".to_string(), Self::format_fragments(fragments), true));
 
         if is_end {
             lines.push((".endencode".to_string(), String::new(), false));
@@ -262,24 +105,8 @@ impl Formatter for TassFormatter {
         ]
     }
 
-    fn format_screencode(
-        &self,
-        fragments: &[super::formatter::TextFragment],
-    ) -> Vec<(String, String, bool)> {
-        use super::formatter::TextFragment;
-        let mut lines = Vec::new();
-        let mut parts = Vec::new();
-        for fragment in fragments {
-            match fragment {
-                TextFragment::Text(s) => {
-                    let escaped = s.replace('"', "\"\"");
-                    parts.push(format!("\"{escaped}\""));
-                }
-                TextFragment::Byte(b) => parts.push(format!("${b:02x}")),
-            }
-        }
-        lines.push((".text".to_string(), parts.join(", "), true));
-        lines
+    fn format_screencode(&self, fragments: &[TextFragment]) -> Vec<(String, String, bool)> {
+        vec![(".text".to_string(), Self::format_fragments(fragments), true)]
     }
 
     fn format_screencode_post(&self) -> Vec<(String, String)> {
@@ -291,14 +118,10 @@ impl Formatter for TassFormatter {
     }
 
     fn format_file_header(&self, file_name: &str, use_illegal_opcodes: bool) -> String {
-        let mut s = String::new();
-        s.push_str("; Assemble with:\n");
         let illegal_flag = if use_illegal_opcodes { "-i " } else { "" };
-        s.push_str(&format!(
-            ";   64tass -C {illegal_flag}-o {file_name}.prg {file_name}.asm\n"
-        ));
-        s.push_str(";\n");
-        s
+        format!(
+            "; Assemble with:\n;   64tass -C {illegal_flag}-o {file_name}.prg {file_name}.asm\n;\n"
+        )
     }
 
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String {
@@ -314,8 +137,7 @@ impl Formatter for TassFormatter {
         &self,
         name: Option<&str>,
     ) -> Option<(Option<String>, String, Option<String>)> {
-        let label = name.map(|n| n.to_string());
-        Some((label, ".block".to_string(), None))
+        Some((name.map(str::to_string), ".block".to_string(), None))
     }
 
     fn format_scope_end(&self) -> Option<String> {
@@ -338,11 +160,11 @@ impl Formatter for TassFormatter {
         let mut s = format!("{} .block\n", enum_def.name);
         for (&val, variant) in &enum_def.variants {
             let val_str = if val <= 0xFF {
-                format!("${:02x}", val)
+                format!("${val:02x}")
             } else {
-                format!("${:04x}", val)
+                format!("${val:04x}")
             };
-            s.push_str(&format!("    {} = {}\n", variant, val_str));
+            let _ = writeln!(s, "    {variant} = {val_str}");
         }
         s.push_str(".bend");
         s

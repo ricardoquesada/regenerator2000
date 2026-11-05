@@ -1,8 +1,29 @@
-use super::formatter::Formatter;
-use crate::cpu::AddressingMode;
-use crate::state::{Addr, LabelType};
+//! `ca65` (cc65 suite) syntax formatter implementation.
 
+use super::formatter::Formatter;
+use crate::state::Addr;
+use std::fmt::Write;
+
+/// Formatter for the `ca65` macro assembler (`cc65` suite).
 pub struct Ca65Formatter;
+
+impl Ca65Formatter {
+    /// Splits `text` on double quotes (`"`) and inserts raw `$22` byte literals between quoted chunks.
+    ///
+    /// `ca65` does not support `\"` escape sequences inside string literals.
+    fn split_quoted_parts(text: &str) -> Vec<String> {
+        let mut parts = Vec::new();
+        for (i, part) in text.split('"').enumerate() {
+            if i > 0 {
+                parts.push("$22".to_string());
+            }
+            if !part.is_empty() {
+                parts.push(format!("\"{part}\""));
+            }
+        }
+        parts
+    }
+}
 
 impl Formatter for Ca65Formatter {
     fn name(&self) -> &'static str {
@@ -29,6 +50,10 @@ impl Formatter for Ca65Formatter {
         ".res"
     }
 
+    fn accumulator_operand(&self) -> &'static str {
+        "a"
+    }
+
     fn format_byte(&self, byte: u8) -> String {
         format!("${byte:02x}")
     }
@@ -37,169 +62,12 @@ impl Formatter for Ca65Formatter {
         format!("${:04x}", address.0)
     }
 
-    fn format_operand(&self, ctx: &super::formatter::FormatContext) -> String {
-        let opcode = ctx.opcode;
-        let operands = ctx.operands;
-        let address = ctx.address;
-        let _target_context = ctx.target_context;
-        let _labels = ctx.labels;
-        let _settings = ctx.settings;
-        let immediate_format = ctx
-            .annotations
-            .get(address)
-            .and_then(|e| e.immediate_format);
-
-        let get_label =
-            |addr: Addr, _l_type: LabelType| -> Option<String> { ctx.resolve_label(addr) };
-
-        match opcode.mode {
-            AddressingMode::Implied => String::new(),
-            AddressingMode::Accumulator => "a".to_string(), // ca65 usually accepts implicit 'a' or explicit 'a' for accumulation, but often explicit is safer.
-            AddressingMode::Immediate => {
-                let val = operands[0];
-                if let Some((enum_name, variant_name)) = ctx.resolve_enum_value(val as u16) {
-                    format!("#{}", self.format_enum_reference(&enum_name, &variant_name))
-                } else {
-                    match immediate_format {
-                        Some(crate::state::ImmediateFormat::InvertedHex) => {
-                            format!("#~${:02x}", !val)
-                        }
-                        Some(crate::state::ImmediateFormat::Decimal) => format!("#{val}"),
-                        Some(crate::state::ImmediateFormat::NegativeDecimal) => {
-                            format!("#{}", val as i8)
-                        }
-                        Some(crate::state::ImmediateFormat::Binary) => format!("#%{val:08b}"),
-                        Some(crate::state::ImmediateFormat::InvertedBinary) => {
-                            format!("#~%{:08b}", !val)
-                        }
-                        Some(crate::state::ImmediateFormat::LowByte(target)) => {
-                            let name = get_label(target, LabelType::AbsoluteAddress)
-                                .unwrap_or_else(|| {
-                                    if target.0 <= 0xFF {
-                                        format!("${target:02x}")
-                                    } else {
-                                        format!("${target:04x}")
-                                    }
-                                });
-                            format!("#<{name}")
-                        }
-                        Some(crate::state::ImmediateFormat::HighByte(target)) => {
-                            let name = get_label(target, LabelType::AbsoluteAddress)
-                                .unwrap_or_else(|| {
-                                    if target.0 <= 0xFF {
-                                        format!("${target:02x}")
-                                    } else {
-                                        format!("${target:04x}")
-                                    }
-                                });
-                            format!("#>{name}")
-                        }
-                        _ => format!("#${val:02x}"),
-                    }
-                }
-            }
-            AddressingMode::ZeroPage => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
-                    name
-                } else {
-                    format!("${addr:02x}")
-                }
-            }
-            AddressingMode::ZeroPageX => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{name},x")
-                } else {
-                    format!("${addr:02x},x")
-                }
-            }
-            AddressingMode::ZeroPageY => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{name},y")
-                } else {
-                    format!("${addr:02x},y")
-                }
-            }
-            AddressingMode::Relative => {
-                let offset = operands[0] as i8;
-                let target = address.wrapping_add(2).wrapping_add(offset as u16);
-                if let Some(name) = get_label(target, LabelType::Branch) {
-                    name
-                } else {
-                    // ca65 uses *+offset usually for anonymous, but absolute addr is fine too
-                    format!("${target:04x}")
-                }
-            }
-            AddressingMode::Absolute => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                let l_type = if opcode.mnemonic == "JSR" {
-                    LabelType::Subroutine
-                } else if opcode.mnemonic == "JMP" {
-                    LabelType::Jump
-                } else {
-                    LabelType::AbsoluteAddress
-                };
-
-                if let Some(name) = get_label(addr, l_type) {
-                    name
-                } else {
-                    format!("${addr:04x}")
-                }
-            }
-            AddressingMode::AbsoluteX => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{name},x")
-                } else {
-                    format!("${addr:04x},x")
-                }
-            }
-            AddressingMode::AbsoluteY => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{name},y")
-                } else {
-                    format!("${addr:04x},y")
-                }
-            }
-
-            AddressingMode::Indirect => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::Pointer) {
-                    format!("({name})")
-                } else {
-                    format!("(${addr:04x})")
-                }
-            }
-            AddressingMode::IndirectX => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({name},x)")
-                } else {
-                    format!("(${addr:02x},x)")
-                }
-            }
-            AddressingMode::IndirectY => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({name}),y")
-                } else {
-                    format!("(${addr:02x}),y")
-                }
-            }
-
-            AddressingMode::Unknown => "???".to_string(),
-        }
-    }
-
     fn format_mnemonic(&self, mnemonic: &str) -> String {
         mnemonic.to_lowercase()
     }
 
     fn format_label(&self, name: &str) -> String {
-        // ca65 uses : for definition, but here we return the name for reference/storage
+        // Return the bare name for operand references. `format_label_definition` appends `:`.
         name.to_string()
     }
 
@@ -223,13 +91,12 @@ impl Formatter for Ca65Formatter {
         let mut tokens = Vec::new();
         for fragment in fragments {
             match fragment {
-                // ca65 with C64 target maps source ASCII to PETSCII.
-                // Only $20-$5A round-trip correctly:
-                //   $20-$3F: space, digits, punctuation (same in ASCII and PETSCII)
-                //   $40: @ (same in ASCII and PETSCII)
-                //   $41-$5A: A-Z → lowercased to a-z, ca65 maps a-z back to $41-$5A
-                // Characters $5B-$5F are remapped by ca65's C64 charset
-                // (e.g. _ → $A4, \ → $A9) and don't round-trip.
+                // `ca65` with the C64 target maps source ASCII characters to PETSCII.
+                // Only bytes `$20..=$5A` round-trip accurately:
+                // - `$20..=$40`: Space, digits, punctuation, and `@` match in ASCII and PETSCII.
+                // - `$41..=$5A`: Convert `A-Z` to `a-z` so `ca65` maps `a-z` back to `$41..=$5A`.
+                // Characters `$5B..=$5F` are remapped by the `ca65` C64 character set
+                // (for example, `_` -> `$A4` and `\` -> `$A9`) and must be emitted as raw bytes.
                 TextFragment::Text(s) => {
                     for c in s.chars() {
                         let b = c as u8;
@@ -245,7 +112,7 @@ impl Formatter for Ca65Formatter {
         }
 
         let mut lines = Vec::new();
-        let mut current_directive_is_text = None; // Some(true) for text, Some(false) for byte
+        let mut current_directive_is_text = None;
         let mut pending_text = String::new();
         let mut pending_bytes = Vec::new();
 
@@ -255,19 +122,7 @@ impl Formatter for Ca65Formatter {
                      p_bytes: &mut Vec<u8>| {
             match is_text {
                 Some(true) if !p_text.is_empty() => {
-                    let mut parts = Vec::new();
-                    let mut first = true;
-                    // ca65 doesn't support \" escapes. We must split by " and insert $22.
-                    // quoting logic
-                    for part in p_text.split('"') {
-                        if !first {
-                            parts.push("$22".to_string());
-                        }
-                        if !part.is_empty() {
-                            parts.push(format!("\"{part}\""));
-                        }
-                        first = false;
-                    }
+                    let parts = Self::split_quoted_parts(p_text);
                     if !parts.is_empty() {
                         lines.push((".byte".to_string(), parts.join(", "), true));
                     }
@@ -325,9 +180,8 @@ impl Formatter for Ca65Formatter {
     }
 
     fn screencode_byte_threshold(&self) -> u8 {
-        // ca65's scrcode macro (from cbm macpack) can only round-trip
-        // screen codes $00-$3F correctly. Values $40+ map to characters
-        // that ca65's C64 charset remaps to different byte values.
+        // The `scrcode` macro from the `cbm` macro package only round-trips screen codes
+        // `$00..=$3F`. Values `$40` and above are remapped to different byte values by `ca65`.
         0x40
     }
 
@@ -365,17 +219,7 @@ impl Formatter for Ca65Formatter {
                         })
                         .collect();
 
-                    let mut parts = Vec::new();
-                    let mut first = true;
-                    for part in s_swapped.split('"') {
-                        if !first {
-                            parts.push("$22".to_string());
-                        }
-                        if !part.is_empty() {
-                            parts.push(format!("\"{part}\""));
-                        }
-                        first = false;
-                    }
+                    let parts = Self::split_quoted_parts(&s_swapped);
                     if !parts.is_empty() {
                         lines.push(("scrcode".to_string(), parts.join(", "), true));
                     }
@@ -398,18 +242,14 @@ impl Formatter for Ca65Formatter {
     }
 
     fn format_file_header(&self, file_name: &str, use_illegal_opcodes: bool) -> String {
-        let mut s = String::new();
-        s.push_str("; Assemble with:\n");
         let cpu_flag = if use_illegal_opcodes {
             "--cpu 6502X "
         } else {
             ""
         };
-        s.push_str(&format!(
-            ";   cl65 -t c64 {cpu_flag}-C c64-asm.cfg {file_name}.asm -o {file_name}.prg\n"
-        ));
-        s.push_str(";\n");
-        s
+        format!(
+            "; Assemble with:\n;   cl65 -t c64 {cpu_flag}-C c64-asm.cfg {file_name}.asm -o {file_name}.prg\n;\n"
+        )
     }
 
     fn format_file_directives(&self) -> Vec<super::formatter::FileDirective> {
@@ -432,25 +272,9 @@ impl Formatter for Ca65Formatter {
         let mnemonic = self.format_mnemonic(ctx.opcode.mnemonic);
         let operand = self.format_operand(ctx);
 
-        // Check for forced absolute addressing
-        let val = if ctx.operands.is_empty() {
-            0
-        } else if ctx.operands.len() >= 2 {
-            u16::from(ctx.operands[1]) << 8 | u16::from(ctx.operands[0])
-        } else {
-            u16::from(ctx.operands[0])
-        };
-
-        if val <= 0xFF && ctx.settings.preserve_long_bytes {
-            match ctx.opcode.mode {
-                AddressingMode::Absolute
-                | AddressingMode::AbsoluteX
-                | AddressingMode::AbsoluteY => {
-                    // ca65 uses a: prefix for absolute addressing override
-                    return (mnemonic, format!("a:{operand}"));
-                }
-                _ => {}
-            }
+        // `ca65` uses the `a:` operand prefix to force 16-bit absolute addressing on zero-page values.
+        if ctx.should_force_absolute() {
+            return (mnemonic, format!("a:{operand}"));
         }
 
         (mnemonic, operand)
@@ -461,7 +285,7 @@ impl Formatter for Ca65Formatter {
     }
 
     fn format_binary_include(&self, filename: &str) -> (String, String) {
-        (".incbin".to_string(), format!("\"{}\"", filename))
+        (".incbin".to_string(), format!("\"{filename}\""))
     }
 
     fn local_label_prefix(&self) -> Option<&'static str> {
@@ -492,11 +316,11 @@ impl Formatter for Ca65Formatter {
         let mut s = format!(".enum {}\n", enum_def.name);
         for (&val, variant) in &enum_def.variants {
             let val_str = if val <= 0xFF {
-                format!("${:02x}", val)
+                format!("${val:02x}")
             } else {
-                format!("${:04x}", val)
+                format!("${val:04x}")
             };
-            s.push_str(&format!("    {} = {}\n", variant, val_str));
+            let _ = writeln!(s, "    {variant} = {val_str}");
         }
         s.push_str(".endenum");
         s
@@ -512,7 +336,7 @@ mod tests {
     fn test_format_text_petscii() {
         let formatter = Ca65Formatter;
 
-        // Test case 1: Range $41-$5a (should be lowercase text)
+        // Range `$41..=$5A` converts to lowercase ASCII text.
         let fragments = vec![TextFragment::Text("A".to_string())];
         let result = formatter.format_text(&fragments, true, true);
 
@@ -523,8 +347,7 @@ mod tests {
             "Expected .byte \"a\", got {result:?}"
         );
 
-        // Test case 2: Range $60-$7f (should be .byte)
-        // 'a' is $61. Should become .byte $61
+        // Range `$60..=$7F` emits raw `.byte` values (`'a'` is `$61`).
         let fragments = vec![TextFragment::Text("a".to_string())];
         let result = formatter.format_text(&fragments, true, true);
 
@@ -535,12 +358,10 @@ mod tests {
             "Expected .byte $61, got {result:?}"
         );
 
-        // Test case 3: Mixed "Aa" -> .byte "a", .byte $61
+        // Mixed `"Aa"` emits `.byte "a"` followed by `.byte $61`.
         let fragments = vec![TextFragment::Text("Aa".to_string())];
         let result = formatter.format_text(&fragments, true, true);
 
-        // First part: .byte "a"
-        // Second part: .byte $61
         let part1 = &result[0];
         assert_eq!(part1.0, ".byte");
         assert!(part1.1.contains("\"a\""));
@@ -554,14 +375,11 @@ mod tests {
     fn test_format_text_petscii_unsafe_chars() {
         let formatter = Ca65Formatter;
 
-        // PETSCII $5B-$5F ([, \, ], ^, _) don't round-trip through ca65's C64
-        // charset mapping, so they must be emitted as raw bytes.
-        // In handle_petscii_text, these PETSCII bytes become ASCII chars:
-        //   $5B -> '[', $5C -> '\', $5D -> ']', $5E -> '^', $5F -> '_'
+        // PETSCII bytes `$5B..=$5F` (`[`, `\`, `]`, `^`, `_`) do not round-trip through
+        // the `ca65` C64 character set mapping and must be emitted as raw bytes.
         let fragments = vec![TextFragment::Text("[\\]^_".to_string())];
         let result = formatter.format_text(&fragments, true, true);
 
-        // All should be raw bytes
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].0, ".byte");
         assert_eq!(result[0].1, "$5b, $5c, $5d, $5e, $5f");

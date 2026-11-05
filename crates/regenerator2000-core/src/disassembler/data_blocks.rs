@@ -1,115 +1,101 @@
+//! Data block disassemblers for bytes, words, address pointers, PETSCII text, screen codes,
+//! and external binary includes.
+
 use crate::disassembler::DisassemblyLine;
-use crate::disassembler::context::DisassemblyContext;
+use crate::disassembler::context::{DisassemblyContext, HandleArgs};
 use crate::disassembler::formatter::{Formatter, TextFragment};
-use crate::disassembler::symbols::{get_label_name, resolve_label_name};
+use crate::disassembler::symbols::resolve_label_name;
 use crate::state::{Addr, BlockType};
 
-/// Disassembles contiguous fill runs of identical bytes if configured threshold is met.
-#[must_use]
-pub fn disassemble_fill_run(
-    ctx: &DisassemblyContext<'_>,
-    pc: usize,
-    formatter: &dyn Formatter,
-) -> Option<(usize, Vec<DisassemblyLine>)> {
-    let threshold = ctx.settings.fill_run_threshold;
-    if threshold == 0 || pc >= ctx.data.len() {
-        return None;
-    }
-
-    let fill_byte = *ctx.data.get(pc)?;
-    let address = ctx.origin.wrapping_add(pc as u16);
+/// Counts how many contiguous `DataByte` bytes starting at `pc` share the same byte value
+/// without crossing a splitter, label, cross-reference, or user comment boundary.
+fn measure_fill_run(ctx: &DisassemblyContext<'_>, pc: usize) -> usize {
+    let Some(&fill_byte) = ctx.data.get(pc) else {
+        return 0;
+    };
     let mut run_len = 0usize;
 
     for i in 0..ctx.data.len().saturating_sub(pc) {
         let cur_pc = pc + i;
         let cur_addr = ctx.origin.wrapping_add(cur_pc as u16);
 
-        if ctx.block_types.get(cur_pc) != Some(&BlockType::DataByte) {
+        if ctx.block_types.get(cur_pc) != Some(&BlockType::DataByte)
+            || ctx.data.get(cur_pc) != Some(&fill_byte)
+        {
             break;
         }
-        if ctx.data.get(cur_pc) != Some(&fill_byte) {
+        if i > 0
+            && (ctx.breaks_data_group(cur_addr)
+                || ctx.cross_refs.get(&cur_addr).is_some_and(|v| !v.is_empty()))
+        {
             break;
         }
-        if i > 0 {
-            if ctx.is_virtual_splitter(cur_addr) {
-                break;
-            }
-            if ctx.labels.contains_key(&cur_addr) {
-                break;
-            }
-            if ctx.cross_refs.get(&cur_addr).is_some_and(|v| !v.is_empty()) {
-                break;
-            }
-            if ctx
-                .annotations
-                .get(cur_addr)
-                .and_then(|e| e.user_line_comment.as_ref())
-                .is_some()
-            {
-                break;
-            }
-            if ctx
-                .annotations
-                .get(cur_addr)
-                .and_then(|e| e.user_side_comment.as_ref())
-                .is_some()
-            {
-                break;
-            }
-        }
-
         run_len += 1;
     }
 
-    if run_len >= threshold {
-        let label_name = get_label_name(address, ctx.labels, formatter, ctx.settings);
-        let side_comment = ctx.get_side_comment(address, formatter.comment_prefix());
-        let line_comment = ctx
-            .annotations
-            .get(address)
-            .and_then(|e| e.user_line_comment.clone());
-        let run_bytes = ctx.data.get(pc..pc + run_len)?.to_vec();
+    run_len
+}
 
-        Some((
-            run_len,
-            vec![DisassemblyLine {
-                address,
-                bytes: run_bytes,
-                mnemonic: formatter.fill_directive().to_string(),
-                operand: format!("{}, {}", run_len, formatter.format_byte(fill_byte)),
-                comment: side_comment,
-                line_comment,
-                label: label_name,
-                opcode: None,
-                show_bytes: false,
-                target_address: None,
-                external_label_address: None,
-                is_collapsed: false,
-            }],
-        ))
-    } else {
-        None
+/// Disassembles a contiguous run of identical `DataByte` bytes as a fill directive
+/// when the run length meets or exceeds `ctx.settings.fill_run_threshold`.
+#[must_use]
+pub fn disassemble_fill_run(
+    ctx: &DisassemblyContext<'_>,
+    args: &HandleArgs<'_>,
+) -> Option<(usize, Vec<DisassemblyLine>)> {
+    let threshold = ctx.settings.fill_run_threshold;
+    let pc = args.pc;
+    if threshold == 0 || pc >= ctx.data.len() {
+        return None;
     }
+
+    let fill_byte = *ctx.data.get(pc)?;
+    let run_len = measure_fill_run(ctx, pc);
+    if run_len < threshold {
+        return None;
+    }
+
+    let run_bytes = ctx.data.get(pc..pc + run_len)?.to_vec();
+    let formatter = args.formatter;
+
+    Some((
+        run_len,
+        vec![DisassemblyLine {
+            address: args.address,
+            bytes: run_bytes,
+            mnemonic: formatter.fill_directive().to_string(),
+            operand: format!("{run_len}, {}", formatter.format_byte(fill_byte)),
+            comment: args.side_comment.clone(),
+            line_comment: args.line_comment.clone(),
+            label: args.label_name.clone(),
+            opcode: None,
+            show_bytes: false,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        }],
+    ))
 }
 
 /// Disassembles byte data blocks (`BlockType::DataByte`).
 #[must_use]
 pub fn disassemble_bytes(
     ctx: &DisassemblyContext<'_>,
-    pc: usize,
-    formatter: &dyn Formatter,
+    args: HandleArgs<'_>,
 ) -> (usize, Vec<DisassemblyLine>) {
-    if let Some(res) = disassemble_fill_run(ctx, pc, formatter) {
+    if let Some(res) = disassemble_fill_run(ctx, &args) {
         return res;
     }
 
-    let address = ctx.origin.wrapping_add(pc as u16);
-    let label_name = get_label_name(address, ctx.labels, formatter, ctx.settings);
-    let side_comment = ctx.get_side_comment(address, formatter.comment_prefix());
-    let line_comment = ctx
-        .annotations
-        .get(address)
-        .and_then(|e| e.user_line_comment.clone());
+    let HandleArgs {
+        pc,
+        address,
+        formatter,
+        label_name,
+        side_comment,
+        line_comment,
+        ..
+    } = args;
 
     let mut bytes = Vec::new();
     let mut operands = Vec::new();
@@ -123,87 +109,17 @@ pub fn disassemble_bytes(
         if ctx.block_types.get(current_pc) != Some(&BlockType::DataByte) {
             break;
         }
-
-        if count > 0 && ctx.is_virtual_splitter(current_address) {
+        if count > 0 && ctx.breaks_data_group(current_address) {
             break;
         }
-
-        if count > 0 && ctx.labels.contains_key(&current_address) {
+        if count > 0 && threshold > 0 && measure_fill_run(ctx, current_pc) >= threshold {
             break;
-        }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_line_comment.as_ref())
-                .is_some()
-        {
-            break;
-        }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_side_comment.as_ref())
-                .is_some()
-        {
-            break;
-        }
-
-        if count > 0
-            && threshold > 0
-            && let Some(&fill_byte) = ctx.data.get(current_pc)
-        {
-            let mut run_len = 0usize;
-            for j in 0..ctx.data.len().saturating_sub(current_pc) {
-                let j_pc = current_pc + j;
-                let j_addr = ctx.origin.wrapping_add(j_pc as u16);
-                if ctx.block_types.get(j_pc) != Some(&BlockType::DataByte) {
-                    break;
-                }
-                if ctx.data.get(j_pc) != Some(&fill_byte) {
-                    break;
-                }
-                if j > 0 {
-                    if ctx.is_virtual_splitter(j_addr) {
-                        break;
-                    }
-                    if ctx.labels.contains_key(&j_addr) {
-                        break;
-                    }
-                    if ctx.cross_refs.get(&j_addr).is_some_and(|v| !v.is_empty()) {
-                        break;
-                    }
-                    if ctx
-                        .annotations
-                        .get(j_addr)
-                        .and_then(|e| e.user_line_comment.as_ref())
-                        .is_some()
-                    {
-                        break;
-                    }
-                    if ctx
-                        .annotations
-                        .get(j_addr)
-                        .and_then(|e| e.user_side_comment.as_ref())
-                        .is_some()
-                    {
-                        break;
-                    }
-                }
-                run_len += 1;
-            }
-            if run_len >= threshold {
-                break;
-            }
         }
 
         if let Some(&b) = ctx.data.get(current_pc) {
             bytes.push(b);
             let formatted_val = if let Some((enum_name, variant_name)) =
-                ctx.resolve_enum_value(current_address, b as u16)
+                ctx.resolve_enum_value(current_address, u16::from(b))
             {
                 formatter.format_enum_reference(&enum_name, &variant_name)
             } else {
@@ -251,16 +167,17 @@ pub fn disassemble_bytes(
 #[must_use]
 pub fn disassemble_words(
     ctx: &DisassemblyContext<'_>,
-    pc: usize,
-    formatter: &dyn Formatter,
+    args: HandleArgs<'_>,
 ) -> (usize, Vec<DisassemblyLine>) {
-    let address = ctx.origin.wrapping_add(pc as u16);
-    let label_name = get_label_name(address, ctx.labels, formatter, ctx.settings);
-    let side_comment = ctx.get_side_comment(address, formatter.comment_prefix());
-    let line_comment = ctx
-        .annotations
-        .get(address)
-        .and_then(|e| e.user_line_comment.clone());
+    let HandleArgs {
+        pc,
+        address,
+        formatter,
+        label_name,
+        side_comment,
+        line_comment,
+        ..
+    } = args;
 
     let mut bytes = Vec::new();
     let mut operands = Vec::new();
@@ -276,35 +193,10 @@ pub fn disassemble_words(
         {
             break;
         }
-
-        if count > 0 && ctx.is_virtual_splitter(current_address) {
+        if count > 0 && ctx.breaks_data_group(current_address) {
             break;
         }
         if ctx.is_virtual_splitter(next_address) {
-            break;
-        }
-
-        if count > 0 && ctx.labels.contains_key(&current_address) {
-            break;
-        }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_line_comment.as_ref())
-                .is_some()
-        {
-            break;
-        }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_side_comment.as_ref())
-                .is_some()
-        {
             break;
         }
 
@@ -360,23 +252,23 @@ pub fn disassemble_words(
     }
 }
 
-/// Disassembles address pointers (`BlockType::Address`).
+/// Disassembles 16-bit address pointers (`BlockType::Address`).
 #[must_use]
 pub fn disassemble_addresses(
     ctx: &DisassemblyContext<'_>,
-    pc: usize,
-    formatter: &dyn Formatter,
-    local_label_names: Option<&std::collections::BTreeMap<Addr, String>>,
-    label_scope_names: Option<&std::collections::BTreeMap<Addr, String>>,
-    current_scope_name: Option<&str>,
+    args: HandleArgs<'_>,
 ) -> (usize, Vec<DisassemblyLine>) {
-    let address = ctx.origin.wrapping_add(pc as u16);
-    let label_name = get_label_name(address, ctx.labels, formatter, ctx.settings);
-    let mut side_comment = ctx.get_side_comment(address, formatter.comment_prefix());
-    let line_comment = ctx
-        .annotations
-        .get(address)
-        .and_then(|e| e.user_line_comment.clone());
+    let HandleArgs {
+        pc,
+        address,
+        formatter,
+        label_name,
+        mut side_comment,
+        line_comment,
+        local_label_names,
+        label_scope_names,
+        current_scope_name,
+    } = args;
 
     let mut bytes = Vec::new();
     let mut operands = Vec::new();
@@ -385,34 +277,17 @@ pub fn disassemble_addresses(
     while pc + (count * 2) + 1 < ctx.data.len() && count < ctx.settings.addresses_per_line {
         let current_pc_start = pc + (count * 2);
         let current_address = ctx.origin.wrapping_add(current_pc_start as u16);
+        let next_address = current_address.wrapping_add(1);
 
         if ctx.block_types.get(current_pc_start) != Some(&BlockType::Address)
             || ctx.block_types.get(current_pc_start + 1) != Some(&BlockType::Address)
         {
             break;
         }
-
-        if count > 0 && ctx.labels.contains_key(&current_address) {
+        if count > 0 && ctx.breaks_data_group(current_address) {
             break;
         }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_line_comment.as_ref())
-                .is_some()
-        {
-            break;
-        }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_side_comment.as_ref())
-                .is_some()
-        {
+        if ctx.is_virtual_splitter(next_address) {
             break;
         }
 
@@ -438,7 +313,7 @@ pub fn disassemble_addresses(
                 ctx.settings,
                 local_label_names,
                 label_scope_names,
-                current_scope_name,
+                current_scope_name.as_deref(),
                 formatter.scope_resolution_separator(),
                 formatter.local_label_prefix(),
             )
@@ -482,20 +357,71 @@ pub fn disassemble_addresses(
     }
 }
 
+/// Converts formatted text directives into [`DisassemblyLine`] items, attaching `bytes`,
+/// `label_name`, `side_comment`, and `line_comment` to the first byte-emitting directive row.
+fn build_text_disassembly_lines(
+    address: Addr,
+    all_bytes: Vec<u8>,
+    formatted_lines: Vec<(String, String, bool)>,
+    label_name: Option<String>,
+    side_comment: String,
+    line_comment: Option<String>,
+) -> Vec<DisassemblyLine> {
+    let first_byte_line_index = formatted_lines
+        .iter()
+        .position(|(_, _, has_bytes)| *has_bytes)
+        .unwrap_or(0);
+
+    let mut disassembly_lines = Vec::with_capacity(formatted_lines.len());
+    for (i, (mnemonic, operand, has_bytes)) in formatted_lines.into_iter().enumerate() {
+        let line_bytes = if has_bytes {
+            all_bytes.clone()
+        } else {
+            Vec::new()
+        };
+        let (line_label, line_side_comment, line_line_comment) = if i == first_byte_line_index {
+            (
+                label_name.clone(),
+                side_comment.clone(),
+                line_comment.clone(),
+            )
+        } else {
+            (None, String::new(), None)
+        };
+
+        disassembly_lines.push(DisassemblyLine {
+            address,
+            bytes: line_bytes,
+            mnemonic,
+            operand,
+            comment: line_side_comment,
+            line_comment: line_line_comment,
+            label: line_label,
+            opcode: None,
+            show_bytes: false,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        });
+    }
+    disassembly_lines
+}
+
 /// Disassembles PETSCII text blocks (`BlockType::PetsciiText`).
 #[must_use]
 pub fn disassemble_petscii(
     ctx: &DisassemblyContext<'_>,
-    pc: usize,
-    formatter: &dyn Formatter,
+    args: HandleArgs<'_>,
 ) -> (usize, Vec<DisassemblyLine>) {
-    let address = ctx.origin.wrapping_add(pc as u16);
-    let label_name = get_label_name(address, ctx.labels, formatter, ctx.settings);
-    let side_comment = ctx.get_side_comment(address, formatter.comment_prefix());
-    let line_comment = ctx
-        .annotations
-        .get(address)
-        .and_then(|e| e.user_line_comment.clone());
+    let HandleArgs {
+        pc,
+        address,
+        formatter,
+        label_name,
+        side_comment,
+        line_comment,
+        ..
+    } = args;
 
     let mut fragments = Vec::new();
     let mut current_literal = String::new();
@@ -508,32 +434,7 @@ pub fn disassemble_petscii(
         if ctx.block_types.get(current_pc) != Some(&BlockType::PetsciiText) {
             break;
         }
-
-        if count > 0 && ctx.is_virtual_splitter(current_address) {
-            break;
-        }
-
-        if count > 0 && ctx.labels.contains_key(&current_address) {
-            break;
-        }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_line_comment.as_ref())
-                .is_some()
-        {
-            break;
-        }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_side_comment.as_ref())
-                .is_some()
-        {
+        if count > 0 && ctx.breaks_data_group(current_address) {
             break;
         }
 
@@ -566,49 +467,18 @@ pub fn disassemble_petscii(
 
     if count > 0 {
         let formatted_lines = formatter.format_text(&fragments, is_start, is_end);
-        let mut disassembly_lines = Vec::new();
-
-        let first_byte_line_index = formatted_lines
-            .iter()
-            .position(|(_, _, has_bytes)| *has_bytes)
-            .unwrap_or(0);
-
         let all_bytes = ctx.data.get(pc..pc + count).unwrap_or(&[]).to_vec();
-
-        for (i, (mnemonic, operand, has_bytes)) in formatted_lines.iter().enumerate() {
-            let line_bytes = if *has_bytes {
-                all_bytes.clone()
-            } else {
-                Vec::new()
-            };
-            let line_label = if i == first_byte_line_index {
-                label_name.clone()
-            } else {
-                None
-            };
-            let (line_side_comment, line_line_comment) = if i == first_byte_line_index {
-                (side_comment.clone(), line_comment.clone())
-            } else {
-                (String::new(), None)
-            };
-
-            disassembly_lines.push(DisassemblyLine {
+        (
+            count,
+            build_text_disassembly_lines(
                 address,
-                bytes: line_bytes,
-                mnemonic: mnemonic.clone(),
-                operand: operand.clone(),
-                comment: line_side_comment,
-                line_comment: line_line_comment,
-                label: line_label,
-                opcode: None,
-                show_bytes: false,
-                target_address: None,
-                external_label_address: None,
-                is_collapsed: false,
-            });
-        }
-
-        (count, disassembly_lines)
+                all_bytes,
+                formatted_lines,
+                label_name,
+                side_comment,
+                line_comment,
+            ),
+        )
     } else {
         disassemble_partial_data(
             ctx,
@@ -622,20 +492,21 @@ pub fn disassemble_petscii(
     }
 }
 
-/// Disassembles Screen Code text blocks (`BlockType::ScreencodeText`).
+/// Disassembles screen-code text blocks (`BlockType::ScreencodeText`).
 #[must_use]
 pub fn disassemble_screencode(
     ctx: &DisassemblyContext<'_>,
-    pc: usize,
-    formatter: &dyn Formatter,
+    args: HandleArgs<'_>,
 ) -> (usize, Vec<DisassemblyLine>) {
-    let address = ctx.origin.wrapping_add(pc as u16);
-    let label_name = get_label_name(address, ctx.labels, formatter, ctx.settings);
-    let side_comment = ctx.get_side_comment(address, formatter.comment_prefix());
-    let line_comment = ctx
-        .annotations
-        .get(address)
-        .and_then(|e| e.user_line_comment.clone());
+    let HandleArgs {
+        pc,
+        address,
+        formatter,
+        label_name,
+        side_comment,
+        line_comment,
+        ..
+    } = args;
 
     let mut fragments = Vec::new();
     let mut current_literal = String::new();
@@ -648,32 +519,7 @@ pub fn disassemble_screencode(
         if ctx.block_types.get(current_pc) != Some(&BlockType::ScreencodeText) {
             break;
         }
-
-        if count > 0 && ctx.is_virtual_splitter(current_address) {
-            break;
-        }
-
-        if count > 0 && ctx.labels.contains_key(&current_address) {
-            break;
-        }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_line_comment.as_ref())
-                .is_some()
-        {
-            break;
-        }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_side_comment.as_ref())
-                .is_some()
-        {
+        if count > 0 && ctx.breaks_data_group(current_address) {
             break;
         }
 
@@ -741,48 +587,18 @@ pub fn disassemble_screencode(
             }
         }
 
-        let mut disassembly_lines = Vec::new();
-        let first_byte_line_index = all_formatted_parts
-            .iter()
-            .position(|(_, _, has_bytes)| *has_bytes)
-            .unwrap_or(0);
-
         let all_bytes = ctx.data.get(pc..pc + count).unwrap_or(&[]).to_vec();
-
-        for (i, (mnemonic, operand, has_bytes)) in all_formatted_parts.iter().enumerate() {
-            let line_bytes = if *has_bytes {
-                all_bytes.clone()
-            } else {
-                Vec::new()
-            };
-            let line_label = if i == first_byte_line_index {
-                label_name.clone()
-            } else {
-                None
-            };
-            let (line_side_comment, line_line_comment) = if i == first_byte_line_index {
-                (side_comment.clone(), line_comment.clone())
-            } else {
-                (String::new(), None)
-            };
-
-            disassembly_lines.push(DisassemblyLine {
+        (
+            count,
+            build_text_disassembly_lines(
                 address,
-                bytes: line_bytes,
-                mnemonic: mnemonic.clone(),
-                operand: operand.clone(),
-                comment: line_side_comment,
-                line_comment: line_line_comment,
-                label: line_label,
-                opcode: None,
-                show_bytes: false,
-                target_address: None,
-                external_label_address: None,
-                is_collapsed: false,
-            });
-        }
-
-        (count, disassembly_lines)
+                all_bytes,
+                all_formatted_parts,
+                label_name,
+                side_comment,
+                line_comment,
+            ),
+        )
     } else {
         disassemble_partial_data(
             ctx,
@@ -800,16 +616,17 @@ pub fn disassemble_screencode(
 #[must_use]
 pub fn disassemble_external_file(
     ctx: &DisassemblyContext<'_>,
-    pc: usize,
-    formatter: &dyn Formatter,
+    args: HandleArgs<'_>,
 ) -> (usize, Vec<DisassemblyLine>) {
-    let address = ctx.origin.wrapping_add(pc as u16);
-    let label_name = get_label_name(address, ctx.labels, formatter, ctx.settings);
-    let side_comment = ctx.get_side_comment(address, formatter.comment_prefix());
-    let line_comment = ctx
-        .annotations
-        .get(address)
-        .and_then(|e| e.user_line_comment.clone());
+    let HandleArgs {
+        pc,
+        address,
+        formatter,
+        label_name,
+        side_comment,
+        line_comment,
+        ..
+    } = args;
 
     let mut bytes = Vec::new();
     let mut operands = Vec::new();
@@ -822,22 +639,7 @@ pub fn disassemble_external_file(
         if ctx.block_types.get(current_pc) != Some(&BlockType::ExternalFile) {
             break;
         }
-
-        if count > 0 && ctx.is_virtual_splitter(current_address) {
-            break;
-        }
-
-        if count > 0 && ctx.labels.contains_key(&current_address) {
-            break;
-        }
-
-        if count > 0
-            && ctx
-                .annotations
-                .get(current_address)
-                .and_then(|e| e.user_line_comment.as_ref())
-                .is_some()
-        {
+        if count > 0 && ctx.breaks_data_group(current_address) {
             break;
         }
 
@@ -869,7 +671,7 @@ pub fn disassemble_external_file(
     )
 }
 
-/// Fallback renderer for incomplete or partial data bytes.
+/// Emits a fallback single-byte directive (or out-of-bounds error marker) for incomplete data blocks.
 #[must_use]
 pub fn disassemble_partial_data(
     ctx: &DisassemblyContext<'_>,

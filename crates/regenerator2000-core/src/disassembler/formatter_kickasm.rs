@@ -1,7 +1,10 @@
-use super::formatter::Formatter;
-use crate::cpu::AddressingMode;
-use crate::state::{Addr, LabelType};
+//! `KickAssembler` syntax formatter implementation.
 
+use super::formatter::Formatter;
+use crate::state::Addr;
+use std::fmt::Write;
+
+/// Formatter for the `KickAssembler` 6502/6510 macro assembler.
 pub struct KickAsmFormatter;
 
 impl Formatter for KickAsmFormatter {
@@ -35,162 +38,6 @@ impl Formatter for KickAsmFormatter {
 
     fn format_address(&self, address: Addr) -> String {
         format!("${:04x}", address.0)
-    }
-
-    fn format_operand(&self, ctx: &super::formatter::FormatContext) -> String {
-        let opcode = ctx.opcode;
-        let operands = ctx.operands;
-        let address = ctx.address;
-        let _target_context = ctx.target_context;
-        let _labels = ctx.labels;
-        let _settings = ctx.settings;
-        let immediate_format = ctx
-            .annotations
-            .get(address)
-            .and_then(|e| e.immediate_format);
-
-        let get_label =
-            |addr: Addr, _l_type: LabelType| -> Option<String> { ctx.resolve_label(addr) };
-
-        match opcode.mode {
-            AddressingMode::Implied => String::new(),
-            AddressingMode::Accumulator => String::new(), // KickAssembler often implies 'a', but accepts 'a' too? Let's check. 64tass and acme vary. I'll stick to implicit (empty) unless proven otherwise.
-            AddressingMode::Immediate => {
-                let val = operands[0];
-                if let Some((enum_name, variant_name)) = ctx.resolve_enum_value(val as u16) {
-                    format!("#{}", self.format_enum_reference(&enum_name, &variant_name))
-                } else {
-                    match immediate_format {
-                        Some(crate::state::ImmediateFormat::InvertedHex) => {
-                            format!("#~${:02x}", !val)
-                        }
-                        Some(crate::state::ImmediateFormat::Decimal) => format!("#{val}"),
-                        Some(crate::state::ImmediateFormat::NegativeDecimal) => {
-                            format!("#{}", val as i8)
-                        }
-                        Some(crate::state::ImmediateFormat::Binary) => format!("#%{val:08b}"),
-                        Some(crate::state::ImmediateFormat::InvertedBinary) => {
-                            format!("#~%{:08b}", !val)
-                        }
-                        Some(crate::state::ImmediateFormat::LowByte(target)) => {
-                            let name = get_label(target, LabelType::AbsoluteAddress)
-                                .unwrap_or_else(|| {
-                                    if target.0 <= 0xFF {
-                                        format!("${target:02x}")
-                                    } else {
-                                        format!("${target:04x}")
-                                    }
-                                });
-                            format!("#<{name}")
-                        }
-                        Some(crate::state::ImmediateFormat::HighByte(target)) => {
-                            let name = get_label(target, LabelType::AbsoluteAddress)
-                                .unwrap_or_else(|| {
-                                    if target.0 <= 0xFF {
-                                        format!("${target:02x}")
-                                    } else {
-                                        format!("${target:04x}")
-                                    }
-                                });
-                            format!("#>{name}")
-                        }
-                        _ => format!("#${val:02x}"),
-                    }
-                }
-            }
-            AddressingMode::ZeroPage => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
-                    name
-                } else {
-                    format!("${addr:02x}")
-                }
-            }
-            AddressingMode::ZeroPageX => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{name},x")
-                } else {
-                    format!("${addr:02x},x")
-                }
-            }
-            AddressingMode::ZeroPageY => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{name},y")
-                } else {
-                    format!("${addr:02x},y")
-                }
-            }
-            AddressingMode::Relative => {
-                let offset = operands[0] as i8;
-                let target = address.wrapping_add(2).wrapping_add(offset as u16);
-                if let Some(name) = get_label(target, LabelType::Branch) {
-                    name
-                } else {
-                    format!("${target:04x}")
-                }
-            }
-            AddressingMode::Absolute => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                let l_type = if opcode.mnemonic == "JSR" {
-                    LabelType::Subroutine
-                } else if opcode.mnemonic == "JMP" {
-                    LabelType::Jump
-                } else {
-                    LabelType::AbsoluteAddress
-                };
-
-                if let Some(name) = get_label(addr, l_type) {
-                    name
-                } else {
-                    format!("${addr:04x}")
-                }
-            }
-            AddressingMode::AbsoluteX => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{name},x")
-                } else {
-                    format!("${addr:04x},x")
-                }
-            }
-            AddressingMode::AbsoluteY => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{name},y")
-                } else {
-                    format!("${addr:04x},y")
-                }
-            }
-
-            AddressingMode::Indirect => {
-                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::Pointer) {
-                    format!("({name})")
-                } else {
-                    format!("(${addr:04x})")
-                }
-            }
-            AddressingMode::IndirectX => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({name},x)")
-                } else {
-                    format!("(${addr:02x},x)")
-                }
-            }
-            AddressingMode::IndirectY => {
-                let addr = Addr::from(u16::from(operands[0]));
-                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({name}),y")
-                } else {
-                    format!("(${addr:02x}),y")
-                }
-            }
-
-            AddressingMode::Unknown => "???".to_string(),
-        }
     }
 
     fn format_mnemonic(&self, mnemonic: &str) -> String {
@@ -228,7 +75,6 @@ impl Formatter for KickAsmFormatter {
         for fragment in fragments {
             match fragment {
                 TextFragment::Text(s) => {
-                    // Flush bytes if any
                     if !current_byte_parts.is_empty() {
                         lines.push((".byte".to_string(), current_byte_parts.join(", "), true));
                         current_byte_parts.clear();
@@ -236,7 +82,6 @@ impl Formatter for KickAsmFormatter {
                     current_text_parts.push(self.format_string_literal(s));
                 }
                 TextFragment::Byte(b) => {
-                    // Flush text if any
                     if !current_text_parts.is_empty() {
                         lines.push((".text".to_string(), current_text_parts.join(", "), true));
                         current_text_parts.clear();
@@ -246,7 +91,6 @@ impl Formatter for KickAsmFormatter {
             }
         }
 
-        // Flush remaining
         if !current_text_parts.is_empty() {
             lines.push((".text".to_string(), current_text_parts.join(", "), true));
         }
@@ -262,12 +106,10 @@ impl Formatter for KickAsmFormatter {
     }
 
     fn screencode_byte_threshold(&self) -> u8 {
-        // KickAssembler's screencode_mixed encoding can only round-trip
-        // screen codes $01-$1A (letters A-Z, via case-swap) and $20-$3F
-        // (space, digits, punctuation). Screen codes $00 and $1B-$1F
-        // ($40-$5F non-letter ASCII: @, [, \, ], ^, _) are NOT remapped by
-        // screencode_mixed and must be emitted as raw bytes. Values $40+
-        // are handled by the threshold check in handle_screencode_text.
+        // The `screencode_mixed` encoding in KickAssembler only round-trips screen codes
+        // `$01..=$1A` (`A-Z`, via case swap) and `$20..=$3F` (space, digits, punctuation).
+        // Screen codes `$00` and `$1B..=$1F` (`@`, `[`, `\`, `]`, `^`, `_`) are emitted as
+        // raw bytes in `format_screencode`, and values `$40` and above are rejected here.
         0x40
     }
 
@@ -278,8 +120,8 @@ impl Formatter for KickAsmFormatter {
         use super::formatter::TextFragment;
         let mut lines = Vec::new();
 
-        // `current_text`: raw (unquoted) characters to flush as a .text literal.
-        // `current_bytes`: hex strings to flush as a .byte directive.
+        // `current_text` stores unquoted characters for a `.text` directive.
+        // `current_bytes` stores formatted hex bytes for a `.byte` directive.
         let mut current_text = String::new();
         let mut current_bytes: Vec<String> = Vec::new();
 
@@ -301,23 +143,16 @@ impl Formatter for KickAsmFormatter {
         for fragment in fragments {
             match fragment {
                 TextFragment::Text(s) => {
-                    // Process each character individually. Under KickAssembler's
-                    // screencode_mixed encoding, only letters round-trip (via
-                    // case swap). Non-letter characters in the ASCII $40-$5F
-                    // range (@, [, \, ], ^, _) were derived from screen codes
-                    // $00/$1B-$1F and must be re-emitted as raw screen-code
-                    // bytes to avoid producing the wrong value.
+                    // Under `screencode_mixed`, only letters in `$40..=$5F` round-trip via case swap.
+                    // Non-letter characters in `$40..=$5F` (`@`, `[`, `\`, `]`, `^`, `_`) come from
+                    // screen codes `$00` and `$1B..=$1F` and must be emitted as raw screen-code bytes
+                    // (`b - 0x40`).
                     for c in s.chars() {
                         let b = c as u8;
                         if (0x40..=0x5F).contains(&b) && !c.is_ascii_alphabetic() {
-                            // Non-letter in $40-$5F: screencode_mixed won't remap
-                            // this back, so emit the original screen code as a raw byte.
-                            // Screen code = ASCII - $40 (e.g. $5E '^' → sc $1E).
                             flush_text(&mut current_text, &mut lines, self);
                             current_bytes.push(format!("${:02x}", b - 0x40));
                         } else {
-                            // Letter or non-$40-$5F character: case-swap for
-                            // screencode_mixed and accumulate in a text literal.
                             flush_bytes(&mut current_bytes, &mut lines);
                             let swapped = if c.is_uppercase() {
                                 c.to_ascii_lowercase()
@@ -329,7 +164,6 @@ impl Formatter for KickAsmFormatter {
                             current_text.push(swapped);
                         }
                     }
-                    // Flush any accumulated text at end of this fragment.
                     flush_text(&mut current_text, &mut lines, self);
                 }
                 TextFragment::Byte(b) => {
@@ -339,7 +173,6 @@ impl Formatter for KickAsmFormatter {
             }
         }
 
-        // Flush any remaining raw bytes.
         flush_bytes(&mut current_bytes, &mut lines);
 
         lines
@@ -354,11 +187,7 @@ impl Formatter for KickAsmFormatter {
     }
 
     fn format_file_header(&self, file_name: &str, _use_illegal_opcodes: bool) -> String {
-        let mut s = String::new();
-        s.push_str("// Assemble with:\n");
-        s.push_str(&format!("//   java -jar KickAss.jar {file_name}.asm\n"));
-        s.push_str("//\n");
-        s
+        format!("// Assemble with:\n//   java -jar KickAss.jar {file_name}.asm\n//\n")
     }
 
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String {
@@ -371,7 +200,6 @@ impl Formatter for KickAsmFormatter {
     }
 
     fn format_relative_label(&self, name: &str, offset: usize) -> String {
-        // KickAssembler syntax: .label myLabel = * + 10
         format!(".label {} = * + {}", self.format_label(name), offset)
     }
 
@@ -379,29 +207,10 @@ impl Formatter for KickAsmFormatter {
         let mnemonic = self.format_mnemonic(ctx.opcode.mnemonic);
         let operand = self.format_operand(ctx);
 
-        // Check for forced absolute addressing
-        // If mode is Absolute*, but value fits in ZP, we force .abs suffix
-        let val = if ctx.operands.is_empty() {
-            0
-        } else if ctx.operands.len() >= 2 {
-            u16::from(ctx.operands[1]) << 8 | u16::from(ctx.operands[0])
-        } else {
-            u16::from(ctx.operands[0])
-        };
-
-        if val <= 0xFF && ctx.settings.preserve_long_bytes {
-            match ctx.opcode.mode {
-                AddressingMode::Absolute => {
-                    return (format!("{mnemonic}.abs"), operand);
-                }
-                AddressingMode::AbsoluteX => {
-                    return (format!("{mnemonic}.abs"), operand);
-                }
-                AddressingMode::AbsoluteY => {
-                    return (format!("{mnemonic}.abs"), operand);
-                }
-                _ => {}
-            }
+        // KickAssembler uses the `.abs` mnemonic suffix to force 16-bit absolute addressing
+        // when the operand value fits in zero page.
+        if ctx.should_force_absolute() {
+            return (format!("{mnemonic}.abs"), operand);
         }
 
         (mnemonic, operand)
@@ -412,14 +221,14 @@ impl Formatter for KickAsmFormatter {
     }
 
     fn format_binary_include(&self, filename: &str) -> (String, String) {
-        (".import binary".to_string(), format!("\"{}\"", filename))
+        (".import binary".to_string(), format!("\"{filename}\""))
     }
 
     fn format_scope_start(
         &self,
         name: Option<&str>,
     ) -> Option<(Option<String>, String, Option<String>)> {
-        let label = name.map(|n| n.to_string());
+        let label = name.map(str::to_string);
         Some((label, "{".to_string(), None))
     }
 
@@ -435,11 +244,11 @@ impl Formatter for KickAsmFormatter {
         let mut s = format!(".namespace {} {{\n", enum_def.name);
         for (&val, variant) in &enum_def.variants {
             let val_str = if val <= 0xFF {
-                format!("${:02x}", val)
+                format!("${val:02x}")
             } else {
-                format!("${:04x}", val)
+                format!("${val:04x}")
             };
-            s.push_str(&format!("    .label {} = {}\n", variant, val_str));
+            let _ = writeln!(s, "    .label {variant} = {val_str}");
         }
         s.push('}');
         s
@@ -447,10 +256,11 @@ impl Formatter for KickAsmFormatter {
 }
 
 impl KickAsmFormatter {
+    /// Formats a string literal for `KickAssembler`.
+    ///
+    /// Uses the `@"..."` escaped string prefix when `s` contains double quotes, backslashes,
+    /// or control characters.
     fn format_string_literal(&self, s: &str) -> String {
-        // KickAssembler uses @ prefix to enable escape sequences.
-        // If the string contains quotes or control characters, we need to escape it and use @.
-        // Otherwise, we can use a plain string.
         if s.contains('"') || s.chars().any(char::is_control) || s.contains('\\') {
             let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
             format!("@\"{escaped}\"")
