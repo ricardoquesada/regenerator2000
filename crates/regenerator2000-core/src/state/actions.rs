@@ -359,8 +359,6 @@ impl AppAction {
                 | AppAction::OpenRecent
                 | AppAction::UnpackBinary
                 | AppAction::UnpackBinaryWithConfig(_)
-                | AppAction::ApplyEnumDefinition { .. }
-                | AppAction::ApplyGlobalEnumDefinition { .. }
         )
     }
 }

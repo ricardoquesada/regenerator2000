@@ -33,7 +33,7 @@ impl CommentDialog {
         comment_type: CommentType,
         address: crate::state::Addr,
     ) -> Self {
-        let textarea = if let Some(comment) = current_comment {
+        let mut textarea = if let Some(comment) = current_comment {
             let mut t = TextArea::from(comment.lines());
             if comment.is_empty() {
                 Self::create_default_textarea(&comment_type)
@@ -45,6 +45,8 @@ impl CommentDialog {
         } else {
             Self::create_default_textarea(&comment_type)
         };
+        textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
+        textarea.set_cursor_line_style(Style::default());
 
         Self {
             textarea,
@@ -105,24 +107,22 @@ impl Widget for CommentDialog {
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 
-        if self.comment_type == CommentType::Line {
-            // Render the border block separately so we can split the inner area.
-            let inner = block.inner(area);
-            f.render_widget(block, area);
+        let inner = block.inner(area);
+        f.render_widget(block, area);
 
+        let style = Style::default().fg(theme.highlight_fg);
+
+        if self.comment_type == CommentType::Line {
             // Split inner into textarea + 1-row hint footer.
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([Constraint::Min(1), Constraint::Length(1)])
                 .split(inner);
 
-            // Render textarea without its own border (block already drawn above).
-            let mut textarea = self.textarea.clone();
-            let style = Style::default().fg(theme.highlight_fg);
-            textarea.set_style(style);
-            textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
-            textarea.set_cursor_line_style(Style::default());
-            f.render_widget(&textarea, chunks[0]);
+            // Render `self.textarea` directly without cloning so `ratatui-textarea`
+            // records the rendered viewport height for `PageUp` and `PageDown`.
+            f.buffer_mut().set_style(chunks[0], style);
+            f.render_widget(&self.textarea, chunks[0]);
             ui_state.comment_textarea_area = chunks[0];
 
             // Render the hint footer.
@@ -162,19 +162,10 @@ impl Widget for CommentDialog {
             ]));
             f.render_widget(hint, chunks[1]);
         } else {
-            let mut textarea = self.textarea.clone();
-            textarea.set_block(block.clone());
-
-            let style = Style::default().fg(theme.highlight_fg);
-            textarea.set_style(style);
-
-            // Also set cursor style if needed, but default is usually inverse of style
-            textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
-            textarea.set_cursor_line_style(Style::default());
-
-            // Store the inner textarea area for mouse hit-testing.
-            ui_state.comment_textarea_area = block.inner(area);
-            f.render_widget(&textarea, area);
+            // Store the inner textarea area for mouse hit-testing and render `self.textarea` directly.
+            f.buffer_mut().set_style(inner, style);
+            ui_state.comment_textarea_area = inner;
+            f.render_widget(&self.textarea, inner);
         }
     }
 
@@ -254,13 +245,6 @@ impl Widget for CommentDialog {
                     let sep = "-=".repeat(SEPARATOR_LEN / 2);
                     self.insert_separator(&sep);
                 }
-                WidgetResult::Handled
-            }
-            // PageDown: jump to the last line of the textarea.
-            // (The default ratatui-textarea handler uses the stored viewport height, which is
-            // always 0 here because rendering uses a clone — causing it to snap to row 0.)
-            KeyCode::PageDown => {
-                self.textarea.move_cursor(CursorMove::Bottom);
                 WidgetResult::Handled
             }
             _ => {
@@ -380,5 +364,57 @@ mod tests {
         assert_eq!(sep_line.len(), SEPARATOR_LEN);
         assert!(sep_line.chars().all(|c| c == '='));
         assert_eq!(dialog.textarea.cursor().0, lines.len() - 1);
+    }
+
+    #[test]
+    fn test_comment_dialog_render_records_viewport_for_page_up_and_page_down() {
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+
+        let text = (0..25)
+            .map(|i| format!("Line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let mut dialog =
+            CommentDialog::new(Some(&text), CommentType::Line, crate::state::Addr(0x1000));
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        // Cursor starts at the last row (row 24).
+        assert_eq!(dialog.textarea.cursor().0, 24);
+
+        // PageUp scrolls up by one viewport page (9 rows in a 12-row Line dialog), not to row 0.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        let row_after_page_up = dialog.textarea.cursor().0;
+        assert!(
+            row_after_page_up > 0 && row_after_page_up < 24,
+            "Expected PageUp to move by one viewport page, got row {row_after_page_up}"
+        );
+
+        // Move to row 0 and verify PageDown scrolls by one viewport page, not straight to row 24.
+        dialog.textarea.move_cursor(CursorMove::Top);
+        assert_eq!(dialog.textarea.cursor().0, 0);
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        let row_after_page_down = dialog.textarea.cursor().0;
+        assert!(
+            row_after_page_down > 0 && row_after_page_down < 24,
+            "Expected PageDown to move by one viewport page, got row {row_after_page_down}"
+        );
     }
 }

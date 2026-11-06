@@ -38,6 +38,10 @@ pub trait Widget {
     fn handle_tick(&mut self, _app_state: &mut AppState, _ui_state: &mut UIState) -> WidgetResult {
         WidgetResult::Handled
     }
+
+    /// Refreshes cached or derived dialog data after [`regenerator2000_core::Core::apply_action`]
+    /// mutates [`AppState`] while the dialog remains open.
+    fn refresh(&mut self, _app_state: &AppState) {}
 }
 
 #[must_use]

@@ -1124,7 +1124,6 @@ impl DomainActionHandler for DisassemblyActionHandler {
                     }));
                 ctx.events.push(CoreEvent::StateChanged);
                 ctx.events.push(CoreEvent::ViewChanged);
-                ctx.events.push(CoreEvent::DialogDismissalRequested);
                 Ok(true)
             }
             AppAction::ApplyGlobalEnumDefinition {
@@ -1170,7 +1169,6 @@ impl DomainActionHandler for DisassemblyActionHandler {
                 ctx.events.push(CoreEvent::StatusMessage(status_msg));
                 ctx.events.push(CoreEvent::StateChanged);
                 ctx.events.push(CoreEvent::ViewChanged);
-                ctx.events.push(CoreEvent::DialogDismissalRequested);
                 Ok(true)
             }
             AppAction::ToggleBookmark => {

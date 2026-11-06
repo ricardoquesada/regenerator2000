@@ -537,33 +537,41 @@ impl FileBrowserDialog {
             };
         }
 
+        match Self::open_file_or_container(selected_path, app_state, ui_state) {
+            Ok(()) => WidgetResult::Close,
+            Err(msg) => {
+                ui_state.set_status_message(msg);
+                WidgetResult::Handled
+            }
+        }
+    }
+
+    /// Opens `selected_path` either by pushing [`CrtBankPickerDialog`](crate::ui::dialog_crt_picker::CrtBankPickerDialog)
+    /// / [`ContainerPickerDialog`](crate::ui::dialog_container_picker::ContainerPickerDialog) for
+    /// multi-entry containers (`.crt`, `.t64`, `.d64`, `.d71`, `.d81`) or by loading the file directly
+    /// into [`AppState`].
+    pub(crate) fn open_file_or_container(
+        selected_path: PathBuf,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> Result<(), String> {
         if selected_path
             .extension()
             .and_then(|e| e.to_str())
             .is_some_and(|e| e.eq_ignore_ascii_case("crt"))
         {
-            match std::fs::read(&selected_path) {
-                Ok(crt_data) => match crate::parser::crt::parse_crt_chips(&crt_data) {
-                    Ok(crt_header) => {
-                        if crt_header.chips.len() > 1 {
-                            ui_state.push_dialog(Box::new(
-                                crate::ui::dialog_crt_picker::CrtBankPickerDialog::new(
-                                    crt_header,
-                                    selected_path,
-                                ),
-                            ));
-                            return WidgetResult::Close;
-                        }
-                    }
-                    Err(e) => {
-                        ui_state.set_status_message(format!("Error parsing CRT: {e}"));
-                        return WidgetResult::Handled;
-                    }
-                },
-                Err(e) => {
-                    ui_state.set_status_message(format!("Error reading file: {e}"));
-                    return WidgetResult::Handled;
-                }
+            let crt_data =
+                std::fs::read(&selected_path).map_err(|e| format!("Error reading file: {e}"))?;
+            let crt_header = crate::parser::crt::parse_crt_chips(&crt_data)
+                .map_err(|e| format!("Error parsing CRT: {e}"))?;
+            if crt_header.chips.len() > 1 {
+                ui_state.push_dialog(Box::new(
+                    crate::ui::dialog_crt_picker::CrtBankPickerDialog::new(
+                        crt_header,
+                        selected_path,
+                    ),
+                ));
+                return Ok(());
             }
         }
 
@@ -572,33 +580,22 @@ impl FileBrowserDialog {
             .and_then(|e| e.to_str())
             .is_some_and(|e| e.eq_ignore_ascii_case("t64"))
         {
-            match std::fs::read(&selected_path) {
-                Ok(tape_data) => match crate::parser::t64::parse_t64_directory(&tape_data) {
-                    Ok(files) => {
-                        if files.is_empty() {
-                            ui_state.set_status_message("No files in T64 image");
-                            return WidgetResult::Handled;
-                        }
-
-                        ui_state.push_dialog(Box::new(
-                            crate::ui::dialog_container_picker::ContainerPickerDialog::new_t64(
-                                files,
-                                tape_data,
-                                selected_path,
-                            ),
-                        ));
-                        return WidgetResult::Close;
-                    }
-                    Err(e) => {
-                        ui_state.set_status_message(format!("Error parsing T64: {e}"));
-                        return WidgetResult::Handled;
-                    }
-                },
-                Err(e) => {
-                    ui_state.set_status_message(format!("Error reading file: {e}"));
-                    return WidgetResult::Handled;
-                }
+            let tape_data =
+                std::fs::read(&selected_path).map_err(|e| format!("Error reading file: {e}"))?;
+            let files = crate::parser::t64::parse_t64_directory(&tape_data)
+                .map_err(|e| format!("Error parsing T64: {e}"))?;
+            if files.is_empty() {
+                return Err("No files in T64 image".to_string());
             }
+
+            ui_state.push_dialog(Box::new(
+                crate::ui::dialog_container_picker::ContainerPickerDialog::new_t64(
+                    files,
+                    tape_data,
+                    selected_path,
+                ),
+            ));
+            return Ok(());
         }
 
         if selected_path
@@ -610,55 +607,39 @@ impl FileBrowserDialog {
                     || e.eq_ignore_ascii_case("d81")
             })
         {
-            match std::fs::read(&selected_path) {
-                Ok(disk_data) => match crate::parser::d64::parse_d64_directory(&disk_data) {
-                    Ok(files) => {
-                        let prg_files: Vec<_> = files
-                            .into_iter()
-                            .filter(|f| f.file_type == crate::parser::d64::FileType::PRG)
-                            .collect();
+            let disk_data =
+                std::fs::read(&selected_path).map_err(|e| format!("Error reading file: {e}"))?;
+            let files = crate::parser::d64::parse_d64_directory(&disk_data)
+                .map_err(|e| format!("Error parsing D64/D71: {e}"))?;
+            let prg_files: Vec<_> = files
+                .into_iter()
+                .filter(|f| f.file_type == crate::parser::d64::FileType::PRG)
+                .collect();
 
-                        if prg_files.is_empty() {
-                            ui_state.set_status_message("No PRG files in disk image");
-                            return WidgetResult::Handled;
-                        }
-
-                        ui_state.push_dialog(Box::new(
-                            crate::ui::dialog_container_picker::ContainerPickerDialog::new_d64(
-                                prg_files,
-                                disk_data,
-                                selected_path,
-                            ),
-                        ));
-                        return WidgetResult::Close;
-                    }
-                    Err(e) => {
-                        ui_state.set_status_message(format!("Error parsing D64/D71: {e}"));
-                        return WidgetResult::Handled;
-                    }
-                },
-                Err(e) => {
-                    ui_state.set_status_message(format!("Error reading file: {e}"));
-                    return WidgetResult::Handled;
-                }
+            if prg_files.is_empty() {
+                return Err("No PRG files in disk image".to_string());
             }
+
+            ui_state.push_dialog(Box::new(
+                crate::ui::dialog_container_picker::ContainerPickerDialog::new_d64(
+                    prg_files,
+                    disk_data,
+                    selected_path,
+                ),
+            ));
+            return Ok(());
         }
 
-        match app_state.load_file(selected_path.clone()) {
-            Err(e) => {
-                ui_state.set_status_message(format!("Error loading file: {e}"));
-                WidgetResult::Handled
-            }
-            Ok(loaded_data) => {
-                let filename = selected_path
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy();
-                ui_state.set_status_message(format!("Loaded: {filename}"));
-                ui_state.restore_session(&loaded_data, app_state);
-                WidgetResult::Close
-            }
-        }
+        let loaded_data = app_state
+            .load_file(selected_path.clone())
+            .map_err(|e| format!("Error loading file: {e}"))?;
+        let filename = selected_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy();
+        ui_state.set_status_message(format!("Loaded: {filename}"));
+        ui_state.restore_session(&loaded_data, app_state);
+        Ok(())
     }
 }
 

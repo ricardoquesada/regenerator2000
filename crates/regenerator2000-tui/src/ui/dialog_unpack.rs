@@ -238,21 +238,39 @@ impl Widget for UnpackDialog {
                 .style(Style::default().fg(theme.comment));
         f.render_widget(help, layout[8]);
 
-        // Set cursor position
-        if entry_selected {
-            f.set_cursor_position((
-                layout[0].x + 23 + self.entry_input.len() as u16,
-                layout[0].y,
-            ));
+        // Set cursor position (clamped to the active row area)
+        let cursor_target = if entry_selected {
+            Some((
+                layout[0],
+                23u16.saturating_add(self.entry_input.chars().count() as u16),
+            ))
         } else if ret_selected {
-            f.set_cursor_position((layout[1].x + 23 + self.ret_input.len() as u16, layout[1].y));
+            Some((
+                layout[1],
+                23u16.saturating_add(self.ret_input.chars().count() as u16),
+            ))
         } else if dep_selected {
-            f.set_cursor_position((layout[2].x + 23 + self.dep_input.len() as u16, layout[2].y));
+            Some((
+                layout[2],
+                23u16.saturating_add(self.dep_input.chars().count() as u16),
+            ))
         } else if max_selected {
-            f.set_cursor_position((
-                layout[3].x + 22 + self.max_inst_input.len() as u16,
-                layout[3].y,
-            ));
+            Some((
+                layout[3],
+                22u16.saturating_add(self.max_inst_input.chars().count() as u16),
+            ))
+        } else {
+            None
+        };
+        if let Some((row_area, offset)) = cursor_target
+            && row_area.width > 0
+            && row_area.height > 0
+        {
+            let cursor_x = row_area
+                .x
+                .saturating_add(offset)
+                .min(row_area.right().saturating_sub(1));
+            f.set_cursor_position((cursor_x, row_area.y));
         }
     }
 
@@ -403,6 +421,31 @@ mod tests {
         assert_eq!(
             res,
             WidgetResult::Action(AppAction::UnpackBinaryWithConfig(expected))
+        );
+    }
+
+    #[test]
+    fn test_unpack_dialog_render_clamps_cursor_on_narrow_terminal() {
+        use ratatui::Terminal;
+        use ratatui::backend::{Backend, TestBackend};
+
+        let mut dialog = UnpackDialog::new();
+        dialog.entry_input = "0810".to_string();
+        let app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        let backend = TestBackend::new(20, 12);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let pos = terminal.backend_mut().get_cursor_position().unwrap();
+        assert!(
+            pos.x < 20 && pos.y < 12,
+            "Expected clamped cursor inside 20x12 terminal, got {pos:?}"
         );
     }
 }

@@ -117,8 +117,15 @@ impl Widget for WatchpointAddressDialog {
         let para = Paragraph::new(vec![addr_line, status_line]).block(block);
         f.render_widget(para, area);
 
-        // Show blinking cursor at end of input (after "$" prefix)
-        f.set_cursor_position((area.x + 1 + 1 + self.input.len() as u16, area.y + 1));
+        // Show blinking cursor at end of input (after "$" prefix), clamped to dialog bounds
+        if area.width > 2 && area.height > 1 {
+            let cursor_x = area
+                .x
+                .saturating_add(2)
+                .saturating_add(self.input.chars().count() as u16)
+                .min(area.right().saturating_sub(2));
+            f.set_cursor_position((cursor_x, area.y + 1));
+        }
     }
 
     fn handle_input(
@@ -255,6 +262,21 @@ mod tests {
                 address: Addr(0xD020),
                 kind: BreakpointKind::Load,
             })
+        );
+
+        // Rendering on a narrow 8x4 terminal clamps cursor inside bounds.
+        let narrow_backend = TestBackend::new(8, 4);
+        let mut narrow_terminal = Terminal::new(narrow_backend).unwrap();
+        narrow_terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+        let pos =
+            ratatui::backend::Backend::get_cursor_position(narrow_terminal.backend_mut()).unwrap();
+        assert!(
+            pos.x < 8 && pos.y < 4,
+            "Expected clamped cursor inside 8x4 terminal, got {pos:?}"
         );
     }
 }

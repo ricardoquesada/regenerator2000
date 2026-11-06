@@ -110,6 +110,10 @@ impl Widget for ManageEnumsDialog {
         self.render_background(f, area, app_state, ui_state);
     }
 
+    fn refresh(&mut self, app_state: &AppState) {
+        self.recalculate_lists(app_state);
+    }
+
     fn handle_input(
         &mut self,
         key: KeyEvent,

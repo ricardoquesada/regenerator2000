@@ -180,6 +180,10 @@ impl Widget for CrtBankPickerDialog {
                         .load_binary(crate::state::Addr(chip.load_address), chip.data.clone())
                     {
                         Ok(loaded_data) => {
+                            let abs_path = std::fs::canonicalize(&self.file_path)
+                                .unwrap_or_else(|_| self.file_path.clone());
+                            app_state.system_config.add_recent_project(abs_path);
+                            let _ = app_state.system_config.save();
                             app_state.file_path = Some(self.file_path.clone());
                             ui_state.restore_session(&loaded_data, app_state);
                             WidgetResult::Close

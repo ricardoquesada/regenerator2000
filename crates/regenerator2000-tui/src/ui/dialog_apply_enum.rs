@@ -258,6 +258,10 @@ impl Widget for ApplyEnumDialog {
         self.render_background(f, area, app_state, ui_state);
     }
 
+    fn refresh(&mut self, app_state: &AppState) {
+        self.recalculate_filtered_items(app_state);
+    }
+
     fn handle_input(
         &mut self,
         key: KeyEvent,
@@ -495,6 +499,68 @@ mod tests {
                 &mut ui_state,
             ),
             WidgetResult::Close
+        );
+    }
+
+    #[test]
+    fn test_apply_enum_ctrl_n_save_refreshes_filtered_items() {
+        let mut core = regenerator2000_core::Core::new();
+        core.state
+            .load_binary(Addr(0x1000), vec![0xA9, 0x05])
+            .unwrap();
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_dialog = Some(Box::new(ApplyEnumDialog::new(
+            Addr(0x1000),
+            0x05,
+            &core.state,
+        )));
+
+        // Open EditEnumDialog via Ctrl+N, type name "NewEnum", and save via Ctrl+S.
+        crate::events::process_key_event(
+            &mut core,
+            &mut ui_state,
+            KeyEvent::new(KeyCode::Char('n'), KeyModifiers::CONTROL),
+        );
+        for c in "NewEnum".chars() {
+            crate::events::process_key_event(
+                &mut core,
+                &mut ui_state,
+                KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE),
+            );
+        }
+        crate::events::process_key_event(
+            &mut core,
+            &mut ui_state,
+            KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL),
+        );
+
+        assert!(
+            core.state.enums.contains_key("NewEnum"),
+            "Expected NewEnum to be saved in AppState"
+        );
+        assert!(
+            ui_state.active_dialog.is_some(),
+            "Expected ApplyEnumDialog to remain active after saving sub-dialog"
+        );
+
+        // Down from <None> (0) selects "NewEnum" (1) and Enter applies it.
+        crate::events::process_key_event(
+            &mut core,
+            &mut ui_state,
+            KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+        );
+        crate::events::process_key_event(
+            &mut core,
+            &mut ui_state,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+        );
+
+        assert_eq!(
+            core.state
+                .annotations
+                .get(Addr(0x1000))
+                .and_then(|e| e.enum_usage.as_deref()),
+            Some("NewEnum")
         );
     }
 }

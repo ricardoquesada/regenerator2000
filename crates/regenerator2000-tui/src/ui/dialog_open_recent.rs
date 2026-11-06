@@ -116,18 +116,16 @@ impl Widget for OpenRecentDialog {
             KeyCode::Enter => {
                 if let Some(i) = ui_state.recent_list_state.selected() {
                     if let Some(path) = recents.get(i).cloned() {
-                        match app_state.load_file(path.clone()) {
-                            Err(e) => {
-                                ui_state.set_status_message(format!("Error loading file: {e}"));
-                                app_state.system_config.remove_recent_project(&path);
-                                let _ = app_state.system_config.save();
-                            }
-                            Ok(loaded_data) => {
-                                let filename =
-                                    path.file_name().unwrap_or_default().to_string_lossy();
-                                ui_state.set_status_message(format!("Loaded: {filename}"));
-                                ui_state.restore_session(&loaded_data, app_state);
-                            }
+                        if let Err(msg) =
+                            crate::ui::dialog_file_browser::FileBrowserDialog::open_file_or_container(
+                                path.clone(),
+                                app_state,
+                                ui_state,
+                            )
+                        {
+                            ui_state.set_status_message(msg);
+                            app_state.system_config.remove_recent_project(&path);
+                            let _ = app_state.system_config.save();
                         }
                         WidgetResult::Close
                     } else {
@@ -203,5 +201,39 @@ mod tests {
             WidgetResult::Close
         );
         assert_eq!(app_state.system_config.recent_projects, vec![p2]);
+
+        // 3. Opening a T64 container from recent_projects pushes ContainerPickerDialog.
+        let mut t64_bytes = vec![0u8; 98];
+        t64_bytes[..20].copy_from_slice(b"C64S tape image file");
+        t64_bytes[32..34].copy_from_slice(&1u16.to_le_bytes()); // version
+        t64_bytes[34..36].copy_from_slice(&1u16.to_le_bytes()); // max entries
+        t64_bytes[36..38].copy_from_slice(&1u16.to_le_bytes()); // used entries
+        t64_bytes[64] = 1; // normal tape file
+        t64_bytes[65] = 0x82; // PRG
+        t64_bytes[66..68].copy_from_slice(&0x0801u16.to_le_bytes());
+        t64_bytes[68..70].copy_from_slice(&0x0803u16.to_le_bytes());
+        t64_bytes[72..76].copy_from_slice(&96u32.to_le_bytes());
+        t64_bytes[80..96].copy_from_slice(b"DEMO            ");
+        t64_bytes[96..98].copy_from_slice(&[0xEA, 0x60]);
+
+        let tmp_t64 = std::env::temp_dir().join("r2000_open_recent_test.t64");
+        std::fs::write(&tmp_t64, &t64_bytes).unwrap();
+        app_state.system_config.recent_projects = vec![tmp_t64.clone()];
+        ui_state.recent_list_state.select(Some(0));
+        ui_state.active_dialog = None;
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+        assert!(
+            ui_state.active_dialog.is_some(),
+            "Expected ContainerPickerDialog to be pushed when opening T64 from OpenRecentDialog"
+        );
+        let _ = std::fs::remove_file(&tmp_t64);
     }
 }

@@ -258,6 +258,9 @@ pub fn handle_menu_action(
                 ui_state.core = core.view.clone();
                 ui_state.sync_core_to_tui();
                 ui_state.sync_status_message();
+                if let Some(dialog) = ui_state.active_dialog.as_mut() {
+                    dialog.refresh(&core.state);
+                }
             }
             CoreEvent::UnpackStarted {
                 raw_data,

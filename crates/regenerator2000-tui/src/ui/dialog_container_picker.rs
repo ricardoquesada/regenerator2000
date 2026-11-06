@@ -252,6 +252,10 @@ impl ContainerPickerDialog {
                                 prg_data.suggested_system.or(Some(default_system));
                             loaded_data.suggested_entry_point =
                                 prg_data.suggested_entry_point.map(Addr);
+                            let abs_path = std::fs::canonicalize(&self.container_path)
+                                .unwrap_or_else(|_| self.container_path.clone());
+                            app_state.system_config.add_recent_project(abs_path);
+                            let _ = app_state.system_config.save();
                             app_state.file_path = Some(self.container_path.clone());
                             ui_state.restore_session(&loaded_data, app_state);
                             WidgetResult::Close
