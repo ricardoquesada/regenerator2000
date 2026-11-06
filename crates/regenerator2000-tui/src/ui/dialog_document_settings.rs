@@ -1,29 +1,269 @@
-use crate::state::AppState;
+use crate::assets::SystemConfig;
+use crate::state::{AppState, Assembler, DocumentSettings, System};
+use crate::theme::Theme;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Clear, List, ListItem, ListState, Paragraph};
+
+/// Numeric document settings that support inline text editing and `Left`/`Right` stepping.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NumericSetting {
+    MaxXrefCount,
+    MaxArrowColumns,
+    TextCharLimit,
+    AddressesPerLine,
+    BytesPerLine,
+    FillRunThreshold,
+}
+
+impl NumericSetting {
+    /// Display label shown in the row and in the inline edit popup title.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::MaxXrefCount => "Max X-Refs",
+            Self::MaxArrowColumns => "Arrow Columns",
+            Self::TextCharLimit => "Text Line Limit",
+            Self::AddressesPerLine => "Words/Addrs per line",
+            Self::BytesPerLine => "Bytes per line",
+            Self::FillRunThreshold => "Fill run threshold",
+        }
+    }
+
+    /// Inclusive `(min, max)` bounds allowed for this setting.
+    #[must_use]
+    pub const fn bounds(self) -> (usize, usize) {
+        match self {
+            Self::MaxXrefCount => (0, 40),
+            Self::MaxArrowColumns => (1, 10),
+            Self::TextCharLimit => (1, 80),
+            Self::AddressesPerLine => (1, 8),
+            Self::BytesPerLine => (1, 40),
+            Self::FillRunThreshold => (0, 64),
+        }
+    }
+
+    /// Reads the current value of this setting from [`DocumentSettings`].
+    #[must_use]
+    pub const fn get(self, settings: &DocumentSettings) -> usize {
+        match self {
+            Self::MaxXrefCount => settings.max_xref_count,
+            Self::MaxArrowColumns => settings.max_arrow_columns,
+            Self::TextCharLimit => settings.text_char_limit,
+            Self::AddressesPerLine => settings.addresses_per_line,
+            Self::BytesPerLine => settings.bytes_per_line,
+            Self::FillRunThreshold => settings.fill_run_threshold,
+        }
+    }
+
+    const fn field_mut(self, settings: &mut DocumentSettings) -> &mut usize {
+        match self {
+            Self::MaxXrefCount => &mut settings.max_xref_count,
+            Self::MaxArrowColumns => &mut settings.max_arrow_columns,
+            Self::TextCharLimit => &mut settings.text_char_limit,
+            Self::AddressesPerLine => &mut settings.addresses_per_line,
+            Self::BytesPerLine => &mut settings.bytes_per_line,
+            Self::FillRunThreshold => &mut settings.fill_run_threshold,
+        }
+    }
+
+    /// Writes `val` to the corresponding field in [`DocumentSettings`].
+    pub fn set(self, settings: &mut DocumentSettings, val: usize) {
+        *self.field_mut(settings) = val;
+    }
+
+    /// Formats the current value for display when not actively being edited.
+    #[must_use]
+    pub fn display_value(self, settings: &DocumentSettings) -> String {
+        let val = self.get(settings);
+        if matches!(self, Self::FillRunThreshold) && val == 0 {
+            "off".to_string()
+        } else {
+            val.to_string()
+        }
+    }
+
+    /// Adjusts the setting by `delta` within [`Self::bounds`], returning `true` if the value changed.
+    pub fn step(self, settings: &mut DocumentSettings, delta: isize) -> bool {
+        let (min, max) = self.bounds();
+        let field = self.field_mut(settings);
+        let current = *field;
+        let next = if delta < 0 {
+            current.saturating_sub(delta.unsigned_abs())
+        } else {
+            current.saturating_add(delta.cast_unsigned())
+        }
+        .clamp(min, max);
+
+        if next == current {
+            return false;
+        }
+        *field = next;
+        true
+    }
+}
+
+/// Boolean checkbox settings in [`DocumentSettingsDialog`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BoolSetting {
+    AllLabels,
+    PreserveLongBytes,
+    BrkSingleByte,
+    PatchBrk,
+    UseIllegalOpcodes,
+    AutoAnalyze,
+    ExcludeWellKnownLabels,
+    ShowSystemComments,
+}
+
+impl BoolSetting {
+    #[must_use]
+    const fn label(self) -> &'static str {
+        match self {
+            Self::AllLabels => "Display External Labels at top",
+            Self::PreserveLongBytes => "Preserve long bytes (@w, +2, .abs, etc)",
+            Self::BrkSingleByte => "BRK single byte",
+            Self::PatchBrk => "Patch BRK",
+            Self::UseIllegalOpcodes => "Use Illegal Opcodes",
+            Self::AutoAnalyze => "Auto-generate Labels & Cross-refs",
+            Self::ExcludeWellKnownLabels => "Exclude well-known addresses from auto-labels",
+            Self::ShowSystemComments => "Show system comments",
+        }
+    }
+
+    #[must_use]
+    const fn get(self, settings: &DocumentSettings) -> bool {
+        match self {
+            Self::AllLabels => settings.all_labels,
+            Self::PreserveLongBytes => settings.preserve_long_bytes,
+            Self::BrkSingleByte => settings.brk_single_byte,
+            Self::PatchBrk => settings.patch_brk,
+            Self::UseIllegalOpcodes => settings.use_illegal_opcodes,
+            Self::AutoAnalyze => settings.auto_analyze,
+            Self::ExcludeWellKnownLabels => settings.exclude_well_known_labels,
+            Self::ShowSystemComments => settings.show_system_comments,
+        }
+    }
+
+    const fn field_mut(self, settings: &mut DocumentSettings) -> &mut bool {
+        match self {
+            Self::AllLabels => &mut settings.all_labels,
+            Self::PreserveLongBytes => &mut settings.preserve_long_bytes,
+            Self::BrkSingleByte => &mut settings.brk_single_byte,
+            Self::PatchBrk => &mut settings.patch_brk,
+            Self::UseIllegalOpcodes => &mut settings.use_illegal_opcodes,
+            Self::AutoAnalyze => &mut settings.auto_analyze,
+            Self::ExcludeWellKnownLabels => &mut settings.exclude_well_known_labels,
+            Self::ShowSystemComments => &mut settings.show_system_comments,
+        }
+    }
+
+    #[must_use]
+    fn is_disabled(self, settings: &DocumentSettings) -> bool {
+        matches!(self, Self::PatchBrk)
+            && (settings.brk_single_byte
+                || matches!(settings.assembler, Assembler::Kick | Assembler::Ca65))
+    }
+
+    fn toggle(self, app_state: &mut AppState, ui_state: &mut UIState) {
+        if self.is_disabled(&app_state.settings) {
+            return;
+        }
+        let field = self.field_mut(&mut app_state.settings);
+        *field = !*field;
+
+        match self {
+            Self::AllLabels | Self::PreserveLongBytes => {
+                DocumentSettingsDialog::sync_disassembly(app_state, ui_state, false, false);
+            }
+            Self::BrkSingleByte => {
+                if app_state.settings.brk_single_byte {
+                    app_state.settings.patch_brk = false;
+                } else if matches!(
+                    app_state.settings.assembler,
+                    Assembler::Kick | Assembler::Ca65
+                ) {
+                    app_state.settings.patch_brk = true;
+                }
+                DocumentSettingsDialog::sync_disassembly(app_state, ui_state, false, true);
+            }
+            Self::PatchBrk | Self::UseIllegalOpcodes => {
+                DocumentSettingsDialog::sync_disassembly(app_state, ui_state, false, true);
+            }
+            Self::AutoAnalyze => {
+                if app_state.settings.auto_analyze {
+                    DocumentSettingsDialog::sync_disassembly(app_state, ui_state, false, true);
+                } else {
+                    DocumentSettingsDialog::clear_auto_analysis(app_state, ui_state);
+                }
+            }
+            Self::ExcludeWellKnownLabels => {
+                DocumentSettingsDialog::sync_disassembly(app_state, ui_state, true, true);
+            }
+            Self::ShowSystemComments => {
+                DocumentSettingsDialog::sync_disassembly(app_state, ui_state, true, false);
+            }
+        }
+    }
+}
+
+/// Table-driven descriptor for a single interactive row in [`DocumentSettingsDialog`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RowDescriptor {
+    Checkbox(BoolSetting),
+    Description,
+    Numeric(NumericSetting),
+    Assembler,
+    System,
+    SystemFeature(usize),
+}
+
+impl RowDescriptor {
+    /// Number of vertical terminal rows consumed by this descriptor (including any section header).
+    #[must_use]
+    const fn visual_height(self) -> u16 {
+        match self {
+            Self::Description | Self::SystemFeature(0) => 2,
+            Self::Checkbox(_)
+            | Self::Numeric(_)
+            | Self::Assembler
+            | Self::System
+            | Self::SystemFeature(_) => 1,
+        }
+    }
+}
+
+/// Static table of the 15 fixed setting rows preceding any platform-specific [`SystemConfig`] rows.
+const FIXED_ROWS: &[RowDescriptor] = &[
+    RowDescriptor::Checkbox(BoolSetting::AllLabels),
+    RowDescriptor::Checkbox(BoolSetting::PreserveLongBytes),
+    RowDescriptor::Checkbox(BoolSetting::BrkSingleByte),
+    RowDescriptor::Checkbox(BoolSetting::PatchBrk),
+    RowDescriptor::Checkbox(BoolSetting::UseIllegalOpcodes),
+    RowDescriptor::Checkbox(BoolSetting::AutoAnalyze),
+    RowDescriptor::Description,
+    RowDescriptor::Numeric(NumericSetting::MaxXrefCount),
+    RowDescriptor::Numeric(NumericSetting::MaxArrowColumns),
+    RowDescriptor::Numeric(NumericSetting::TextCharLimit),
+    RowDescriptor::Numeric(NumericSetting::AddressesPerLine),
+    RowDescriptor::Numeric(NumericSetting::BytesPerLine),
+    RowDescriptor::Numeric(NumericSetting::FillRunThreshold),
+    RowDescriptor::Assembler,
+    RowDescriptor::System,
+];
+
+const SYSTEM_ROW_INDEX: usize = FIXED_ROWS.len() - 1;
 
 pub struct DocumentSettingsDialog {
     pub selected_index: usize,
     pub is_selecting_system: bool,
     pub is_selecting_assembler: bool,
-    pub is_editing_xref_count: bool,
-    pub xref_count_input: String,
-    pub is_editing_arrow_columns: bool,
-    pub arrow_columns_input: String,
-    pub is_editing_text_char_limit: bool,
-    pub text_char_limit_input: String,
-    pub is_editing_addresses_per_line: bool,
-    pub addresses_per_line_input: String,
-    pub is_editing_bytes_per_line: bool,
-    pub bytes_per_line_input: String,
-    pub is_editing_fill_threshold: bool,
-    pub fill_threshold_input: String,
+    pub editing_number: Option<(NumericSetting, String)>,
     pub is_editing_description: bool,
     pub description_input: ratatui_textarea::TextArea<'static>,
 }
@@ -41,37 +281,170 @@ impl DocumentSettingsDialog {
             selected_index: 0,
             is_selecting_system: false,
             is_selecting_assembler: false,
-            is_editing_xref_count: false,
-            xref_count_input: String::new(),
-            is_editing_arrow_columns: false,
-            arrow_columns_input: String::new(),
-            is_editing_text_char_limit: false,
-            text_char_limit_input: String::new(),
-            is_editing_addresses_per_line: false,
-            addresses_per_line_input: String::new(),
-            is_editing_bytes_per_line: false,
-            bytes_per_line_input: String::new(),
-            is_editing_fill_threshold: false,
-            fill_threshold_input: String::new(),
+            editing_number: None,
             is_editing_description: false,
             description_input: ratatui_textarea::TextArea::default(),
         }
     }
 
-    #[allow(dead_code)]
-    pub fn next(&mut self) {
-        let max_items = 16;
-        self.selected_index = (self.selected_index + 1) % max_items;
+    fn active_rows(system_config: &SystemConfig) -> Vec<RowDescriptor> {
+        let mut rows = Vec::with_capacity(FIXED_ROWS.len() + system_config.features.len() + 2);
+        rows.extend_from_slice(FIXED_ROWS);
+        for i in 0..system_config.features.len() {
+            rows.push(RowDescriptor::SystemFeature(i));
+        }
+        if system_config.has_excludes {
+            rows.push(RowDescriptor::Checkbox(BoolSetting::ExcludeWellKnownLabels));
+        }
+        if system_config.has_comments {
+            rows.push(RowDescriptor::Checkbox(BoolSetting::ShowSystemComments));
+        }
+        rows
     }
 
-    #[allow(dead_code)]
-    pub fn previous(&mut self) {
-        let max_items = 16;
-        if self.selected_index == 0 {
-            self.selected_index = max_items - 1;
+    fn row_style(selected: bool, theme: &Theme) -> Style {
+        if selected {
+            Style::default()
+                .fg(theme.highlight_fg)
+                .add_modifier(Modifier::BOLD)
         } else {
-            self.selected_index -= 1;
+            Style::default().fg(theme.dialog_fg)
         }
+    }
+
+    fn checkbox_span(
+        indent: usize,
+        label: &str,
+        checked: bool,
+        selected: bool,
+        disabled: bool,
+        theme: &Theme,
+    ) -> Span<'static> {
+        let check_char = if checked { "[X]" } else { "[ ]" };
+        let prefix = " ".repeat(indent);
+        let style = if disabled {
+            let mut s = Style::default()
+                .fg(theme.menu_disabled_fg)
+                .add_modifier(Modifier::ITALIC);
+            if selected {
+                s = s.add_modifier(Modifier::BOLD);
+            }
+            s
+        } else {
+            Self::row_style(selected, theme)
+        };
+        Span::styled(format!("{prefix}{check_char} {label}"), style)
+    }
+
+    fn render_line(f: &mut Frame, inner: Rect, y: u16, widget: Paragraph<'_>) {
+        let width = inner.width.saturating_sub(4);
+        if y < inner.bottom() && width > 0 {
+            f.render_widget(widget, Rect::new(inner.x.saturating_add(2), y, width, 1));
+        }
+    }
+
+    fn render_selection_popup(
+        f: &mut Frame,
+        popup_area: Rect,
+        title: &str,
+        options: &[String],
+        selected_idx: usize,
+        theme: &Theme,
+    ) {
+        f.render_widget(Clear, popup_area);
+        let block = crate::ui::widget::create_dialog_block(title, theme);
+        let list_items: Vec<ListItem> = options
+            .iter()
+            .enumerate()
+            .map(|(i, label)| {
+                let style = if i == selected_idx {
+                    Style::default()
+                        .bg(theme.menu_selected_bg)
+                        .fg(theme.menu_selected_fg)
+                } else {
+                    Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
+                };
+                ListItem::new(label.clone()).style(style)
+            })
+            .collect();
+
+        let mut list_state = ListState::default();
+        list_state.select(Some(selected_idx));
+
+        let list = List::new(list_items)
+            .block(block)
+            .highlight_style(Style::default().add_modifier(Modifier::BOLD));
+        f.render_stateful_widget(list, popup_area, &mut list_state);
+    }
+
+    fn cycle_assembler(app_state: &mut AppState, ui_state: &mut UIState, delta: isize) {
+        let assemblers = Assembler::all();
+        if assemblers.is_empty() {
+            return;
+        }
+        let current_idx = assemblers
+            .iter()
+            .position(|a| *a == app_state.settings.assembler)
+            .unwrap_or(0);
+        let new_idx = if delta < 0 {
+            (current_idx + assemblers.len() - 1) % assemblers.len()
+        } else {
+            (current_idx + 1) % assemblers.len()
+        };
+        app_state.settings.assembler = assemblers[new_idx];
+        if matches!(
+            app_state.settings.assembler,
+            Assembler::Kick | Assembler::Ca65
+        ) && !app_state.settings.brk_single_byte
+        {
+            app_state.settings.patch_brk = true;
+        }
+        Self::sync_disassembly(app_state, ui_state, false, false);
+    }
+
+    fn cycle_system(&mut self, app_state: &mut AppState, ui_state: &mut UIState, delta: isize) {
+        let systems = crate::assets::get_available_systems();
+        if systems.is_empty() {
+            return;
+        }
+        let current_idx = systems
+            .iter()
+            .position(|p| app_state.settings.system == *p)
+            .unwrap_or(0);
+        let new_idx = if delta < 0 {
+            (current_idx + systems.len() - 1) % systems.len()
+        } else {
+            (current_idx + 1) % systems.len()
+        };
+        app_state.settings.system = System::from(systems[new_idx].clone());
+        app_state.settings.enabled_features.clear();
+        self.selected_index = SYSTEM_ROW_INDEX;
+        Self::sync_disassembly(app_state, ui_state, true, true);
+    }
+
+    fn clear_auto_analysis(app_state: &mut AppState, ui_state: &mut UIState) {
+        let restore_addr = app_state
+            .disassembly
+            .get(ui_state.cursor_index)
+            .map(|l| l.address);
+        let old_sub_cursor = ui_state.sub_cursor_index;
+
+        let mut new_labels = app_state.labels.clone();
+        for labels_vec in new_labels.values_mut() {
+            labels_vec.retain(|l| l.kind != crate::state::LabelKind::Auto);
+        }
+        new_labels.retain(|_, v| !v.is_empty());
+
+        let cmd = crate::commands::Command::SetAnalysisData {
+            labels: new_labels,
+            cross_refs: std::collections::BTreeMap::new(),
+            old_labels: app_state.labels.clone(),
+            old_cross_refs: app_state.cross_refs.clone(),
+        };
+        cmd.apply(app_state);
+        app_state.push_command(cmd);
+        app_state.disassemble();
+        Self::restore_cursor(app_state, ui_state, restore_addr, old_sub_cursor);
     }
 
     fn sync_disassembly(
@@ -139,484 +512,160 @@ impl Widget for DocumentSettingsDialog {
         }
 
         let settings = &app_state.settings;
-
-        let checkbox =
-            |indent: usize, label: &str, checked: bool, selected: bool, disabled: bool| {
-                let check_char = if checked { "[X]" } else { "[ ]" };
-                let prefix = " ".repeat(indent);
-                let style = if disabled {
-                    if selected {
-                        Style::default()
-                            .fg(theme.menu_disabled_fg)
-                            .add_modifier(Modifier::BOLD | Modifier::ITALIC)
-                    } else {
-                        Style::default()
-                            .fg(theme.menu_disabled_fg)
-                            .add_modifier(Modifier::ITALIC)
-                    }
-                } else if selected {
-                    Style::default()
-                        .fg(theme.highlight_fg)
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(theme.dialog_fg)
-                };
-                Span::styled(format!("{prefix}{check_char} {label}"), style)
-            };
-
-        let patch_brk_disabled = settings.brk_single_byte
-            || settings.assembler == crate::state::Assembler::Kick
-            || settings.assembler == crate::state::Assembler::Ca65;
-
-        let items = vec![
-            checkbox(
-                0,
-                "Display External Labels at top",
-                settings.all_labels,
-                self.selected_index == 0,
-                false,
-            ),
-            checkbox(
-                0,
-                "Preserve long bytes (@w, +2, .abs, etc)",
-                settings.preserve_long_bytes,
-                self.selected_index == 1,
-                false,
-            ),
-            checkbox(
-                0,
-                "BRK single byte",
-                settings.brk_single_byte,
-                self.selected_index == 2,
-                false,
-            ),
-            checkbox(
-                0,
-                "Patch BRK",
-                settings.patch_brk,
-                self.selected_index == 3,
-                patch_brk_disabled,
-            ),
-            checkbox(
-                0,
-                "Use Illegal Opcodes",
-                settings.use_illegal_opcodes,
-                self.selected_index == 4,
-                false,
-            ),
-            checkbox(
-                0,
-                "Auto-generate Labels & Cross-refs",
-                settings.auto_analyze,
-                self.selected_index == 5,
-                false,
-            ),
-        ];
-
         let system_config = crate::assets::load_system_config(settings.system.as_str());
+        let rows = Self::active_rows(&system_config);
 
-        let fixed_opts_start = items.len();
-        let idx_description = fixed_opts_start;
-        let idx_xref = fixed_opts_start + 1;
-        let idx_arrow = fixed_opts_start + 2;
-        let idx_text_limit = fixed_opts_start + 3;
-        let idx_addr_limit = fixed_opts_start + 4;
-        let idx_bytes_limit = fixed_opts_start + 5;
-        let idx_fill_threshold = fixed_opts_start + 6;
-        let idx_assembler = fixed_opts_start + 7;
-        let idx_system = fixed_opts_start + 8;
-
-        let mut dynamic_items = Vec::new();
-        let dynamic_start_idx = idx_system + 1;
-
-        for (i, feature) in system_config.features.iter().enumerate() {
-            let idx = dynamic_start_idx + i;
-            let is_enabled = settings
-                .enabled_features
-                .get(&feature.id)
-                .copied()
-                .unwrap_or(feature.default);
-            dynamic_items.push(checkbox(
-                2,
-                &feature.name,
-                is_enabled,
-                self.selected_index == idx,
-                false,
-            ));
-        }
-
-        let idx_exclude_comments = dynamic_start_idx + dynamic_items.len();
-        let idx_system_comments = idx_exclude_comments + usize::from(system_config.has_excludes);
-
-        let required_rows = items.len() as u16
-            + 2
-            + 8
-            + u16::from(!dynamic_items.is_empty())
-            + dynamic_items.len() as u16
-            + u16::from(system_config.has_excludes)
-            + u16::from(system_config.has_comments);
+        let required_rows: u16 = rows.iter().copied().map(RowDescriptor::visual_height).sum();
         let spacer_len = u16::from(inner.height > required_rows);
 
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(items.len() as u16),
-                Constraint::Length(spacer_len),
-                Constraint::Length(2),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(1),
-                Constraint::Length(u16::from(!dynamic_items.is_empty())),
-                Constraint::Length(dynamic_items.len() as u16),
-                Constraint::Length(0),
-                Constraint::Length(u16::from(system_config.has_excludes)),
-                Constraint::Length(u16::from(system_config.has_comments)),
-            ])
-            .split(inner);
+        let mut y = inner.y;
+        for (idx, &row) in rows.iter().enumerate() {
+            let selected = self.selected_index == idx;
+            let style = Self::row_style(selected, theme);
 
-        let render_row = |f: &mut Frame, widget: Paragraph, chunk: Rect, y_offset: u16| {
-            let y = chunk.y.saturating_add(y_offset);
-            let width = chunk.width.saturating_sub(4);
-            if y < inner.bottom() && y < chunk.bottom() && width > 0 {
-                f.render_widget(widget, Rect::new(chunk.x.saturating_add(2), y, width, 1));
-            }
-        };
+            match row {
+                RowDescriptor::Checkbox(setting) => {
+                    let span = Self::checkbox_span(
+                        0,
+                        setting.label(),
+                        setting.get(settings),
+                        selected,
+                        setting.is_disabled(settings),
+                        theme,
+                    );
+                    Self::render_line(f, inner, y, Paragraph::new(span));
+                    y = y.saturating_add(1);
+                }
+                RowDescriptor::Description => {
+                    y = y.saturating_add(spacer_len);
+                    let title = if self.is_editing_description {
+                        "Description (Enter to save):"
+                    } else {
+                        "Description:"
+                    };
+                    Self::render_line(f, inner, y, Paragraph::new(title).style(style));
+                    y = y.saturating_add(1);
 
-        for (i, item) in items.into_iter().enumerate() {
-            render_row(f, Paragraph::new(item), layout[0], i as u16);
-        }
-
-        if !dynamic_items.is_empty() {
-            render_row(
-                f,
-                Paragraph::new(Span::styled(
-                    "System Labels:",
-                    Style::default().add_modifier(Modifier::BOLD),
-                )),
-                layout[11],
-                0,
-            );
-
-            for (i, item) in dynamic_items.into_iter().enumerate() {
-                render_row(f, Paragraph::new(item), layout[12], i as u16);
-            }
-        }
-
-        if system_config.has_excludes {
-            let exclude_checkbox = checkbox(
-                0,
-                "Exclude well-known addresses from auto-labels",
-                settings.exclude_well_known_labels,
-                self.selected_index == idx_exclude_comments,
-                false,
-            );
-            render_row(f, Paragraph::new(exclude_checkbox), layout[14], 0);
-        }
-
-        if system_config.has_comments {
-            let comments_checkbox = checkbox(
-                0,
-                "Show system comments",
-                settings.show_system_comments,
-                self.selected_index == idx_system_comments,
-                false,
-            );
-            render_row(f, Paragraph::new(comments_checkbox), layout[15], 0);
-        }
-
-        let desc_selected = self.selected_index == idx_description;
-
-        let desc_title = if self.is_editing_description {
-            "Description (Enter to save):"
-        } else {
-            "Description:"
-        };
-
-        let desc_chunk = layout[2];
-        let desc_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(1), Constraint::Length(1)])
-            .split(desc_chunk);
-
-        render_row(
-            f,
-            Paragraph::new(desc_title).style(if desc_selected {
-                Style::default()
-                    .fg(theme.highlight_fg)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme.dialog_fg)
-            }),
-            desc_chunks[0],
-            0,
-        );
-
-        let desc_width = desc_chunk.width.saturating_sub(4);
-        if desc_chunks[1].y < inner.bottom() && desc_chunks[1].height > 0 && desc_width > 0 {
-            let desc_rect = Rect::new(
-                desc_chunk.x.saturating_add(2),
-                desc_chunks[1].y,
-                desc_width,
-                1,
-            );
-            if self.is_editing_description {
-                let mut textarea = self.description_input.clone();
-                let style = Style::default()
-                    .fg(theme.highlight_fg)
-                    .bg(theme.menu_selected_bg);
-                textarea.set_style(style);
-                textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
-                textarea.set_cursor_line_style(Style::default());
-                f.render_widget(&textarea, desc_rect);
-            } else {
-                let desc_value_str = if settings.description.is_empty() {
-                    "(empty)".to_string()
-                } else {
-                    settings.description.clone()
-                };
-
-                let desc_style = if desc_selected {
-                    Style::default()
-                        .fg(theme.highlight_fg)
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(theme.dialog_fg)
-                };
-
-                f.render_widget(Paragraph::new(desc_value_str).style(desc_style), desc_rect);
+                    let width = inner.width.saturating_sub(4);
+                    if y < inner.bottom() && width > 0 {
+                        let desc_rect = Rect::new(inner.x.saturating_add(2), y, width, 1);
+                        if self.is_editing_description {
+                            let mut textarea = self.description_input.clone();
+                            textarea.set_style(
+                                Style::default()
+                                    .fg(theme.highlight_fg)
+                                    .bg(theme.menu_selected_bg),
+                            );
+                            textarea.set_cursor_style(
+                                Style::default().add_modifier(Modifier::REVERSED),
+                            );
+                            textarea.set_cursor_line_style(Style::default());
+                            f.render_widget(&textarea, desc_rect);
+                        } else {
+                            let value = if settings.description.is_empty() {
+                                "(empty)"
+                            } else {
+                                settings.description.as_str()
+                            };
+                            f.render_widget(Paragraph::new(value).style(style), desc_rect);
+                        }
+                    }
+                    y = y.saturating_add(1);
+                }
+                RowDescriptor::Numeric(setting) => {
+                    let value_str = match &self.editing_number {
+                        Some((active, input)) if *active == setting => input.clone(),
+                        _ => setting.display_value(settings),
+                    };
+                    let text = format!("{}: < {value_str} >", setting.label());
+                    Self::render_line(f, inner, y, Paragraph::new(text).style(style));
+                    y = y.saturating_add(1);
+                }
+                RowDescriptor::Assembler | RowDescriptor::System => {
+                    let text = if matches!(row, RowDescriptor::Assembler) {
+                        format!("Assembler: < {} >", settings.assembler)
+                    } else {
+                        format!("Target System: < {} >", settings.system)
+                    };
+                    Self::render_line(f, inner, y, Paragraph::new(text).style(style));
+                    y = y.saturating_add(1);
+                }
+                RowDescriptor::SystemFeature(feat_idx) => {
+                    if feat_idx == 0 {
+                        Self::render_line(
+                            f,
+                            inner,
+                            y,
+                            Paragraph::new(Span::styled(
+                                "System Labels:",
+                                Style::default().add_modifier(Modifier::BOLD),
+                            )),
+                        );
+                        y = y.saturating_add(1);
+                    }
+                    if let Some(feature) = system_config.features.get(feat_idx) {
+                        let is_enabled = settings
+                            .enabled_features
+                            .get(&feature.id)
+                            .copied()
+                            .unwrap_or(feature.default);
+                        let span = Self::checkbox_span(
+                            2,
+                            &feature.name,
+                            is_enabled,
+                            selected,
+                            false,
+                            theme,
+                        );
+                        Self::render_line(f, inner, y, Paragraph::new(span));
+                        y = y.saturating_add(1);
+                    }
+                }
             }
         }
-
-        let xref_selected = self.selected_index == idx_xref;
-        let xref_value_str = if self.is_editing_xref_count {
-            self.xref_count_input.clone()
-        } else {
-            settings.max_xref_count.to_string()
-        };
-        let xref_text = format!("Max X-Refs: < {xref_value_str} >");
-
-        let xref_widget = Paragraph::new(xref_text).style(if xref_selected {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme.dialog_fg)
-        });
-        render_row(f, xref_widget, layout[3], 0);
-
-        let arrow_selected = self.selected_index == idx_arrow;
-        let arrow_value_str = if self.is_editing_arrow_columns {
-            self.arrow_columns_input.clone()
-        } else {
-            settings.max_arrow_columns.to_string()
-        };
-        let arrow_text = format!("Arrow Columns: < {arrow_value_str} >");
-
-        let arrow_widget = Paragraph::new(arrow_text).style(if arrow_selected {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme.dialog_fg)
-        });
-        render_row(f, arrow_widget, layout[4], 0);
-
-        let text_limit_selected = self.selected_index == idx_text_limit;
-        let text_limit_value_str = if self.is_editing_text_char_limit {
-            self.text_char_limit_input.clone()
-        } else {
-            settings.text_char_limit.to_string()
-        };
-        let text_limit_text = format!("Text Line Limit: < {text_limit_value_str} >");
-
-        let text_limit_widget = Paragraph::new(text_limit_text).style(if text_limit_selected {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme.dialog_fg)
-        });
-        render_row(f, text_limit_widget, layout[5], 0);
-
-        let addr_limit_selected = self.selected_index == idx_addr_limit;
-        let addr_limit_value_str = if self.is_editing_addresses_per_line {
-            self.addresses_per_line_input.clone()
-        } else {
-            settings.addresses_per_line.to_string()
-        };
-        let addr_limit_text = format!("Words/Addrs per line: < {addr_limit_value_str} >");
-
-        let addr_limit_widget = Paragraph::new(addr_limit_text).style(if addr_limit_selected {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme.dialog_fg)
-        });
-        render_row(f, addr_limit_widget, layout[6], 0);
-
-        let bytes_limit_selected = self.selected_index == idx_bytes_limit;
-        let bytes_limit_value_str = if self.is_editing_bytes_per_line {
-            self.bytes_per_line_input.clone()
-        } else {
-            settings.bytes_per_line.to_string()
-        };
-        let bytes_limit_text = format!("Bytes per line: < {bytes_limit_value_str} >");
-
-        let bytes_limit_widget = Paragraph::new(bytes_limit_text).style(if bytes_limit_selected {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme.dialog_fg)
-        });
-        render_row(f, bytes_limit_widget, layout[7], 0);
-
-        let fill_threshold_selected = self.selected_index == idx_fill_threshold;
-        let fill_threshold_value_str = if self.is_editing_fill_threshold {
-            self.fill_threshold_input.clone()
-        } else {
-            let t = settings.fill_run_threshold;
-            if t == 0 {
-                "off".to_string()
-            } else {
-                t.to_string()
-            }
-        };
-        let fill_threshold_text = format!("Fill run threshold: < {fill_threshold_value_str} >");
-
-        let fill_threshold_widget =
-            Paragraph::new(fill_threshold_text).style(if fill_threshold_selected {
-                Style::default()
-                    .fg(theme.highlight_fg)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme.dialog_fg)
-            });
-        render_row(f, fill_threshold_widget, layout[8], 0);
-
-        let assembler_selected = self.selected_index == idx_assembler;
-        let assembler_text = format!("Assembler: < {} >", settings.assembler);
-
-        let assembler_widget = Paragraph::new(assembler_text).style(if assembler_selected {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme.dialog_fg)
-        });
-        render_row(f, assembler_widget, layout[9], 0);
-
-        let systems = crate::assets::get_available_systems();
-        let system_selected = self.selected_index == idx_system;
-
-        let system_text = format!("Target System: < {} >", settings.system);
-        let system_widget = Paragraph::new(system_text).style(if system_selected {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme.dialog_fg)
-        });
-        render_row(f, system_widget, layout[10], 0);
 
         if self.is_selecting_system {
-            let popup_area = crate::utils::centered_rect_adaptive(40, 50, 50, 10, area);
-            f.render_widget(Clear, popup_area);
-            let block = crate::ui::widget::create_dialog_block(" Select System ", theme);
-
-            let list_items: Vec<ListItem> = systems
-                .iter()
-                .map(|p| {
-                    let is_selected = settings.system == *p;
-                    let style = if is_selected {
-                        Style::default()
-                            .bg(theme.menu_selected_bg)
-                            .fg(theme.menu_selected_fg)
-                    } else {
-                        Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
-                    };
-                    ListItem::new(p.clone()).style(style)
-                })
-                .collect();
-
+            let systems = crate::assets::get_available_systems();
             let selected_idx = systems
                 .iter()
                 .position(|p| settings.system == *p)
                 .unwrap_or(0);
-
-            let mut list_state = ListState::default();
-            list_state.select(Some(selected_idx));
-
-            let list = List::new(list_items)
-                .block(block)
-                .highlight_style(Style::default().add_modifier(Modifier::BOLD));
-            f.render_stateful_widget(list, popup_area, &mut list_state);
+            let popup_area = crate::utils::centered_rect_adaptive(40, 50, 50, 10, area);
+            Self::render_selection_popup(
+                f,
+                popup_area,
+                " Select System ",
+                &systems,
+                selected_idx,
+                theme,
+            );
         }
 
         if self.is_selecting_assembler {
-            let popup_area = crate::utils::centered_rect_adaptive(40, 30, 30, 8, area);
-            f.render_widget(Clear, popup_area);
-            let block = crate::ui::widget::create_dialog_block(" Select Assembler ", theme);
-
-            let assemblers = crate::state::Assembler::all();
-            let list_items: Vec<ListItem> = assemblers
-                .iter()
-                .map(|a| {
-                    let is_selected = *a == settings.assembler;
-                    let style = if is_selected {
-                        Style::default()
-                            .bg(theme.menu_selected_bg)
-                            .fg(theme.menu_selected_fg)
-                    } else {
-                        Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
-                    };
-                    ListItem::new(a.to_string()).style(style)
-                })
-                .collect();
-
+            let assemblers = Assembler::all();
+            let options: Vec<String> = assemblers.iter().map(ToString::to_string).collect();
             let selected_idx = assemblers
                 .iter()
                 .position(|a| *a == settings.assembler)
                 .unwrap_or(0);
-
-            let mut list_state = ListState::default();
-            list_state.select(Some(selected_idx));
-
-            let list = List::new(list_items)
-                .block(block)
-                .highlight_style(Style::default().add_modifier(Modifier::BOLD));
-            f.render_stateful_widget(list, popup_area, &mut list_state);
+            let popup_area = crate::utils::centered_rect_adaptive(40, 30, 30, 8, area);
+            Self::render_selection_popup(
+                f,
+                popup_area,
+                " Select Assembler ",
+                &options,
+                selected_idx,
+                theme,
+            );
         }
 
-        let (editing_any, field_name, value_str) = if self.is_editing_xref_count {
-            (true, "Max X-Refs", &self.xref_count_input)
-        } else if self.is_editing_arrow_columns {
-            (true, "Arrow Columns", &self.arrow_columns_input)
-        } else if self.is_editing_text_char_limit {
-            (true, "Text Line Limit", &self.text_char_limit_input)
-        } else if self.is_editing_addresses_per_line {
-            (true, "Words/Addrs per line", &self.addresses_per_line_input)
-        } else if self.is_editing_bytes_per_line {
-            (true, "Bytes per line", &self.bytes_per_line_input)
-        } else if self.is_editing_fill_threshold {
-            (true, "Fill run threshold", &self.fill_threshold_input)
-        } else {
-            (false, "", &String::new())
-        };
-
-        if editing_any {
+        if let Some((setting, value_str)) = &self.editing_number {
             let popup_area = crate::utils::centered_rect_adaptive(30, 40, 0, 3, area);
             f.render_widget(Clear, popup_area);
-            let title = format!(" Edit {field_name} ");
+            let title = format!(" Edit {} ", setting.label());
             let block = crate::ui::widget::create_dialog_block(&title, theme);
 
-            let widget = Paragraph::new(value_str.clone())
+            let widget = Paragraph::new(value_str.as_str())
                 .style(
                     Style::default()
                         .fg(theme.highlight_fg)
@@ -635,584 +684,159 @@ impl Widget for DocumentSettingsDialog {
 
     fn handle_input(
         &mut self,
-        key: crossterm::event::KeyEvent,
+        key: KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        let system_config = crate::assets::load_system_config(app_state.settings.system.as_str());
-        let dynamic_items_count = system_config.features.len();
-
-        let base_items_count = 6;
-
-        let idx_description = base_items_count;
-        let idx_xref = base_items_count + 1;
-        let idx_arrow = base_items_count + 2;
-        let idx_text_limit = base_items_count + 3;
-        let idx_addr_limit = base_items_count + 4;
-        let idx_bytes_limit = base_items_count + 5;
-        let idx_fill_threshold = base_items_count + 6;
-        let idx_assembler = base_items_count + 7;
-        let idx_system = base_items_count + 8;
-        let dynamic_start_idx = idx_system + 1;
-        let idx_exclude_comments = dynamic_start_idx + dynamic_items_count;
-        let idx_system_comments = idx_exclude_comments + usize::from(system_config.has_excludes);
-
-        let total_items = if system_config.has_comments {
-            idx_system_comments + 1
-        } else if system_config.has_excludes {
-            idx_exclude_comments + 1
-        } else {
-            dynamic_start_idx + dynamic_items_count
-        };
-
-        let next = |idx: &mut usize| {
-            *idx = (*idx + 1) % total_items;
-        };
-        let prev = |idx: &mut usize| {
-            if *idx == 0 {
-                *idx = total_items - 1;
-            } else {
-                *idx -= 1;
-            }
-        };
-
         if self.is_editing_description {
             match key.code {
                 KeyCode::Esc => {
                     self.is_editing_description = false;
                     self.description_input = ratatui_textarea::TextArea::default();
                     ui_state.set_status_message("Ready");
-                    return WidgetResult::Handled;
                 }
                 KeyCode::Enter => {
                     app_state.settings.description =
                         self.description_input.lines().join("").trim().to_string();
                     self.is_editing_description = false;
-                    return WidgetResult::Handled;
                 }
                 _ => {
                     self.description_input.input(key);
-                    return WidgetResult::Handled;
                 }
             }
+            return WidgetResult::Handled;
         }
+
+        if let Some((setting, ref mut input)) = self.editing_number {
+            match key.code {
+                KeyCode::Esc => {
+                    self.editing_number = None;
+                }
+                KeyCode::Enter | KeyCode::Char(' ') => {
+                    let (min, max) = setting.bounds();
+                    if let Ok(val) = input.parse::<usize>()
+                        && (min..=max).contains(&val)
+                    {
+                        setting.set(&mut app_state.settings, val);
+                        self.editing_number = None;
+                        Self::sync_disassembly(app_state, ui_state, false, false);
+                    } else {
+                        ui_state.set_status_message(format!("Enter a value from {min} to {max}"));
+                        input.clear();
+                    }
+                }
+                KeyCode::Backspace => {
+                    input.pop();
+                }
+                KeyCode::Char(c) if c.is_ascii_digit() && input.len() < 4 => {
+                    input.push(c);
+                }
+                _ => {}
+            }
+            return WidgetResult::Handled;
+        }
+
+        if self.is_selecting_system {
+            match key.code {
+                KeyCode::Esc | KeyCode::Enter | KeyCode::Char(' ') => {
+                    self.is_selecting_system = false;
+                }
+                KeyCode::Up => self.cycle_system(app_state, ui_state, -1),
+                KeyCode::Down => self.cycle_system(app_state, ui_state, 1),
+                _ => {}
+            }
+            return WidgetResult::Handled;
+        }
+
+        if self.is_selecting_assembler {
+            match key.code {
+                KeyCode::Esc | KeyCode::Enter | KeyCode::Char(' ') => {
+                    self.is_selecting_assembler = false;
+                }
+                KeyCode::Up => Self::cycle_assembler(app_state, ui_state, -1),
+                KeyCode::Down => Self::cycle_assembler(app_state, ui_state, 1),
+                _ => {}
+            }
+            return WidgetResult::Handled;
+        }
+
+        let system_config = crate::assets::load_system_config(app_state.settings.system.as_str());
+        let rows = Self::active_rows(&system_config);
+        let total_items = rows.len();
+        let selected_row = rows.get(self.selected_index).copied();
 
         match key.code {
             KeyCode::Esc => {
-                if self.is_selecting_system {
-                    self.is_selecting_system = false;
-                } else if self.is_selecting_assembler {
-                    self.is_selecting_assembler = false;
-                } else if self.is_editing_xref_count {
-                    self.is_editing_xref_count = false;
-                    self.xref_count_input.clear();
-                } else if self.is_editing_arrow_columns {
-                    self.is_editing_arrow_columns = false;
-                    self.arrow_columns_input.clear();
-                } else if self.is_editing_text_char_limit {
-                    self.is_editing_text_char_limit = false;
-                    self.text_char_limit_input.clear();
-                } else if self.is_editing_addresses_per_line {
-                    self.is_editing_addresses_per_line = false;
-                    self.addresses_per_line_input.clear();
-                } else if self.is_editing_bytes_per_line {
-                    self.is_editing_bytes_per_line = false;
-                    self.bytes_per_line_input.clear();
-                } else if self.is_editing_fill_threshold {
-                    self.is_editing_fill_threshold = false;
-                    self.fill_threshold_input.clear();
-                } else {
-                    ui_state.set_status_message("Ready");
-                    Self::sync_disassembly(app_state, ui_state, false, false);
-                    return WidgetResult::Close;
-                }
+                ui_state.set_status_message("Ready");
+                Self::sync_disassembly(app_state, ui_state, false, false);
+                return WidgetResult::Close;
             }
             KeyCode::Up => {
-                if self.is_selecting_system {
-                    let systems = crate::assets::get_available_systems();
-                    if !systems.is_empty() {
-                        let current_idx = systems
-                            .iter()
-                            .position(|p| app_state.settings.system == *p)
-                            .unwrap_or(0);
-                        let new_idx = if current_idx == 0 {
-                            systems.len() - 1
-                        } else {
-                            current_idx - 1
-                        };
-                        app_state.settings.system =
-                            crate::state::System::from(systems[new_idx].clone());
-                        app_state.settings.enabled_features.clear();
-                        self.selected_index = idx_system;
-                        Self::sync_disassembly(app_state, ui_state, true, true);
-                    }
-                } else if self.is_selecting_assembler {
-                    let assemblers = crate::state::Assembler::all();
-                    let current_idx = assemblers
-                        .iter()
-                        .position(|a| *a == app_state.settings.assembler)
-                        .unwrap_or(0);
-                    let new_idx = if current_idx == 0 {
-                        assemblers.len() - 1
-                    } else {
-                        current_idx - 1
-                    };
-                    app_state.settings.assembler = assemblers[new_idx];
-                    if (app_state.settings.assembler == crate::state::Assembler::Kick
-                        || app_state.settings.assembler == crate::state::Assembler::Ca65)
-                        && !app_state.settings.brk_single_byte
-                    {
-                        app_state.settings.patch_brk = true;
-                    }
-                    Self::sync_disassembly(app_state, ui_state, false, false);
-                } else if !self.is_editing_xref_count
-                    && !self.is_editing_arrow_columns
-                    && !self.is_editing_text_char_limit
-                    && !self.is_editing_addresses_per_line
-                    && !self.is_editing_bytes_per_line
-                    && !self.is_editing_fill_threshold
-                    && !self.is_editing_description
-                {
-                    prev(&mut self.selected_index);
-                }
-            }
-            KeyCode::Left
-                if !self.is_editing_xref_count
-                    && !self.is_editing_arrow_columns
-                    && !self.is_editing_text_char_limit
-                    && !self.is_editing_addresses_per_line
-                    && !self.is_editing_bytes_per_line
-                    && !self.is_editing_fill_threshold
-                    && !self.is_editing_description =>
-            {
-                if self.selected_index == idx_xref {
-                    app_state.settings.max_xref_count =
-                        app_state.settings.max_xref_count.saturating_sub(1);
-                    Self::sync_disassembly(app_state, ui_state, false, false);
-                } else if self.selected_index == idx_arrow {
-                    if app_state.settings.max_arrow_columns > 1 {
-                        app_state.settings.max_arrow_columns -= 1;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    }
-                } else if self.selected_index == idx_text_limit {
-                    if app_state.settings.text_char_limit > 1 {
-                        app_state.settings.text_char_limit -= 1;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    }
-                } else if self.selected_index == idx_addr_limit {
-                    if app_state.settings.addresses_per_line > 1 {
-                        app_state.settings.addresses_per_line -= 1;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    }
-                } else if self.selected_index == idx_bytes_limit {
-                    if app_state.settings.bytes_per_line > 1 {
-                        app_state.settings.bytes_per_line -= 1;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    }
-                } else if self.selected_index == idx_fill_threshold {
-                    app_state.settings.fill_run_threshold =
-                        app_state.settings.fill_run_threshold.saturating_sub(1);
-                    Self::sync_disassembly(app_state, ui_state, false, false);
-                } else if self.selected_index == idx_assembler {
-                    let assemblers = crate::state::Assembler::all();
-                    let current_idx = assemblers
-                        .iter()
-                        .position(|a| *a == app_state.settings.assembler)
-                        .unwrap_or(0);
-                    let new_idx = if current_idx == 0 {
-                        assemblers.len() - 1
-                    } else {
-                        current_idx - 1
-                    };
-                    app_state.settings.assembler = assemblers[new_idx];
-                    if (app_state.settings.assembler == crate::state::Assembler::Kick
-                        || app_state.settings.assembler == crate::state::Assembler::Ca65)
-                        && !app_state.settings.brk_single_byte
-                    {
-                        app_state.settings.patch_brk = true;
-                    }
-                    Self::sync_disassembly(app_state, ui_state, false, false);
-                } else if self.selected_index == idx_system {
-                    let systems = crate::assets::get_available_systems();
-                    if !systems.is_empty() {
-                        let current_idx = systems
-                            .iter()
-                            .position(|p| app_state.settings.system == *p)
-                            .unwrap_or(0);
-                        let new_idx = if current_idx == 0 {
-                            systems.len() - 1
-                        } else {
-                            current_idx - 1
-                        };
-                        app_state.settings.system =
-                            crate::state::System::from(systems[new_idx].clone());
-                        app_state.settings.enabled_features.clear();
-                        self.selected_index = idx_system;
-                        Self::sync_disassembly(app_state, ui_state, true, true);
-                    }
-                }
-            }
-            KeyCode::Right
-                if !self.is_editing_xref_count
-                    && !self.is_editing_arrow_columns
-                    && !self.is_editing_text_char_limit
-                    && !self.is_editing_addresses_per_line
-                    && !self.is_editing_bytes_per_line
-                    && !self.is_editing_fill_threshold
-                    && !self.is_editing_description =>
-            {
-                if self.selected_index == idx_xref {
-                    if app_state.settings.max_xref_count < 40 {
-                        app_state.settings.max_xref_count += 1;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    }
-                } else if self.selected_index == idx_arrow {
-                    if app_state.settings.max_arrow_columns < 10 {
-                        app_state.settings.max_arrow_columns += 1;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    }
-                } else if self.selected_index == idx_text_limit {
-                    if app_state.settings.text_char_limit < 80 {
-                        app_state.settings.text_char_limit += 1;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    }
-                } else if self.selected_index == idx_addr_limit {
-                    if app_state.settings.addresses_per_line < 8 {
-                        app_state.settings.addresses_per_line += 1;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    }
-                } else if self.selected_index == idx_bytes_limit {
-                    if app_state.settings.bytes_per_line < 40 {
-                        app_state.settings.bytes_per_line += 1;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    }
-                } else if self.selected_index == idx_fill_threshold {
-                    if app_state.settings.fill_run_threshold < 64 {
-                        app_state.settings.fill_run_threshold += 1;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    }
-                } else if self.selected_index == idx_assembler {
-                    let assemblers = crate::state::Assembler::all();
-                    let current_idx = assemblers
-                        .iter()
-                        .position(|a| *a == app_state.settings.assembler)
-                        .unwrap_or(0);
-                    let new_idx = (current_idx + 1) % assemblers.len();
-                    app_state.settings.assembler = assemblers[new_idx];
-                    if (app_state.settings.assembler == crate::state::Assembler::Kick
-                        || app_state.settings.assembler == crate::state::Assembler::Ca65)
-                        && !app_state.settings.brk_single_byte
-                    {
-                        app_state.settings.patch_brk = true;
-                    }
-                    Self::sync_disassembly(app_state, ui_state, false, false);
-                } else if self.selected_index == idx_system {
-                    let systems = crate::assets::get_available_systems();
-                    if !systems.is_empty() {
-                        let current_idx = systems
-                            .iter()
-                            .position(|p| app_state.settings.system == *p)
-                            .unwrap_or(0);
-                        let new_idx = (current_idx + 1) % systems.len();
-                        app_state.settings.system =
-                            crate::state::System::from(systems[new_idx].clone());
-                        app_state.settings.enabled_features.clear();
-                        self.selected_index = idx_system;
-                        Self::sync_disassembly(app_state, ui_state, true, true);
-                    }
+                if self.selected_index == 0 {
+                    self.selected_index = total_items - 1;
+                } else {
+                    self.selected_index -= 1;
                 }
             }
             KeyCode::Down => {
-                if self.is_selecting_system {
-                    let systems = crate::assets::get_available_systems();
-                    if !systems.is_empty() {
-                        let current_idx = systems
-                            .iter()
-                            .position(|p| app_state.settings.system == *p)
-                            .unwrap_or(0);
-                        let new_idx = (current_idx + 1) % systems.len();
-                        app_state.settings.system =
-                            crate::state::System::from(systems[new_idx].clone());
-                        app_state.settings.enabled_features.clear();
-                        self.selected_index = idx_system;
+                self.selected_index = (self.selected_index + 1) % total_items;
+            }
+            KeyCode::Left => match selected_row {
+                Some(RowDescriptor::Numeric(setting)) => {
+                    if setting.step(&mut app_state.settings, -1) {
+                        Self::sync_disassembly(app_state, ui_state, false, false);
+                    }
+                }
+                Some(RowDescriptor::Assembler) => Self::cycle_assembler(app_state, ui_state, -1),
+                Some(RowDescriptor::System) => self.cycle_system(app_state, ui_state, -1),
+                _ => {}
+            },
+            KeyCode::Right => match selected_row {
+                Some(RowDescriptor::Numeric(setting)) => {
+                    if setting.step(&mut app_state.settings, 1) {
+                        Self::sync_disassembly(app_state, ui_state, false, false);
+                    }
+                }
+                Some(RowDescriptor::Assembler) => Self::cycle_assembler(app_state, ui_state, 1),
+                Some(RowDescriptor::System) => self.cycle_system(app_state, ui_state, 1),
+                _ => {}
+            },
+            KeyCode::Enter | KeyCode::Char(' ') => match selected_row {
+                Some(RowDescriptor::Checkbox(setting)) => setting.toggle(app_state, ui_state),
+                Some(RowDescriptor::Description) => {
+                    self.is_editing_description = true;
+                    let mut textarea = ratatui_textarea::TextArea::default();
+                    textarea.insert_str(&app_state.settings.description);
+                    textarea.move_cursor(ratatui_textarea::CursorMove::End);
+                    self.description_input = textarea;
+                }
+                Some(RowDescriptor::Numeric(setting)) => {
+                    let current = setting.get(&app_state.settings).to_string();
+                    self.editing_number = Some((setting, current));
+                }
+                Some(RowDescriptor::Assembler) => {
+                    self.is_selecting_assembler = true;
+                }
+                Some(RowDescriptor::System) => {
+                    self.is_selecting_system = true;
+                }
+                Some(RowDescriptor::SystemFeature(feat_idx)) => {
+                    if let Some(feature) = system_config.features.get(feat_idx) {
+                        let current_val = app_state
+                            .settings
+                            .enabled_features
+                            .get(&feature.id)
+                            .copied()
+                            .unwrap_or(feature.default);
+                        app_state
+                            .settings
+                            .enabled_features
+                            .insert(feature.id.clone(), !current_val);
                         Self::sync_disassembly(app_state, ui_state, true, true);
                     }
-                } else if self.is_selecting_assembler {
-                    let assemblers = crate::state::Assembler::all();
-                    let current_idx = assemblers
-                        .iter()
-                        .position(|a| *a == app_state.settings.assembler)
-                        .unwrap_or(0);
-                    let new_idx = (current_idx + 1) % assemblers.len();
-                    app_state.settings.assembler = assemblers[new_idx];
-                    if (app_state.settings.assembler == crate::state::Assembler::Kick
-                        || app_state.settings.assembler == crate::state::Assembler::Ca65)
-                        && !app_state.settings.brk_single_byte
-                    {
-                        app_state.settings.patch_brk = true;
-                    }
-                    Self::sync_disassembly(app_state, ui_state, false, false);
-                } else if !self.is_editing_xref_count
-                    && !self.is_editing_arrow_columns
-                    && !self.is_editing_text_char_limit
-                    && !self.is_editing_addresses_per_line
-                    && !self.is_editing_bytes_per_line
-                    && !self.is_editing_fill_threshold
-                    && !self.is_editing_description
-                {
-                    next(&mut self.selected_index);
                 }
-            }
-            KeyCode::Enter | KeyCode::Char(' ') => {
-                if self.is_selecting_system {
-                    self.is_selecting_system = false;
-                } else if self.is_selecting_assembler {
-                    self.is_selecting_assembler = false;
-                } else if self.is_editing_xref_count {
-                    if let Ok(val) = self.xref_count_input.parse::<usize>()
-                        && val <= 40
-                    {
-                        app_state.settings.max_xref_count = val;
-                        self.is_editing_xref_count = false;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    } else {
-                        ui_state.set_status_message("Enter a value from 0 to 40");
-                        self.xref_count_input.clear();
-                    }
-                } else if self.is_editing_arrow_columns {
-                    if let Ok(val) = self.arrow_columns_input.parse::<usize>()
-                        && (1..=10).contains(&val)
-                    {
-                        app_state.settings.max_arrow_columns = val;
-                        self.is_editing_arrow_columns = false;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    } else {
-                        ui_state.set_status_message("Enter a value from 1 to 10");
-                        self.arrow_columns_input.clear();
-                    }
-                } else if self.is_editing_text_char_limit {
-                    if let Ok(val) = self.text_char_limit_input.parse::<usize>()
-                        && (1..=80).contains(&val)
-                    {
-                        app_state.settings.text_char_limit = val;
-                        self.is_editing_text_char_limit = false;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    } else {
-                        ui_state.set_status_message("Enter a value from 1 to 80");
-                        self.text_char_limit_input.clear();
-                    }
-                } else if self.is_editing_addresses_per_line {
-                    if let Ok(val) = self.addresses_per_line_input.parse::<usize>()
-                        && (1..=8).contains(&val)
-                    {
-                        app_state.settings.addresses_per_line = val;
-                        self.is_editing_addresses_per_line = false;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    } else {
-                        ui_state.set_status_message("Enter a value from 1 to 8");
-                        self.addresses_per_line_input.clear();
-                    }
-                } else if self.is_editing_bytes_per_line {
-                    if let Ok(val) = self.bytes_per_line_input.parse::<usize>()
-                        && (1..=40).contains(&val)
-                    {
-                        app_state.settings.bytes_per_line = val;
-                        self.is_editing_bytes_per_line = false;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    } else {
-                        ui_state.set_status_message("Enter a value from 1 to 40");
-                        self.bytes_per_line_input.clear();
-                    }
-                } else if self.is_editing_fill_threshold {
-                    if let Ok(val) = self.fill_threshold_input.parse::<usize>()
-                        && val <= 64
-                    {
-                        app_state.settings.fill_run_threshold = val;
-                        self.is_editing_fill_threshold = false;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
-                    } else {
-                        ui_state.set_status_message("Enter a value from 0 to 64");
-                        self.fill_threshold_input.clear();
-                    }
-                } else {
-                    match self.selected_index {
-                        0 => {
-                            app_state.settings.all_labels = !app_state.settings.all_labels;
-                            Self::sync_disassembly(app_state, ui_state, false, false);
-                        }
-                        1 => {
-                            app_state.settings.preserve_long_bytes =
-                                !app_state.settings.preserve_long_bytes;
-                            Self::sync_disassembly(app_state, ui_state, false, false);
-                        }
-                        2 => {
-                            app_state.settings.brk_single_byte =
-                                !app_state.settings.brk_single_byte;
-                            if app_state.settings.brk_single_byte {
-                                app_state.settings.patch_brk = false;
-                            } else if app_state.settings.assembler == crate::state::Assembler::Kick
-                                || app_state.settings.assembler == crate::state::Assembler::Ca65
-                            {
-                                app_state.settings.patch_brk = true;
-                            }
-                            Self::sync_disassembly(app_state, ui_state, false, true);
-                        }
-                        3 if !app_state.settings.brk_single_byte => {
-                            let is_enforced = app_state.settings.assembler
-                                == crate::state::Assembler::Kick
-                                || app_state.settings.assembler == crate::state::Assembler::Ca65;
-                            if !is_enforced {
-                                app_state.settings.patch_brk = !app_state.settings.patch_brk;
-                                Self::sync_disassembly(app_state, ui_state, false, true);
-                            }
-                        }
-                        4 => {
-                            app_state.settings.use_illegal_opcodes =
-                                !app_state.settings.use_illegal_opcodes;
-                            Self::sync_disassembly(app_state, ui_state, false, true);
-                        }
-                        5 => {
-                            app_state.settings.auto_analyze = !app_state.settings.auto_analyze;
-                            if app_state.settings.auto_analyze {
-                                Self::sync_disassembly(app_state, ui_state, false, true);
-                            } else {
-                                let restore_addr = app_state
-                                    .disassembly
-                                    .get(ui_state.cursor_index)
-                                    .map(|l| l.address);
-                                let old_sub_cursor = ui_state.sub_cursor_index;
-
-                                let mut new_labels = app_state.labels.clone();
-                                for labels_vec in new_labels.values_mut() {
-                                    labels_vec.retain(|l| l.kind != crate::state::LabelKind::Auto);
-                                }
-                                new_labels.retain(|_, v| !v.is_empty());
-
-                                let cmd = crate::commands::Command::SetAnalysisData {
-                                    labels: new_labels,
-                                    cross_refs: std::collections::BTreeMap::new(),
-                                    old_labels: app_state.labels.clone(),
-                                    old_cross_refs: app_state.cross_refs.clone(),
-                                };
-                                cmd.apply(app_state);
-                                app_state.push_command(cmd);
-                                app_state.disassemble();
-                                Self::restore_cursor(
-                                    app_state,
-                                    ui_state,
-                                    restore_addr,
-                                    old_sub_cursor,
-                                );
-                            }
-                        }
-                        idx if idx == idx_system_comments && system_config.has_comments => {
-                            app_state.settings.show_system_comments =
-                                !app_state.settings.show_system_comments;
-                            Self::sync_disassembly(app_state, ui_state, true, false);
-                        }
-                        idx if idx == idx_exclude_comments && system_config.has_excludes => {
-                            app_state.settings.exclude_well_known_labels =
-                                !app_state.settings.exclude_well_known_labels;
-                            Self::sync_disassembly(app_state, ui_state, true, true);
-                        }
-                        idx if idx >= dynamic_start_idx => {
-                            let system_config = crate::assets::load_system_config(
-                                app_state.settings.system.as_str(),
-                            );
-                            let config_idx = idx - dynamic_start_idx;
-                            if let Some(feature) = system_config.features.get(config_idx) {
-                                let current_val = app_state
-                                    .settings
-                                    .enabled_features
-                                    .get(&feature.id)
-                                    .copied()
-                                    .unwrap_or(feature.default);
-                                app_state
-                                    .settings
-                                    .enabled_features
-                                    .insert(feature.id.clone(), !current_val);
-
-                                Self::sync_disassembly(app_state, ui_state, true, true);
-                            }
-                        }
-                        idx if idx == idx_description => {
-                            self.is_editing_description = true;
-                            let mut textarea = ratatui_textarea::TextArea::default();
-                            textarea.insert_str(&app_state.settings.description);
-                            textarea.move_cursor(ratatui_textarea::CursorMove::End);
-                            self.description_input = textarea;
-                        }
-                        idx if idx == idx_xref => {
-                            self.is_editing_xref_count = true;
-                            self.xref_count_input = app_state.settings.max_xref_count.to_string();
-                        }
-                        idx if idx == idx_arrow => {
-                            self.is_editing_arrow_columns = true;
-                            self.arrow_columns_input =
-                                app_state.settings.max_arrow_columns.to_string();
-                        }
-                        idx if idx == idx_text_limit => {
-                            self.is_editing_text_char_limit = true;
-                            self.text_char_limit_input =
-                                app_state.settings.text_char_limit.to_string();
-                        }
-                        idx if idx == idx_addr_limit => {
-                            self.is_editing_addresses_per_line = true;
-                            self.addresses_per_line_input =
-                                app_state.settings.addresses_per_line.to_string();
-                        }
-                        idx if idx == idx_bytes_limit => {
-                            self.is_editing_bytes_per_line = true;
-                            self.bytes_per_line_input =
-                                app_state.settings.bytes_per_line.to_string();
-                        }
-                        idx if idx == idx_fill_threshold => {
-                            self.is_editing_fill_threshold = true;
-                            self.fill_threshold_input =
-                                app_state.settings.fill_run_threshold.to_string();
-                        }
-                        idx if idx == idx_assembler => {
-                            self.is_selecting_assembler = true;
-                        }
-                        idx if idx == idx_system => {
-                            self.is_selecting_system = true;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            KeyCode::Backspace => {
-                if self.is_editing_xref_count {
-                    self.xref_count_input.pop();
-                } else if self.is_editing_arrow_columns {
-                    self.arrow_columns_input.pop();
-                } else if self.is_editing_text_char_limit {
-                    self.text_char_limit_input.pop();
-                } else if self.is_editing_addresses_per_line {
-                    self.addresses_per_line_input.pop();
-                } else if self.is_editing_bytes_per_line {
-                    self.bytes_per_line_input.pop();
-                } else if self.is_editing_fill_threshold {
-                    self.fill_threshold_input.pop();
-                }
-            }
-            KeyCode::Char(c) if c.is_ascii_digit() => {
-                if self.is_editing_xref_count && self.xref_count_input.len() < 4 {
-                    self.xref_count_input.push(c);
-                } else if self.is_editing_arrow_columns && self.arrow_columns_input.len() < 4 {
-                    self.arrow_columns_input.push(c);
-                } else if self.is_editing_text_char_limit && self.text_char_limit_input.len() < 4 {
-                    self.text_char_limit_input.push(c);
-                } else if self.is_editing_addresses_per_line
-                    && self.addresses_per_line_input.len() < 4
-                {
-                    self.addresses_per_line_input.push(c);
-                } else if self.is_editing_bytes_per_line && self.bytes_per_line_input.len() < 4 {
-                    self.bytes_per_line_input.push(c);
-                } else if self.is_editing_fill_threshold && self.fill_threshold_input.len() < 4 {
-                    self.fill_threshold_input.push(c);
-                }
-            }
+                None => {}
+            },
             _ => {}
         }
         WidgetResult::Handled
@@ -1229,10 +853,9 @@ mod tests {
     #[test]
     fn test_document_settings_esc_cancels_fill_threshold_edit() {
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let mut dialog = DocumentSettingsDialog::new();
-        dialog.is_editing_fill_threshold = true;
-        dialog.fill_threshold_input = "16".to_string();
+        dialog.editing_number = Some((NumericSetting::FillRunThreshold, "16".to_string()));
 
         let res = dialog.handle_input(
             KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
@@ -1240,17 +863,15 @@ mod tests {
             &mut ui_state,
         );
         assert_eq!(res, WidgetResult::Handled);
-        assert!(!dialog.is_editing_fill_threshold);
-        assert!(dialog.fill_threshold_input.is_empty());
+        assert_eq!(dialog.editing_number, None);
     }
 
     #[test]
     fn test_document_settings_invalid_numeric_input_recovers_cleanly() {
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let mut dialog = DocumentSettingsDialog::new();
-        dialog.is_editing_xref_count = true;
-        dialog.xref_count_input = "99".to_string();
+        dialog.editing_number = Some((NumericSetting::MaxXrefCount, "99".to_string()));
 
         let res = dialog.handle_input(
             KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
@@ -1258,8 +879,10 @@ mod tests {
             &mut ui_state,
         );
         assert_eq!(res, WidgetResult::Handled);
-        assert!(dialog.is_editing_xref_count);
-        assert!(dialog.xref_count_input.is_empty());
+        assert_eq!(
+            dialog.editing_number,
+            Some((NumericSetting::MaxXrefCount, String::new()))
+        );
         assert_eq!(
             ui_state.status_message.as_deref(),
             Some("Enter a value from 0 to 40")
@@ -1267,9 +890,65 @@ mod tests {
     }
 
     #[test]
+    fn test_document_settings_numeric_row_edit_and_step_roundtrip() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        let mut dialog = DocumentSettingsDialog::new();
+
+        // Select FillRunThreshold row via descriptor table and step down to 0 ("off").
+        let fill_idx = FIXED_ROWS
+            .iter()
+            .position(|r| *r == RowDescriptor::Numeric(NumericSetting::FillRunThreshold))
+            .unwrap();
+        dialog.selected_index = fill_idx;
+        app_state.settings.fill_run_threshold = 1;
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(app_state.settings.fill_run_threshold, 0);
+        assert_eq!(
+            NumericSetting::FillRunThreshold.display_value(&app_state.settings),
+            "off"
+        );
+
+        // Press Enter to open inline editor, type "24", and commit with Enter.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(
+            dialog.editing_number,
+            Some((NumericSetting::FillRunThreshold, "0".to_string()))
+        );
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        for ch in ['2', '4'] {
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            );
+        }
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.editing_number, None);
+        assert_eq!(app_state.settings.fill_run_threshold, 24);
+    }
+
+    #[test]
     fn test_document_settings_render_standard_and_small_terminals() {
         let app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let dialog = DocumentSettingsDialog::new();
 
         for (w, h) in [(80, 28), (80, 24), (20, 10), (3, 3)] {
