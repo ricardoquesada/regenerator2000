@@ -38,10 +38,11 @@ pub fn handle_menu_action(
             CoreEvent::StatusMessage(msg) => ui_state.set_status_message(msg),
             CoreEvent::DialogRequested(dialog_type) => match dialog_type {
                 DialogType::Open => {
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_open::OpenDialog::new(
+                    ui_state.active_dialog = Some(Box::new(
+                        crate::ui::dialog_file_browser::FileBrowserDialog::new_open(
                             ui_state.file_dialog_current_dir.clone(),
-                        )));
+                        ),
+                    ));
                 }
                 DialogType::OpenRecent => {
                     ui_state.active_dialog =
@@ -50,7 +51,7 @@ pub fn handle_menu_action(
                 }
                 DialogType::ImportViceLabels => {
                     ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_open::OpenDialog::new_import_vice_labels(
+                        crate::ui::dialog_file_browser::FileBrowserDialog::new_import_vice_labels(
                             ui_state.file_dialog_current_dir.clone(),
                             core.state.last_import_labels_path.clone(),
                         ),
@@ -58,29 +59,31 @@ pub fn handle_menu_action(
                 }
                 DialogType::ExportLabels { initial_filename } => {
                     ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_export_labels::ExportLabelsDialog::new(
+                        crate::ui::dialog_file_browser::FileBrowserDialog::new_export_labels(
                             initial_filename,
                             ui_state.file_dialog_current_dir.clone(),
                         ),
                     ));
                 }
                 DialogType::SaveAs { initial_filename } => {
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_save_as::SaveAsDialog::new(
+                    ui_state.active_dialog = Some(Box::new(
+                        crate::ui::dialog_file_browser::FileBrowserDialog::new_save_project(
                             initial_filename,
                             ui_state.file_dialog_current_dir.clone(),
-                        )));
+                        ),
+                    ));
                 }
                 DialogType::ExportAs {
                     initial_filename,
                     format,
                 } => {
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_export_as::ExportAsDialog::new(
+                    ui_state.active_dialog = Some(Box::new(
+                        crate::ui::dialog_file_browser::FileBrowserDialog::new_export(
                             initial_filename,
                             format,
                             ui_state.file_dialog_current_dir.clone(),
-                        )));
+                        ),
+                    ));
                 }
                 DialogType::DocumentSettings => {
                     ui_state.active_dialog = Some(Box::new(
