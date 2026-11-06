@@ -22,6 +22,7 @@ impl MenuState {
             categories: vec![
                 MenuCategory {
                     name: "File".to_string(),
+                    accelerator: 'f',
                     items: vec![
                         MenuItem::new("Open...", Some("Ctrl+O"), Some(AppAction::Open)),
                         MenuItem::new(
@@ -65,6 +66,7 @@ impl MenuState {
                 },
                 MenuCategory {
                     name: "Edit".to_string(),
+                    accelerator: 't',
                     items: vec![
                         MenuItem::new("Undo", Some("U"), Some(AppAction::Undo)),
                         MenuItem::new("Redo", Some("Ctrl+R"), Some(AppAction::Redo)),
@@ -165,6 +167,7 @@ impl MenuState {
                 },
                 MenuCategory {
                     name: "Jump".to_string(),
+                    accelerator: 'j',
                     items: vec![
                         MenuItem::new(
                             "Jump to address...",
@@ -196,6 +199,7 @@ impl MenuState {
                 },
                 MenuCategory {
                     name: "Search".to_string(),
+                    accelerator: 'r',
                     items: vec![
                         MenuItem::new("Search...", Some("Ctrl+F"), Some(AppAction::Search)),
                         MenuItem::new("Find Next", Some("F3"), Some(AppAction::FindNext)),
@@ -218,6 +222,7 @@ impl MenuState {
                 },
                 MenuCategory {
                     name: "View".to_string(),
+                    accelerator: 'v',
                     items: vec![
                         MenuItem::new(
                             "Next Hex Dump Mode",
@@ -279,6 +284,7 @@ impl MenuState {
                 },
                 MenuCategory {
                     name: "Debugger".to_string(),
+                    accelerator: 'u',
                     items: vec![
                         MenuItem::new("Connect to VICE...", None, Some(AppAction::ViceConnect)),
                         MenuItem::new(
@@ -320,6 +326,7 @@ impl MenuState {
                 },
                 MenuCategory {
                     name: "Help".to_string(),
+                    accelerator: 'h',
                     items: vec![
                         MenuItem::new(
                             "Keyboard Shortcuts",
@@ -336,6 +343,22 @@ impl MenuState {
             ],
             selected_category: 0,
             selected_item: None,
+        }
+    }
+
+    /// Selects the category matching `accelerator` (case-insensitive) and highlights its first
+    /// enabled item. Returns `true` if a matching category was found.
+    pub fn select_category_by_accelerator(&mut self, accelerator: char) -> bool {
+        if let Some(pos) = self
+            .categories
+            .iter()
+            .position(|c| c.accelerator.eq_ignore_ascii_case(&accelerator))
+        {
+            self.selected_category = pos;
+            self.select_first_enabled_item();
+            true
+        } else {
+            false
         }
     }
 
@@ -422,21 +445,12 @@ impl MenuState {
             return ratatui::layout::Rect::default();
         }
         let mut x_offset = 0u16;
-        for i in 0..self.selected_category {
-            x_offset = x_offset.saturating_add(self.categories[i].name.len() as u16 + 2);
+        for category in &self.categories[..self.selected_category] {
+            x_offset = x_offset.saturating_add(category.bar_width());
         }
 
         let category = &self.categories[self.selected_category];
-        let mut max_name_len = 0usize;
-        let mut max_shortcut_len = 0usize;
-        for item in &category.items {
-            max_name_len = max_name_len.max(item.name.len());
-            max_shortcut_len =
-                max_shortcut_len.max(item.shortcut.as_ref().map_or(0, std::string::String::len));
-        }
-
-        let content_width = max_name_len + 2 + max_shortcut_len;
-        let width = (content_width as u16 + 2).max(20);
+        let width = category.popup_width();
         let height = category.items.len() as u16 + 2;
 
         let area = ratatui::layout::Rect::new(
@@ -563,7 +577,37 @@ impl MenuState {
 
 pub struct MenuCategory {
     pub name: String,
+    pub accelerator: char,
     pub items: Vec<MenuItem>,
+}
+
+impl MenuCategory {
+    /// Returns the rendered cell width of this category on the top menu bar (`" <name> "`).
+    #[must_use]
+    pub fn bar_width(&self) -> u16 {
+        self.name.len() as u16 + 2
+    }
+
+    /// Returns `(max_name_len, max_shortcut_len)` across all items in this category.
+    #[must_use]
+    pub fn column_widths(&self) -> (usize, usize) {
+        let mut max_name_len = 0usize;
+        let mut max_shortcut_len = 0usize;
+        for item in &self.items {
+            max_name_len = max_name_len.max(item.name.len());
+            max_shortcut_len =
+                max_shortcut_len.max(item.shortcut.as_ref().map_or(0, std::string::String::len));
+        }
+        (max_name_len, max_shortcut_len)
+    }
+
+    /// Returns the outer popup width (including 1-cell left/right borders), with a minimum of 20.
+    #[must_use]
+    pub fn popup_width(&self) -> u16 {
+        let (max_name_len, max_shortcut_len) = self.column_widths();
+        let content_width = max_name_len + 2 + max_shortcut_len;
+        (content_width as u16 + 2).max(20)
+    }
 }
 
 #[derive(Clone)]

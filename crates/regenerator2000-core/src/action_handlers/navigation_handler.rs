@@ -510,8 +510,8 @@ impl DomainActionHandler for NavigationActionHandler {
             AppAction::Search => {
                 ctx.events.push(CoreEvent::DialogRequested(
                     crate::event::DialogType::Search {
-                        query: String::new(),
-                        filters: crate::state::search::SearchFilters::default(),
+                        query: ctx.view.last_search_query.clone(),
+                        filters: ctx.view.search_filters.clone(),
                     },
                 ));
                 ctx.events

@@ -499,15 +499,19 @@ fn handle_set_label(ctx: &mut ActionContext<'_>) {
         let target_addr = line.address_at_sub_index(ctx.state, ctx.view.sub_cursor_index);
 
         if is_external {
-            let current = ctx
-                .state
-                .labels
-                .get(&target_addr)
-                .and_then(|v| v.first().map(|l| l.name.clone()));
+            let existing = ctx.state.labels.get(&target_addr).and_then(|v| {
+                v.iter()
+                    .find(|l| l.kind == crate::state::LabelKind::User)
+                    .or_else(|| v.first())
+            });
+            let is_local =
+                existing.is_some_and(|l| l.label_type == crate::state::LabelType::LocalUserDefined);
+            let initial_name = existing.map(|l| l.name.clone()).unwrap_or_default();
             ctx.events.push(CoreEvent::DialogRequested(
                 crate::event::DialogType::Label {
                     address: target_addr,
-                    initial_name: current.unwrap_or_default(),
+                    initial_name,
+                    is_local,
                     is_external: true,
                 },
             ));
@@ -515,16 +519,19 @@ fn handle_set_label(ctx: &mut ActionContext<'_>) {
                 "Edit External Label for ${target_addr:04X}"
             )));
         } else {
-            let current = ctx
+            let user_label = ctx
                 .state
                 .labels
                 .get(&target_addr)
-                .and_then(|v| v.iter().find(|l| l.kind == crate::state::LabelKind::User))
-                .map(|l| l.name.clone());
+                .and_then(|v| v.iter().find(|l| l.kind == crate::state::LabelKind::User));
+            let is_local = user_label
+                .is_some_and(|l| l.label_type == crate::state::LabelType::LocalUserDefined);
+            let initial_name = user_label.map(|l| l.name.clone()).unwrap_or_default();
             ctx.events.push(CoreEvent::DialogRequested(
                 crate::event::DialogType::Label {
                     address: target_addr,
-                    initial_name: current.unwrap_or_default(),
+                    initial_name,
+                    is_local,
                     is_external: false,
                 },
             ));

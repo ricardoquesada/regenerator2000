@@ -25,37 +25,27 @@ pub fn render_menu(
             Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
         };
 
-        if category.name == "File" {
+        if let Some(byte_idx) = category.name.char_indices().find_map(|(idx, ch)| {
+            ch.eq_ignore_ascii_case(&category.accelerator)
+                .then_some(idx)
+        }) {
+            let accel_len = category.name[byte_idx..]
+                .chars()
+                .next()
+                .map_or(1, char::len_utf8);
+            let before = &category.name[..byte_idx];
+            let accel = &category.name[byte_idx..byte_idx + accel_len];
+            let after = &category.name[byte_idx + accel_len..];
+
             spans.push(Span::styled(" ", style));
-            spans.push(Span::styled("F", style.add_modifier(Modifier::UNDERLINED)));
-            spans.push(Span::styled("ile ", style));
-        } else if category.name == "Edit" {
-            spans.push(Span::styled(" ", style));
-            spans.push(Span::styled("Edi", style));
-            spans.push(Span::styled("t", style.add_modifier(Modifier::UNDERLINED)));
-            spans.push(Span::styled(" ", style));
-        } else if category.name == "Help" {
-            spans.push(Span::styled(" ", style));
-            spans.push(Span::styled("H", style.add_modifier(Modifier::UNDERLINED)));
-            spans.push(Span::styled("elp ", style));
-        } else if category.name == "Jump" {
-            spans.push(Span::styled(" ", style));
-            spans.push(Span::styled("J", style.add_modifier(Modifier::UNDERLINED)));
-            spans.push(Span::styled("ump ", style));
-        } else if category.name == "View" {
-            spans.push(Span::styled(" ", style));
-            spans.push(Span::styled("V", style.add_modifier(Modifier::UNDERLINED)));
-            spans.push(Span::styled("iew ", style));
-        } else if category.name == "Search" {
-            spans.push(Span::styled(" ", style));
-            spans.push(Span::styled("Sea", style));
-            spans.push(Span::styled("r", style.add_modifier(Modifier::UNDERLINED)));
-            spans.push(Span::styled("ch ", style));
-        } else if category.name == "Debugger" {
-            spans.push(Span::styled(" ", style));
-            spans.push(Span::styled("Deb", style));
-            spans.push(Span::styled("u", style.add_modifier(Modifier::UNDERLINED)));
-            spans.push(Span::styled("gger ", style));
+            if !before.is_empty() {
+                spans.push(Span::styled(before.to_string(), style));
+            }
+            spans.push(Span::styled(
+                accel.to_string(),
+                style.add_modifier(Modifier::UNDERLINED),
+            ));
+            spans.push(Span::styled(format!("{after} "), style));
         } else {
             spans.push(Span::styled(format!(" {} ", category.name), style));
         }
@@ -92,17 +82,7 @@ pub fn render_menu_popup(
     theme: &crate::theme::Theme,
 ) {
     let category = &menu_state.categories[menu_state.selected_category];
-
-    let mut max_name_len = 0;
-    let mut max_shortcut_len = 0;
-    for item in &category.items {
-        max_name_len = max_name_len.max(item.name.len());
-        max_shortcut_len =
-            max_shortcut_len.max(item.shortcut.as_ref().map_or(0, std::string::String::len));
-    }
-
-    let content_width = max_name_len + 2 + max_shortcut_len;
-    let width = (content_width as u16 + 2).max(20);
+    let (max_name_len, max_shortcut_len) = category.column_widths();
     let bar_area = Rect::new(top_area.x, top_area.y, top_area.width, 1);
     let area = menu_state.popup_rect(bar_area, f.area());
 
@@ -114,7 +94,7 @@ pub fn render_menu_popup(
         .enumerate()
         .map(|(i, item)| {
             if item.is_separator {
-                let separator_len = (width as usize).saturating_sub(2);
+                let separator_len = (area.width as usize).saturating_sub(2);
                 let separator = "─".repeat(separator_len);
                 return ListItem::new(separator).style(Style::default().fg(theme.menu_fg));
             }

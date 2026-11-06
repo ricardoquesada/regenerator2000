@@ -40,7 +40,6 @@ impl Widget for Menu {
             return WidgetResult::Ignored;
         }
 
-        let menu_state = &mut ui_state.menu;
         let area = ui_state.menu_area;
         let col = mouse.column;
         let row = mouse.row;
@@ -48,69 +47,28 @@ impl Widget for Menu {
         // 1. Check Menu Bar
         if row == area.y && col >= area.x && col < area.x + area.width {
             let mut current_x = area.x;
-            for (i, category) in menu_state.categories.iter().enumerate() {
-                let width = (category.name.len() + 2) as u16; // " name "
+            for (i, category) in ui_state.menu.categories.iter().enumerate() {
+                let width = category.bar_width();
                 if col >= current_x && col < current_x + width {
-                    menu_state.selected_category = i;
-                    menu_state.active = true;
-                    menu_state.select_first_enabled_item();
+                    ui_state.menu.selected_category = i;
+                    ui_state.menu.active = true;
+                    ui_state.menu.select_first_enabled_item();
                     return WidgetResult::Handled;
                 }
                 current_x += width;
             }
-            if menu_state.active {
-                menu_state.active = false;
-                menu_state.selected_item = None;
+            if ui_state.menu.active {
+                ui_state.menu.active = false;
+                ui_state.menu.selected_item = None;
                 return WidgetResult::Handled;
             }
         }
 
         // 2. Check Popup if active
-        if menu_state.active {
-            let term_width = area
-                .x
-                .saturating_add(area.width)
-                .max(
-                    ui_state
-                        .main_area
-                        .x
-                        .saturating_add(ui_state.main_area.width),
-                )
-                .max(
-                    ui_state
-                        .status_bar_area
-                        .x
-                        .saturating_add(ui_state.status_bar_area.width),
-                );
-            let known_bottom = area
-                .y
-                .saturating_add(area.height)
-                .max(
-                    ui_state
-                        .minimap_area
-                        .y
-                        .saturating_add(ui_state.minimap_area.height),
-                )
-                .max(
-                    ui_state
-                        .main_area
-                        .y
-                        .saturating_add(ui_state.main_area.height),
-                )
-                .max(
-                    ui_state
-                        .status_bar_area
-                        .y
-                        .saturating_add(ui_state.status_bar_area.height),
-                );
-            let term_height = if known_bottom > area.y.saturating_add(1) {
-                known_bottom
-            } else {
-                u16::MAX
-            };
+        if ui_state.menu.active {
+            let term_area = ui_state.terminal_area();
             let bar_area = Rect::new(area.x, area.y, area.width, 1);
-            let popup_area =
-                menu_state.popup_rect(bar_area, Rect::new(0, 0, term_width, term_height));
+            let popup_area = ui_state.menu.popup_rect(bar_area, term_area);
 
             // Check if click is inside popup
             if col >= popup_area.x
@@ -121,17 +79,17 @@ impl Widget for Menu {
                 let rel_y = row - popup_area.y;
                 if rel_y > 0 && rel_y < popup_area.height.saturating_sub(1) {
                     let inner_height = (popup_area.height as usize).saturating_sub(2);
-                    let offset = menu_state.popup_scroll_offset(inner_height);
+                    let offset = ui_state.menu.popup_scroll_offset(inner_height);
                     let item_idx = offset + (rel_y - 1) as usize;
-                    let category = &menu_state.categories[menu_state.selected_category];
+                    let category = &ui_state.menu.categories[ui_state.menu.selected_category];
                     if let Some(item) = category.items.get(item_idx) {
                         if item.is_separator || item.disabled {
                             return WidgetResult::Handled;
                         }
                         if let Some(action) = &item.action {
                             let action = action.clone();
-                            menu_state.active = false;
-                            menu_state.selected_item = None;
+                            ui_state.menu.active = false;
+                            ui_state.menu.selected_item = None;
                             return WidgetResult::Action(action);
                         }
                     }
@@ -164,81 +122,10 @@ impl Widget for Menu {
                 ui_state.menu.previous_category();
                 WidgetResult::Handled
             }
-            KeyCode::Char('f') if key.modifiers == KeyModifiers::ALT => {
-                ui_state.menu.selected_category = 0;
-                ui_state.menu.select_first_enabled_item();
-                WidgetResult::Handled
-            }
-            KeyCode::Char('h') if key.modifiers == KeyModifiers::ALT => {
-                if let Some(pos) = ui_state
-                    .menu
-                    .categories
-                    .iter()
-                    .position(|c| c.name == "Help")
-                {
-                    ui_state.menu.selected_category = pos;
-                    ui_state.menu.select_first_enabled_item();
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Char('j') if key.modifiers == KeyModifiers::ALT => {
-                if let Some(pos) = ui_state
-                    .menu
-                    .categories
-                    .iter()
-                    .position(|c| c.name == "Jump")
-                {
-                    ui_state.menu.selected_category = pos;
-                    ui_state.menu.select_first_enabled_item();
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Char('v') if key.modifiers == KeyModifiers::ALT => {
-                if let Some(pos) = ui_state
-                    .menu
-                    .categories
-                    .iter()
-                    .position(|c| c.name == "View")
-                {
-                    ui_state.menu.selected_category = pos;
-                    ui_state.menu.select_first_enabled_item();
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Char('r') if key.modifiers == KeyModifiers::ALT => {
-                if let Some(pos) = ui_state
-                    .menu
-                    .categories
-                    .iter()
-                    .position(|c| c.name == "Search")
-                {
-                    ui_state.menu.selected_category = pos;
-                    ui_state.menu.select_first_enabled_item();
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Char('t') if key.modifiers == KeyModifiers::ALT => {
-                if let Some(pos) = ui_state
-                    .menu
-                    .categories
-                    .iter()
-                    .position(|c| c.name == "Edit")
-                {
-                    ui_state.menu.selected_category = pos;
-                    ui_state.menu.select_first_enabled_item();
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Char('u') if key.modifiers == KeyModifiers::ALT => {
-                if let Some(pos) = ui_state
-                    .menu
-                    .categories
-                    .iter()
-                    .position(|c| c.name == "Debugger")
-                {
-                    ui_state.menu.selected_category = pos;
-                    ui_state.menu.select_first_enabled_item();
-                }
+            KeyCode::Char(c)
+                if key.modifiers == KeyModifiers::ALT
+                    && ui_state.menu.select_category_by_accelerator(c) =>
+            {
                 WidgetResult::Handled
             }
             KeyCode::Down => {
@@ -421,5 +308,63 @@ mod tests {
             WidgetResult::Action(AppAction::DocumentSettings)
         );
         assert!(!ui_state.menu.active);
+    }
+
+    #[test]
+    fn test_menu_category_accelerators_and_underlined_rendering() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.menu.active = true;
+        let mut menu = Menu;
+
+        let expected = [
+            ('f', "File", 1u16),
+            ('t', "Edit", 10u16),
+            ('j', "Jump", 13u16),
+            ('r', "Search", 22u16),
+            ('v', "View", 27u16),
+            ('u', "Debugger", 36u16),
+            ('h', "Help", 43u16),
+        ];
+
+        for (idx, &(accel, name, _)) in expected.iter().enumerate() {
+            assert_eq!(ui_state.menu.categories[idx].name, name);
+            assert_eq!(ui_state.menu.categories[idx].accelerator, accel);
+            let res = menu.handle_input(
+                KeyEvent::new(KeyCode::Char(accel), KeyModifiers::ALT),
+                &mut app_state,
+                &mut ui_state,
+            );
+            assert_eq!(res, WidgetResult::Handled);
+            assert_eq!(ui_state.menu.selected_category, idx);
+            assert!(ui_state.menu.selected_item.is_some());
+        }
+
+        // Unmatched Alt+<char> when menu is active is ignored by Menu::handle_input
+        assert_eq!(
+            menu.handle_input(
+                KeyEvent::new(KeyCode::Char('z'), KeyModifiers::ALT),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Ignored
+        );
+
+        let backend = TestBackend::new(80, 1);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                render_menu(f, f.area(), &ui_state.menu, &ui_state.theme, None);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        for &(_, _, col) in &expected {
+            let cell = buffer.cell((col, 0)).unwrap();
+            assert!(
+                cell.modifier.contains(ratatui::style::Modifier::UNDERLINED),
+                "Expected underlined accelerator at col {col}, got cell {cell:?}"
+            );
+        }
     }
 }

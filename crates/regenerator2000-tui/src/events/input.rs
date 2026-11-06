@@ -108,89 +108,12 @@ pub fn handle_global_input(
             ui_state.set_status_message("Menu Active");
         }
         // VICE Debugger end
-        KeyCode::Char('f') if key.modifiers == KeyModifiers::ALT => {
-            ui_state.menu.selected_category = 0; // File is index 0
+        KeyCode::Char(c)
+            if key.modifiers == KeyModifiers::ALT
+                && ui_state.menu.select_category_by_accelerator(c) =>
+        {
             ui_state.menu.active = true;
-            ui_state.menu.select_first_enabled_item();
             ui_state.set_status_message("Menu Active");
-        }
-        KeyCode::Char('h') if key.modifiers == KeyModifiers::ALT => {
-            if let Some(pos) = ui_state
-                .menu
-                .categories
-                .iter()
-                .position(|c| c.name == "Help")
-            {
-                ui_state.menu.selected_category = pos;
-                ui_state.menu.active = true;
-                ui_state.menu.select_first_enabled_item();
-                ui_state.set_status_message("Menu Active");
-            }
-        }
-        KeyCode::Char('j') if key.modifiers == KeyModifiers::ALT => {
-            if let Some(pos) = ui_state
-                .menu
-                .categories
-                .iter()
-                .position(|c| c.name == "Jump")
-            {
-                ui_state.menu.selected_category = pos;
-                ui_state.menu.active = true;
-                ui_state.menu.select_first_enabled_item();
-                ui_state.set_status_message("Menu Active");
-            }
-        }
-        KeyCode::Char('v') if key.modifiers == KeyModifiers::ALT => {
-            if let Some(pos) = ui_state
-                .menu
-                .categories
-                .iter()
-                .position(|c| c.name == "View")
-            {
-                ui_state.menu.selected_category = pos;
-                ui_state.menu.active = true;
-                ui_state.menu.select_first_enabled_item();
-                ui_state.set_status_message("Menu Active");
-            }
-        }
-        KeyCode::Char('r') if key.modifiers == KeyModifiers::ALT => {
-            if let Some(pos) = ui_state
-                .menu
-                .categories
-                .iter()
-                .position(|c| c.name == "Search")
-            {
-                ui_state.menu.selected_category = pos;
-                ui_state.menu.active = true;
-                ui_state.menu.select_first_enabled_item();
-                ui_state.set_status_message("Menu Active");
-            }
-        }
-        KeyCode::Char('t') if key.modifiers == KeyModifiers::ALT => {
-            if let Some(pos) = ui_state
-                .menu
-                .categories
-                .iter()
-                .position(|c| c.name == "Edit")
-            {
-                ui_state.menu.selected_category = pos;
-                ui_state.menu.active = true;
-                ui_state.menu.select_first_enabled_item();
-                ui_state.set_status_message("Menu Active");
-            }
-        }
-        KeyCode::Char('u') if key.modifiers == KeyModifiers::ALT => {
-            if let Some(pos) = ui_state
-                .menu
-                .categories
-                .iter()
-                .position(|c| c.name == "Debugger")
-            {
-                ui_state.menu.selected_category = pos;
-                ui_state.menu.active = true;
-                ui_state.menu.select_first_enabled_item();
-                ui_state.set_status_message("Menu Active");
-            }
         }
         KeyCode::Char('x') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(

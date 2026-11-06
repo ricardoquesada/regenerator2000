@@ -175,6 +175,34 @@ impl UIState {
         }
     }
 
+    /// Infers the full terminal bounds from the recorded layout rects, falling back to
+    /// `u16::MAX` height when only `menu_area` has been populated (e.g. in unit tests).
+    #[must_use]
+    pub fn terminal_area(&self) -> ratatui::layout::Rect {
+        let areas = [
+            self.menu_area,
+            self.minimap_area,
+            self.main_area,
+            self.status_bar_area,
+        ];
+        let width = areas
+            .iter()
+            .map(|r| r.x.saturating_add(r.width))
+            .max()
+            .unwrap_or(0);
+        let known_bottom = areas
+            .iter()
+            .map(|r| r.y.saturating_add(r.height))
+            .max()
+            .unwrap_or(0);
+        let height = if known_bottom > self.menu_area.y.saturating_add(1) {
+            known_bottom
+        } else {
+            u16::MAX
+        };
+        ratatui::layout::Rect::new(0, 0, width, height)
+    }
+
     pub fn restore_session(
         &mut self,
         loaded_data: &crate::state::LoadedProjectData,

@@ -106,6 +106,8 @@ pub enum DialogType {
         address: Addr,
         /// Pre-filled label name.
         initial_name: String,
+        /// `true` when the existing label at `address` is a local (`LocalUserDefined`) label.
+        is_local: bool,
         /// `true` when editing an external equate line outside the binary range.
         is_external: bool,
     },

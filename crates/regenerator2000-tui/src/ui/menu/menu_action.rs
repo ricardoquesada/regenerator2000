@@ -104,12 +104,10 @@ pub fn handle_menu_action(
                         crate::ui::dialog_prompt::PromptDialog::new_jump_to_line(),
                     ));
                 }
-                DialogType::Search { .. } => {
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_search::SearchDialog::new(
-                            ui_state.last_search_query.clone(),
-                            ui_state.search_filters.clone(),
-                        )));
+                DialogType::Search { query, filters } => {
+                    ui_state.active_dialog = Some(Box::new(
+                        crate::ui::dialog_search::SearchDialog::new(query, filters),
+                    ));
                 }
                 DialogType::GoToSymbol => {
                     ui_state.active_dialog = Some(Box::new(
@@ -134,26 +132,12 @@ pub fn handle_menu_action(
                 DialogType::Label {
                     address,
                     initial_name,
+                    is_local,
                     ..
                 } => {
-                    let existing_label = core.state.labels.get(&address).and_then(|v| {
-                        v.iter()
-                            .find(|l| l.kind == crate::state::LabelKind::User)
-                            .or_else(|| v.first())
-                    });
-                    let is_local = existing_label.is_some_and(|l| {
-                        l.label_type == regenerator2000_core::state::LabelType::LocalUserDefined
-                    });
-                    let prefill_name = if initial_name.is_empty() {
-                        existing_label
-                            .filter(|l| l.kind == crate::state::LabelKind::User)
-                            .map_or(initial_name.as_str(), |l| l.name.as_str())
-                    } else {
-                        initial_name.as_str()
-                    };
                     ui_state.active_dialog =
                         Some(Box::new(crate::ui::dialog_label::LabelDialog::new(
-                            Some(prefill_name),
+                            Some(&initial_name),
                             address,
                             is_local,
                         )));
