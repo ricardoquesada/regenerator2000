@@ -292,6 +292,15 @@ impl SpritesView {
     const SPRITE_HEIGHT: usize = 22; // 1 header + 21 pixel rows
     const COL_WIDTH: u16 = 28; // 2 indent + 24 pixels + 2 gap
 
+    #[must_use]
+    fn cols(ui_state: &UIState) -> usize {
+        if ui_state.right_pane == crate::ui_state::RightPane::Sprites2Col {
+            2
+        } else {
+            1
+        }
+    }
+
     /// Map a mouse position (column, row) to a sprite index, replicating the
     /// render loop's layout (scroll offset, 1-col / 2-col geometry).
     ///
@@ -385,11 +394,13 @@ impl Widget for SpritesView {
 
         match mouse.kind {
             MouseEventKind::ScrollDown => {
-                self.move_down(app_state, ui_state, 3);
+                self.move_down(app_state, ui_state, 3 * Self::cols(ui_state));
+                sync_sprites_to_disassembly(app_state, ui_state);
                 WidgetResult::Handled
             }
             MouseEventKind::ScrollUp => {
-                self.move_up(app_state, ui_state, 3);
+                self.move_up(app_state, ui_state, 3 * Self::cols(ui_state));
+                sync_sprites_to_disassembly(app_state, ui_state);
                 WidgetResult::Handled
             }
             MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => {
@@ -577,16 +588,19 @@ impl Widget for SpritesView {
         if is_2col {
             match key.code {
                 KeyCode::Down | KeyCode::Char('j') if key.modifiers.is_empty() => {
+                    ui_state.input_buffer.clear();
                     self.move_down(app_state, ui_state, 2);
                     sync_sprites_to_disassembly(app_state, ui_state);
                     return WidgetResult::Handled;
                 }
                 KeyCode::Up | KeyCode::Char('k') if key.modifiers.is_empty() => {
+                    ui_state.input_buffer.clear();
                     self.move_up(app_state, ui_state, 2);
                     sync_sprites_to_disassembly(app_state, ui_state);
                     return WidgetResult::Handled;
                 }
                 KeyCode::Left | KeyCode::Char('h') if key.modifiers.is_empty() => {
+                    ui_state.input_buffer.clear();
                     if ui_state.is_visual_mode {
                         if ui_state.sprites_selection_start.is_none() {
                             ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
@@ -601,6 +615,7 @@ impl Widget for SpritesView {
                     return WidgetResult::Handled;
                 }
                 KeyCode::Right | KeyCode::Char('l') if key.modifiers.is_empty() => {
+                    ui_state.input_buffer.clear();
                     if ui_state.is_visual_mode {
                         if ui_state.sprites_selection_start.is_none() {
                             ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
@@ -805,5 +820,52 @@ impl Widget for SpritesView {
             sync_sprites_to_disassembly(app_state, ui_state);
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::Theme;
+    use crate::ui_state::RightPane;
+    use regenerator2000_core::state::Addr;
+
+    #[test]
+    fn test_sprites_view_2col_scroll_and_input_buffer_clear() {
+        let mut app_state = AppState::new();
+        app_state
+            .load_binary(Addr(0x2000), vec![0xEA; 64 * 12])
+            .unwrap();
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.right_pane = RightPane::Sprites2Col;
+        ui_state.right_pane_area = Rect::new(0, 0, 60, 30);
+
+        let mut view = SpritesView;
+
+        // ScrollDown in 2-col mode moves by 3 * 2 = 6 sprites and keeps columns aligned.
+        let scroll_down = MouseEvent {
+            kind: MouseEventKind::ScrollDown,
+            column: 5,
+            row: 5,
+            modifiers: KeyModifiers::empty(),
+        };
+        assert_eq!(
+            view.handle_mouse(scroll_down, &mut app_state, &mut ui_state),
+            WidgetResult::Handled
+        );
+        assert_eq!(ui_state.sprites_cursor_index, 6);
+
+        // 2-col directional keys clear any pending numeric prefix in input_buffer.
+        ui_state.input_buffer.push('4');
+        assert_eq!(
+            view.handle_input(
+                KeyEvent::new(KeyCode::Down, KeyModifiers::empty()),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert!(ui_state.input_buffer.is_empty());
+        assert_eq!(ui_state.sprites_cursor_index, 8);
     }
 }

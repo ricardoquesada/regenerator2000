@@ -94,21 +94,35 @@ impl Widget for EditEnumDialog {
                     return WidgetResult::Handled;
                 }
                 WidgetResult::Action(AppAction::Confirmed(box_action)) => {
-                    // Sub-dialog returns variant data inside Confirmed action wrapper
-                    // We process it here!
                     if let AppAction::ApplyComment {
                         text: value,
                         address: Addr(key_num),
                         ..
                     } = *box_action
                     {
-                        // Key is key_num, value is value string
                         let key_str = format!("0x{key_num:02X}");
-                        // Add or update variant
-                        if let Some(sel) = self.list_state.selected()
-                            && self.sub_dialog.as_ref().is_some_and(|s| s.is_edit)
+                        let is_edit = self.sub_dialog.as_ref().is_some_and(|s| s.is_edit);
+                        if is_edit
+                            && let Some(sel) = self.list_state.selected()
+                            && sel < self.variants.len()
                         {
                             self.variants[sel] = (key_str, value);
+                            if let Some(dup_idx) =
+                                self.variants.iter().enumerate().position(|(i, (k, _))| {
+                                    i != sel && parse_variant_key(k) == Ok(key_num)
+                                })
+                            {
+                                self.variants.remove(dup_idx);
+                                let new_sel = if dup_idx < sel { sel - 1 } else { sel };
+                                self.list_state.select(Some(new_sel));
+                            }
+                        } else if let Some(existing_idx) = self
+                            .variants
+                            .iter()
+                            .position(|(k, _)| parse_variant_key(k) == Ok(key_num))
+                        {
+                            self.variants[existing_idx] = (key_str, value);
+                            self.list_state.select(Some(existing_idx));
                         } else {
                             self.variants.push((key_str, value));
                             self.list_state.select(Some(self.variants.len() - 1));
@@ -205,33 +219,32 @@ impl Widget for EditEnumDialog {
     }
 }
 
+fn parse_variant_key(k_str: &str) -> Result<u16, std::num::ParseIntError> {
+    let k_trimmed = k_str.trim();
+    if let Some(hex) = k_trimmed
+        .strip_prefix("0x")
+        .or_else(|| k_trimmed.strip_prefix("0X"))
+    {
+        u16::from_str_radix(hex, 16)
+    } else if let Some(hex) = k_trimmed.strip_prefix('$') {
+        u16::from_str_radix(hex, 16)
+    } else {
+        k_trimmed.parse::<u16>()
+    }
+}
+
 impl EditEnumDialog {
     fn save_enum(&self, app_state: &AppState, ui_state: &mut UIState) -> WidgetResult {
         let name = self.get_name();
-        // Validate Name:
-        // If creating or renaming, validate that name is unique and alphanumeric.
         let is_rename = self.original_def.as_ref().is_none_or(|d| d.name != name);
         if is_rename && let Err(err) = app_state.validate_new_enum_name(&name) {
             ui_state.set_status_message(format!("Error: {err}"));
             return WidgetResult::Handled;
         }
 
-        // Validate variants
         let mut variants_map = std::collections::BTreeMap::new();
         for (k_str, v_str) in &self.variants {
-            let k_trimmed = k_str.trim();
-            let parsed_val = if let Some(hex) = k_trimmed
-                .strip_prefix("0x")
-                .or_else(|| k_trimmed.strip_prefix("0X"))
-            {
-                u16::from_str_radix(hex, 16)
-            } else if let Some(hex) = k_trimmed.strip_prefix('$') {
-                u16::from_str_radix(hex, 16)
-            } else {
-                k_trimmed.parse::<u16>()
-            };
-
-            match parsed_val {
+            match parse_variant_key(k_str) {
                 Ok(val) => {
                     variants_map.insert(val, v_str.clone());
                 }
@@ -252,7 +265,6 @@ impl EditEnumDialog {
                 .and_then(|d| d.source_file.clone()),
         };
 
-        // Dispatch appropriate save action
         let rename_from = self.original_def.as_ref().map(|d| d.name.clone());
         if self.is_global {
             WidgetResult::Action(AppAction::ApplyGlobalEnumDefinition {
@@ -426,7 +438,7 @@ impl AddVariantDialog {
             is_edit,
             key_ta,
             val_ta,
-            active_focus: if is_edit { 1 } else { 0 }, // Start focused on Val if editing
+            active_focus: if is_edit { 1 } else { 0 },
         }
     }
 }
@@ -441,8 +453,8 @@ impl Widget for AddVariantDialog {
         };
         let block = create_dialog_block(title, theme);
 
-        // Center a smaller nested dialog box
         let area = crate::utils::centered_rect_adaptive(45, 30, 0, 10, area);
+        ui_state.active_dialog_area = area;
 
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -519,31 +531,14 @@ impl Widget for AddVariantDialog {
                     return WidgetResult::Handled;
                 }
 
-                // Quick validation of variant key format
-                let k_trimmed = key_str.trim();
-                let parsed_val = if let Some(hex) = k_trimmed
-                    .strip_prefix("0x")
-                    .or_else(|| k_trimmed.strip_prefix("0X"))
-                {
-                    u16::from_str_radix(hex, 16)
-                } else if let Some(hex) = k_trimmed.strip_prefix('$') {
-                    u16::from_str_radix(hex, 16)
-                } else {
-                    k_trimmed.parse::<u16>()
-                };
-
-                match parsed_val {
-                    Ok(val) => {
-                        // We package it inside a dummy AppAction::ApplyComment to carry key and value string back.
-                        // Key goes to `address` (represented as Addr), value goes to `text`.
-                        WidgetResult::Action(AppAction::Confirmed(Box::new(
-                            AppAction::ApplyComment {
-                                address: Addr(val),
-                                text: val_str,
-                                kind: regenerator2000_core::state::types::CommentKind::Side, // placeholder
-                            },
-                        )))
-                    }
+                match parse_variant_key(&key_str) {
+                    Ok(val) => WidgetResult::Action(AppAction::Confirmed(Box::new(
+                        AppAction::ApplyComment {
+                            address: Addr(val),
+                            text: val_str,
+                            kind: regenerator2000_core::state::types::CommentKind::Side,
+                        },
+                    ))),
                     Err(_) => {
                         ui_state.set_status_message(
                             "Error: Key must be a valid number (dec or hex 0x/$).",
@@ -561,5 +556,49 @@ impl Widget for AddVariantDialog {
                 WidgetResult::Handled
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_edit_enum_replaces_existing_variant_with_duplicate_key() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut def = EnumDefinition {
+            name: "Colors".to_string(),
+            description: None,
+            variants: std::collections::BTreeMap::new(),
+            source_file: None,
+        };
+        def.variants.insert(1, "BLACK".to_string());
+
+        let mut dialog = EditEnumDialog::new(Some(def), false);
+        dialog.active_focus = 2;
+
+        // Open AddVariantDialog via 'a'
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        if let Some(sub) = &mut dialog.sub_dialog {
+            sub.key_ta.insert_str("$01");
+            sub.val_ta.insert_str("WHITE");
+        }
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+
+        assert_eq!(dialog.variants.len(), 1);
+        assert_eq!(
+            dialog.variants[0],
+            ("0x01".to_string(), "WHITE".to_string())
+        );
     }
 }

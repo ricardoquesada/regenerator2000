@@ -33,7 +33,6 @@ pub(crate) mod dialog_settings;
 pub mod dialog_t64_picker;
 pub(crate) mod dialog_unpack;
 pub(crate) mod dialog_vice_connect;
-pub(crate) mod dialog_warning;
 pub(crate) mod dialog_watchpoint_address;
 pub(crate) mod graphics_common;
 pub(crate) mod menu;

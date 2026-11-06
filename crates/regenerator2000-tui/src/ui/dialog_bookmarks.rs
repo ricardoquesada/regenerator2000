@@ -29,26 +29,7 @@ impl Widget for BookmarksDialog {
         let theme = &ui_state.theme;
         let block = create_dialog_block(" Bookmarks ", theme);
 
-        // Center dialog
-        let dialog_width = 50;
-        let dialog_height = 20;
-        let area = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length((area.height.saturating_sub(dialog_height)) / 2),
-                Constraint::Length(dialog_height),
-                Constraint::Min(0),
-            ])
-            .split(area)[1];
-
-        let area = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length((area.width.saturating_sub(dialog_width)) / 2),
-                Constraint::Length(dialog_width),
-                Constraint::Min(0),
-            ])
-            .split(area)[1];
+        let area = crate::utils::centered_rect_adaptive(50, 40, 50, 20, area);
 
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
@@ -91,11 +72,6 @@ impl Widget for BookmarksDialog {
                         String::new()
                     };
 
-                    // Format: $ADDR - Name (Label)
-                    // If name is pseudo-random (default uuid), maybe show something else?
-                    // Implementation plan said "store bookmarks as map u16 -> String".
-                    // The string is the name.
-                    // If name is empty, we can just show address.
                     let display_name = if name.is_empty() { "Bookmark" } else { name };
 
                     ListItem::new(format!("${addr:04X} - {display_name}{label}"))
@@ -213,5 +189,51 @@ impl Widget for BookmarksDialog {
             }
             _ => WidgetResult::Ignored,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::KeyModifiers;
+
+    #[test]
+    fn test_bookmarks_dialog_delete_pushes_undoable_command() {
+        let mut app_state = AppState::new();
+        let addr = crate::state::Addr(0x1000);
+        let set_cmd = crate::commands::Command::SetBookmark {
+            address: addr,
+            new_name: Some("Entry".to_string()),
+            old_name: None,
+        };
+        set_cmd.apply(&mut app_state);
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.bookmarks_list_state.select(Some(0));
+        let mut dialog = BookmarksDialog::new();
+
+        let res = dialog.handle_input(
+            KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(res, WidgetResult::Handled);
+        assert!(
+            app_state
+                .annotations
+                .get(addr)
+                .and_then(|e| e.bookmark.as_ref())
+                .is_none()
+        );
+
+        let undo_msg = app_state.undo_last_command();
+        assert_eq!(undo_msg, "Undone");
+        assert_eq!(
+            app_state
+                .annotations
+                .get(addr)
+                .and_then(|e| e.bookmark.as_deref()),
+            Some("Entry")
+        );
     }
 }

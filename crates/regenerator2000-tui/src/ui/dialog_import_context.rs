@@ -65,6 +65,13 @@ impl ImportContextDialog {
     fn max_fields(&self, app_state: &AppState) -> usize {
         if self.show_unpack(app_state) { 7 } else { 6 }
     }
+
+    fn selected_system(&self) -> Option<System> {
+        self.systems
+            .get(self.selected_system_idx)
+            .cloned()
+            .map(System::from)
+    }
 }
 
 impl Widget for ImportContextDialog {
@@ -292,17 +299,14 @@ impl Widget for ImportContextDialog {
             f.render_stateful_widget(list, popup_area, &mut list_state);
         }
 
-        // Show blinking cursor at end of input
-        if origin_selected {
-            f.set_cursor_position((
-                layout[3].x + 17 + self.origin_input.len() as u16,
-                layout[3].y,
-            ));
-        } else if start_selected {
-            f.set_cursor_position((
-                layout[4].x + 22 + self.start_input.len() as u16,
-                layout[4].y,
-            ));
+        if origin_selected && layout[3].width > 17 && layout[3].height > 0 {
+            let cursor_x = (layout[3].x + 17 + self.origin_input.chars().count() as u16)
+                .min(layout[3].right().saturating_sub(1));
+            f.set_cursor_position((cursor_x, layout[3].y));
+        } else if start_selected && layout[4].width > 22 && layout[4].height > 0 {
+            let cursor_x = (layout[4].x + 22 + self.start_input.chars().count() as u16)
+                .min(layout[4].right().saturating_sub(1));
+            f.set_cursor_position((cursor_x, layout[4].y));
         }
     }
 
@@ -401,6 +405,12 @@ impl Widget for ImportContextDialog {
                 WidgetResult::Handled
             }
             KeyCode::Char(' ') | KeyCode::Enter => {
+                if key.code == KeyCode::Char(' ')
+                    && (self.active_field == 1 || self.active_field == 2)
+                {
+                    return WidgetResult::Handled;
+                }
+
                 if self.active_field == 3 {
                     self.disassemble_sequence = !self.disassemble_sequence;
                     WidgetResult::Handled
@@ -408,7 +418,9 @@ impl Widget for ImportContextDialog {
                     self.is_selecting_system = true;
                     WidgetResult::Handled
                 } else if show_unpack && self.active_field == 5 {
-                    // < Unpack > button
+                    if let Some(sys) = self.selected_system() {
+                        app_state.settings.system = sys;
+                    }
                     if let Ok(new_origin) = u16::from_str_radix(&self.origin_input, 16) {
                         app_state.origin = Addr(new_origin);
                     }
@@ -418,18 +430,16 @@ impl Widget for ImportContextDialog {
                     ui_state.set_status_message("Unpacking...");
                     WidgetResult::Action(crate::state::actions::AppAction::UnpackBinary)
                 } else if self.active_field == cancel_field {
-                    // < Cancel > button
                     WidgetResult::Close
                 } else {
-                    // < Confirm > or < Disassemble > or Enter on input fields (1, 2)
                     if let Ok(new_origin) = u16::from_str_radix(&self.origin_input, 16) {
+                        if (new_origin as usize) + app_state.raw_data.len() > 0x10000 {
+                            ui_state
+                                .set_status_message("Origin out of range: binary exceeds $FFFF");
+                            return WidgetResult::Handled;
+                        }
                         if let Ok(new_start) = u16::from_str_radix(&self.start_input, 16) {
-                            let system_name = self
-                                .systems
-                                .get(self.selected_system_idx)
-                                .cloned()
-                                .unwrap_or_default();
-                            let system = crate::state::System::from(system_name);
+                            let system = self.selected_system().unwrap_or_default();
                             let origin = Addr(new_origin);
                             let entry_addr = Addr(new_start);
                             let mode = if self.disassemble_sequence {
@@ -790,5 +800,52 @@ mod tests {
         assert_eq!(res, WidgetResult::Close);
         assert!(!app_state.disassembly.is_empty());
         assert_eq!(app_state.disassembly[0].address, Addr(0x0801));
+    }
+
+    #[test]
+    fn test_import_context_space_in_hex_fields_does_not_submit() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut dialog = ImportContextDialog::new(
+            "C64",
+            Addr(0x0801),
+            Some(Addr(0x0801)),
+            None,
+            None,
+            Option::<String>::None,
+        );
+        dialog.active_field = 1;
+        let res = dialog.handle_input(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(res, WidgetResult::Handled);
+    }
+
+    #[test]
+    fn test_import_context_rejects_origin_overflow() {
+        let mut app_state = AppState::new();
+        let _ = app_state.load_binary(Addr(0x0801), vec![0xEA; 16]);
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut dialog = ImportContextDialog::new(
+            "C64",
+            Addr(0x0801),
+            Some(Addr(0x0801)),
+            None,
+            None,
+            Option::<String>::None,
+        );
+        dialog.origin_input = "FFF8".to_string();
+        let res = dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(res, WidgetResult::Handled);
+        assert_eq!(
+            ui_state.status_message.as_deref(),
+            Some("Origin out of range: binary exceeds $FFFF")
+        );
     }
 }

@@ -196,41 +196,39 @@ impl AboutDialog {
 
 impl Widget for AboutDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+        let percent_x = 60;
+        let percent_y = 75;
+        let popup_width = area.width * percent_x / 100;
+        let popup_height = area.height * percent_y / 100;
+        let x = area.x + (area.width.saturating_sub(popup_width)) / 2;
+        let y = area.y + (area.height.saturating_sub(popup_height)) / 2;
+        let popup_area = Rect::new(x, y, popup_width, popup_height);
+        ui_state.active_dialog_area = popup_area;
+        f.render_widget(Clear, popup_area);
+
+        // ── Easter egg mode ────────────────────────────────────────────
+        if self.egg_alive() {
+            self.render_egg(f, popup_area);
+            return;
+        }
+
+        // ── Normal about dialog ────────────────────────────────────────
+        let theme = &ui_state.theme;
+        let block = crate::ui::widget::create_dialog_block(" About ", theme);
+        let inner = block.inner(popup_area);
+        f.render_widget(block, popup_area);
+
+        let chunks = ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                ratatui::layout::Constraint::Min(0),
+                ratatui::layout::Constraint::Length(6),
+            ])
+            .split(inner);
+
         if let Some(logo) = &ui_state.logo
             && let Some(_picker) = &ui_state.picker
         {
-            // Center popup (same size as normal about dialog)
-            let percent_x = 60;
-            let percent_y = 75;
-            let popup_width = area.width * percent_x / 100;
-            let popup_height = area.height * percent_y / 100;
-            let x = (area.width - popup_width) / 2;
-            let y = (area.height - popup_height) / 2;
-            let popup_area = Rect::new(x, y, popup_width, popup_height);
-            ui_state.active_dialog_area = popup_area;
-            f.render_widget(Clear, popup_area);
-
-            // ── Easter egg mode ────────────────────────────────────────────
-            if self.egg_alive() {
-                self.render_egg(f, popup_area);
-                return;
-            }
-
-            // ── Normal about dialog ────────────────────────────────────────
-            let theme = &ui_state.theme;
-            let block = crate::ui::widget::create_dialog_block(" About ", theme);
-            let inner = block.inner(popup_area);
-            f.render_widget(block, popup_area);
-
-            let chunks = ratatui::layout::Layout::default()
-                .direction(ratatui::layout::Direction::Vertical)
-                .constraints([
-                    ratatui::layout::Constraint::Min(0),
-                    ratatui::layout::Constraint::Length(6),
-                ])
-                .split(inner);
-
-            // Logo
             let img_area = chunks[0];
             let font_width = 8.0_f64;
             let font_height = 16.0_f64;
@@ -249,16 +247,17 @@ impl Widget for AboutDialog {
             if let Some(protocol) = self.protocol.borrow_mut().as_mut() {
                 f.render_stateful_widget(StatefulImage::new(), centered_area, protocol);
             }
+        }
 
-            // Text
-            let text_area = chunks[1];
-            let text = format!(
-                "Regenerator 2000 v{}\nCommit: {} ({})\n(c) Ricardo Quesada 2026\nriq / L.I.A\nA tribute to the original Regenerator, by Tom-Cat / Nostalgia",
-                env!("CARGO_PKG_VERSION"),
-                option_env!("VERGEN_GIT_SHA").unwrap_or("unknown"),
-                option_env!("VERGEN_GIT_COMMIT_DATE").unwrap_or("unknown")
-            );
-            let text_height = 5u16;
+        let text_area = chunks[1];
+        let text = format!(
+            "Regenerator 2000 v{}\nCommit: {} ({})\n(c) Ricardo Quesada 2026\nriq / L.I.A\nA tribute to the original Regenerator, by Tom-Cat / Nostalgia",
+            env!("CARGO_PKG_VERSION"),
+            option_env!("VERGEN_GIT_SHA").unwrap_or("unknown"),
+            option_env!("VERGEN_GIT_COMMIT_DATE").unwrap_or("unknown")
+        );
+        let text_height = 5u16.min(text_area.height);
+        if text_area.width > 0 && text_height > 0 {
             let text_y = text_area.y + (text_area.height.saturating_sub(text_height)) / 2;
             let centered_text_area = Rect::new(text_area.x, text_y, text_area.width, text_height);
             f.render_widget(
@@ -276,14 +275,12 @@ impl Widget for AboutDialog {
         _app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        // Auto-close once the timer has expired.
         if self.should_close_now() {
             ui_state.set_status_message("Ready");
             return WidgetResult::Close;
         }
-        // Normal close keys (only when the egg is NOT active).
-        if self.egg_start.is_none()
-            && matches!(key.code, KeyCode::Esc | KeyCode::Enter | KeyCode::Char(_))
+        if key.code == KeyCode::Esc
+            || (self.egg_start.is_none() && matches!(key.code, KeyCode::Enter | KeyCode::Char(_)))
         {
             ui_state.set_status_message("Ready");
             return WidgetResult::Close;
@@ -339,5 +336,65 @@ impl Widget for AboutDialog {
             return WidgetResult::Close;
         }
         WidgetResult::Handled
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyEvent, KeyModifiers};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_about_dialog_renders_text_when_logo_is_none() {
+        let app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.logo = None;
+        ui_state.picker = None;
+        let (tx, _rx) = mpsc::channel();
+        let dialog = AboutDialog::new(&mut ui_state, tx);
+
+        let backend = TestBackend::new(100, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(rendered.contains("Regenerator 2000"));
+        assert!(ui_state.active_dialog_area.width > 0);
+    }
+
+    #[test]
+    fn test_about_dialog_esc_closes_during_easter_egg() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let (tx, _rx) = mpsc::channel();
+        let mut dialog = AboutDialog::new(&mut ui_state, tx);
+        dialog.egg_start = Some(Instant::now());
+
+        let enter_res = dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(enter_res, WidgetResult::Handled);
+
+        let esc_res = dialog.handle_input(
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(esc_res, WidgetResult::Close);
     }
 }

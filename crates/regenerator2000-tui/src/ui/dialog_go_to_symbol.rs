@@ -5,7 +5,7 @@ use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    widgets::{List, ListItem, Paragraph},
+    widgets::{List, ListItem, ListState, Paragraph},
 };
 
 use crate::ui::widget::{Widget, WidgetResult};
@@ -23,16 +23,11 @@ impl GoToSymbolDialog {
         let mut symbols = Vec::new();
         for (addr, labels) in &app_state.labels {
             for label in labels {
-                // Focus on User and System labels, maybe skip Auto if too noisy?
-                // User requirement said "global and user-defined".
-                // I'll include User and System.
                 if label.kind != LabelKind::Auto {
                     symbols.push((addr.0, label.name.clone()));
                 }
             }
         }
-        // Also include auto labels if they have a non-default name?
-        // Actually, let's just include everything for now and see.
         symbols.sort_by_key(|a| a.1.to_lowercase());
 
         Self {
@@ -65,7 +60,6 @@ impl Widget for GoToSymbolDialog {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Go to Symbol ", theme);
 
-        // Use adaptive centered rect for the main container
         let area = crate::utils::centered_rect_adaptive(60, 60, 60, 12, area);
         ui_state.active_dialog_area = area;
 
@@ -74,7 +68,6 @@ impl Widget for GoToSymbolDialog {
 
         let inner = block.inner(area);
 
-        // Split into: Search input | Results list | Help text
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -84,7 +77,6 @@ impl Widget for GoToSymbolDialog {
             ])
             .split(inner);
 
-        // --- Search input with bordered sub-block ---
         let input_block = ratatui::widgets::Block::default()
             .borders(ratatui::widgets::Borders::ALL)
             .border_style(Style::default().fg(theme.highlight_fg))
@@ -98,10 +90,12 @@ impl Widget for GoToSymbolDialog {
         );
         f.render_widget(input_widget, layout[0]);
 
-        // Blinking cursor at end of input
-        f.set_cursor_position((layout[0].x + 1 + self.input.len() as u16, layout[0].y + 1));
+        if layout[0].width > 2 && layout[0].height > 1 {
+            let cursor_x = (layout[0].x + 1 + self.input.chars().count() as u16)
+                .min(layout[0].right().saturating_sub(2));
+            f.set_cursor_position((cursor_x, layout[0].y + 1));
+        }
 
-        // --- Results list ---
         if self.filtered_symbols.is_empty() {
             let msg = if self.input.is_empty() {
                 "No symbols defined"
@@ -116,7 +110,6 @@ impl Widget for GoToSymbolDialog {
                 )
                 .alignment(Alignment::Center);
 
-            // Vertically center the message
             let v_layout = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
@@ -145,10 +138,11 @@ impl Widget for GoToSymbolDialog {
                 .collect();
 
             let list = List::new(items).highlight_symbol(">> ");
-            f.render_widget(list, layout[1]);
+            let mut state = ListState::default();
+            state.select(Some(self.selected_index));
+            f.render_stateful_widget(list, layout[1], &mut state);
         }
 
-        // --- Help / status line ---
         let count_text = format!(
             " {} of {} symbols │ ↑↓: select │ Enter: go │ Esc: close",
             self.filtered_symbols.len(),
@@ -210,6 +204,8 @@ impl Widget for GoToSymbolDialog {
 mod tests {
     use super::*;
     use crate::state::{AppState, Label, LabelType};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use std::collections::BTreeMap;
 
     fn create_mock_app() -> AppState {
@@ -297,5 +293,41 @@ mod tests {
             &mut UIState::new(crate::theme::Theme::default()),
         );
         assert_eq!(dialog.selected_index, 2);
+    }
+
+    #[test]
+    fn test_stateful_scrolling_renders_selected_symbol() {
+        let mut app = AppState::new();
+        for i in 0..30u16 {
+            app.labels.insert(
+                crate::state::Addr(0x1000 + i),
+                vec![Label {
+                    name: format!("Sym_{i:02}"),
+                    kind: LabelKind::User,
+                    label_type: LabelType::Subroutine,
+                }],
+            );
+        }
+        let mut dialog = GoToSymbolDialog::new(&app);
+        dialog.selected_index = 29;
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app, &mut ui_state);
+            })
+            .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(rendered.contains("Sym_29"));
     }
 }

@@ -115,8 +115,10 @@ impl Widget for CompleteAddressDialog {
         );
         f.render_widget(input, area);
 
-        // Show blinking cursor at end of display text
-        f.set_cursor_position((area.x + 1 + cursor_offset, area.y + 1));
+        if area.width > 2 && area.height > 1 {
+            let cursor_x = (area.x + 1 + cursor_offset).min(area.right().saturating_sub(2));
+            f.set_cursor_position((cursor_x, area.y + 1));
+        }
     }
 
     fn handle_input(
@@ -132,7 +134,12 @@ impl Widget for CompleteAddressDialog {
             }
             KeyCode::Enter => {
                 if let Some(target_address) = self.get_complete_address() {
-                    // Create immediate format for this instruction
+                    let restore_addr = app_state
+                        .disassembly
+                        .get(ui_state.cursor_index)
+                        .map(|l| l.address);
+                    let old_sub_cursor = ui_state.sub_cursor_index;
+
                     let fmt = if self.lo_first {
                         crate::state::ImmediateFormat::LowByte(crate::state::Addr(target_address))
                     } else {
@@ -151,14 +158,25 @@ impl Widget for CompleteAddressDialog {
                     };
 
                     command.apply(app_state);
-                    app_state.push_command(command);
+                    let (analysis_cmd, _) = app_state.perform_analysis();
+                    app_state
+                        .push_command(crate::commands::Command::Batch(vec![command, analysis_cmd]));
 
-                    // Re-analyze to generate new auto-labels for Lo/Hi addresses
-                    let result = crate::analyzer::analyze(app_state);
-                    app_state.labels = result.labels;
-                    app_state.cross_refs = result.cross_refs;
-
-                    app_state.disassemble();
+                    if let Some(addr) = restore_addr
+                        && let Some(new_idx) = app_state.get_line_index_for_address(addr)
+                    {
+                        ui_state.cursor_index = new_idx;
+                        if let Some(line) = app_state.disassembly.get(new_idx) {
+                            let counts = crate::ui::view_disassembly::DisassemblyView::get_visual_line_counts(
+                                line, app_state,
+                            );
+                            if old_sub_cursor < counts.total() {
+                                ui_state.sub_cursor_index = old_sub_cursor;
+                            } else {
+                                ui_state.sub_cursor_index = 0;
+                            }
+                        }
+                    }
 
                     ui_state.set_status_message(format!("Set address: ${target_address:04X}"));
                     WidgetResult::Close
@@ -179,5 +197,53 @@ impl Widget for CompleteAddressDialog {
             }
             _ => WidgetResult::Handled,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::KeyModifiers;
+
+    #[test]
+    fn test_complete_address_batches_format_and_analysis_for_undo() {
+        let mut app_state = AppState::new();
+        app_state.origin = crate::state::Addr(0x1000);
+        // LDA #$02; NOP
+        app_state.raw_data = vec![0xA9, 0x02, 0xEA];
+        app_state.block_types = vec![crate::state::BlockType::Code; 3];
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut dialog = CompleteAddressDialog::new(0x02, true, crate::state::Addr(0x1000));
+        dialog.input = "10".to_string();
+
+        let res = dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(res, WidgetResult::Close);
+        assert_eq!(
+            app_state
+                .annotations
+                .get(crate::state::Addr(0x1000))
+                .and_then(|e| e.immediate_format),
+            Some(crate::state::ImmediateFormat::LowByte(crate::state::Addr(
+                0x1002
+            )))
+        );
+        assert!(app_state.labels.contains_key(&crate::state::Addr(0x1002)));
+
+        let undo_msg = app_state.undo_last_command();
+        assert_eq!(undo_msg, "Undone");
+        assert_eq!(
+            app_state
+                .annotations
+                .get(crate::state::Addr(0x1000))
+                .and_then(|e| e.immediate_format),
+            None
+        );
+        assert!(!app_state.labels.contains_key(&crate::state::Addr(0x1002)));
     }
 }

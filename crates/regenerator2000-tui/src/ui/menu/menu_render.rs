@@ -4,7 +4,7 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 
 pub fn render_menu(
@@ -91,16 +91,8 @@ pub fn render_menu_popup(
     menu_state: &MenuState,
     theme: &crate::theme::Theme,
 ) {
-    // Calculate position based on selected category
-    // This is a bit hacky without exact text width calculation, but we can estimate.
-    let mut x_offset = 0;
-    for i in 0..menu_state.selected_category {
-        x_offset += menu_state.categories[i].name.len() as u16 + 2; // +2 for padding
-    }
-
     let category = &menu_state.categories[menu_state.selected_category];
 
-    // Calculate dynamic width
     let mut max_name_len = 0;
     let mut max_shortcut_len = 0;
     for item in &category.items {
@@ -109,14 +101,10 @@ pub fn render_menu_popup(
             max_shortcut_len.max(item.shortcut.as_ref().map_or(0, std::string::String::len));
     }
 
-    // Width = name + spacing + shortcut + borders/padding
-    let content_width = max_name_len + 2 + max_shortcut_len; // 2 spaces gap
-    let width = (content_width as u16 + 2).max(20); // +2 for list item padding/borders, min 20
-
-    let height = category.items.len() as u16 + 2;
-
-    let area = Rect::new(top_area.x + x_offset, top_area.y + 1, width, height);
-    let area = area.intersection(f.area());
+    let content_width = max_name_len + 2 + max_shortcut_len;
+    let width = (content_width as u16 + 2).max(20);
+    let bar_area = Rect::new(top_area.x, top_area.y, top_area.width, 1);
+    let area = menu_state.popup_rect(bar_area, f.area());
 
     f.render_widget(Clear, area);
 
@@ -141,7 +129,6 @@ pub fn render_menu_popup(
 
             if item.disabled {
                 style = style.fg(theme.menu_disabled_fg).add_modifier(Modifier::DIM);
-                // If disabled but selected, maybe keep cyan bg but dim text?
                 if Some(i) == menu_state.selected_item {
                     style = Style::default()
                         .bg(theme.menu_selected_bg)
@@ -152,7 +139,6 @@ pub fn render_menu_popup(
 
             let shortcut = item.shortcut.clone().unwrap_or_default();
             let name = &item.name;
-            // Dynamic formatting
             let content = format!("{name:<max_name_len$}  {shortcut:>max_shortcut_len$}");
             ListItem::new(content).style(style)
         })
@@ -165,5 +151,10 @@ pub fn render_menu_popup(
             .style(Style::default().bg(theme.menu_bg).fg(theme.menu_fg)),
     );
 
-    f.render_widget(list, area);
+    let inner_height = (area.height as usize).saturating_sub(2);
+    let offset = menu_state.popup_scroll_offset(inner_height);
+    let mut state = ListState::default()
+        .with_offset(offset)
+        .with_selected(menu_state.selected_item);
+    f.render_stateful_widget(list, area, &mut state);
 }

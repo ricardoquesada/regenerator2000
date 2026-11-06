@@ -108,37 +108,28 @@ impl Navigable for DisassemblyView {
     }
 
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
-        if ui_state.is_visual_mode {
-            if ui_state.selection_start.is_none() {
-                ui_state.selection_start = Some(ui_state.cursor_index);
-            }
-        } else {
-            ui_state.selection_start = None;
-        }
+        navigation::sync_selection_on_move(ui_state);
         navigation::move_cursor_down(app_state, ui_state, amount);
     }
 
     fn move_up(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
-        if ui_state.is_visual_mode {
-            if ui_state.selection_start.is_none() {
-                ui_state.selection_start = Some(ui_state.cursor_index);
-            }
-        } else {
-            ui_state.selection_start = None;
-        }
+        navigation::sync_selection_on_move(ui_state);
         navigation::move_cursor_up(app_state, ui_state, amount);
     }
 
     fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
+        navigation::sync_selection_on_move(ui_state);
         navigation::page_down(app_state, ui_state, self.len(app_state));
     }
 
     fn page_up(&self, app_state: &AppState, ui_state: &mut UIState) {
+        navigation::sync_selection_on_move(ui_state);
         navigation::page_up(app_state, ui_state);
     }
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
-        navigation::jump_to(ui_state, index, self.len(app_state));
+        navigation::sync_selection_on_move(ui_state);
+        navigation::jump_to(app_state, ui_state, index, self.len(app_state));
     }
 
     fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
@@ -335,19 +326,27 @@ impl Widget for DisassemblyView {
                         return WidgetResult::Action(AppAction::ExcludeExternalAddress);
                     }
 
-                    // Priority 2: Scope removal (existing behavior)
+                    // Priority 2: Scope removal
                     let formatter = app_state.get_formatter();
-                    let is_start = formatter
-                        .format_scope_start(None)
-                        .map(|(_, m, _)| m == line.mnemonic)
-                        .unwrap_or(false);
-                    let is_end = formatter
-                        .format_scope_end()
-                        .map(|m| m == line.mnemonic)
-                        .unwrap_or(false);
+                    if !line.is_splitter()
+                        && line.external_label_address.is_none()
+                        && !line.is_enum_definition(formatter.comment_prefix())
+                    {
+                        let is_start = formatter
+                            .format_scope_start(None)
+                            .is_some_and(|(_, m, _)| m == line.mnemonic);
+                        let is_end = formatter
+                            .format_scope_end()
+                            .is_some_and(|m| m == line.mnemonic);
+                        let is_scope_boundary = app_state
+                            .annotations
+                            .scopes()
+                            .iter()
+                            .any(|(&s, &e)| line.address == s || line.address == e);
 
-                    if is_start || is_end {
-                        return WidgetResult::Action(AppAction::RemoveScope);
+                        if is_start || is_end || is_scope_boundary {
+                            return WidgetResult::Action(AppAction::RemoveScope);
+                        }
                     }
                 }
                 WidgetResult::Ignored
@@ -431,5 +430,78 @@ mod tests {
             let result = view.handle_input(key_with_shift, &mut app_state, &mut ui_state);
             assert_eq!(result, WidgetResult::Action(expected_action));
         }
+    }
+
+    #[test]
+    fn test_delete_removes_scope_in_acme_and_ignores_kick_enum_brace() {
+        use regenerator2000_core::disassembler::DisassemblyLine;
+        use regenerator2000_core::state::{Addr, Assembler, BlockType};
+
+        let mut app_state = AppState::new();
+        app_state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        app_state.block_types = vec![BlockType::Code; 4];
+        app_state.settings.assembler = Assembler::Acme;
+        app_state.annotations.update(Addr(0x1001), |e| {
+            e.scope = Some(Addr(0x1002));
+        });
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut view = DisassemblyView;
+        let del_key = KeyEvent {
+            code: KeyCode::Delete,
+            modifiers: KeyModifiers::empty(),
+            kind: crossterm::event::KeyEventKind::Press,
+            state: crossterm::event::KeyEventState::empty(),
+        };
+
+        // Cursor on the `{splitter}` at $1001 -> Ignored
+        let splitter_idx = app_state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x1001) && l.is_splitter())
+            .unwrap();
+        ui_state.cursor_index = splitter_idx;
+        assert_eq!(
+            view.handle_input(del_key, &mut app_state, &mut ui_state),
+            WidgetResult::Ignored
+        );
+
+        // Cursor on the ACME scope start instruction at $1001 -> RemoveScope
+        let start_inst_idx = app_state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x1001) && !l.is_splitter())
+            .unwrap();
+        ui_state.cursor_index = start_inst_idx;
+        assert_eq!(
+            view.handle_input(del_key, &mut app_state, &mut ui_state),
+            WidgetResult::Action(AppAction::RemoveScope)
+        );
+
+        // Cursor on a KickAssembler enum closing brace `}` at Addr::ZERO -> Ignored
+        app_state.settings.assembler = Assembler::Kick;
+        app_state.disassembly.insert(
+            0,
+            DisassemblyLine {
+                address: Addr::ZERO,
+                bytes: vec![],
+                mnemonic: "}".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+        );
+        ui_state.cursor_index = 0;
+        assert_eq!(
+            view.handle_input(del_key, &mut app_state, &mut ui_state),
+            WidgetResult::Ignored
+        );
     }
 }

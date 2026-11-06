@@ -363,11 +363,13 @@ impl MenuState {
         if count == 0 {
             return;
         }
-        let current = self.selected_item.unwrap_or(0);
-        let mut next = (current + 1) % count;
+        let mut next = match self.selected_item {
+            Some(current) => (current + 1) % count,
+            None => 0,
+        };
 
-        // Skip separators and disabled items
-        // We iterate at most `count` times to avoid infinite loop
+        // Skip separators and disabled items.
+        // Iterate at most `count` times to avoid an infinite loop.
         for _ in 0..count {
             let item = &self.categories[self.selected_category].items[next];
             if !item.is_separator && !item.disabled {
@@ -407,6 +409,63 @@ impl MenuState {
             }
         }
         self.selected_item = None;
+    }
+
+    /// Computes the screen rectangle for the active category popup menu, clamped to `term_area`.
+    #[must_use]
+    pub fn popup_rect(
+        &self,
+        bar_area: ratatui::layout::Rect,
+        term_area: ratatui::layout::Rect,
+    ) -> ratatui::layout::Rect {
+        if self.categories.is_empty() || self.selected_category >= self.categories.len() {
+            return ratatui::layout::Rect::default();
+        }
+        let mut x_offset = 0u16;
+        for i in 0..self.selected_category {
+            x_offset = x_offset.saturating_add(self.categories[i].name.len() as u16 + 2);
+        }
+
+        let category = &self.categories[self.selected_category];
+        let mut max_name_len = 0usize;
+        let mut max_shortcut_len = 0usize;
+        for item in &category.items {
+            max_name_len = max_name_len.max(item.name.len());
+            max_shortcut_len =
+                max_shortcut_len.max(item.shortcut.as_ref().map_or(0, std::string::String::len));
+        }
+
+        let content_width = max_name_len + 2 + max_shortcut_len;
+        let width = (content_width as u16 + 2).max(20);
+        let height = category.items.len() as u16 + 2;
+
+        let area = ratatui::layout::Rect::new(
+            bar_area.x.saturating_add(x_offset),
+            bar_area.y.saturating_add(1),
+            width,
+            height,
+        );
+        area.intersection(term_area)
+    }
+
+    /// Computes the vertical list scroll offset for a popup with `inner_height` visible item rows.
+    #[must_use]
+    pub fn popup_scroll_offset(&self, inner_height: usize) -> usize {
+        if inner_height == 0 || self.selected_category >= self.categories.len() {
+            return 0;
+        }
+        let total_items = self.categories[self.selected_category].items.len();
+        if total_items <= inner_height {
+            return 0;
+        }
+        let Some(selected) = self.selected_item else {
+            return 0;
+        };
+        if selected < inner_height {
+            0
+        } else {
+            (selected + 1 - inner_height).min(total_items.saturating_sub(inner_height))
+        }
     }
     pub fn update_availability(
         &mut self,

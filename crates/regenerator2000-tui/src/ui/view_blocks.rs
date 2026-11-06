@@ -118,6 +118,7 @@ impl Widget for BlocksView {
                 let blocks = app_state.get_blocks_view_items();
                 if index < blocks.len() {
                     ui_state.blocks_list_state.select(Some(index));
+                    ui_state.blocks_selected_index = Some(index);
 
                     let (target_addr, line_idx) = match &blocks[index] {
                         crate::state::BlockItem::Block { start, .. } => {
@@ -324,6 +325,9 @@ impl Widget for BlocksView {
                 let blocks = app_state.get_blocks_view_items();
                 let idx = ui_state.blocks_list_state.selected().unwrap_or(0);
                 if idx < blocks.len() {
+                    ui_state.blocks_list_state.select(Some(idx));
+                    ui_state.blocks_selected_index = Some(idx);
+
                     let (target_addr, line_idx) = match &blocks[idx] {
                         crate::state::BlockItem::Block { start, .. } => {
                             let idx = app_state.disassembly.iter().position(|line| {
@@ -447,6 +451,14 @@ mod tests {
         let res = view.handle_mouse(mouse_event, &mut app_state, &mut ui_state);
         assert_eq!(res, WidgetResult::Handled);
         assert_eq!(ui_state.blocks_list_state.selected(), Some(expected_index));
+        assert_eq!(ui_state.blocks_selected_index, Some(expected_index));
+        assert_eq!(
+            ui_state.navigation_history.last(),
+            Some(&(
+                ActivePane::Blocks,
+                regenerator2000_core::view_state::NavigationTarget::Index(expected_index)
+            ))
+        );
 
         // Now scroll to the very end (outside the scope, $1100+) and verify no scope indentation
         let last_idx = items.len() - 1;

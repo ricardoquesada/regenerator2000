@@ -133,18 +133,24 @@ pub fn handle_menu_action(
                     initial_name,
                     ..
                 } => {
-                    let is_local = core
-                        .state
-                        .labels
-                        .get(&address)
-                        .and_then(|v| v.first())
-                        .map(|l| {
-                            l.label_type == regenerator2000_core::state::LabelType::LocalUserDefined
-                        })
-                        .unwrap_or(false);
+                    let existing_label = core.state.labels.get(&address).and_then(|v| {
+                        v.iter()
+                            .find(|l| l.kind == crate::state::LabelKind::User)
+                            .or_else(|| v.first())
+                    });
+                    let is_local = existing_label.is_some_and(|l| {
+                        l.label_type == regenerator2000_core::state::LabelType::LocalUserDefined
+                    });
+                    let prefill_name = if initial_name.is_empty() {
+                        existing_label
+                            .filter(|l| l.kind == crate::state::LabelKind::User)
+                            .map_or(initial_name.as_str(), |l| l.name.as_str())
+                    } else {
+                        initial_name.as_str()
+                    };
                     ui_state.active_dialog =
                         Some(Box::new(crate::ui::dialog_label::LabelDialog::new(
-                            Some(&initial_name),
+                            Some(prefill_name),
                             address,
                             is_local,
                         )));
@@ -301,5 +307,57 @@ pub fn handle_menu_action(
                 let _ = event_tx.send(crate::events::AppEvent::McpStopRequested);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::widget::WidgetResult;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use regenerator2000_core::state::{Addr, Label, LabelKind, LabelType};
+
+    #[test]
+    fn test_set_label_preserves_local_user_label_after_auto_label() {
+        let mut core = Core::new();
+        core.state.load_binary(Addr(0x1000), vec![0xEA]).unwrap();
+        core.state.labels.insert(
+            Addr(0x1000),
+            vec![
+                Label {
+                    name: "j1000".to_string(),
+                    kind: LabelKind::Auto,
+                    label_type: LabelType::Jump,
+                },
+                Label {
+                    name: "local_loop".to_string(),
+                    kind: LabelKind::User,
+                    label_type: LabelType::LocalUserDefined,
+                },
+            ],
+        );
+        core.state.disassemble();
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.cursor_index = 0;
+        let (tx, _rx) = std::sync::mpsc::channel();
+
+        handle_menu_action(&mut core, &mut ui_state, AppAction::SetLabel, &tx);
+
+        let mut dialog = ui_state
+            .active_dialog
+            .take()
+            .expect("Expected LabelDialog to be opened");
+        let enter_key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        let result = dialog.handle_input(enter_key, &mut core.state, &mut ui_state);
+
+        assert_eq!(
+            result,
+            WidgetResult::Action(AppAction::ApplyLabel {
+                address: Addr(0x1000),
+                name: "local_loop".to_string(),
+                is_local: true,
+            })
+        );
     }
 }

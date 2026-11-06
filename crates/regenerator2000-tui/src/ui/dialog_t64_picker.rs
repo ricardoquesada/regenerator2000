@@ -100,8 +100,9 @@ impl Widget for T64FilePickerDialog {
             .iter()
             .map(|picker_entry| {
                 let entry = &picker_entry.entry;
-                let filename = if entry.filename.len() > 37 {
-                    format!("{}...", &entry.filename[..34])
+                let filename = if entry.filename.chars().count() > 37 {
+                    let prefix: String = entry.filename.chars().take(34).collect();
+                    format!("{prefix}...")
                 } else {
                     entry.filename.clone()
                 };
@@ -198,12 +199,12 @@ impl Widget for T64FilePickerDialog {
                 WidgetResult::Handled
             }
             KeyCode::Enter => {
-                if self.files.is_empty() {
+                let Some(picker_entry) = self.files.get(self.selected_index) else {
                     return WidgetResult::Handled;
-                }
+                };
 
                 // Load the selected file
-                let selected_entry = &self.files[self.selected_index].entry;
+                let selected_entry = &picker_entry.entry;
 
                 // Type 1 is normal file "PRG"
                 if selected_entry.file_type != 1 {
@@ -216,27 +217,23 @@ impl Widget for T64FilePickerDialog {
 
                 match crate::parser::t64::extract_file(&self.disk_data, selected_entry) {
                     Ok(prg_bytes) => match crate::parser::prg::parse_prg(&prg_bytes) {
-                        Ok(prg_data) => {
-                            app_state.origin = crate::state::Addr(prg_data.origin);
-                            match app_state
-                                .load_binary(crate::state::Addr(prg_data.origin), prg_data.raw_data)
-                            {
-                                Ok(mut loaded_data) => {
-                                    loaded_data.suggested_system = prg_data
-                                        .suggested_system
-                                        .or(Some(System::new(System::C64)));
-                                    loaded_data.suggested_entry_point =
-                                        prg_data.suggested_entry_point.map(crate::state::Addr);
-                                    app_state.file_path = Some(self.disk_path.clone());
-                                    ui_state.restore_session(&loaded_data, app_state);
-                                    WidgetResult::Close
-                                }
-                                Err(e) => {
-                                    ui_state.set_status_message(format!("Error loading file: {e}"));
-                                    WidgetResult::Handled
-                                }
+                        Ok(prg_data) => match app_state
+                            .load_binary(crate::state::Addr(prg_data.origin), prg_data.raw_data)
+                        {
+                            Ok(mut loaded_data) => {
+                                loaded_data.suggested_system =
+                                    prg_data.suggested_system.or(Some(System::new(System::C64)));
+                                loaded_data.suggested_entry_point =
+                                    prg_data.suggested_entry_point.map(crate::state::Addr);
+                                app_state.file_path = Some(self.disk_path.clone());
+                                ui_state.restore_session(&loaded_data, app_state);
+                                WidgetResult::Close
                             }
-                        }
+                            Err(e) => {
+                                ui_state.set_status_message(format!("Error loading file: {e}"));
+                                WidgetResult::Handled
+                            }
+                        },
                         Err(e) => {
                             ui_state.set_status_message(format!("Error parsing PRG: {e}"));
                             WidgetResult::Handled
@@ -250,5 +247,50 @@ impl Widget for T64FilePickerDialog {
             }
             _ => WidgetResult::Handled,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::{Terminal, backend::TestBackend};
+
+    #[test]
+    fn test_t64_picker_multibyte_filename_render_does_not_panic() {
+        let entry = T64Entry {
+            file_type: 1,
+            start_address: 0x0801,
+            end_address: 0x0900,
+            offset: 64,
+            filename: "█".repeat(40),
+        };
+        let dialog = T64FilePickerDialog::new(vec![entry], Vec::new(), PathBuf::from("test.t64"));
+        let app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let backend = TestBackend::new(100, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn test_t64_picker_empty_files_enter_is_handled() {
+        let mut dialog =
+            T64FilePickerDialog::new(Vec::new(), Vec::new(), PathBuf::from("empty.t64"));
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        let result = dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(result, WidgetResult::Handled);
     }
 }

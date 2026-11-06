@@ -107,6 +107,27 @@ impl ExportAsDialog {
             self.selected_index = (self.selected_index + 10).min(self.files.len() - 1);
         }
     }
+
+    #[must_use]
+    pub fn target_extension(&self) -> &'static str {
+        match self.format {
+            crate::event::ExportFormat::Asm => "asm",
+            crate::event::ExportFormat::Html => "html",
+        }
+    }
+
+    #[must_use]
+    pub fn resolve_target_path(&self, filename: &str) -> PathBuf {
+        let ext = self.target_extension();
+        let has_ext = std::path::Path::new(filename)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case(ext));
+        if has_ext {
+            self.current_dir.join(filename)
+        } else {
+            self.current_dir.join(format!("{filename}.{ext}"))
+        }
+    }
 }
 
 impl Widget for ExportAsDialog {
@@ -193,6 +214,7 @@ impl Widget for ExportAsDialog {
                         self.current_dir = prev_dir;
                         self.refresh_files();
                         self.selected_index = 0;
+                        ui_state.file_dialog_current_dir = self.current_dir.clone();
                     }
                     WidgetResult::Handled
                 }
@@ -206,9 +228,21 @@ impl Widget for ExportAsDialog {
                             self.current_dir = selected_path;
                             self.refresh_files();
                             self.selected_index = 0;
-                        } else if let Some(name) = selected_path.file_stem() {
+                            ui_state.file_dialog_current_dir = self.current_dir.clone();
+                        } else if let Some(name) = selected_path.file_name() {
+                            let target_ext = self.target_extension();
+                            let name_str = name.to_string_lossy();
+                            let stem = match name_str.rsplit_once('.') {
+                                Some((prefix, ext))
+                                    if !prefix.is_empty()
+                                        && ext.eq_ignore_ascii_case(target_ext) =>
+                                {
+                                    prefix
+                                }
+                                _ => &name_str,
+                            };
                             self.textarea = TextArea::default();
-                            self.textarea.insert_str(name.to_string_lossy());
+                            self.textarea.insert_str(stem);
                             self.textarea.move_cursor(CursorMove::End);
                             self.focus = ExportAsFocus::Filename;
                         }
@@ -223,14 +257,7 @@ impl Widget for ExportAsDialog {
                     if filename.is_empty() {
                         WidgetResult::Handled
                     } else {
-                        let mut path = self.current_dir.join(&filename);
-                        if path.extension().is_none() {
-                            let ext = match self.format {
-                                crate::event::ExportFormat::Asm => "asm",
-                                crate::event::ExportFormat::Html => "html",
-                            };
-                            path.set_extension(ext);
-                        }
+                        let path = self.resolve_target_path(&filename);
 
                         if path.exists() {
                             let action = match self.format {
@@ -395,22 +422,7 @@ impl ExportAsDialog {
 
     fn execute_export(&mut self, app_state: &mut AppState, ui_state: &mut UIState) -> WidgetResult {
         let filename = self.textarea.lines().join("").trim().to_string();
-        let mut path = self.current_dir.join(&filename);
-        if path.extension().is_none() {
-            let ext = match self.format {
-                crate::event::ExportFormat::Asm => "asm",
-                crate::event::ExportFormat::Html => "html",
-            };
-            path.set_extension(ext);
-        }
-        match self.format {
-            crate::event::ExportFormat::Asm => {
-                app_state.export_asm_path = Some(path.clone());
-            }
-            crate::event::ExportFormat::Html => {
-                app_state.export_html_path = Some(path.clone());
-            }
-        }
+        let path = self.resolve_target_path(&filename);
         let res = match self.format {
             crate::event::ExportFormat::Asm => crate::exporter::export_asm(app_state, &path),
             crate::event::ExportFormat::Html => crate::exporter::export_html(app_state, &path),
@@ -421,10 +433,12 @@ impl ExportAsDialog {
         } else {
             match self.format {
                 crate::event::ExportFormat::Asm => {
-                    app_state.last_export_asm_filename = Some(filename.clone());
+                    app_state.export_asm_path = Some(path.clone());
+                    app_state.last_export_asm_filename = Some(filename);
                 }
                 crate::event::ExportFormat::Html => {
-                    app_state.last_export_html_filename = Some(filename.clone());
+                    app_state.export_html_path = Some(path.clone());
+                    app_state.last_export_html_filename = Some(filename);
                 }
             }
             let saved_filename = path.file_name().unwrap_or_default().to_string_lossy();
@@ -498,5 +512,45 @@ mod tests {
         assert_eq!(dialog.selected_index, 4);
         dialog.page_up();
         assert_eq!(dialog.selected_index, 0);
+    }
+
+    #[test]
+    fn test_resolve_target_path_preserves_dotted_stem() {
+        let dir = PathBuf::from("/tmp");
+        let asm_dialog = ExportAsDialog::new(None, crate::event::ExportFormat::Asm, dir.clone());
+        assert_eq!(
+            asm_dialog.resolve_target_path("c64_mule.dali"),
+            dir.join("c64_mule.dali.asm")
+        );
+        assert_eq!(
+            asm_dialog.resolve_target_path("c64_mule.dali.asm"),
+            dir.join("c64_mule.dali.asm")
+        );
+
+        let html_dialog = ExportAsDialog::new(None, crate::event::ExportFormat::Html, dir.clone());
+        assert_eq!(
+            html_dialog.resolve_target_path("c64_mule.dali"),
+            dir.join("c64_mule.dali.html")
+        );
+    }
+
+    #[test]
+    fn test_select_existing_export_file_strips_only_export_extension() {
+        let dir = PathBuf::from("/tmp");
+        let mut dialog = ExportAsDialog::new(None, crate::event::ExportFormat::Asm, dir.clone());
+        dialog.files = vec![dir.join("c64_mule.dali.asm")];
+        dialog.selected_index = 0;
+        dialog.focus = ExportAsFocus::DirectoryList;
+
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+
+        assert_eq!(dialog.textarea.lines().join(""), "c64_mule.dali");
+        assert_eq!(dialog.focus, ExportAsFocus::Filename);
     }
 }

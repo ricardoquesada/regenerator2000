@@ -46,8 +46,11 @@ impl Widget for JumpToLineDialog {
         );
         f.render_widget(input, area);
 
-        // Show blinking cursor at end of input
-        f.set_cursor_position((area.x + 1 + self.input.len() as u16, area.y + 1));
+        if area.width > 2 && area.height > 1 {
+            let cursor_x = (area.x + 1 + self.input.chars().count() as u16)
+                .min(area.right().saturating_sub(2));
+            f.set_cursor_position((cursor_x, area.y + 1));
+        }
     }
 
     fn handle_input(
@@ -69,12 +72,15 @@ impl Widget for JumpToLineDialog {
                             app_state, line_num,
                         )
                     {
-                        ui_state.core.navigation_history.push((
-                            crate::ui_state::ActivePane::Disassembly,
-                            crate::ui_state::NavigationTarget::Index(ui_state.core.cursor_index),
-                        ));
-                        ui_state.cursor_index = target_idx;
-                        ui_state.set_status_message(format!("Jumped to visual line {line_num}"));
+                        let target_addr = app_state.disassembly[target_idx]
+                            .external_label_address
+                            .unwrap_or(app_state.disassembly[target_idx].address);
+                        crate::ui::navigable::jump_to_disassembly_at_line_idx(
+                            ui_state,
+                            Some(target_idx),
+                            target_addr,
+                        );
+                        ui_state.set_status_message(format!("Jumped to line {line_num}"));
                     } else {
                         ui_state.set_status_message(format!("Line {line_num} out of range"));
                     }
@@ -95,5 +101,37 @@ impl Widget for JumpToLineDialog {
             }
             _ => WidgetResult::Handled,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::KeyModifiers;
+
+    #[test]
+    fn test_jump_to_line_updates_cursor_and_history() {
+        let mut app_state = AppState::new();
+        app_state.origin = crate::state::Addr(0x1000);
+        app_state.raw_data = vec![0xEA; 10];
+        app_state.block_types = vec![crate::state::BlockType::Code; 10];
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.cursor_index = 0;
+
+        let mut dialog = JumpToLineDialog::new();
+        dialog.input = "3".to_string();
+
+        let res = dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(res, WidgetResult::Close);
+        assert_eq!(ui_state.cursor_index, 2);
+        assert_eq!(ui_state.scroll_index, 2);
+        assert_eq!(ui_state.navigation_history.len(), 1);
+        assert_eq!(ui_state.status_message.as_deref(), Some("Jumped to line 3"));
     }
 }

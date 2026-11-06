@@ -16,25 +16,7 @@ impl Widget for OpenRecentDialog {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Open Recent ", theme);
 
-        let dialog_width = 80;
-        let dialog_height = 24;
-        let area = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length((area.height.saturating_sub(dialog_height)) / 2),
-                Constraint::Length(dialog_height),
-                Constraint::Min(0),
-            ])
-            .split(area)[1];
-
-        let area = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Length((area.width.saturating_sub(dialog_width)) / 2),
-                Constraint::Length(dialog_width),
-                Constraint::Min(0),
-            ])
-            .split(area)[1];
+        let area = crate::utils::centered_rect_adaptive(80, 60, 80, 24, area);
 
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
@@ -134,7 +116,6 @@ impl Widget for OpenRecentDialog {
             KeyCode::Enter => {
                 if let Some(i) = ui_state.recent_list_state.selected() {
                     if let Some(path) = recents.get(i).cloned() {
-                        // Open the project
                         match app_state.load_file(path.clone()) {
                             Err(e) => {
                                 ui_state.set_status_message(format!("Error loading file: {e}"));
@@ -146,10 +127,6 @@ impl Widget for OpenRecentDialog {
                                     path.file_name().unwrap_or_default().to_string_lossy();
                                 ui_state.set_status_message(format!("Loaded: {filename}"));
                                 ui_state.restore_session(&loaded_data, app_state);
-                                crate::ui::dialog_warning::WarningDialog::show_if_needed(
-                                    loaded_data.entropy_warning,
-                                    ui_state,
-                                );
                             }
                         }
                         WidgetResult::Close

@@ -307,6 +307,8 @@ pub fn handle_unpack_complete(
 ) {
     match result {
         Ok(result) => {
+            ui_state.bitmap_cache.clear();
+            ui_state.bitmap_protocol = None;
             let outcome = core.state.apply_unpack_result(&result);
             regenerator2000_core::navigation::perform_jump_to_address_no_history(
                 &core.state,
@@ -1019,6 +1021,10 @@ fn dispatch_menu_action(
             ui_state.set_status_message("Failed to connect to VICE");
         }
     } else {
+        if matches!(action, crate::state::actions::AppAction::ApplyOrigin(_)) {
+            ui_state.bitmap_cache.clear();
+            ui_state.bitmap_protocol = None;
+        }
         crate::ui::menu::handle_menu_action(core, ui_state, action, event_tx);
     }
 }

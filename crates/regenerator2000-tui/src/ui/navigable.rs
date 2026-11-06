@@ -7,6 +7,11 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 /// (`DisassemblyView`, `HexDumpView`, `SpritesView`, `CharsetView`, `BitmapView`, `BlocksView`).
 pub trait Navigable {
     fn len(&self, app_state: &AppState) -> usize;
+
+    fn len_with_ui(&self, app_state: &AppState, _ui_state: &UIState) -> usize {
+        self.len(app_state)
+    }
+
     fn current_index(&self, app_state: &AppState, ui_state: &UIState) -> usize;
 
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize);
@@ -91,7 +96,7 @@ pub fn handle_nav_input<T: Navigable>(
         }
         KeyCode::End => {
             ui_state.input_buffer.clear();
-            let len = target.len(app_state);
+            let len = target.len_with_ui(app_state, ui_state);
             target.jump_to(app_state, ui_state, len.saturating_sub(1));
             WidgetResult::Handled
         }
@@ -112,7 +117,7 @@ pub fn handle_nav_input<T: Navigable>(
             ));
 
             if is_buffer_empty {
-                let len = target.len(app_state);
+                let len = target.len_with_ui(app_state, ui_state);
                 let end_idx = len.saturating_sub(1);
                 target.jump_to(app_state, ui_state, end_idx);
                 ui_state.set_status_message("Jumped to end");
@@ -131,14 +136,19 @@ pub fn handle_nav_input<T: Navigable>(
 }
 
 /// Switches focus to [`crate::ui_state::ActivePane::Disassembly`] at the line containing
-/// `target_addr`, recording the caller pane and index in `navigation_history`.
+/// `target_addr` and records the caller pane and index in `navigation_history`.
 pub fn jump_to_disassembly_at_address(
     app_state: &AppState,
     ui_state: &mut UIState,
     target_addr: crate::state::Addr,
 ) -> WidgetResult {
-    let line_idx = app_state.get_line_index_containing_address(target_addr);
-    jump_to_disassembly_at_line_idx(ui_state, line_idx, target_addr)
+    regenerator2000_core::navigation::perform_jump_to_address(
+        app_state,
+        &mut ui_state.core,
+        target_addr,
+    );
+    ui_state.sync_status_message();
+    WidgetResult::Handled
 }
 
 /// Switches focus to [`crate::ui_state::ActivePane::Disassembly`] at `line_idx` (if `Some`),
@@ -193,4 +203,51 @@ pub fn jump_to_disassembly_at_line_idx(
         ui_state.set_status_message(format!("Address ${target_addr:04X} not found"));
     }
     WidgetResult::Handled
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::{Addr, BlockType};
+    use crate::theme::Theme;
+    use crate::ui_state::ActivePane;
+
+    #[test]
+    fn test_jump_to_disassembly_at_address_skips_splitter_and_sets_sub_cursor() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        app_state.raw_data = vec![0xEA; 8];
+        app_state.block_types = vec![BlockType::Code; 8];
+        app_state.splitters.insert(Addr(0x1004));
+        app_state.annotations.update(Addr(0x1004), |e| {
+            e.user_line_comment = Some("line1\nline2".to_string());
+        });
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_pane = ActivePane::HexDump;
+        ui_state.hex_cursor_index = 3;
+
+        let res = jump_to_disassembly_at_address(&app_state, &mut ui_state, Addr(0x1004));
+        assert_eq!(res, WidgetResult::Handled);
+        assert_eq!(ui_state.active_pane, ActivePane::Disassembly);
+
+        let landed = &app_state.disassembly[ui_state.cursor_index];
+        assert_eq!(landed.address, Addr(0x1004));
+        assert!(
+            !landed.bytes.is_empty(),
+            "Jump must advance past zero-byte splitter header to the instruction line"
+        );
+        assert!(
+            ui_state.sub_cursor_index > 0,
+            "Jump must set sub_cursor_index past line comments"
+        );
+        assert_eq!(
+            ui_state.core.navigation_history,
+            vec![(
+                ActivePane::HexDump,
+                crate::ui_state::NavigationTarget::Index(3)
+            )]
+        );
+    }
 }

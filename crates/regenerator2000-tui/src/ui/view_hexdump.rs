@@ -89,6 +89,7 @@ fn sync_hex_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
             let anchor_addr = (aligned_origin
                 + sel_row * bytes_per_row
                 + ui_state.hex_selection_start_col.min(bytes_per_row - 1))
+            .max(origin)
             .min(origin + app_state.raw_data.len().saturating_sub(1))
                 as u16;
             app_state.get_line_index_containing_address(crate::state::Addr(anchor_addr))
@@ -105,6 +106,10 @@ impl Navigable for HexDumpView {
         let bytes_per_row = 16;
         let padding = (app_state.origin.0 as usize) % bytes_per_row;
         (app_state.raw_data.len() + padding).div_ceil(bytes_per_row)
+    }
+
+    fn len_with_ui(&self, app_state: &AppState, ui_state: &UIState) -> usize {
+        hex_row_count(app_state, ui_state)
     }
 
     fn current_index(&self, _app_state: &AppState, ui_state: &UIState) -> usize {
@@ -184,10 +189,12 @@ impl Widget for HexDumpView {
         match mouse.kind {
             MouseEventKind::ScrollDown => {
                 self.move_down(app_state, ui_state, 3);
+                sync_hex_to_disassembly(app_state, ui_state);
                 return WidgetResult::Handled;
             }
             MouseEventKind::ScrollUp => {
                 self.move_up(app_state, ui_state, 3);
+                sync_hex_to_disassembly(app_state, ui_state);
                 return WidgetResult::Handled;
             }
             MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => {
@@ -318,9 +325,11 @@ impl Widget for HexDumpView {
             // Hex is active: eagerly push hex cursor into the disassembly cursor so
             // the disassembly view is up to date regardless of render order.
             sync_hex_to_disassembly(app_state, ui_state);
-        } else if total_rows > 0 {
-            // Hex is passive: follow the disassembly cursor for scrolling.
-            if let Some(dline) = app_state.disassembly.get(ui_state.cursor_index) {
+        } else if total_rows > 0 && app_state.system_config.sync_hex_dump {
+            // Hex is passive: follow the disassembly cursor when sync is enabled.
+            if let Some(dline) = app_state.disassembly.get(ui_state.cursor_index)
+                && dline.external_label_address.is_none()
+            {
                 let addr = dline.address.0 as usize;
                 if addr >= aligned_origin {
                     let row = (addr - aligned_origin) / bytes_per_row;
@@ -540,8 +549,17 @@ impl Widget for HexDumpView {
         let max_col = bytes_per_row - 1;
 
         let result = match key.code {
-            // Byte-level column navigation (Left/Right / vim h/l)
-            KeyCode::Left if key.modifiers.is_empty() => {
+            // Byte-level column navigation (Left/Right and vim h/l).
+            KeyCode::Left | KeyCode::Char('h') if key.modifiers.is_empty() => {
+                ui_state.input_buffer.clear();
+                if ui_state.is_visual_mode {
+                    if ui_state.hex_selection_start.is_none() {
+                        ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
+                        ui_state.hex_selection_start_col = ui_state.hex_col_cursor;
+                    }
+                } else {
+                    ui_state.hex_selection_start = None;
+                }
                 if ui_state.hex_col_cursor > 0 {
                     ui_state.hex_col_cursor -= 1;
                 } else if ui_state.hex_cursor_index > 0 {
@@ -550,26 +568,16 @@ impl Widget for HexDumpView {
                 }
                 WidgetResult::Handled
             }
-            KeyCode::Right if key.modifiers.is_empty() => {
-                let total = hex_row_count(app_state, ui_state);
-                if ui_state.hex_col_cursor < max_col {
-                    ui_state.hex_col_cursor += 1;
-                } else if ui_state.hex_cursor_index + 1 < total {
-                    ui_state.hex_cursor_index += 1;
-                    ui_state.hex_col_cursor = 0;
+            KeyCode::Right | KeyCode::Char('l') if key.modifiers.is_empty() => {
+                ui_state.input_buffer.clear();
+                if ui_state.is_visual_mode {
+                    if ui_state.hex_selection_start.is_none() {
+                        ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
+                        ui_state.hex_selection_start_col = ui_state.hex_col_cursor;
+                    }
+                } else {
+                    ui_state.hex_selection_start = None;
                 }
-                WidgetResult::Handled
-            }
-            KeyCode::Char('h') if key.modifiers.is_empty() => {
-                if ui_state.hex_col_cursor > 0 {
-                    ui_state.hex_col_cursor -= 1;
-                } else if ui_state.hex_cursor_index > 0 {
-                    ui_state.hex_cursor_index -= 1;
-                    ui_state.hex_col_cursor = max_col;
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Char('l') if key.modifiers.is_empty() => {
                 let total = hex_row_count(app_state, ui_state);
                 if ui_state.hex_col_cursor < max_col {
                     ui_state.hex_col_cursor += 1;
@@ -671,51 +679,53 @@ impl Widget for HexDumpView {
                 WidgetResult::Action(AppAction::HexdumpViewModePrev)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
-                // Convert selected bytes (or current row if no selection) to a bytes block.
+                // Convert the selected bytes (or the current byte) to a bytes block.
                 let origin = app_state.origin.0 as usize;
                 let alignment_padding = origin % bytes_per_row;
                 let aligned_origin = origin - alignment_padding;
 
-                let (start_offset, end_offset) =
+                let (start_addr, end_addr) =
                     if let Some(sel_start_row) = ui_state.hex_selection_start {
-                        // Byte-level selection: use anchor and cursor byte addresses.
+                        // Byte-level selection: use the anchor and cursor byte addresses.
                         let anchor_addr = aligned_origin
                             + sel_start_row * bytes_per_row
                             + ui_state.hex_selection_start_col.min(max_col);
                         let cursor_addr = aligned_origin
                             + ui_state.hex_cursor_index * bytes_per_row
                             + ui_state.hex_col_cursor.min(max_col);
-                        let (s_addr, e_addr) = if anchor_addr <= cursor_addr {
+                        if anchor_addr <= cursor_addr {
                             (anchor_addr, cursor_addr)
                         } else {
                             (cursor_addr, anchor_addr)
-                        };
-                        (
-                            s_addr.saturating_sub(origin),
-                            e_addr
-                                .saturating_sub(origin)
-                                .min(app_state.raw_data.len().saturating_sub(1)),
-                        )
+                        }
                     } else {
                         // No selection: convert only the single byte under the cursor.
                         let cursor_addr = aligned_origin
                             + ui_state.hex_cursor_index * bytes_per_row
                             + ui_state.hex_col_cursor.min(max_col);
-                        let off = cursor_addr
-                            .saturating_sub(origin)
-                            .min(app_state.raw_data.len().saturating_sub(1));
-                        (off, off)
+                        (cursor_addr, cursor_addr)
                     };
 
-                // Clear selection after action (keep disassembly in sync)
+                // Clear the selection state when the range is in alignment padding.
+                if end_addr < origin || start_addr >= origin + app_state.raw_data.len() {
+                    ui_state.hex_selection_start = None;
+                    ui_state.is_visual_mode = false;
+                    ui_state.selection_start = None;
+                    return WidgetResult::Ignored;
+                }
+
+                let start_offset = start_addr.saturating_sub(origin);
+                let end_offset = end_addr
+                    .saturating_sub(origin)
+                    .min(app_state.raw_data.len().saturating_sub(1));
+
+                // Clear selection after the action to keep disassembly in sync.
                 ui_state.hex_selection_start = None;
                 ui_state.is_visual_mode = false;
                 ui_state.selection_start = None;
 
-                // Move hex cursor to the end of the newly-created bytes block so
-                // that sync_hex_to_disassembly agrees with the cursor re-anchor done
-                // in the menu handler (otherwise sync would pull cursor_index back to
-                // the wrong position on the next render).
+                // Move the hex cursor to the end of the new bytes block.
+                // This keeps sync_hex_to_disassembly aligned with the menu handler.
                 let end_abs_addr = origin + end_offset;
                 ui_state.hex_cursor_index = (end_abs_addr - aligned_origin) / bytes_per_row;
                 ui_state.hex_col_cursor = (end_abs_addr - aligned_origin) % bytes_per_row;
@@ -759,7 +769,10 @@ impl Widget for HexDumpView {
 
 #[cfg(test)]
 mod tests {
-    use super::sync_hex_to_disassembly;
+    use super::{HexDumpView, sync_hex_to_disassembly};
+    use crate::ui::widget::{Widget, WidgetResult};
+    use crate::ui_state::RightPane;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use regenerator2000_core::{
         state::{AppState, BlockType, LabelKind, LabelType},
         view_state::CoreViewState,
@@ -859,5 +872,61 @@ mod tests {
              address ($3A10); it should be the fill block at $3A00",
             landed_line.address.0,
         );
+    }
+
+    #[test]
+    fn test_hexdump8_end_key_jumps_to_final_8_byte_row() {
+        let mut app_state = AppState::new();
+        app_state
+            .load_binary(regenerator2000_core::state::Addr(0x1000), vec![0xEA; 64])
+            .unwrap();
+        let mut ui_state = crate::ui_state::UIState::new(crate::theme::Theme::default());
+        ui_state.right_pane = RightPane::HexDump8;
+
+        let mut view = HexDumpView;
+        let res = view.handle_input(
+            KeyEvent::new(KeyCode::End, KeyModifiers::empty()),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(res, WidgetResult::Handled);
+        // 64 bytes in 8-column mode = 8 rows, so last row is index 7.
+        assert_eq!(ui_state.hex_cursor_index, 7);
+    }
+
+    #[test]
+    fn test_hexdump_left_right_clears_selection_and_b_ignores_alignment_padding() {
+        let mut app_state = AppState::new();
+        app_state
+            .load_binary(regenerator2000_core::state::Addr(0x0801), vec![0xEA; 16])
+            .unwrap();
+        let mut ui_state = crate::ui_state::UIState::new(crate::theme::Theme::default());
+        let mut view = HexDumpView;
+
+        // Cell (row 0, col 0) is $0800, which is alignment padding before origin $0801.
+        ui_state.hex_cursor_index = 0;
+        ui_state.hex_col_cursor = 0;
+        let res_b = view.handle_input(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::empty()),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(res_b, WidgetResult::Ignored);
+
+        // Extend a Shift+Right selection, then verify plain Right clears it.
+        ui_state.hex_col_cursor = 1;
+        let _ = view.handle_input(
+            KeyEvent::new(KeyCode::Right, KeyModifiers::SHIFT),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(ui_state.hex_selection_start, Some(0));
+
+        let _ = view.handle_input(
+            KeyEvent::new(KeyCode::Right, KeyModifiers::empty()),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(ui_state.hex_selection_start, None);
     }
 }

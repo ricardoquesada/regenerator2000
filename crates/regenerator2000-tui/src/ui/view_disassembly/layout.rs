@@ -33,6 +33,8 @@ pub fn get_visual_line_counts(line: &DisassemblyLine, app_state: &AppState) -> V
 
 /// Returns the total number of visual terminal rows occupied by `line` ([`VisualLineCounts::total`]).
 ///
+/// Non-navigable separator lines return `0` because the renderer skips them.
+///
 /// # Arguments
 ///
 /// * `line` - Target [`DisassemblyLine`] to measure.
@@ -40,13 +42,31 @@ pub fn get_visual_line_counts(line: &DisassemblyLine, app_state: &AppState) -> V
 ///
 /// # Returns
 ///
-/// Total visual row count (`labels + comments + instruction`).
+/// Total visual row count (`labels + comments + instruction`), or `0` when `!line.is_navigable()`.
 #[must_use]
 pub fn get_visual_line_count_for_instruction(
     line: &DisassemblyLine,
     app_state: &AppState,
 ) -> usize {
+    if !line.is_navigable() {
+        return 0;
+    }
     get_visual_line_counts(line, app_state).total()
+}
+
+/// Returns the rendered visual height of `line` in terminal rows (`0` for non-navigable lines).
+///
+/// # Arguments
+///
+/// * `line` - Target [`DisassemblyLine`] to measure.
+/// * `app_state` - Application state [`AppState`].
+///
+/// # Returns
+///
+/// Rendered visual row count for `line`.
+#[must_use]
+pub fn get_line_visual_height(line: &DisassemblyLine, app_state: &AppState) -> usize {
+    get_visual_line_count_for_instruction(line, app_state)
 }
 
 /// Maps a 1-indexed visual line number across the entire disassembly listing to its
@@ -64,7 +84,10 @@ pub fn get_visual_line_count_for_instruction(
 pub fn get_index_for_visual_line(app_state: &AppState, target_line: usize) -> Option<usize> {
     let mut current_visual_line = 1;
     for (index, line) in app_state.disassembly.iter().enumerate() {
-        let lines_for_this_instruction = get_visual_line_count_for_instruction(line, app_state);
+        if !line.is_navigable() {
+            continue;
+        }
+        let lines_for_this_instruction = get_line_visual_height(line, app_state);
 
         if target_line >= current_visual_line
             && target_line < current_visual_line + lines_for_this_instruction
@@ -288,5 +311,26 @@ mod tests {
                 assert_eq!((sentinel_y - 1) as usize, expected_rows);
             }
         }
+    }
+
+    #[test]
+    fn test_non_navigable_separator_height_and_visual_line_mapping() {
+        let mut app_state = AppState::new();
+        let line0 = make_test_line(0x1000, 1, None, None);
+        let mut separator = make_test_line(0x1001, 0, None, None);
+        separator.mnemonic.clear();
+        assert!(!separator.is_navigable());
+        let line2 = make_test_line(0x1001, 1, None, None);
+
+        assert_eq!(get_line_visual_height(&separator, &app_state), 0);
+        assert_eq!(
+            get_visual_line_count_for_instruction(&separator, &app_state),
+            0
+        );
+
+        app_state.disassembly = vec![line0, separator, line2];
+        assert_eq!(get_index_for_visual_line(&app_state, 1), Some(0));
+        assert_eq!(get_index_for_visual_line(&app_state, 2), Some(2));
+        assert_eq!(get_index_for_visual_line(&app_state, 3), None);
     }
 }

@@ -110,8 +110,9 @@ impl Widget for D64FilePickerDialog {
             .iter()
             .map(|picker_entry| {
                 let entry = &picker_entry.entry;
-                let filename = if entry.filename.len() > 37 {
-                    format!("{}...", &entry.filename[..34])
+                let filename = if entry.filename.chars().count() > 37 {
+                    let prefix: String = entry.filename.chars().take(34).collect();
+                    format!("{prefix}...")
                 } else {
                     entry.filename.clone()
                 };
@@ -219,7 +220,10 @@ impl Widget for D64FilePickerDialog {
             }
             KeyCode::Enter => {
                 // Load the selected file
-                let selected_entry = &self.files[self.selected_index].entry;
+                let Some(picker_entry) = self.files.get(self.selected_index) else {
+                    return WidgetResult::Handled;
+                };
+                let selected_entry = &picker_entry.entry;
 
                 if selected_entry.file_type != FileType::PRG {
                     ui_state.set_status_message(format!(
@@ -231,38 +235,35 @@ impl Widget for D64FilePickerDialog {
 
                 match crate::parser::d64::extract_file(&self.disk_data, selected_entry) {
                     Ok(prg_bytes) => match crate::parser::prg::parse_prg(&prg_bytes) {
-                        Ok(prg_data) => {
-                            app_state.origin = crate::state::Addr(prg_data.origin);
-                            match app_state
-                                .load_binary(crate::state::Addr(prg_data.origin), prg_data.raw_data)
-                            {
-                                Ok(mut loaded_data) => {
-                                    let default_system = match selected_entry.disk_type {
-                                        crate::parser::d64::DiskType::D64 => {
-                                            Some(System::new(System::C64))
-                                        }
-                                        crate::parser::d64::DiskType::D71_70
-                                        | crate::parser::d64::DiskType::D71_80 => {
-                                            Some(System::new(System::C128))
-                                        }
-                                        crate::parser::d64::DiskType::D81 => {
-                                            Some(System::new(System::C128))
-                                        }
-                                    };
-                                    loaded_data.suggested_system =
-                                        prg_data.suggested_system.or(default_system);
-                                    loaded_data.suggested_entry_point =
-                                        prg_data.suggested_entry_point.map(crate::state::Addr);
-                                    app_state.file_path = Some(self.disk_path.clone());
-                                    ui_state.restore_session(&loaded_data, app_state);
-                                    WidgetResult::Close
-                                }
-                                Err(e) => {
-                                    ui_state.set_status_message(format!("Error loading file: {e}"));
-                                    WidgetResult::Handled
-                                }
+                        Ok(prg_data) => match app_state
+                            .load_binary(crate::state::Addr(prg_data.origin), prg_data.raw_data)
+                        {
+                            Ok(mut loaded_data) => {
+                                let default_system = match selected_entry.disk_type {
+                                    crate::parser::d64::DiskType::D64 => {
+                                        Some(System::new(System::C64))
+                                    }
+                                    crate::parser::d64::DiskType::D71_70
+                                    | crate::parser::d64::DiskType::D71_80 => {
+                                        Some(System::new(System::C128))
+                                    }
+                                    crate::parser::d64::DiskType::D81 => {
+                                        Some(System::new(System::C128))
+                                    }
+                                };
+                                loaded_data.suggested_system =
+                                    prg_data.suggested_system.or(default_system);
+                                loaded_data.suggested_entry_point =
+                                    prg_data.suggested_entry_point.map(crate::state::Addr);
+                                app_state.file_path = Some(self.disk_path.clone());
+                                ui_state.restore_session(&loaded_data, app_state);
+                                WidgetResult::Close
                             }
-                        }
+                            Err(e) => {
+                                ui_state.set_status_message(format!("Error loading file: {e}"));
+                                WidgetResult::Handled
+                            }
+                        },
                         Err(e) => {
                             ui_state.set_status_message(format!("Error parsing PRG: {e}"));
                             WidgetResult::Handled
@@ -276,5 +277,52 @@ impl Widget for D64FilePickerDialog {
             }
             _ => WidgetResult::Handled,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::d64::DiskType;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::{Terminal, backend::TestBackend};
+
+    #[test]
+    fn test_d64_picker_multibyte_filename_render_does_not_panic() {
+        let entry = D64FileEntry {
+            filename: "♠".repeat(40),
+            file_type: FileType::PRG,
+            track: 1,
+            sector: 0,
+            size_sectors: 10,
+            disk_type: DiskType::D64,
+        };
+        let dialog = D64FilePickerDialog::new(vec![entry], Vec::new(), PathBuf::from("test.d64"));
+        let app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let backend = TestBackend::new(100, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn test_d64_picker_empty_files_enter_is_handled() {
+        let mut dialog =
+            D64FilePickerDialog::new(Vec::new(), Vec::new(), PathBuf::from("empty.d64"));
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        let result = dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(result, WidgetResult::Handled);
     }
 }

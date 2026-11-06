@@ -48,6 +48,10 @@ pub struct UIState {
 
     // Bitmap cache: key is (bitmap_address, multicolor_mode, screen_ram_address)
     pub bitmap_cache: HashMap<(usize, bool, usize), DynamicImage>,
+    pub bitmap_protocol: Option<(
+        (usize, bool, usize),
+        ratatui_image::protocol::StatefulProtocol,
+    )>,
 
     // Version update notification
     pub new_version_available: Option<String>,
@@ -110,6 +114,7 @@ impl UIState {
             vim_search_active: false,
             vim_search_input: String::new(),
             bitmap_cache: HashMap::new(),
+            bitmap_protocol: None,
             theme,
 
             new_version_available: None,
@@ -165,6 +170,9 @@ impl UIState {
         loaded_data: &crate::state::LoadedProjectData,
         app_state: &crate::state::AppState,
     ) {
+        self.bitmap_cache.clear();
+        self.bitmap_protocol = None;
+
         let loaded_cursor = loaded_data.cursor_address;
         let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
         let loaded_sprites_cursor = loaded_data.sprites_cursor_address;

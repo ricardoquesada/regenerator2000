@@ -236,12 +236,18 @@ fn compute_visible_arrows(
         let mut inst = scroll_inst_idx;
         if inst < total_items {
             let line = &app_state.disassembly[inst];
-            let count = get_visual_line_count_for_instruction(line, app_state);
-            visible_rows_used += count.saturating_sub(scroll_sub_idx);
+            if line.is_navigable() {
+                let count = get_visual_line_count_for_instruction(line, app_state);
+                visible_rows_used += count.saturating_sub(scroll_sub_idx);
+            }
             inst += 1;
         }
         while inst < total_items && visible_rows_used < visible_height {
             let line = &app_state.disassembly[inst];
+            if !line.is_navigable() {
+                inst += 1;
+                continue;
+            }
             visible_rows_used += get_visual_line_count_for_instruction(line, app_state);
             inst += 1;
         }
@@ -548,8 +554,25 @@ fn build_arrow_prefix_spans(
     ]
 }
 
+/// Returns `true` when `line` can participate in a lexical scope box.
+fn is_scope_eligible_line(line: &DisassemblyLine, comment_prefix: &str) -> bool {
+    line.is_navigable()
+        && !line.is_splitter()
+        && line.external_label_address.is_none()
+        && !line.is_enum_definition(comment_prefix)
+}
+
 /// Determines whether `ctx.line` starts, ends, or lies inside a lexical scope.
 fn compute_scope_bounds(ctx: &RowRenderContext<'_>) -> ScopeBounds {
+    let comment_prefix = ctx.formatter.comment_prefix();
+    if !is_scope_eligible_line(ctx.line, comment_prefix) {
+        return ScopeBounds {
+            is_scope_start: false,
+            is_scope_end: false,
+            is_in_scope: false,
+        };
+    }
+
     let mut is_scope_start = false;
     let mut is_scope_end = false;
     let mut is_in_scope = false;
@@ -561,36 +584,38 @@ fn compute_scope_bounds(ctx: &RowRenderContext<'_>) -> ScopeBounds {
         is_in_scope = true;
     }
 
-    if !is_scope_end {
-        for (&start, &end) in ctx.app_state.annotations.scopes() {
-            if ctx.line.address == start
-                && ctx.current_inst > 0
-                && ctx.app_state.disassembly[ctx.current_inst - 1].address == start
-            {
-                is_in_scope = true;
-                break;
-            } else if ctx.line.address == start {
-                is_scope_start = true;
-                is_in_scope = true;
-                break;
-            } else if ctx.line.address == end
-                && ctx.current_inst + 1 < ctx.app_state.disassembly.len()
-                && ctx.app_state.disassembly[ctx.current_inst + 1].address == end
-            {
-                is_in_scope = true;
-                break;
-            } else if ctx.line.address == end {
-                if ctx.formatter.format_scope_end().is_some() {
-                    is_in_scope = true;
-                } else {
-                    is_scope_end = true;
-                    is_in_scope = true;
-                }
-                break;
-            } else if ctx.line.address > start && ctx.line.address < end {
-                is_in_scope = true;
-                break;
+    if !is_scope_end
+        && let Some((&start, &end)) = ctx
+            .app_state
+            .annotations
+            .scopes()
+            .range(..=ctx.line.address)
+            .next_back()
+        && ctx.line.address >= start
+        && ctx.line.address <= end
+    {
+        let has_prev_at_start = ctx.line.address == start
+            && ctx.app_state.disassembly[..ctx.current_inst]
+                .iter()
+                .rev()
+                .take_while(|l| l.address == start)
+                .any(|prev| is_scope_eligible_line(prev, comment_prefix));
+        let has_next_at_end = ctx.line.address == end
+            && ctx.app_state.disassembly[ctx.current_inst + 1..]
+                .iter()
+                .take_while(|l| l.address == end)
+                .any(|next| is_scope_eligible_line(next, comment_prefix));
+
+        if ctx.line.address == start && !has_prev_at_start {
+            is_scope_start = true;
+            is_in_scope = true;
+        } else if ctx.line.address == end {
+            is_in_scope = true;
+            if !has_next_at_end && ctx.formatter.format_scope_end().is_none() {
+                is_scope_end = true;
             }
+        } else {
+            is_in_scope = true;
         }
     }
 
@@ -1816,5 +1841,90 @@ mod tests {
             col_b, col_c,
             "Mid-instruction comment column ({col_b}) should match instruction comment column ({col_c}) via CODE_COLUMN_WIDTH = {CODE_COLUMN_WIDTH}"
         );
+    }
+
+    #[test]
+    fn test_disassemble_scope_start_splitter_and_kickasm_enum_gutter() {
+        let mut app_state = AppState::new();
+        app_state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        app_state.block_types = vec![BlockType::Code; 4];
+        app_state.settings.assembler = Assembler::Acme;
+        app_state.labels.insert(
+            Addr(0x1001),
+            vec![Label {
+                name: "twenty_four_char_label_x".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        app_state.annotations.update(Addr(0x1001), |e| {
+            e.scope = Some(Addr(0x1002));
+            e.user_line_comment = Some("scope start comment".to_string());
+        });
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        let backend = TestBackend::new(100, 15);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|f| {
+                render_disassembly(f, Rect::new(0, 0, 100, 15), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        let scope_gutter_at = |y: u16| -> String {
+            format!(
+                "{}{}",
+                buffer.cell((1, y)).map_or("", |c| c.symbol()),
+                buffer.cell((2, y)).map_or("", |c| c.symbol()),
+            )
+        };
+
+        // Row 1: $1000 NOP (outside scope) -> "  "
+        assert_eq!(scope_gutter_at(1), "  ");
+        // Row 2: $1001 {splitter} before scope -> "  "
+        assert_eq!(scope_gutter_at(2), "  ");
+        // Row 3: $1001 line comment -> "  "
+        assert_eq!(scope_gutter_at(3), "  ");
+        // Row 4: $1001 OwnLine label -> opens scope ("┌─")
+        assert_eq!(scope_gutter_at(4), "┌─");
+        // Row 5: $1001 NOP instruction -> inside scope ("│ ")
+        assert_eq!(scope_gutter_at(5), "│ ");
+        // Row 6: $1002 NOP instruction -> closes ACME scope ("└─")
+        assert_eq!(scope_gutter_at(6), "└─");
+
+        // Verify KickAssembler enum closing brace `}` at Addr::ZERO gets "  "
+        let mut kick_state = AppState::new();
+        kick_state.settings.assembler = Assembler::Kick;
+        kick_state.disassembly = vec![DisassemblyLine {
+            address: Addr::ZERO,
+            bytes: vec![],
+            mnemonic: "}".to_string(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: false,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        }];
+
+        terminal
+            .draw(|f| {
+                render_disassembly(f, Rect::new(0, 0, 100, 15), &kick_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let kick_buffer = terminal.backend().buffer();
+        let kick_gutter = format!(
+            "{}{}",
+            kick_buffer.cell((1, 1)).map_or("", |c| c.symbol()),
+            kick_buffer.cell((2, 1)).map_or("", |c| c.symbol()),
+        );
+        assert_eq!(kick_gutter, "  ");
     }
 }

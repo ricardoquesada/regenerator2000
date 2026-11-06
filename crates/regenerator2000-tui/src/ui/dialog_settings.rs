@@ -145,10 +145,13 @@ impl Widget for SettingsDialog {
             };
 
             let y = inner.y + 1 + i as u16 + group_offset(i);
-            f.render_widget(
-                Paragraph::new(item).style(style),
-                Rect::new(inner.x + 2, y, inner.width - 4, 1),
-            );
+            let width = inner.width.saturating_sub(4);
+            if y < inner.bottom() && width > 0 {
+                f.render_widget(
+                    Paragraph::new(item).style(style),
+                    Rect::new(inner.x + 2, y, width, 1),
+                );
+            }
         }
 
         // Theme Selection Popup
@@ -214,6 +217,7 @@ impl Widget for SettingsDialog {
                     let new_theme = themes[new_idx].clone();
                     app_state.system_config.theme.clone_from(&new_theme);
                     ui_state.theme = crate::theme::Theme::from_name(&new_theme);
+                    let _ = app_state.system_config.save();
                 } else {
                     self.previous();
                 }
@@ -229,6 +233,7 @@ impl Widget for SettingsDialog {
                     let new_theme = themes[new_idx].clone();
                     app_state.system_config.theme.clone_from(&new_theme);
                     ui_state.theme = crate::theme::Theme::from_name(&new_theme);
+                    let _ = app_state.system_config.save();
                 } else {
                     self.next();
                 }

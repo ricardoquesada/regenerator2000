@@ -93,6 +93,19 @@ impl SaveAsDialog {
             self.selected_index = (self.selected_index + 10).min(self.files.len() - 1);
         }
     }
+
+    #[must_use]
+    pub fn resolve_target_path(&self, filename: &str) -> PathBuf {
+        let ext = "regen2000proj";
+        let has_ext = std::path::Path::new(filename)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case(ext));
+        if has_ext {
+            self.current_dir.join(filename)
+        } else {
+            self.current_dir.join(format!("{filename}.{ext}"))
+        }
+    }
 }
 
 impl Widget for SaveAsDialog {
@@ -175,6 +188,7 @@ impl Widget for SaveAsDialog {
                         self.current_dir = prev_dir;
                         self.refresh_files();
                         self.selected_index = 0;
+                        ui_state.file_dialog_current_dir = self.current_dir.clone();
                     }
                     WidgetResult::Handled
                 }
@@ -188,9 +202,20 @@ impl Widget for SaveAsDialog {
                             self.current_dir = selected_path;
                             self.refresh_files();
                             self.selected_index = 0;
-                        } else if let Some(name) = selected_path.file_stem() {
+                            ui_state.file_dialog_current_dir = self.current_dir.clone();
+                        } else if let Some(name) = selected_path.file_name() {
+                            let name_str = name.to_string_lossy();
+                            let stem = match name_str.rsplit_once('.') {
+                                Some((prefix, ext))
+                                    if !prefix.is_empty()
+                                        && ext.eq_ignore_ascii_case("regen2000proj") =>
+                                {
+                                    prefix
+                                }
+                                _ => &name_str,
+                            };
                             self.textarea = TextArea::default();
-                            self.textarea.insert_str(name.to_string_lossy());
+                            self.textarea.insert_str(stem);
                             self.textarea.move_cursor(CursorMove::End);
                             self.focus = SaveAsFocus::Filename;
                         }
@@ -205,10 +230,7 @@ impl Widget for SaveAsDialog {
                     if filename.is_empty() {
                         WidgetResult::Handled
                     } else {
-                        let mut path = self.current_dir.join(&filename);
-                        if path.extension().is_none() {
-                            path.set_extension("regen2000proj");
-                        }
+                        let path = self.resolve_target_path(&filename);
 
                         if path.exists() {
                             let action = crate::state::actions::AppAction::SaveAs;
@@ -355,90 +377,30 @@ impl SaveAsDialog {
 
     fn execute_save(&mut self, app_state: &mut AppState, ui_state: &mut UIState) -> WidgetResult {
         let filename = self.textarea.lines().join("").trim().to_string();
-        let mut path = self.current_dir.join(&filename);
-        if path.extension().is_none() {
-            path.set_extension("regen2000proj");
-        }
+        let path = self.resolve_target_path(&filename);
 
         let saved_filename = path
             .file_name()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        app_state.project_path = Some(path);
 
-        let cursor_addr = app_state
-            .disassembly
-            .get(ui_state.cursor_index)
-            .map(|l| l.address);
+        ui_state.sync_tui_to_core();
+        let ctx = regenerator2000_core::navigation::create_save_context(app_state, &ui_state.core);
+        let old_project_path = app_state.project_path.replace(path.clone());
 
-        let hex_addr = if app_state.raw_data.is_empty() {
-            None
-        } else {
-            let origin = app_state.origin.0 as usize;
-            let alignment_padding = origin % 16;
-            let aligned_origin = origin - alignment_padding;
-            let row_start_offset = ui_state.hex_cursor_index * 16;
-            let addr = aligned_origin + row_start_offset;
-            Some(crate::state::Addr(addr as u16))
-        };
-
-        let sprites_addr = if app_state.raw_data.is_empty() {
-            None
-        } else {
-            let origin = app_state.origin.0 as usize;
-            let padding = (64 - (origin % 64)) % 64;
-            let sprite_offset = ui_state.sprites_cursor_index * 64;
-            let addr = origin + padding + sprite_offset;
-            Some(crate::state::Addr(addr as u16))
-        };
-
-        let charset_addr = if app_state.raw_data.is_empty() {
-            None
-        } else {
-            let origin = app_state.origin.0 as usize;
-            let base_alignment = 0x400;
-            let aligned_start_addr = (origin / base_alignment) * base_alignment;
-            let char_offset = ui_state.charset_cursor_index * 8;
-            let addr = aligned_start_addr + char_offset;
-            Some(crate::state::Addr(addr as u16))
-        };
-
-        let bitmap_addr = if app_state.raw_data.is_empty() {
-            None
-        } else {
-            let origin = app_state.origin.0 as usize;
-            let first_aligned_addr =
-                ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
-            let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
-            Some(crate::state::Addr(bitmap_addr as u16))
-        };
-
-        let right_pane_str = format!("{:?}", ui_state.right_pane);
-
-        if let Err(e) = app_state.save_project(
-            crate::state::ProjectSaveContext {
-                cursor_address: cursor_addr,
-                hex_dump_cursor_address: hex_addr,
-                sprites_cursor_address: sprites_addr,
-                right_pane_visible: Some(right_pane_str),
-                charset_cursor_address: charset_addr,
-                bitmap_cursor_address: bitmap_addr,
-                sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
-                charset_multicolor_mode: ui_state.charset_multicolor_mode,
-                bitmap_multicolor_mode: ui_state.bitmap_multicolor_mode,
-                hexdump_view_mode: ui_state.hexdump_view_mode,
-                splitters: app_state.splitters.clone(),
-                blocks_view_cursor: ui_state.blocks_list_state.selected(),
-            },
-            true,
-        ) {
-            ui_state.set_status_message(format!("Error saving: {e}"));
-            WidgetResult::Handled
-        } else {
-            app_state.last_save_as_filename = Some(filename.clone());
-            ui_state.set_status_message(format!("Project saved: {saved_filename}"));
-            WidgetResult::Close
+        match app_state.save_project(ctx, true) {
+            Ok(()) => {
+                app_state.project_path = Some(path);
+                app_state.last_save_as_filename = Some(filename);
+                ui_state.set_status_message(format!("Project saved: {saved_filename}"));
+                WidgetResult::Close
+            }
+            Err(e) => {
+                app_state.project_path = old_project_path;
+                ui_state.set_status_message(format!("Error saving: {e}"));
+                WidgetResult::Handled
+            }
         }
     }
 }
@@ -498,5 +460,39 @@ mod tests {
         assert_eq!(dialog.selected_index, 4);
         dialog.page_up();
         assert_eq!(dialog.selected_index, 0);
+    }
+
+    #[test]
+    fn test_resolve_target_path_preserves_dotted_stem() {
+        let dir = PathBuf::from("/tmp");
+        let dialog = SaveAsDialog::new(None, dir.clone());
+        assert_eq!(
+            dialog.resolve_target_path("c64_mule.dali"),
+            dir.join("c64_mule.dali.regen2000proj")
+        );
+        assert_eq!(
+            dialog.resolve_target_path("c64_mule.dali.regen2000proj"),
+            dir.join("c64_mule.dali.regen2000proj")
+        );
+    }
+
+    #[test]
+    fn test_select_existing_project_strips_only_project_extension() {
+        let dir = PathBuf::from("/tmp");
+        let mut dialog = SaveAsDialog::new(None, dir.clone());
+        dialog.files = vec![dir.join("c64_mule.dali.regen2000proj")];
+        dialog.selected_index = 0;
+        dialog.focus = SaveAsFocus::DirectoryList;
+
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+
+        assert_eq!(dialog.textarea.lines().join(""), "c64_mule.dali");
+        assert_eq!(dialog.focus, SaveAsFocus::Filename);
     }
 }

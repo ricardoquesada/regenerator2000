@@ -219,8 +219,9 @@ impl Widget for SearchDialog {
 
         // Regex error hint (shown when use_regex is on and pattern is invalid)
         if let Some(err) = &self.regex_error {
-            let truncated = if err.len() > 60 {
-                format!(" [!] {}…", &err[..57])
+            let truncated = if err.chars().count() > 60 {
+                let prefix: String = err.chars().take(57).collect();
+                format!(" [!] {prefix}…")
             } else {
                 format!(" [!] {err}")
             };
@@ -245,16 +246,19 @@ impl Widget for SearchDialog {
             match c {
                 'a' => {
                     self.filters.set_all();
+                    self.validate_regex();
                     return WidgetResult::Handled;
                 }
                 'n' => {
                     self.filters.set_none();
+                    self.validate_regex();
                     return WidgetResult::Handled;
                 }
                 _ => {
                     for (i, (_, shortcut_char, _)) in FILTER_INFO.iter().enumerate() {
                         if c == *shortcut_char {
                             self.filters.toggle(i);
+                            self.validate_regex();
                             return WidgetResult::Handled;
                         }
                     }
@@ -311,5 +315,71 @@ impl Widget for SearchDialog {
                 WidgetResult::Handled
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::{Terminal, backend::TestBackend};
+
+    #[test]
+    fn test_search_dialog_multibyte_regex_error_render_does_not_panic() {
+        let filters = SearchFilters {
+            use_regex: true,
+            ..Default::default()
+        };
+        let mut dialog = SearchDialog::new("[unclosed_♠".repeat(6), filters);
+        dialog.validate_regex();
+        assert!(dialog.regex_error.is_some());
+
+        let app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn test_search_dialog_alt_shortcuts_validate_regex() {
+        let filters = SearchFilters::default();
+        let mut dialog = SearchDialog::new("[unclosed", filters);
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        assert!(dialog.regex_error.is_none());
+
+        // Alt+R enables regex mode and validates the current input.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char('r'), KeyModifiers::ALT),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert!(dialog.filters.use_regex);
+        assert!(dialog.regex_error.is_some());
+
+        // Alt+R disables regex mode and clears the regex error.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char('r'), KeyModifiers::ALT),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert!(!dialog.filters.use_regex);
+        assert!(dialog.regex_error.is_none());
+
+        // Alt+R re-enables regex mode and re-validates.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char('r'), KeyModifiers::ALT),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert!(dialog.filters.use_regex);
+        assert!(dialog.regex_error.is_some());
     }
 }

@@ -29,10 +29,12 @@ pub fn handle_mouse_events(
 ) -> WidgetResult {
     match mouse.kind {
         MouseEventKind::ScrollDown => {
+            crate::ui::view_disassembly::navigation::sync_selection_on_move(ui_state);
             crate::ui::view_disassembly::navigation::move_cursor_down(app_state, ui_state, 3);
             return WidgetResult::Handled;
         }
         MouseEventKind::ScrollUp => {
+            crate::ui::view_disassembly::navigation::sync_selection_on_move(ui_state);
             crate::ui::view_disassembly::navigation::move_cursor_up(app_state, ui_state, 3);
             return WidgetResult::Handled;
         }

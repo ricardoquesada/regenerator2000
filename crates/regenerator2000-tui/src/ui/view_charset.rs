@@ -95,18 +95,11 @@ impl Navigable for CharsetView {
     }
 
     fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
-        let max_char_index = self.len(app_state);
-        let grid_cols = charset_grid_cols(ui_state);
-        // Advance by 10 lines (10 rows × grid_cols characters)
-        ui_state.charset_cursor_index =
-            (ui_state.charset_cursor_index + 10 * grid_cols).min(max_char_index.saturating_sub(1));
+        self.move_down(app_state, ui_state, 10);
     }
 
-    fn page_up(&self, _app_state: &AppState, ui_state: &mut UIState) {
-        let grid_cols = charset_grid_cols(ui_state);
-        // Move back by 10 lines (10 rows × grid_cols characters)
-        ui_state.charset_cursor_index =
-            ui_state.charset_cursor_index.saturating_sub(10 * grid_cols);
+    fn page_up(&self, app_state: &AppState, ui_state: &mut UIState) {
+        self.move_up(app_state, ui_state, 10);
     }
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
@@ -150,30 +143,27 @@ impl CharsetView {
     const ITEM_WIDTH: usize = Self::CHAR_RENDER_WIDTH + Self::COL_SPACING; // 9
     const ITEM_HEIGHT: usize = 4 + Self::ROW_SPACING; // 5
 
-    /// Compute the scroll row using scrolloff (scroll-margin) logic.
+    /// Computes the scroll row using scroll-margin logic and clamps it to `total_rows`.
     ///
-    /// The cursor can move freely within the viewport without scrolling;
-    /// the viewport only shifts when the cursor enters the margin zone
-    /// near the top or bottom edge.
-    ///
-    /// Updates `ui_state.charset_scroll_row` in place and returns the value.
-    fn compute_scroll_row(ui_state: &mut UIState, rows_fit: usize) -> usize {
+    /// Updates `ui_state.charset_scroll_row` in place and returns the clamped row.
+    fn compute_scroll_row(ui_state: &mut UIState, rows_fit: usize, total_rows: usize) -> usize {
         let grid_cols = charset_grid_cols(ui_state);
         let cursor_grid_row = ui_state.charset_cursor_index / grid_cols;
         let margin = 1_usize.min(rows_fit / 3);
 
         let mut scroll_row = ui_state.charset_scroll_row;
 
-        // Cursor too close to the bottom → scroll down
+        // Cursor too close to the bottom -> scroll down.
         if cursor_grid_row >= scroll_row + rows_fit.saturating_sub(margin) {
             scroll_row =
                 cursor_grid_row.saturating_sub(rows_fit.saturating_sub(margin).saturating_sub(1));
         }
-        // Cursor too close to the top → scroll up
+        // Cursor too close to the top -> scroll up.
         if cursor_grid_row < scroll_row + margin {
             scroll_row = cursor_grid_row.saturating_sub(margin);
         }
 
+        scroll_row = scroll_row.min(total_rows.saturating_sub(rows_fit));
         ui_state.charset_scroll_row = scroll_row;
         scroll_row
     }
@@ -295,10 +285,12 @@ impl Widget for CharsetView {
         match mouse.kind {
             MouseEventKind::ScrollDown => {
                 self.move_down(app_state, ui_state, 3);
+                sync_charset_to_disassembly(app_state, ui_state);
                 WidgetResult::Handled
             }
             MouseEventKind::ScrollUp => {
                 self.move_up(app_state, ui_state, 3);
+                sync_charset_to_disassembly(app_state, ui_state);
                 WidgetResult::Handled
             }
             MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => {
@@ -377,11 +369,11 @@ impl Widget for CharsetView {
         let end_address = origin + app_state.raw_data.len();
         let total_chars = (end_address.saturating_sub(aligned_start_addr)).div_ceil(8);
         let grid_cols = charset_grid_cols(ui_state);
+        let total_rows = total_chars.div_ceil(grid_cols);
 
-        // Scrolloff logic: cursor can move freely within the viewport;
-        // viewport only shifts when cursor enters the margin zone.
+        // Scroll-margin logic: shift viewport only when cursor enters the margin zone.
         let rows_fit = visible_rows.div_ceil(Self::ITEM_HEIGHT);
-        let scroll_row = Self::compute_scroll_row(ui_state, rows_fit);
+        let scroll_row = Self::compute_scroll_row(ui_state, rows_fit, total_rows);
 
         let end_row = scroll_row + rows_fit + 1; // Render a bit extra
 
@@ -547,40 +539,34 @@ impl Widget for CharsetView {
                     let gap_style = Style::default()
                         .bg(ui_state.theme.selection_bg)
                         .fg(ui_state.theme.selection_bg);
-                    // Top row (only when there is a gap row above)
-                    if y_pos > inner_area.y {
+                    // Draw top border only when a gap row exists above this cell.
+                    if !charset_address.is_multiple_of(2048) && y_pos > inner_area.y {
                         f.render_widget(
                             Paragraph::new(" ".repeat(10)).style(gap_style),
                             Rect::new(x_pos - 1, y_pos - 1, 10, 1),
                         );
                     }
-                    // Bottom row
-                    f.render_widget(
-                        Paragraph::new(" ".repeat(10)).style(gap_style),
-                        Rect::new(x_pos - 1, y_pos + 4, 10, 1),
-                    );
-                    // Left col
-                    f.render_widget(
-                        Paragraph::new(vec![
-                            Line::from(" "),
-                            Line::from(" "),
-                            Line::from(" "),
-                            Line::from(" "),
-                        ])
-                        .style(gap_style),
-                        Rect::new(x_pos - 1, y_pos, 1, 4),
-                    );
-                    // Right col
-                    f.render_widget(
-                        Paragraph::new(vec![
-                            Line::from(" "),
-                            Line::from(" "),
-                            Line::from(" "),
-                            Line::from(" "),
-                        ])
-                        .style(gap_style),
-                        Rect::new(x_pos + 8, y_pos, 1, 4),
-                    );
+                    // Draw bottom border only when it fits inside the inner viewport.
+                    if y_pos + 4 < inner_area.bottom() {
+                        f.render_widget(
+                            Paragraph::new(" ".repeat(10)).style(gap_style),
+                            Rect::new(x_pos - 1, y_pos + 4, 10, 1),
+                        );
+                    }
+                    // Clamp left and right border height to the inner viewport.
+                    let h = 4.min(inner_area.bottom().saturating_sub(y_pos));
+                    if h > 0 {
+                        let side_lines: Vec<Line> =
+                            (0..usize::from(h)).map(|_| Line::from(" ")).collect();
+                        f.render_widget(
+                            Paragraph::new(side_lines.clone()).style(gap_style),
+                            Rect::new(x_pos - 1, y_pos, 1, h),
+                        );
+                        f.render_widget(
+                            Paragraph::new(side_lines).style(gap_style),
+                            Rect::new(x_pos + 8, y_pos, 1, h),
+                        );
+                    }
                 }
             }
             y_offset += Self::ITEM_HEIGHT;
@@ -729,12 +715,12 @@ impl Widget for CharsetView {
                 WidgetResult::Action(AppAction::ToggleCharsetMulticolor)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
-                // Convert selected characters or current character to bytes block (8 bytes per character)
+                // Convert selected characters or current character to bytes block (8 bytes per character).
                 let origin = app_state.origin.0 as usize;
                 let base_alignment = 0x400;
                 let aligned_start_addr = (origin / base_alignment) * base_alignment;
 
-                // Determine character range based on selection
+                // Determine character range based on selection.
                 let (start_char, end_char) =
                     if let Some(sel_start) = ui_state.charset_selection_start {
                         if sel_start < ui_state.charset_cursor_index {
@@ -746,12 +732,16 @@ impl Widget for CharsetView {
                         (ui_state.charset_cursor_index, ui_state.charset_cursor_index)
                     };
 
-                let start_char_addr = aligned_start_addr + (start_char * 8);
-                let end_char_addr = aligned_start_addr + ((end_char + 1) * 8) - 1;
+                let start_addr = aligned_start_addr + (start_char * 8);
+                let end_addr = aligned_start_addr + ((end_char + 1) * 8) - 1;
 
-                // Calculate the byte offset range within raw_data
-                let start_offset = start_char_addr.saturating_sub(origin);
-                let end_offset = (end_char_addr.saturating_sub(origin))
+                if end_addr < origin || start_addr >= origin + app_state.raw_data.len() {
+                    return WidgetResult::Ignored;
+                }
+
+                // Calculate the byte offset range within raw_data.
+                let start_offset = start_addr.saturating_sub(origin);
+                let end_offset = (end_addr.saturating_sub(origin))
                     .min(app_state.raw_data.len().saturating_sub(1));
 
                 // Clear all selection state (including `selection_start` synced to Core) before
@@ -797,5 +787,74 @@ impl Widget for CharsetView {
             sync_charset_to_disassembly(app_state, ui_state);
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::{Addr, BlockType};
+    use crate::theme::Theme;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_charset_view_selecting_char_0_preserves_bank_header_row() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x2000);
+        app_state.raw_data = vec![0xAA; 64];
+        app_state.block_types = vec![BlockType::Code; 64];
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_pane = ActivePane::Charset;
+        ui_state.charset_cursor_index = 0;
+
+        let area = Rect::new(0, 0, 80, 12);
+        let backend = TestBackend::new(80, 12);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        let view = CharsetView;
+        terminal
+            .draw(|f| {
+                view.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+        let header_row: String = (1..79)
+            .map(|x| {
+                buffer
+                    .cell((x, 1))
+                    .map_or(String::new(), |c| c.symbol().to_string())
+            })
+            .collect();
+        assert!(
+            header_row.contains("Charset  4 / ($04) @ $2000"),
+            "Selecting character 0 must not overwrite the bank header row, got: '{header_row}'"
+        );
+    }
+
+    #[test]
+    fn test_charset_view_b_on_alignment_padding_before_origin_is_ignored() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0809);
+        app_state.raw_data = vec![0xEA; 32];
+        app_state.block_types = vec![BlockType::Code; 32];
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_pane = ActivePane::Charset;
+        // Character 0 spans $0800..=$0807, which is strictly before origin $0809.
+        ui_state.charset_cursor_index = 0;
+
+        let mut view = CharsetView;
+        let res = view.handle_input(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(res, WidgetResult::Ignored);
+        assert_eq!(app_state.block_types[0], BlockType::Code);
     }
 }

@@ -207,11 +207,11 @@ impl Widget for DebuggerView {
                             .as_deref()
                             .and_then(|p| p.dump_memory.as_deref());
                         for i in 0..8 {
-                            let row_addr = dump_addr + (i * 8) as u16;
                             let start_idx = i * 8;
                             let end_idx = (start_idx + 8).min(dump_bytes.len());
 
                             if start_idx < dump_bytes.len() {
+                                let row_addr = dump_addr.wrapping_add((i * 8) as u16);
                                 let mut spans =
                                     vec![Span::styled(format!("  ${row_addr:04X}  "), dim_style)];
                                 for (j, &b) in dump_bytes[start_idx..end_idx].iter().enumerate() {
@@ -785,5 +785,31 @@ mod tests {
             view.handle_input(key2, &mut app_state, &mut ui_state),
             WidgetResult::Ignored
         );
+    }
+
+    #[test]
+    fn test_debugger_view_render_high_dump_address_does_not_overflow() {
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+
+        let view = DebuggerView;
+        let mut app_state = AppState::new();
+        app_state.vice_state.connected = true;
+        app_state.vice_state.live_memory = Some(vec![0xEA; 64]);
+        app_state.vice_state.dump_address = Some(crate::state::Addr(0xFFD0).into());
+        app_state.vice_state.dump_memory = Some(vec![0x42; 64]);
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.active_pane = ActivePane::Debugger;
+
+        let area = Rect::new(0, 0, 80, 30);
+        let backend = TestBackend::new(80, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|f| {
+                view.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
     }
 }

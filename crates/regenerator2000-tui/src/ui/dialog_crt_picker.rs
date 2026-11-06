@@ -173,12 +173,8 @@ impl Widget for CrtBankPickerDialog {
             }
             KeyCode::Enter => {
                 // Load the selected chip
-                if self.selected_index < self.chips.len() {
-                    let selected_entry = &self.chips[self.selected_index];
+                if let Some(selected_entry) = self.chips.get(self.selected_index) {
                     let chip = &selected_entry.chip;
-
-                    // Set origin and raw data
-                    app_state.origin = crate::state::Addr(chip.load_address);
 
                     match app_state
                         .load_binary(crate::state::Addr(chip.load_address), chip.data.clone())

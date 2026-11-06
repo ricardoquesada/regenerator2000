@@ -93,6 +93,19 @@ impl ExportLabelsDialog {
             self.selected_index = (self.selected_index + 10).min(self.files.len() - 1);
         }
     }
+
+    #[must_use]
+    pub fn resolve_target_path(&self, filename: &str) -> PathBuf {
+        let ext = "lbl";
+        let has_ext = std::path::Path::new(filename)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case(ext));
+        if has_ext {
+            self.current_dir.join(filename)
+        } else {
+            self.current_dir.join(format!("{filename}.{ext}"))
+        }
+    }
 }
 
 impl Widget for ExportLabelsDialog {
@@ -175,6 +188,7 @@ impl Widget for ExportLabelsDialog {
                         self.current_dir = prev_dir;
                         self.refresh_files();
                         self.selected_index = 0;
+                        ui_state.file_dialog_current_dir = self.current_dir.clone();
                     }
                     WidgetResult::Handled
                 }
@@ -188,9 +202,19 @@ impl Widget for ExportLabelsDialog {
                             self.current_dir = selected_path;
                             self.refresh_files();
                             self.selected_index = 0;
-                        } else if let Some(name) = selected_path.file_stem() {
+                            ui_state.file_dialog_current_dir = self.current_dir.clone();
+                        } else if let Some(name) = selected_path.file_name() {
+                            let name_str = name.to_string_lossy();
+                            let stem = match name_str.rsplit_once('.') {
+                                Some((prefix, ext))
+                                    if !prefix.is_empty() && ext.eq_ignore_ascii_case("lbl") =>
+                                {
+                                    prefix
+                                }
+                                _ => &name_str,
+                            };
                             self.textarea = TextArea::default();
-                            self.textarea.insert_str(name.to_string_lossy());
+                            self.textarea.insert_str(stem);
                             self.textarea.move_cursor(CursorMove::End);
                             self.focus = ExportLabelsFocus::Filename;
                         }
@@ -205,10 +229,7 @@ impl Widget for ExportLabelsDialog {
                     if filename.is_empty() {
                         WidgetResult::Handled
                     } else {
-                        let mut path = self.current_dir.join(&filename);
-                        if path.extension().is_none() {
-                            path.set_extension("lbl");
-                        }
+                        let path = self.resolve_target_path(&filename);
 
                         if path.exists() {
                             self.sub_dialog = Some(Box::new(
@@ -356,13 +377,10 @@ impl ExportLabelsDialog {
 
     fn execute_export(&mut self, app_state: &mut AppState, ui_state: &mut UIState) -> WidgetResult {
         let filename = self.textarea.lines().join("").trim().to_string();
-        let mut path = self.current_dir.join(&filename);
-        if path.extension().is_none() {
-            path.set_extension("lbl");
-        }
-        app_state.last_export_labels_filename = Some(filename.clone());
+        let path = self.resolve_target_path(&filename);
         match app_state.export_vice_labels(path) {
             Ok(msg) => {
+                app_state.last_export_labels_filename = Some(filename);
                 ui_state.set_status_message(msg);
                 WidgetResult::Close
             }
@@ -429,5 +447,39 @@ mod tests {
         assert_eq!(dialog.selected_index, 4);
         dialog.page_up();
         assert_eq!(dialog.selected_index, 0);
+    }
+
+    #[test]
+    fn test_resolve_target_path_preserves_dotted_stem() {
+        let dir = PathBuf::from("/tmp");
+        let dialog = ExportLabelsDialog::new(None, dir.clone());
+        assert_eq!(
+            dialog.resolve_target_path("c64_mule.dali"),
+            dir.join("c64_mule.dali.lbl")
+        );
+        assert_eq!(
+            dialog.resolve_target_path("c64_mule.dali.lbl"),
+            dir.join("c64_mule.dali.lbl")
+        );
+    }
+
+    #[test]
+    fn test_select_existing_labels_file_strips_only_lbl_extension() {
+        let dir = PathBuf::from("/tmp");
+        let mut dialog = ExportLabelsDialog::new(None, dir.clone());
+        dialog.files = vec![dir.join("c64_mule.dali.lbl")];
+        dialog.selected_index = 0;
+        dialog.focus = ExportLabelsFocus::DirectoryList;
+
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+
+        assert_eq!(dialog.textarea.lines().join(""), "c64_mule.dali");
+        assert_eq!(dialog.focus, ExportLabelsFocus::Filename);
     }
 }

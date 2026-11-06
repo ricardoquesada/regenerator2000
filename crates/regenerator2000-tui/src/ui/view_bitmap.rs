@@ -31,14 +31,14 @@ fn calculate_screen_ram_addr(bitmap_addr: usize, mode: ScreenRamMode) -> usize {
 
 impl Navigable for BitmapView {
     fn len(&self, app_state: &AppState) -> usize {
-        // Bitmaps must be aligned to 8192-byte ($2000) boundaries
-        // We align to the floor to support partial bitmaps (padding with zeros before origin)
+        // Bitmaps must be aligned to 8192-byte ($2000) boundaries.
+        // Align to the floor to support partial bitmaps (padding with zeros before origin).
         let origin = app_state.origin.0 as usize;
         let aligned_origin = (origin / 8192) * 8192;
-        let end_address = origin + app_state.raw_data.len();
+        let end_address = (origin + app_state.raw_data.len()).min(0x10000);
 
         let total_bytes = end_address.saturating_sub(aligned_origin);
-        (total_bytes as f64 / 8192.0).ceil() as usize
+        total_bytes.div_ceil(8192)
     }
 
     fn current_index(&self, _app_state: &AppState, ui_state: &UIState) -> usize {
@@ -159,21 +159,21 @@ impl Widget for BitmapView {
         }
 
         let origin = app_state.origin.0 as usize;
-        // Align to floor boundary to support partial bitmaps (bytes before origin are zeros)
+        // Align to floor boundary to support partial bitmaps (bytes before origin are zeros).
         let aligned_origin = (origin / 8192) * 8192;
         let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
 
-        let buffer_end_address = origin + app_state.raw_data.len();
-        if bitmap_addr >= buffer_end_address {
+        let end_address = (origin + app_state.raw_data.len()).min(0x10000);
+        if bitmap_addr >= end_address {
             return;
         }
 
-        // Calculate the actual data range within this bitmap
+        // Calculate the actual data range within this 8000-byte bitmap.
         let bitmap_end = bitmap_addr + 8000;
-        let data_start_in_bitmap = origin.max(bitmap_addr);
-        let data_end_in_bitmap = buffer_end_address.min(bitmap_end);
+        let data_start_in_bitmap = origin.max(bitmap_addr).min(bitmap_end);
+        let data_end_in_bitmap = end_address.min(bitmap_end).max(data_start_in_bitmap);
 
-        // If this bitmap contains actual data, show where it starts
+        // Show the first loaded address inside the bitmap when available.
         let display_addr =
             if data_start_in_bitmap < bitmap_end && data_start_in_bitmap >= bitmap_addr {
                 data_start_in_bitmap
@@ -256,68 +256,41 @@ impl Widget for BitmapView {
             ),
         );
 
-        // --- ratatui-image integration with caching ---
+        // --- ratatui-image integration with lazy caching ---
+        let multicolor_mode = ui_state.bitmap_multicolor_mode;
+        let cache_key = (bitmap_addr, multicolor_mode, screen_ram_addr);
 
-        // Pre-cache all 17 possible screen RAM configurations for instant switching
-        // (16 bank offsets + 1 after bitmap)
-        for offset in 0..16 {
-            let test_screen_ram =
-                calculate_screen_ram_addr(bitmap_addr, ScreenRamMode::BankOffset(offset));
-            let test_key = (
-                bitmap_addr,
-                ui_state.bitmap_multicolor_mode,
-                test_screen_ram,
-            );
-            if !ui_state.bitmap_cache.contains_key(&test_key) {
-                let img = convert_to_dynamic_image(
-                    &app_state.raw_data,
-                    origin,
-                    bitmap_addr,
-                    test_screen_ram,
-                    ui_state.bitmap_multicolor_mode,
-                );
-                ui_state.bitmap_cache.insert(test_key, img);
-            }
-        }
-
-        // Also pre-cache "after bitmap" mode
-        let after_bitmap_screen_ram =
-            calculate_screen_ram_addr(bitmap_addr, ScreenRamMode::AfterBitmap);
-        let after_bitmap_key = (
-            bitmap_addr,
-            ui_state.bitmap_multicolor_mode,
-            after_bitmap_screen_ram,
-        );
-        if !ui_state.bitmap_cache.contains_key(&after_bitmap_key) {
-            let img = convert_to_dynamic_image(
+        ui_state.bitmap_cache.entry(cache_key).or_insert_with(|| {
+            convert_to_dynamic_image(
                 &app_state.raw_data,
                 origin,
                 bitmap_addr,
-                after_bitmap_screen_ram,
-                ui_state.bitmap_multicolor_mode,
-            );
-            ui_state.bitmap_cache.insert(after_bitmap_key, img);
-        }
+                screen_ram_addr,
+                multicolor_mode,
+            )
+        });
 
-        // Create cache key from bitmap address, multicolor mode, and screen RAM address
-        let cache_key = (
-            bitmap_addr,
-            ui_state.bitmap_multicolor_mode,
-            screen_ram_addr,
-        );
-
-        // Get the cached image (guaranteed to exist now)
-        if let Some(img) = ui_state.bitmap_cache.get(&cache_key) {
-            if let Some(picker) = &ui_state.picker {
-                let mut protocol = picker.new_resize_protocol(img.clone());
-                let widget = StatefulImage::new();
-                f.render_stateful_widget(widget, image_area, &mut protocol);
-            } else {
-                f.render_widget(
-                    Paragraph::new("Image rendering not supported or no picker available"),
-                    image_area,
-                );
+        if ui_state.picker.is_some() {
+            let needs_rebuild = ui_state
+                .bitmap_protocol
+                .as_ref()
+                .is_none_or(|(cached_key, _)| *cached_key != cache_key);
+            if needs_rebuild
+                && let Some(picker) = &ui_state.picker
+                && let Some(img) = ui_state.bitmap_cache.get(&cache_key)
+            {
+                let protocol = picker.new_resize_protocol(img.clone());
+                ui_state.bitmap_protocol = Some((cache_key, protocol));
             }
+            if let Some((_, proto)) = &mut ui_state.bitmap_protocol {
+                let image_widget = StatefulImage::new();
+                f.render_stateful_widget(image_widget, image_area, proto);
+            }
+        } else {
+            f.render_widget(
+                Paragraph::new("Image rendering not supported or no picker available"),
+                image_area,
+            );
         }
     }
 
@@ -372,23 +345,21 @@ impl Widget for BitmapView {
                 WidgetResult::Action(AppAction::ToggleBitmapMulticolor)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
-                // Convert current bitmap to bytes block (8000 bytes per bitmap)
+                // Convert current bitmap to bytes block (8000 bytes per bitmap).
                 let origin = app_state.origin.0 as usize;
-                // Align to floor boundary to support partial bitmaps
                 let aligned_origin = (origin / 8192) * 8192;
                 let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
-                let end_address = origin + app_state.raw_data.len();
+                let bitmap_end = bitmap_addr + 8000;
+                let end_address = (origin + app_state.raw_data.len()).min(0x10000);
 
-                // Calculate the byte offset range within raw_data (8000 bytes for bitmap data)
-                let start_addr = bitmap_addr;
-                let end_addr = bitmap_addr + 7999;
+                if bitmap_end <= origin || bitmap_addr >= end_address {
+                    return WidgetResult::Ignored;
+                }
 
-                let start_offset = start_addr.saturating_sub(origin);
-                let end_offset = if end_addr < origin {
-                    0
-                } else {
-                    end_addr.min(end_address.saturating_sub(1)) - origin
-                };
+                let start_addr = bitmap_addr.max(origin);
+                let end_addr = (bitmap_end - 1).min(end_address.saturating_sub(1));
+                let start_offset = start_addr - origin;
+                let end_offset = end_addr - origin;
 
                 if start_offset < app_state.raw_data.len() && start_offset <= end_offset {
                     WidgetResult::Action(AppAction::SetBytesBlockByOffset {
@@ -401,26 +372,18 @@ impl Widget for BitmapView {
             }
             KeyCode::Enter if key.modifiers.is_empty() => {
                 let origin = app_state.origin.0 as usize;
-                // Align to floor boundary to support partial bitmaps
+                let end_address = (origin + app_state.raw_data.len()).min(0x10000);
+                if end_address <= origin {
+                    return WidgetResult::Ignored;
+                }
                 let aligned_origin = (origin / 8192) * 8192;
                 let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
+                let display_addr = bitmap_addr.max(origin).min(end_address - 1);
 
-                // Calculate the actual displayed address (consistent with header logic)
-                let bitmap_end = bitmap_addr + 8000;
-                let data_start_in_bitmap = origin.max(bitmap_addr);
-
-                let display_addr =
-                    if data_start_in_bitmap < bitmap_end && data_start_in_bitmap >= bitmap_addr {
-                        data_start_in_bitmap
-                    } else {
-                        bitmap_addr
-                    };
-
-                let target_addr = display_addr as u16;
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
                     ui_state,
-                    crate::state::Addr(target_addr),
+                    crate::state::Addr(display_addr as u16),
                 )
             }
             _ => WidgetResult::Ignored,
@@ -547,4 +510,79 @@ fn convert_to_dynamic_image(
     }
 
     DynamicImage::ImageRgb8(rgb_img)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::{Addr, BlockType};
+    use crate::theme::Theme;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_bitmap_view_origin_in_trailing_192_bytes_clamps_padding_and_ignores_b() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1F50);
+        app_state.raw_data = vec![0xEA; 256];
+        app_state.block_types = vec![BlockType::Code; 256];
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_pane = ActivePane::Bitmap;
+        ui_state.bitmap_cursor_index = 0;
+
+        let mut view = BitmapView;
+
+        // Pressing 'b' on bitmap 0 (whose 8,000-byte payload ends at $1F40 <= origin $1F50)
+        // must be ignored and must not mutate byte 0.
+        let b_res = view.handle_input(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(b_res, WidgetResult::Ignored);
+
+        // Rendering bitmap 0 must clamp padding to 8000 bytes and lazily cache only 1 entry.
+        let area = Rect::new(0, 0, 90, 20);
+        let backend = TestBackend::new(90, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                view.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        assert_eq!(
+            ui_state.bitmap_cache.len(),
+            1,
+            "Render must lazily insert only the active screen-RAM configuration"
+        );
+
+        let buffer = terminal.backend().buffer();
+        let header_row: String = (1..89)
+            .map(|x| {
+                buffer
+                    .cell((x, 1))
+                    .map_or(String::new(), |c| c.symbol().to_string())
+            })
+            .collect();
+        assert!(
+            header_row.contains("8000 bytes: 8000 padded + 0 data"),
+            "Expected padding clamped to 8000 bytes, got: '{header_row}'"
+        );
+
+        // Pressing Enter on bitmap 0 must clamp to origin ($1F50) and jump to Disassembly.
+        let enter_res = view.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(enter_res, WidgetResult::Handled);
+        assert_eq!(ui_state.active_pane, ActivePane::Disassembly);
+        assert_eq!(
+            app_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x1F50)
+        );
+    }
 }
