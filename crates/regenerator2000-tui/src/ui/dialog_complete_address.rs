@@ -146,21 +146,7 @@ impl Widget for CompleteAddressDialog {
                         crate::state::ImmediateFormat::HighByte(crate::state::Addr(target_address))
                     };
 
-                    let old_fmt = app_state
-                        .annotations
-                        .get(self.address)
-                        .and_then(|e| e.immediate_format);
-
-                    let command = crate::commands::Command::SetImmediateFormat {
-                        address: self.address,
-                        new_format: Some(fmt),
-                        old_format: old_fmt,
-                    };
-
-                    command.apply(app_state);
-                    let (analysis_cmd, _) = app_state.perform_analysis();
-                    app_state
-                        .push_command(crate::commands::Command::Batch(vec![command, analysis_cmd]));
+                    app_state.apply_immediate_format(self.address, Some(fmt));
 
                     if let Some(addr) = restore_addr
                         && let Some(new_idx) = app_state.get_line_index_for_address(addr)

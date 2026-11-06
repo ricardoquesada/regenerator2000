@@ -337,7 +337,7 @@ impl Widget for ContainerPickerDialog {
     ) -> WidgetResult {
         match key.code {
             KeyCode::Esc => WidgetResult::Close,
-            KeyCode::Up | KeyCode::Char('k') => {
+            KeyCode::Up | KeyCode::Char('k') if key.modifiers.is_empty() => {
                 if !self.files.is_empty() {
                     if self.selected_index > 0 {
                         self.selected_index -= 1;
@@ -347,7 +347,7 @@ impl Widget for ContainerPickerDialog {
                 }
                 WidgetResult::Handled
             }
-            KeyCode::Down | KeyCode::Char('j') => {
+            KeyCode::Down | KeyCode::Char('j') if key.modifiers.is_empty() => {
                 if !self.files.is_empty() {
                     if self.selected_index < self.files.len() - 1 {
                         self.selected_index += 1;

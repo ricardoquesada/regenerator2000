@@ -429,21 +429,7 @@ impl DocumentSettingsDialog {
             .map(|l| l.address);
         let old_sub_cursor = ui_state.sub_cursor_index;
 
-        let mut new_labels = app_state.labels.clone();
-        for labels_vec in new_labels.values_mut() {
-            labels_vec.retain(|l| l.kind != crate::state::LabelKind::Auto);
-        }
-        new_labels.retain(|_, v| !v.is_empty());
-
-        let cmd = crate::commands::Command::SetAnalysisData {
-            labels: new_labels,
-            cross_refs: std::collections::BTreeMap::new(),
-            old_labels: app_state.labels.clone(),
-            old_cross_refs: app_state.cross_refs.clone(),
-        };
-        cmd.apply(app_state);
-        app_state.push_command(cmd);
-        app_state.disassemble();
+        app_state.clear_auto_analysis();
         Self::restore_cursor(app_state, ui_state, restore_addr, old_sub_cursor);
     }
 
@@ -459,16 +445,7 @@ impl DocumentSettingsDialog {
             .map(|l| l.address);
         let old_sub_cursor = ui_state.sub_cursor_index;
 
-        if reload_assets {
-            app_state.load_system_assets();
-        }
-        if reanalyze && app_state.settings.auto_analyze {
-            let (cmd, _) = app_state.perform_analysis();
-            app_state.push_command(cmd);
-        } else {
-            app_state.disassemble();
-        }
-
+        app_state.apply_settings_change(reload_assets, reanalyze);
         Self::restore_cursor(app_state, ui_state, restore_addr, old_sub_cursor);
     }
 

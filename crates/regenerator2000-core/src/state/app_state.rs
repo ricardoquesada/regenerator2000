@@ -303,6 +303,75 @@ impl AppState {
         (command, "Analysis Complete".to_string())
     }
 
+    /// Removes all auto-generated labels and cross-references, records an undoable
+    /// [`Command::SetAnalysisData`](crate::commands::Command::SetAnalysisData), and refreshes the disassembly.
+    pub fn clear_auto_analysis(&mut self) {
+        let mut new_labels = self.labels.clone();
+        for labels_vec in new_labels.values_mut() {
+            labels_vec.retain(|l| l.kind != crate::state::LabelKind::Auto);
+        }
+        new_labels.retain(|_, v| !v.is_empty());
+
+        let command = crate::commands::Command::SetAnalysisData {
+            labels: new_labels,
+            cross_refs: std::collections::BTreeMap::new(),
+            old_labels: self.labels.clone(),
+            old_cross_refs: self.cross_refs.clone(),
+        };
+        command.apply(self);
+        self.push_command(command);
+        self.disassemble();
+    }
+
+    /// Refreshes system assets, auto-analysis, and disassembly after a [`DocumentSettings`](crate::state::DocumentSettings) change.
+    pub fn apply_settings_change(&mut self, reload_assets: bool, reanalyze: bool) {
+        if reload_assets {
+            self.load_system_assets();
+        }
+        if reanalyze && self.settings.auto_analyze {
+            let (cmd, _) = self.perform_analysis();
+            self.push_command(cmd);
+        } else {
+            self.disassemble();
+        }
+    }
+
+    /// Sets the [`ImmediateFormat`](crate::state::ImmediateFormat) at `address`, runs auto-analysis,
+    /// and records an undoable batch command.
+    pub fn apply_immediate_format(
+        &mut self,
+        address: Addr,
+        new_format: Option<crate::state::ImmediateFormat>,
+    ) {
+        let old_format = self
+            .annotations
+            .get(address)
+            .and_then(|e| e.immediate_format);
+        let command = crate::commands::Command::SetImmediateFormat {
+            address,
+            new_format,
+            old_format,
+        };
+        command.apply(self);
+        let (analysis_cmd, _) = self.perform_analysis();
+        self.push_command(crate::commands::Command::Batch(vec![command, analysis_cmd]));
+    }
+
+    /// Sets or removes a bookmark at `address` and records [`Command::SetBookmark`](crate::commands::Command::SetBookmark) on the undo stack.
+    pub fn set_bookmark(&mut self, address: Addr, new_name: Option<String>) {
+        let old_name = self
+            .annotations
+            .get(address)
+            .and_then(|e| e.bookmark.clone());
+        let command = crate::commands::Command::SetBookmark {
+            address,
+            new_name,
+            old_name,
+        };
+        command.apply(self);
+        self.push_command(command);
+    }
+
     #[cfg(test)]
     pub(crate) fn reset_analysis_pass_count() {
         ANALYSIS_PASS_COUNT.with(|c| c.set(0));

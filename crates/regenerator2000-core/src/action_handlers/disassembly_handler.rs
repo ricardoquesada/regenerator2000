@@ -1187,21 +1187,14 @@ impl DomainActionHandler for DisassemblyActionHandler {
 
                         // Use a non-empty default bookmark name (`"Bookmark"`).
                         // `AnnotationManager` normalizes whitespace and removes empty strings.
-                        let command = crate::commands::Command::SetBookmark {
+                        ctx.state.set_bookmark(
                             address,
-                            new_name: if is_bookmarked {
+                            if is_bookmarked {
                                 None
                             } else {
                                 Some("Bookmark".to_string())
                             },
-                            old_name: ctx
-                                .state
-                                .annotations
-                                .get(address)
-                                .and_then(|e| e.bookmark.clone()),
-                        };
-                        command.apply(ctx.state);
-                        ctx.state.push_command(command);
+                        );
 
                         let msg = if is_bookmarked {
                             format!("Bookmark removed at ${address:04X}")

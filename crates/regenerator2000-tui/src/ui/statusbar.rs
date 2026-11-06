@@ -96,18 +96,62 @@ impl Widget for StatusBar {
             format!("{} | ", app_state.settings.assembler)
         };
 
+        let file_name = app_state
+            .file_path
+            .as_ref()
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy())
+            .unwrap_or_default();
+
+        let selection_count = match ui_state.active_pane {
+            crate::ui_state::ActivePane::HexDump => ui_state
+                .hex_selection_start
+                .map(|start_row| {
+                    let stride = match ui_state.right_pane {
+                        crate::ui_state::RightPane::HexDump8 => 8usize,
+                        _ => 16usize,
+                    };
+                    let start_pos = start_row
+                        .saturating_mul(stride)
+                        .saturating_add(ui_state.hex_selection_start_col.min(stride - 1));
+                    let cur_pos = ui_state
+                        .hex_cursor_index
+                        .saturating_mul(stride)
+                        .saturating_add(ui_state.hex_col_cursor.min(stride - 1));
+                    cur_pos.abs_diff(start_pos) + 1
+                })
+                .or_else(|| {
+                    ui_state
+                        .selection_start
+                        .map(|start| ui_state.cursor_index.abs_diff(start) + 1)
+                }),
+            crate::ui_state::ActivePane::Sprites => ui_state
+                .sprites_selection_start
+                .map(|start| ui_state.sprites_cursor_index.abs_diff(start) + 1)
+                .or_else(|| {
+                    ui_state
+                        .selection_start
+                        .map(|start| ui_state.cursor_index.abs_diff(start) + 1)
+                }),
+            crate::ui_state::ActivePane::Charset => ui_state
+                .charset_selection_start
+                .map(|start| ui_state.charset_cursor_index.abs_diff(start) + 1)
+                .or_else(|| {
+                    ui_state
+                        .selection_start
+                        .map(|start| ui_state.cursor_index.abs_diff(start) + 1)
+                }),
+            _ => ui_state
+                .selection_start
+                .map(|start| ui_state.cursor_index.abs_diff(start) + 1),
+        };
+
         let info = format!(
-            "{} | {}Cursor: ${:04X} | File: {:?}{}",
+            "{} | {}Cursor: ${:04X} | File: {file_name}{}",
             app_state.settings.system,
             block_info,
             cursor_addr,
-            app_state
-                .file_path
-                .as_ref()
-                .map(|p| p.file_name().unwrap_or_default())
-                .unwrap_or_default(),
-            if let Some(start) = ui_state.selection_start {
-                let count = (ui_state.cursor_index as isize - start as isize).abs() + 1;
+            if let Some(count) = selection_count {
                 format!(" | Selected: {count}")
             } else {
                 String::new()
@@ -177,8 +221,32 @@ mod tests {
         assert!(row_str.contains("Custom status"));
         assert!(row_str.contains("Code: $1000-$1003"));
         assert!(row_str.contains("Cursor: $1002"));
-        assert!(row_str.contains("demo.prg"));
+        assert!(row_str.contains("File: demo.prg"));
+        assert!(!row_str.contains("File: \"demo.prg\""));
         assert!(row_str.contains("Selected: 3"));
+
+        // Right-pane HexDump selection count is reflected when HexDump is active.
+        ui_state.active_pane = crate::ui_state::ActivePane::HexDump;
+        ui_state.selection_start = None;
+        ui_state.hex_selection_start = Some(0);
+        ui_state.hex_selection_start_col = 1;
+        ui_state.hex_cursor_index = 0;
+        ui_state.hex_col_cursor = 4;
+        terminal
+            .draw(|f| {
+                bar.render(f, Rect::new(0, 0, 180, 1), &app_state, &mut ui_state);
+            })
+            .unwrap();
+        let hex_row: String = (0..180)
+            .map(|x| {
+                terminal
+                    .backend()
+                    .buffer()
+                    .cell((x, 0))
+                    .map_or("", |c| c.symbol())
+            })
+            .collect();
+        assert!(hex_row.contains("Selected: 4"));
 
         // Active vim search overrides left message with "/query".
         ui_state.vim_search_active = true;

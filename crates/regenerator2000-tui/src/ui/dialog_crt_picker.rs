@@ -135,7 +135,7 @@ impl Widget for CrtBankPickerDialog {
                 // Cancel and return to file browser
                 WidgetResult::Close
             }
-            KeyCode::Up | KeyCode::Char('k') => {
+            KeyCode::Up | KeyCode::Char('k') if key.modifiers.is_empty() => {
                 if !self.chips.is_empty() {
                     if self.selected_index > 0 {
                         self.selected_index -= 1;
@@ -145,7 +145,7 @@ impl Widget for CrtBankPickerDialog {
                 }
                 WidgetResult::Handled
             }
-            KeyCode::Down | KeyCode::Char('j') => {
+            KeyCode::Down | KeyCode::Char('j') if key.modifiers.is_empty() => {
                 if !self.chips.is_empty() {
                     if self.selected_index < self.chips.len() - 1 {
                         self.selected_index += 1;

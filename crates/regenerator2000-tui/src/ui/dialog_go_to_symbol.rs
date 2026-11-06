@@ -1,6 +1,6 @@
 use crate::state::{AppState, LabelKind};
 use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -179,7 +179,11 @@ impl Widget for GoToSymbolDialog {
                     WidgetResult::Close
                 }
             }
-            KeyCode::Char(c) => {
+            KeyCode::Char(c)
+                if !key
+                    .modifiers
+                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+            {
                 self.input.push(c);
                 self.update_filter();
                 WidgetResult::Handled
@@ -339,5 +343,25 @@ mod tests {
             .map(ratatui::buffer::Cell::symbol)
             .collect();
         assert!(rendered.contains("Sym_29"));
+    }
+
+    #[test]
+    fn test_ctrl_and_alt_char_ignored() {
+        let app = create_mock_app();
+        let mut dialog = GoToSymbolDialog::new(&app);
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
+            &mut app_state,
+            &mut ui_state,
+        );
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char('f'), KeyModifiers::ALT),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert!(dialog.input.is_empty());
     }
 }

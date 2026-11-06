@@ -75,11 +75,26 @@ impl Widget for ConfirmationDialog {
         ui_state: &mut UIState,
     ) -> WidgetResult {
         match key.code {
-            KeyCode::Esc | KeyCode::Char('n') => {
+            KeyCode::Esc => {
                 ui_state.set_status_message("Action cancelled");
                 WidgetResult::Close
             }
-            KeyCode::Enter | KeyCode::Char('y') => {
+            KeyCode::Char('n' | 'N')
+                if !key.modifiers.intersects(
+                    crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT,
+                ) =>
+            {
+                ui_state.set_status_message("Action cancelled");
+                WidgetResult::Close
+            }
+            KeyCode::Enter => {
+                WidgetResult::Action(AppAction::Confirmed(Box::new(self.action.clone())))
+            }
+            KeyCode::Char('y' | 'Y')
+                if !key.modifiers.intersects(
+                    crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT,
+                ) =>
+            {
                 WidgetResult::Action(AppAction::Confirmed(Box::new(self.action.clone())))
             }
             _ => WidgetResult::Handled,
@@ -122,6 +137,24 @@ mod tests {
         assert_eq!(
             dialog.handle_input(
                 KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Action(AppAction::Confirmed(Box::new(AppAction::Exit)))
+        );
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Char('y'), KeyModifiers::CONTROL),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Char('Y'), KeyModifiers::SHIFT),
                 &mut app_state,
                 &mut ui_state,
             ),

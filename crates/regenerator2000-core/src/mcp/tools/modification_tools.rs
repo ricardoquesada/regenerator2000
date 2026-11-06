@@ -454,18 +454,7 @@ pub(crate) fn set_immediate_format_impl(
         }
     };
 
-    let command = Command::SetImmediateFormat {
-        address,
-        new_format: Some(format),
-        old_format: app_state
-            .annotations
-            .get(address)
-            .and_then(|e| e.immediate_format),
-    };
-
-    command.apply(app_state);
-    let (analysis_cmd, _) = app_state.perform_analysis();
-    app_state.push_command(Command::Batch(vec![analysis_cmd, command]));
+    app_state.apply_immediate_format(address, Some(format));
 
     Ok(())
 }

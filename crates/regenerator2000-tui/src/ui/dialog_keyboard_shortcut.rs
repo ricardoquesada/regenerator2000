@@ -223,11 +223,11 @@ impl Widget for ShortcutsDialog {
                 ui_state.set_status_message("Ready");
                 WidgetResult::Close
             }
-            KeyCode::Down | KeyCode::Char('j') => {
+            KeyCode::Down | KeyCode::Char('j') if key.modifiers.is_empty() => {
                 self.scroll_down();
                 WidgetResult::Handled
             }
-            KeyCode::Up | KeyCode::Char('k') => {
+            KeyCode::Up | KeyCode::Char('k') if key.modifiers.is_empty() => {
                 self.scroll_up();
                 WidgetResult::Handled
             }

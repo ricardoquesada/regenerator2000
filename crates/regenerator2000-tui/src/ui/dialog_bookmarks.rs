@@ -158,16 +158,7 @@ impl Widget for BookmarksDialog {
                 if let Some(i) = ui_state.bookmarks_list_state.selected()
                     && let Some(&addr) = bookmarks.get(i)
                 {
-                    let command = crate::commands::Command::SetBookmark {
-                        address: addr,
-                        new_name: None,
-                        old_name: app_state
-                            .annotations
-                            .get(addr)
-                            .and_then(|e| e.bookmark.clone()),
-                    };
-                    command.apply(app_state);
-                    app_state.push_command(command);
+                    app_state.set_bookmark(addr, None);
 
                     // Adjust selection
                     let bookmarks_len = app_state
@@ -201,12 +192,7 @@ mod tests {
     fn test_bookmarks_dialog_delete_pushes_undoable_command() {
         let mut app_state = AppState::new();
         let addr = crate::state::Addr(0x1000);
-        let set_cmd = crate::commands::Command::SetBookmark {
-            address: addr,
-            new_name: Some("Entry".to_string()),
-            old_name: None,
-        };
-        set_cmd.apply(&mut app_state);
+        app_state.set_bookmark(addr, Some("Entry".to_string()));
 
         let mut ui_state = UIState::new(crate::theme::Theme::default());
         ui_state.bookmarks_list_state.select(Some(0));

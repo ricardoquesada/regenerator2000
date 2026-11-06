@@ -9,7 +9,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
 use ratatui_textarea::TextArea;
-use regenerator2000_core::state::{Addr, AppState, EnumDefinition};
+use regenerator2000_core::state::{AppState, EnumDefinition};
 
 pub struct EditEnumDialog {
     original_def: Option<EnumDefinition>,
@@ -73,7 +73,7 @@ impl Widget for EditEnumDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         if let Some(sub) = &self.sub_dialog {
             self.render_background(f, area, app_state, ui_state);
-            sub.render(f, area, app_state, ui_state);
+            sub.render(f, area, ui_state);
             return;
         }
         self.render_background(f, area, app_state, ui_state);
@@ -87,51 +87,43 @@ impl Widget for EditEnumDialog {
     ) -> WidgetResult {
         // Delegate inputs to sub-dialog if active
         if let Some(sub) = &mut self.sub_dialog {
-            let res = sub.handle_input(key, app_state, ui_state);
-            match res {
-                WidgetResult::Close => {
+            match sub.handle_input(key, ui_state) {
+                AddVariantResult::Close => {
                     self.sub_dialog = None;
                     return WidgetResult::Handled;
                 }
-                WidgetResult::Action(AppAction::Confirmed(box_action)) => {
-                    if let AppAction::ApplyComment {
-                        text: value,
-                        address: Addr(key_num),
-                        ..
-                    } = *box_action
+                AddVariantResult::Submit(key_num, value) => {
+                    let key_str = format!("0x{key_num:02X}");
+                    let is_edit = sub.is_edit;
+                    self.sub_dialog = None;
+                    if is_edit
+                        && let Some(sel) = self.list_state.selected()
+                        && sel < self.variants.len()
                     {
-                        let key_str = format!("0x{key_num:02X}");
-                        let is_edit = self.sub_dialog.as_ref().is_some_and(|s| s.is_edit);
-                        if is_edit
-                            && let Some(sel) = self.list_state.selected()
-                            && sel < self.variants.len()
+                        self.variants[sel] = (key_str, value);
+                        if let Some(dup_idx) =
+                            self.variants.iter().enumerate().position(|(i, (k, _))| {
+                                i != sel && parse_variant_key(k) == Ok(key_num)
+                            })
                         {
-                            self.variants[sel] = (key_str, value);
-                            if let Some(dup_idx) =
-                                self.variants.iter().enumerate().position(|(i, (k, _))| {
-                                    i != sel && parse_variant_key(k) == Ok(key_num)
-                                })
-                            {
-                                self.variants.remove(dup_idx);
-                                let new_sel = if dup_idx < sel { sel - 1 } else { sel };
-                                self.list_state.select(Some(new_sel));
-                            }
-                        } else if let Some(existing_idx) = self
-                            .variants
-                            .iter()
-                            .position(|(k, _)| parse_variant_key(k) == Ok(key_num))
-                        {
-                            self.variants[existing_idx] = (key_str, value);
-                            self.list_state.select(Some(existing_idx));
-                        } else {
-                            self.variants.push((key_str, value));
-                            self.list_state.select(Some(self.variants.len() - 1));
+                            self.variants.remove(dup_idx);
+                            let new_sel = if dup_idx < sel { sel - 1 } else { sel };
+                            self.list_state.select(Some(new_sel));
                         }
+                    } else if let Some(existing_idx) = self
+                        .variants
+                        .iter()
+                        .position(|(k, _)| parse_variant_key(k) == Ok(key_num))
+                    {
+                        self.variants[existing_idx] = (key_str, value);
+                        self.list_state.select(Some(existing_idx));
+                    } else {
+                        self.variants.push((key_str, value));
+                        self.list_state.select(Some(self.variants.len() - 1));
                     }
-                    self.sub_dialog = None;
                     return WidgetResult::Handled;
                 }
-                _ => return WidgetResult::Handled,
+                AddVariantResult::Handled => return WidgetResult::Handled,
             }
         }
 
@@ -412,7 +404,13 @@ impl EditEnumDialog {
 // =============================================================================
 // Nested Add/Edit Variant row Dialog
 // =============================================================================
-pub struct AddVariantDialog {
+enum AddVariantResult {
+    Handled,
+    Close,
+    Submit(u16, String),
+}
+
+struct AddVariantDialog {
     is_edit: bool,
     key_ta: TextArea<'static>,
     val_ta: TextArea<'static>,
@@ -441,10 +439,8 @@ impl AddVariantDialog {
             active_focus: if is_edit { 1 } else { 0 },
         }
     }
-}
 
-impl Widget for AddVariantDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+    fn render(&self, f: &mut Frame, area: Rect, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let title = if self.is_edit {
             " Edit Variant "
@@ -506,21 +502,16 @@ impl Widget for AddVariantDialog {
         f.render_widget(helpers, layout[2]);
     }
 
-    fn handle_input(
-        &mut self,
-        key: KeyEvent,
-        _app_state: &mut AppState,
-        ui_state: &mut UIState,
-    ) -> WidgetResult {
+    fn handle_input(&mut self, key: KeyEvent, ui_state: &mut UIState) -> AddVariantResult {
         match key.code {
-            KeyCode::Esc => WidgetResult::Close,
+            KeyCode::Esc => AddVariantResult::Close,
             KeyCode::Tab => {
                 self.active_focus = (self.active_focus + 1) % 2;
-                WidgetResult::Handled
+                AddVariantResult::Handled
             }
             KeyCode::BackTab => {
                 self.active_focus = if self.active_focus == 0 { 1 } else { 0 };
-                WidgetResult::Handled
+                AddVariantResult::Handled
             }
             KeyCode::Enter => {
                 let key_str = self.key_ta.lines().join("").trim().to_string();
@@ -528,22 +519,16 @@ impl Widget for AddVariantDialog {
 
                 if key_str.is_empty() || val_str.is_empty() {
                     ui_state.set_status_message("Error: Both fields must be filled.");
-                    return WidgetResult::Handled;
+                    return AddVariantResult::Handled;
                 }
 
                 match parse_variant_key(&key_str) {
-                    Ok(val) => WidgetResult::Action(AppAction::Confirmed(Box::new(
-                        AppAction::ApplyComment {
-                            address: Addr(val),
-                            text: val_str,
-                            kind: regenerator2000_core::state::types::CommentKind::Side,
-                        },
-                    ))),
+                    Ok(val) => AddVariantResult::Submit(val, val_str),
                     Err(_) => {
                         ui_state.set_status_message(
                             "Error: Key must be a valid number (dec or hex 0x/$).",
                         );
-                        WidgetResult::Handled
+                        AddVariantResult::Handled
                     }
                 }
             }
@@ -553,7 +538,7 @@ impl Widget for AddVariantDialog {
                 } else {
                     self.val_ta.input(key);
                 }
-                WidgetResult::Handled
+                AddVariantResult::Handled
             }
         }
     }

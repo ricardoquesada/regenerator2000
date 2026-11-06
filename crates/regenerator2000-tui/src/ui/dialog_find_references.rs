@@ -147,11 +147,11 @@ impl Widget for FindReferencesDialog {
                 ui_state.set_status_message("Ready");
                 WidgetResult::Close
             }
-            KeyCode::Down | KeyCode::Char('j') => {
+            KeyCode::Down | KeyCode::Char('j') if key.modifiers.is_empty() => {
                 self.next();
                 WidgetResult::Handled
             }
-            KeyCode::Up | KeyCode::Char('k') => {
+            KeyCode::Up | KeyCode::Char('k') if key.modifiers.is_empty() => {
                 self.previous();
                 WidgetResult::Handled
             }

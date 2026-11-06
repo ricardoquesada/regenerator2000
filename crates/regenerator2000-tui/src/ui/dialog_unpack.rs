@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui_state::{AppAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -140,7 +140,13 @@ impl Widget for UnpackDialog {
                     Style::default().fg(theme.dialog_fg)
                 },
             ),
-            Span::styled(" (blank for $0800)", Style::default().fg(theme.comment)),
+            Span::styled(
+                format!(
+                    " (blank for ${:04X})",
+                    app_state.settings.system.ram_start()
+                ),
+                Style::default().fg(theme.comment),
+            ),
         ]);
         f.render_widget(Paragraph::new(ret_text), layout[1]);
 
@@ -343,7 +349,11 @@ impl Widget for UnpackDialog {
                     }
                 }
             }
-            KeyCode::Char(c) => {
+            KeyCode::Char(c)
+                if !key
+                    .modifiers
+                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+            {
                 match self.active_field {
                     0 if c.is_ascii_hexdigit() && self.entry_input.len() < 4 => {
                         self.entry_input.push(c.to_ascii_uppercase());
@@ -369,7 +379,6 @@ impl Widget for UnpackDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::KeyModifiers;
 
     #[test]
     fn test_unpack_dialog_build_config_defaults() {
@@ -447,5 +456,33 @@ mod tests {
             pos.x < 20 && pos.y < 12,
             "Expected clamped cursor inside 20x12 terminal, got {pos:?}"
         );
+    }
+
+    #[test]
+    fn test_unpack_dialog_render_uses_system_ram_start() {
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+
+        let dialog = UnpackDialog::new();
+        let mut app_state = AppState::new();
+        app_state.settings.system = crate::state::System::from("C128");
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(rendered.contains("(blank for $1C00)"));
     }
 }
