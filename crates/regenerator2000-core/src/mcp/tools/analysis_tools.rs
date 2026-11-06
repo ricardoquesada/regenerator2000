@@ -1,44 +1,36 @@
-//! MCP tool handlers for memory block classification, symbol management, cross-references, scope analysis, searching, and region reading.
+//! MCP tool handlers for memory block classification, symbol queries, cross-references, scopes, search, and region reads.
 //!
-//! This module provides tool definitions and execution handlers for analyzing memory ranges,
-//! extracting instructions/annotations at specific addresses, querying defined symbols, managing routine scopes,
-//! searching memory bytes or disassembly text, and fetching disassembly or hexdump text representation
-//! for memory regions or active selections.
+//! This module defines schemas and execution handlers that inspect memory blocks,
+//! query instruction details, filter symbols and comments, create lexical scopes,
+//! search memory bytes or disassembly text, and read disassembly or hexdump ranges.
 
+use crate::commands::Command;
 use crate::config::SystemConfig;
-use crate::mcp::tools::common::{get_address, make_mcp_error};
+use crate::mcp::tools::common::{
+    get_address, get_optional_address_range, make_mcp_error, parse_address_value,
+};
 use crate::mcp::types::McpError;
 use crate::state::AppState;
-use crate::state::types::Addr;
+use crate::state::types::{Addr, BlockType};
 use crate::view_state::CoreViewState;
 use serde_json::{Value, json};
+use std::fmt::Write as _;
 
-/// Returns JSON schemas for all analysis, memory metadata, searching, and region reading tools.
-///
-/// # Arguments
-///
-/// * `system_config` - Reference to system configuration [`SystemConfig`].
-///
-/// # Returns
-///
-/// A vector of JSON [`Value`] objects defining the schemas for `r2000_get_binary_info`,
-/// `r2000_get_comments`, `r2000_get_blocks`, `r2000_get_address_details`, `r2000_get_symbols`,
-/// `r2000_get_cross_references`, `r2000_add_scope`, `r2000_search_memory`, `r2000_search_disassembly`,
-/// `r2000_read_region`, and `r2000_read_selected`.
+/// Returns JSON schemas for all analysis, metadata, search, and region-read tools.
 #[must_use]
 pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
     vec![
         json!({
             "name": "r2000_get_binary_info",
             "description": format!(
-                "Returns origin address, size, target platform, filename, description, entropy (>{} suggests compression), and illegal opcodes hint.",
+                "Return origin address, size, target platform, filename, description, entropy (>{} suggests compression), and undocumented opcodes flag.",
                 system_config.entropy_threshold
             ),
             "inputSchema": { "type": "object", "properties": {} }
         }),
         json!({
             "name": "r2000_get_comments",
-            "description": "Returns user-defined comments and their addresses with optional filters.",
+            "description": "Return user-defined comments and their addresses with optional filters.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -65,7 +57,7 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
         }),
         json!({
             "name": "r2000_get_blocks",
-            "description": "Returns all memory blocks with their address range and type (Code, Byte, Word, Address, PETSCII, Screencode, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined). Respects splitters.",
+            "description": "Return all memory blocks with their address range and type (Code, Byte, Word, Address, PETSCII, Screencode, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined). Respects splitters.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -78,7 +70,7 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
         }),
         json!({
             "name": "r2000_get_address_details",
-            "description": "Returns detailed information about a specific memory address: instruction semantics, cross-references, labels, comments, and block type.",
+            "description": "Return detailed information about a specific memory address: instruction semantics, cross-references, labels, comments, and block type.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -89,14 +81,14 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
         }),
         json!({
             "name": "r2000_get_symbols",
-            "description": "Returns defined labels (user and/or platform) and their addresses. With no arguments returns ALL symbols. Provide optional filters to narrow results: 'names' resolves specific label names to addresses, 'start_address'/'end_address' limits to an address range, 'kind' filters by label kind. Filters are combined (AND logic).",
+            "description": "Return defined labels (user, system, and auto) and their addresses. With no arguments, this tool returns all symbols. Provide optional filters to narrow results: 'names' matches specific label names, 'start_address' and 'end_address' limit to an address range, and 'kind' filters by label kind. All active filters combine with logical AND.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "names": {
                         "type": "array",
                         "items": { "type": "string" },
-                        "description": "Optional list of label names to look up. Only symbols whose name matches one of these strings are returned. Case-sensitive."
+                        "description": "Optional list of label names to look up. Case-sensitive."
                     },
                     "start_address": { "type": "integer", "description": "Optional lower bound (inclusive) of the address range to filter by (decimal)." },
                     "end_address":   { "type": "integer", "description": "Optional upper bound (inclusive) of the address range to filter by (decimal)." },
@@ -110,7 +102,7 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
         }),
         json!({
             "name": "r2000_get_cross_references",
-            "description": "Get a list of addresses that reference the given address (e.g. JSRs, JMPs, loads).",
+            "description": "Return a list of addresses that reference the given address (for example, JSR, JMP, or load/store instructions).",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -121,7 +113,7 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
         }),
         json!({
             "name": "r2000_add_scope",
-            "description": "Adds a scope covering the specified memory range. Useful for a piece of code that is a routine. Starts a lexical level where all new symbols within this range are in the local lexical level and are accessible from outside only via explicit scope specification. Nested scopes are not supported.",
+            "description": "Add a lexical scope that covers the specified memory range. Use this tool to isolate local labels inside a subroutine. Nested scopes are not supported.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -133,7 +125,7 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
         }),
         json!({
             "name": "r2000_search_memory",
-            "description": "Search for a sequence of bytes or a text string in the memory. Returns a list of addresses where the sequence is found.",
+            "description": "Search memory for a byte sequence or text string and return matching addresses.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -144,7 +136,7 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
                     "encoding": {
                         "type": "string",
                         "enum": ["text", "hex"],
-                        "description": "Encoding for the query. 'text' searches both PETSCII and Screencode. 'hex' for raw byte patterns. Defaults to 'hex' if query looks like hex bytes, otherwise 'text'."
+                        "description": "Encoding for the query. 'text' searches both PETSCII and Screencode. 'hex' searches raw byte patterns. Defaults to 'hex' when the query matches hex bytes, otherwise 'text'."
                     }
                 },
                 "required": ["query"]
@@ -152,17 +144,17 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
         }),
         json!({
             "name": "r2000_search_disassembly",
-            "description": "Search the disassembly text for a query string or regular expression. Returns a list of matching addresses with context (label, mnemonic, operand, comment). Searches labels, comments, and instructions by default; individual fields can be disabled.",
+            "description": "Search disassembly text for a substring or regular expression. Returns matching addresses with label, mnemonic, operand, and comment fields.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "The search query. Interpreted as a plain case-insensitive substring by default, or as a regex when 'use_regex' is true."
+                        "description": "The search query. Interpreted as a case-insensitive substring by default, or as a regex when 'use_regex' is true."
                     },
                     "use_regex": {
                         "type": "boolean",
-                        "description": "When true the query is compiled as a case-insensitive regular expression ((?i) is prepended automatically). Defaults to false."
+                        "description": "When true, compiles the query as a case-insensitive regular expression. Defaults to false."
                     },
                     "search_labels": {
                         "type": "boolean",
@@ -186,7 +178,7 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
         }),
         json!({
             "name": "r2000_read_region",
-            "description": "Get disassembly or hexdump text for a specific memory range.",
+            "description": "Return disassembly or hexdump text for a specific memory range.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -203,7 +195,7 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
         }),
         json!({
             "name": "r2000_read_selected",
-            "description": "Get disassembly or hexdump for the range currently selected in the UI. If nothing is selected, returns the instruction/row under the cursor.",
+            "description": "Return disassembly or hexdump text for the active UI selection, or the row under the cursor when no selection is active.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -218,22 +210,10 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
     ]
 }
 
-/// Handles execution of analysis and metadata tool calls.
+/// Dispatches analysis and metadata tool calls by `name`.
 ///
-/// # Arguments
-///
-/// * `name` - The tool identifier string matching one of the analysis tool names.
-/// * `args` - The JSON [`Value`] payload holding the tool's arguments.
-/// * `app_state` - Mutable reference to the application state [`AppState`].
-/// * `view_state` - Reference to view state [`CoreViewState`].
-///
-/// # Returns
-///
-/// `Some(Ok(value))` on successful execution, `Some(Err([`McpError`]))` if parameter validation, search, memory reading, or address details retrieval fails, or `None` if `name` is not an analysis tool.
-///
-/// # Errors
-///
-/// Returns [`McpError`] if parameter validation, search, memory reading, or address details retrieval fails.
+/// Returns `Some(Ok(value))` on success, `Some(Err(McpError))` on failure, or `None`
+/// if `name` does not match an analysis tool.
 pub fn handle_call(
     name: &str,
     args: &Value,
@@ -304,15 +284,8 @@ pub fn handle_call(
     }
 }
 
-/// Private helper to format binary metadata information into a JSON response payload.
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to application state [`AppState`].
-///
-/// # Returns
-///
-/// A JSON [`Value`] containing origin, size, system target, filename, description, undocumented opcodes setting, and entropy score.
+/// Formats binary metadata (origin, size, target system, filename, description, and entropy) as JSON.
+#[must_use]
 fn get_binary_info_impl(app_state: &AppState) -> Value {
     let origin = app_state.origin;
     let size = app_state.raw_data.len();
@@ -341,40 +314,31 @@ fn get_binary_info_impl(app_state: &AppState) -> Value {
     })
 }
 
-/// Helper function to retrieve user line and side comments with optional address and type filters.
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to application state [`AppState`].
-/// * `args` - JSON [`Value`] containing optional `addresses`, `start_address`, `end_address`, and `type`.
-///
-/// # Returns
-///
-/// A vector of JSON [`Value`] objects containing comment data (address, type, comment text).
+/// Queries user line and side comments with optional address, range, and type filters.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if `type` is invalid or if `start_address` / `end_address` are invalid.
+/// Returns [`McpError`] if `"addresses"`, `"start_address"`, `"end_address"`, or `"type"` is invalid.
 pub(crate) fn get_comments_impl(
     app_state: &AppState,
     args: &Value,
 ) -> Result<Vec<Value>, McpError> {
-    let addr_filter: Option<Vec<Addr>> =
-        args.get("addresses").and_then(|v| v.as_array()).map(|arr| {
+    let addr_filter: Option<Vec<Addr>> = match args.get("addresses") {
+        None | Some(Value::Null) => None,
+        Some(Value::Array(arr)) => Some(
             arr.iter()
-                .filter_map(|v| v.as_u64())
-                .map(|n| Addr(n as u16))
-                .collect()
-        });
+                .map(|v| parse_address_value(v, "addresses"))
+                .collect::<Result<Vec<Addr>, McpError>>()?,
+        ),
+        Some(_) => {
+            return Err(make_mcp_error(
+                -32602,
+                "Invalid 'addresses' (expected an array of addresses)",
+            ));
+        }
+    };
 
-    let start_addr = args
-        .get("start_address")
-        .and_then(|v| v.as_u64())
-        .map(|n| Addr(n as u16));
-    let end_addr = args
-        .get("end_address")
-        .and_then(|v| v.as_u64())
-        .map(|n| Addr(n as u16));
+    let range_filter = get_optional_address_range(args)?;
 
     let type_filter = match args.get("type").and_then(|v| v.as_str()) {
         Some("line") => Some("line"),
@@ -388,83 +352,44 @@ pub(crate) fn get_comments_impl(
         None => None,
     };
 
-    if start_addr.is_some() != end_addr.is_some() {
-        return Err(make_mcp_error(
-            -32602,
-            "Both 'start_address' and 'end_address' must be provided together.".to_string(),
-        ));
-    }
-    if let (Some(s), Some(e)) = (start_addr, end_addr)
-        && s > e
-    {
-        return Err(make_mcp_error(
-            -32602,
-            "start_address must be <= end_address".to_string(),
-        ));
-    }
-
     let mut comments = Vec::new();
-    let addr_passes = |addr: &Addr| -> bool {
-        if let (Some(s), Some(e)) = (start_addr, end_addr)
-            && (*addr < s || *addr > e)
+    for (addr, entry) in app_state.annotations.iter() {
+        if let Some((s, e)) = range_filter
+            && (addr < s || addr > e)
         {
-            return false;
+            continue;
         }
         if let Some(ref addrs) = addr_filter
-            && !addrs.contains(addr)
+            && !addrs.contains(&addr)
         {
-            return false;
+            continue;
         }
-        true
-    };
 
-    if type_filter != Some("side") {
-        for (addr, entry) in app_state.annotations.iter() {
-            if let Some(ref comment) = entry.user_line_comment
-                && addr_passes(&addr)
-            {
-                comments.push(json!({
-                    "address": addr,
-                    "type": "line",
-                    "comment": comment
-                }));
-            }
+        if type_filter != Some("side")
+            && let Some(ref comment) = entry.user_line_comment
+        {
+            comments.push(json!({
+                "address": addr,
+                "type": "line",
+                "comment": comment
+            }));
         }
-    }
-
-    if type_filter != Some("line") {
-        for (addr, entry) in app_state.annotations.iter() {
-            if let Some(ref comment) = entry.user_side_comment
-                && addr_passes(&addr)
-            {
-                comments.push(json!({
-                    "address": addr,
-                    "type": "side",
-                    "comment": comment
-                }));
-            }
+        if type_filter != Some("line")
+            && let Some(ref comment) = entry.user_side_comment
+        {
+            comments.push(json!({
+                "address": addr,
+                "type": "side",
+                "comment": comment
+            }));
         }
     }
-
-    comments.sort_by(|a, b| {
-        let addr_a = a["address"].as_u64().unwrap_or(0);
-        let addr_b = b["address"].as_u64().unwrap_or(0);
-        addr_a.cmp(&addr_b)
-    });
 
     Ok(comments)
 }
 
-/// Helper function to retrieve contiguous classified memory blocks.
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to the application state [`AppState`].
-/// * `filter` - Optional string slice to filter blocks by type name (case-insensitive).
-///
-/// # Returns
-///
-/// A vector of JSON objects containing `start_address`, `end_address`, and `type`.
+/// Returns contiguous classified memory blocks, respecting user splitters and optional type `filter`.
+#[must_use]
 pub(crate) fn get_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec<Value> {
     let mut blocks = Vec::new();
     let origin = app_state.origin;
@@ -474,6 +399,18 @@ pub(crate) fn get_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec
         return blocks;
     }
 
+    let mut push_block = |start_idx: usize, end_idx: usize, block_type: BlockType| {
+        if filter.is_none_or(|f| block_type.matches_filter(f)) {
+            let start_offset = u16::try_from(start_idx).unwrap_or(u16::MAX);
+            let end_offset = u16::try_from(end_idx).unwrap_or(u16::MAX);
+            blocks.push(json!({
+                "start_address": origin.wrapping_add(start_offset),
+                "end_address": origin.wrapping_add(end_offset),
+                "type": block_type.to_string()
+            }));
+        }
+    };
+
     let mut start_idx = 0;
     let mut current_type = app_state.block_types[0];
 
@@ -481,121 +418,62 @@ pub(crate) fn get_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec
         let offset = u16::try_from(i).unwrap_or(u16::MAX);
         let addr = origin.wrapping_add(offset);
         let type_ = app_state.block_types[i];
-        let is_splitter = app_state.splitters.contains(&addr);
 
-        if type_ != current_type || is_splitter {
-            let end_idx = i - 1;
-            let start_offset = u16::try_from(start_idx).unwrap_or(u16::MAX);
-            let end_offset = u16::try_from(end_idx).unwrap_or(u16::MAX);
-            let start_addr = origin.wrapping_add(start_offset);
-            let end_addr = origin.wrapping_add(end_offset);
-
-            let should_include = match filter {
-                Some(f) => current_type.matches_filter(f),
-                None => true,
-            };
-
-            if should_include {
-                blocks.push(json!({
-                    "start_address": start_addr,
-                    "end_address": end_addr,
-                    "type": current_type.to_string()
-                }));
-            }
-
+        if type_ != current_type || app_state.splitters.contains(&addr) {
+            push_block(start_idx, i - 1, current_type);
             start_idx = i;
             current_type = type_;
         }
     }
 
-    let end_idx = max_len - 1;
-    let start_offset = u16::try_from(start_idx).unwrap_or(u16::MAX);
-    let end_offset = u16::try_from(end_idx).unwrap_or(u16::MAX);
-    let start_addr = origin.wrapping_add(start_offset);
-    let end_addr = origin.wrapping_add(end_offset);
-    let should_include = match filter {
-        Some(f) => current_type.matches_filter(f),
-        None => true,
-    };
-
-    if should_include {
-        blocks.push(json!({
-            "start_address": start_addr,
-            "end_address": end_addr,
-            "type": current_type.to_string()
-        }));
-    }
-
+    push_block(start_idx, max_len - 1, current_type);
     blocks
 }
 
-/// Retrieves all typed cross-references ([`XRef`](crate::state::XRef)) targeting `address`.
+/// Returns all typed cross-references ([`XRef`](crate::state::XRef)) that target `address`.
 ///
-/// # Arguments
-///
-/// * `app_state` - Reference to the application state [`AppState`].
-/// * `address` - Target memory address [`Addr`] to query incoming references for.
-///
-/// # Returns
-///
-/// A sorted and deduplicated vector of JSON [`Value`] objects (ordered by `(from, kind)`),
-/// where each object contains:
-/// - `"address"`: Numeric referencing address (`u16`).
-/// - `"from_address"`: Numeric referencing address (`u16`).
+/// The returned list is sorted and deduplicated by `(from, kind)`. Each entry contains:
+/// - `"address"`: Numeric source address (`u16`).
+/// - `"from_address"`: Numeric source address (`u16`).
 /// - `"from_hex"`: Uppercase 4-digit hex string (for example, `"$C010"`).
-/// - `"kind"`: Snake-case [`XRefKind::as_str`](crate::state::XRefKind::as_str) classification (`"read"`, `"write"`, `"read_modify_write"`, `"call"`, `"jump"`, or `"offset"`).
-/// - `"badge"`: Bracketed [`XRefKind::badge`](crate::state::XRefKind::badge) label (`"[R]"`, `"[W]"`, `"[R/W]"`, `"[C]"`, `"[J]"`, or `"[O]"`).
+/// - `"kind"`: Snake-case [`XRefKind::as_str`](crate::state::XRefKind::as_str) classification.
+/// - `"badge"`: Bracketed [`XRefKind::badge`](crate::state::XRefKind::badge) label.
+#[must_use]
 pub(crate) fn get_cross_references_impl(app_state: &AppState, address: Addr) -> Vec<Value> {
-    if let Some(refs) = app_state.cross_refs.get(&address) {
-        let mut sorted_refs = refs.clone();
-        sorted_refs.sort_unstable();
-        sorted_refs.dedup();
-        sorted_refs
-            .into_iter()
-            .map(|xref| {
-                let ref_addr = xref.from;
-                json!({
-                    "address": ref_addr,
-                    "from_address": ref_addr.0,
-                    "from_hex": format!("${:04X}", ref_addr.0),
-                    "kind": xref.kind.as_str(),
-                    "badge": xref.kind.badge(),
-                })
+    let Some(refs) = app_state.cross_refs.get(&address) else {
+        return Vec::new();
+    };
+
+    let mut sorted_refs = refs.clone();
+    sorted_refs.sort_unstable();
+    sorted_refs.dedup();
+    sorted_refs
+        .into_iter()
+        .map(|xref| {
+            let ref_addr = xref.from;
+            json!({
+                "address": ref_addr,
+                "from_address": ref_addr.0,
+                "from_hex": format!("${:04X}", ref_addr.0),
+                "kind": xref.kind.as_str(),
+                "badge": xref.kind.badge(),
             })
-            .collect()
-    } else {
-        Vec::new()
-    }
+        })
+        .collect()
 }
 
-/// Helper function to query symbols with optional filtering by name, address range, or kind.
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to the application state [`AppState`].
-/// * `args` - JSON [`Value`] containing optional `names`, `start_address`, `end_address`, and `kind` parameters.
-///
-/// # Returns
-///
-/// A vector of JSON [`Value`] objects containing symbol definitions (name, address, kind).
+/// Queries symbols with optional filters for `names`, `start_address`/`end_address`, and `kind`.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if `kind` is unrecognized or if `start_address` / `end_address` are invalid.
+/// Returns [`McpError`] if `"kind"`, `"start_address"`, or `"end_address"` is invalid.
 pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec<Value>, McpError> {
     let name_filter: Option<Vec<&str>> = args
         .get("names")
         .and_then(|v| v.as_array())
         .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect());
 
-    let start_addr = args
-        .get("start_address")
-        .and_then(|v| v.as_u64())
-        .map(|n| Addr(n as u16));
-    let end_addr = args
-        .get("end_address")
-        .and_then(|v| v.as_u64())
-        .map(|n| Addr(n as u16));
+    let range_filter = get_optional_address_range(args)?;
 
     let kind_filter = match args.get("kind").and_then(|v| v.as_str()) {
         Some("user") => Some("user"),
@@ -612,25 +490,10 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
         None => None,
     };
 
-    if start_addr.is_some() != end_addr.is_some() {
-        return Err(make_mcp_error(
-            -32602,
-            "Both 'start_address' and 'end_address' must be provided together.".to_string(),
-        ));
-    }
-    if let (Some(s), Some(e)) = (start_addr, end_addr)
-        && s > e
-    {
-        return Err(make_mcp_error(
-            -32602,
-            "start_address must be <= end_address".to_string(),
-        ));
-    }
-
     let mut symbols = Vec::new();
-    for (addr, labels) in &app_state.labels {
-        if let (Some(s), Some(e)) = (start_addr, end_addr)
-            && (*addr < s || *addr > e)
+    for (&addr, labels) in &app_state.labels {
+        if let Some((s, e)) = range_filter
+            && (addr < s || addr > e)
         {
             continue;
         }
@@ -658,36 +521,19 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
         }
     }
 
-    symbols.sort_by(|a, b| {
-        let addr_a = a["address"].as_u64().unwrap_or(0);
-        let addr_b = b["address"].as_u64().unwrap_or(0);
-        addr_a.cmp(&addr_b)
-    });
-
     Ok(symbols)
 }
 
-/// Retrieves detailed metadata for a single memory address [`Addr`].
+/// Returns detailed metadata for a single memory `address`.
 ///
 /// When incoming cross-references ([`XRef`](crate::state::XRef)) exist for `address`, the returned
 /// `metadata` object populates both:
 /// - `"cross_refs_in"`: Sorted, deduplicated array of numeric source addresses (`Vec<Addr>`).
-/// - `"typed_cross_refs_in"`: Array of typed cross-reference objects (`address`, `from_address`,
-///   `from_hex`, `kind`, and `badge`) produced by [`get_cross_references_impl`].
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to the application state [`AppState`].
-/// * `address` - Target memory address [`Addr`] to inspect.
-///
-/// # Returns
-///
-/// A JSON [`Value`] containing detailed memory address metadata (instruction semantics, labels,
-/// comments, incoming cross-references, and block type).
+/// - `"typed_cross_refs_in"`: Array of typed cross-reference objects from [`get_cross_references_impl`].
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if `address` is outside loaded binary boundaries.
+/// Returns [`McpError`] if `address` is outside the loaded binary bounds.
 pub(crate) fn get_address_details_impl(
     app_state: &AppState,
     address: Addr,
@@ -703,7 +549,7 @@ pub(crate) fn get_address_details_impl(
     let block_type = app_state
         .block_types
         .get(idx)
-        .map_or_else(|| "Unknown".to_string(), |b| b.to_string());
+        .map_or_else(|| "Unknown".to_string(), ToString::to_string);
 
     let mut details = json!({
         "address": address,
@@ -712,7 +558,20 @@ pub(crate) fn get_address_details_impl(
         "metadata": {}
     });
 
-    if let Some(line) = app_state.disassembly.iter().find(|l| l.address == address) {
+    // Prefer a line that carries actual machine bytes at `address` so preamble equates
+    // (at `Addr::ZERO`) or 0-byte splitters do not shadow the instruction line.
+    let line_opt = app_state
+        .disassembly
+        .iter()
+        .find(|l| l.external_label_address.is_none() && l.address == address && !l.bytes.is_empty())
+        .or_else(|| {
+            app_state
+                .disassembly
+                .iter()
+                .find(|l| l.external_label_address.is_none() && l.address == address)
+        });
+
+    if let Some(line) = line_opt {
         details["instruction"] = json!({
             "bytes": line.bytes,
             "mnemonic": line.mnemonic.to_uppercase(),
@@ -723,14 +582,14 @@ pub(crate) fn get_address_details_impl(
         if let Some(target) = line.target_address {
             details["metadata"]["target_address"] = json!(target.0);
             details["metadata"]["referenced_address"] = json!(target.0);
-        } else if line.bytes.len() == 3 {
+        } else if line.opcode.is_some() && line.bytes.len() == 3 {
             let addr = u16::from_le_bytes([line.bytes[1], line.bytes[2]]);
             details["metadata"]["referenced_address"] = json!(addr);
         }
     }
 
     if let Some(refs) = app_state.cross_refs.get(&address) {
-        // Preserve `cross_refs_in` as a sorted, deduplicated integer array for backward compatibility.
+        // Keep `cross_refs_in` as a sorted, deduplicated integer array for backward compatibility.
         let mut addrs: Vec<Addr> = refs.iter().map(|x| x.from).collect();
         addrs.sort_unstable();
         addrs.dedup();
@@ -755,36 +614,23 @@ pub(crate) fn get_address_details_impl(
         if let Some(c) = &entry.system_comment {
             comments.push(format!("[System] {c}"));
         }
+        if let Some(fmt) = entry.immediate_format {
+            details["metadata"]["operand_format"] = json!(format!("{fmt:?}"));
+        }
     }
     if !comments.is_empty() {
         details["metadata"]["comments"] = json!(comments);
     }
 
-    if let Some(fmt) = app_state
-        .annotations
-        .get(address)
-        .and_then(|e| e.immediate_format)
-    {
-        details["metadata"]["operand_format"] = json!(format!("{fmt:?}"));
-    }
-
     Ok(details)
 }
 
-/// Private helper to add a scope covering a memory range and trigger re-analysis.
-///
-/// # Arguments
-///
-/// * `app_state` - Mutable reference to application state [`AppState`].
-/// * `args` - JSON [`Value`] containing `start_address` and `end_address`.
-///
-/// # Returns
-///
-/// A JSON [`Value`] notification confirming scope creation and affected address bounds.
+/// Adds a lexical scope over `start_address..=end_address` and re-analyzes the binary.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if start address > end address or scope overlaps an existing scope.
+/// Returns [`McpError`] if `start_address > end_address`, if the range is outside the
+/// loaded binary bounds, or if the range overlaps an existing scope.
 fn add_scope_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpError> {
     let start_addr = get_address(args, "start_address")?;
     let end_addr = get_address(args, "end_address")?;
@@ -792,26 +638,27 @@ fn add_scope_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpEr
     if start_addr > end_addr {
         return Err(make_mcp_error(
             -32602,
-            "start_address must be <= end_address".to_string(),
+            "start_address must be <= end_address",
         ));
     }
 
-    let mut overlaps = false;
-    for (s, e) in app_state
-        .annotations
-        .iter()
-        .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
-    {
-        if start_addr <= e && end_addr >= s {
-            overlaps = true;
-            break;
-        }
+    if app_state.is_external(start_addr) || app_state.is_external(end_addr) {
+        return Err(make_mcp_error(
+            -32602,
+            format!("Address range {start_addr}..={end_addr} is outside loaded binary range"),
+        ));
     }
+
+    let overlaps = app_state
+        .annotations
+        .scopes()
+        .iter()
+        .any(|(&s, &e)| start_addr <= e && end_addr >= s);
 
     if overlaps {
         return Err(make_mcp_error(
             -32602,
-            "Cannot create scope: overlaps with an existing scope".to_string(),
+            "Cannot create scope: overlaps with an existing scope",
         ));
     }
 
@@ -821,20 +668,15 @@ fn add_scope_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpEr
         .get(&start_addr)
         .is_some_and(|l| !l.is_empty());
     if !has_label {
-        let label = crate::state::Label {
-            name: format!("scope_{:04X}", start_addr.0),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::UserDefined,
-        };
-        commands.push(crate::commands::Command::SetLabel {
-            address: start_addr,
-            new_label: Some(vec![label]),
-            old_label: None,
-        });
+        let default_name = format!("scope_{:04X}", start_addr.0);
+        let label_cmd = app_state
+            .create_set_user_label_command(start_addr, &default_name, false)
+            .map_err(|msg| make_mcp_error(-32602, msg))?;
+        commands.push(label_cmd);
     }
 
     let old_end = app_state.annotations.get(start_addr).and_then(|e| e.scope);
-    commands.push(crate::commands::Command::AddScope {
+    commands.push(Command::AddScope {
         start: start_addr,
         end: end_addr,
         old_end,
@@ -843,13 +685,12 @@ fn add_scope_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpEr
     let command = if commands.len() == 1 {
         commands.remove(0)
     } else {
-        crate::commands::Command::Batch(commands)
+        Command::Batch(commands)
     };
 
     command.apply(app_state);
     let (analysis_cmd, msg) = app_state.perform_analysis();
-    app_state.push_command(crate::commands::Command::Batch(vec![command, analysis_cmd]));
-    app_state.disassemble();
+    app_state.push_command(Command::Batch(vec![analysis_cmd, command]));
 
     Ok(json!({
         "content": [{
@@ -859,16 +700,11 @@ fn add_scope_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpEr
     }))
 }
 
-/// Private helper to execute memory byte/text search queries.
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to application state [`AppState`].
-/// * `args` - JSON [`Value`] containing query string and optional encoding.
+/// Searches raw binary memory for a byte pattern or text string.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if `query` is missing or search query parsing fails.
+/// Returns [`McpError`] if `"query"` is missing or if pattern parsing fails.
 fn search_memory_impl(app_state: &AppState, args: &Value) -> Result<Value, McpError> {
     let query = args
         .get("query")
@@ -885,16 +721,11 @@ fn search_memory_impl(app_state: &AppState, args: &Value) -> Result<Value, McpEr
     }))
 }
 
-/// Private helper to execute disassembly text search queries.
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to application state [`AppState`].
-/// * `args` - JSON [`Value`] containing query string, regex options, and search field filters.
+/// Searches disassembly rows for a substring or regular expression.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if `query` is missing or regex compilation fails.
+/// Returns [`McpError`] if `"query"` is missing or if regular expression compilation fails.
 fn search_disassembly_impl(app_state: &AppState, args: &Value) -> Result<Value, McpError> {
     use crate::state::search::{self, SearchFilters};
 
@@ -926,7 +757,8 @@ fn search_disassembly_impl(app_state: &AppState, args: &Value) -> Result<Value, 
     let max_results = args
         .get("max_results")
         .and_then(|v| v.as_u64())
-        .map_or(50, |n| n as usize);
+        .and_then(|n| usize::try_from(n).ok())
+        .unwrap_or(50);
 
     let results = search::search_disassembly(app_state, query, &filters, max_results)
         .map_err(|msg| make_mcp_error(-32602, msg))?;
@@ -953,16 +785,11 @@ fn search_disassembly_impl(app_state: &AppState, args: &Value) -> Result<Value, 
     }))
 }
 
-/// Private helper to read disassembly or hexdump text for a specified memory range.
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to application state [`AppState`].
-/// * `args` - JSON [`Value`] containing `start_address`, `end_address`, and optional `view`.
+/// Reads disassembly or hexdump text for `start_address..=end_address`.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if addresses are invalid or `view` is unrecognized.
+/// Returns [`McpError`] if the address range or `"view"` parameter is invalid.
 fn read_region_impl(app_state: &AppState, args: &Value) -> Result<Value, McpError> {
     let start_addr = get_address(args, "start_address")?;
     let end_addr = get_address(args, "end_address")?;
@@ -970,7 +797,7 @@ fn read_region_impl(app_state: &AppState, args: &Value) -> Result<Value, McpErro
     if start_addr > end_addr {
         return Err(make_mcp_error(
             -32602,
-            "start_address must be <= end_address".to_string(),
+            "start_address must be <= end_address",
         ));
     }
 
@@ -992,17 +819,11 @@ fn read_region_impl(app_state: &AppState, args: &Value) -> Result<Value, McpErro
     Ok(json!({ "content": [{ "type": "text", "text": text }] }))
 }
 
-/// Private helper to read disassembly or hexdump for the active selection or cursor row.
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to application state [`AppState`].
-/// * `view_state` - Reference to view state [`CoreViewState`].
-/// * `args` - JSON [`Value`] containing optional `view` parameter.
+/// Reads disassembly or hexdump text for the active UI selection or cursor row.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if selection indices are out of range or `view` is unrecognized.
+/// Returns [`McpError`] if the selection indices are out of bounds or `"view"` is invalid.
 fn read_selected_impl(
     app_state: &AppState,
     view_state: &CoreViewState,
@@ -1032,17 +853,8 @@ fn read_selected_impl(
     Ok(json!({ "content": [{ "type": "text", "text": text }] }))
 }
 
-/// Helper function to generate assembly source text for a memory address range [`Addr`].
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to application state [`AppState`].
-/// * `start` - Start memory address [`Addr`] (inclusive).
-/// * `end` - End memory address [`Addr`] (inclusive).
-///
-/// # Returns
-///
-/// A [`String`] containing assembly directives, labels, instructions, and comments.
+/// Generates assembly text for `start..=end`.
+#[must_use]
 pub(crate) fn get_disassembly_text(app_state: &AppState, start: Addr, end: Addr) -> String {
     let matching_lines = app_state
         .disassembly
@@ -1051,66 +863,62 @@ pub(crate) fn get_disassembly_text(app_state: &AppState, start: Addr, end: Addr)
         .count();
     let capacity = matching_lines.saturating_mul(40).max(32);
     let mut output = String::with_capacity(capacity);
-    output.push_str(&format!("* = ${start:04X}\n"));
+    let _ = writeln!(output, "* = ${start:04X}");
 
     for line in &app_state.disassembly {
         if line.address >= start && line.address <= end {
             if let Some(comment) = &line.line_comment {
                 for comment_line in comment.lines() {
-                    output.push_str(&format!("; {comment_line}\n"));
+                    let _ = writeln!(output, "; {comment_line}");
                 }
             }
 
             if let Some(label) = &line.label
                 && !label.is_empty()
             {
-                output.push_str(&format!("{label}:\n"));
+                let _ = writeln!(output, "{label}:");
             }
 
-            let instruction = if line.operand.is_empty() {
-                line.mnemonic.clone()
-            } else {
-                format!("{} {}", line.mnemonic, line.operand)
-            };
-
             if line.comment.is_empty() {
-                output.push_str(&format!("${:04X} {}\n", line.address, instruction));
+                if line.operand.is_empty() {
+                    let _ = writeln!(output, "${:04X} {}", line.address, line.mnemonic);
+                } else {
+                    let _ = writeln!(
+                        output,
+                        "${:04X} {} {}",
+                        line.address, line.mnemonic, line.operand
+                    );
+                }
             } else {
-                output.push_str(&format!(
-                    "${:04X} {:<20} ; {}\n",
+                let instruction = if line.operand.is_empty() {
+                    line.mnemonic.clone()
+                } else {
+                    format!("{} {}", line.mnemonic, line.operand)
+                };
+                let _ = writeln!(
+                    output,
+                    "${:04X} {:<20} ; {}",
                     line.address, instruction, line.comment
-                ));
+                );
             }
         }
     }
     output
 }
 
-/// Private helper to calculate the disassembly selection address range [`Addr`].
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to application state [`AppState`].
-/// * `view_state` - Reference to view state [`CoreViewState`].
+/// Computes the inclusive `(start, end)` address range for the disassembly selection in `view_state`.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if start or end line indices are invalid.
+/// Returns [`McpError`] if the start or end line index is out of bounds.
 fn get_selection_range_disasm(
     app_state: &AppState,
     view_state: &CoreViewState,
 ) -> Result<(Addr, Addr), McpError> {
     let cursor_idx = view_state.cursor_index;
-    let selection_idx = view_state.selection_start;
-
-    let (start_idx, end_idx) = if let Some(sel_start) = selection_idx {
-        if sel_start < cursor_idx {
-            (sel_start, cursor_idx)
-        } else {
-            (cursor_idx, sel_start)
-        }
-    } else {
-        (cursor_idx, cursor_idx)
+    let (start_idx, end_idx) = match view_state.selection_start {
+        Some(sel_start) => (sel_start.min(cursor_idx), sel_start.max(cursor_idx)),
+        None => (cursor_idx, cursor_idx),
     };
 
     let start_line = app_state
@@ -1126,36 +934,31 @@ fn get_selection_range_disasm(
     Ok((start_line.address, end_line.address))
 }
 
-/// Private helper to calculate the hexdump selection address range [`Addr`].
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to application state [`AppState`].
-/// * `view_state` - Reference to view state [`CoreViewState`].
+/// Computes the inclusive `(start, end)` address range for the hexdump selection in `view_state`.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if bounds computation fails.
+/// Returns [`McpError`] if the selection bounds cannot be resolved.
 fn get_selection_range_hexdump(
     app_state: &AppState,
     view_state: &CoreViewState,
 ) -> Result<(Addr, Addr), McpError> {
     let cursor_row = view_state.hex_cursor_index;
-    let selection_row = view_state.hex_selection_start;
-
-    let (start_row, end_row) = if let Some(sel_start) = selection_row {
-        if sel_start < cursor_row {
-            (sel_start, cursor_row)
-        } else {
-            (cursor_row, sel_start)
-        }
-    } else {
-        (cursor_row, cursor_row)
+    let (start_row, end_row) = match view_state.hex_selection_start {
+        Some(sel_start) => (sel_start.min(cursor_row), sel_start.max(cursor_row)),
+        None => (cursor_row, cursor_row),
     };
 
     let origin = app_state.origin;
-    let bytes_per_row = 16;
-    let alignment_padding = (origin.0 % 16) as usize;
+    let bytes_per_row: usize = if matches!(
+        view_state.right_pane,
+        crate::view_state::RightPane::HexDump8
+    ) {
+        8
+    } else {
+        16
+    };
+    let alignment_padding = (origin.0 as usize) % bytes_per_row;
     let aligned_origin = (origin.0 as usize) - alignment_padding;
 
     let start_val = aligned_origin.saturating_add(start_row.saturating_mul(bytes_per_row));
@@ -1163,45 +966,36 @@ fn get_selection_range_hexdump(
         .saturating_add((end_row.saturating_add(1)).saturating_mul(bytes_per_row))
         .saturating_sub(1);
 
-    let start_addr = Addr(start_val as u16);
-    let end_addr = Addr(end_val as u16);
-
     let end_limit = app_state
         .raw_data
         .len()
         .checked_sub(1)
         .map_or(origin, |len_minus_1| {
+            #[allow(clippy::cast_possible_truncation)]
             origin.wrapping_add(len_minus_1 as u16)
         });
 
-    let max_end_val = aligned_origin + app_state.raw_data.len();
+    let origin_usize = origin.0 as usize;
+    let max_end_val = origin_usize.saturating_add(app_state.raw_data.len());
 
-    let final_start = if start_val < (origin.0 as usize) || app_state.is_external(start_addr) {
-        origin
-    } else {
-        start_addr
+    // Check `usize` bounds before converting to `u16` so large row indices clamp to
+    // the binary endpoints instead of wrapping modulo 65536.
+    let final_start = match u16::try_from(start_val) {
+        Ok(addr) if start_val >= origin_usize && !app_state.is_external(Addr(addr)) => Addr(addr),
+        _ if start_val >= max_end_val => end_limit,
+        _ => origin,
     };
 
-    let final_end = if end_val >= max_end_val || app_state.is_external(end_addr) {
-        end_limit
-    } else {
-        end_addr
+    let final_end = match u16::try_from(end_val) {
+        Ok(addr) if end_val < max_end_val && !app_state.is_external(Addr(addr)) => Addr(addr),
+        _ => end_limit,
     };
 
     Ok((final_start, final_end))
 }
 
-/// Helper function to generate 16-byte formatted hexdump text for an address range [`Addr`].
-///
-/// # Arguments
-///
-/// * `app_state` - Reference to application state [`AppState`].
-/// * `start_addr` - Start memory address [`Addr`] (inclusive).
-/// * `end_addr` - End memory address [`Addr`] (inclusive).
-///
-/// # Returns
-///
-/// Formatted hex string representation of memory bytes.
+/// Formats `start_addr..=end_addr` as 16-byte hexdump rows.
+#[must_use]
 pub(crate) fn get_hexdump_text(app_state: &AppState, start_addr: Addr, end_addr: Addr) -> String {
     let num_bytes = if start_addr.0 <= end_addr.0 {
         (end_addr.0 as usize) - (start_addr.0 as usize) + 1
@@ -1210,6 +1004,8 @@ pub(crate) fn get_hexdump_text(app_state: &AppState, start_addr: Addr, end_addr:
     };
     let mut output = String::with_capacity(num_bytes.saturating_mul(4));
     let origin = app_state.origin;
+    let mut emitted_bytes: usize = 0;
+
     for addr_val in start_addr.0..=end_addr.0 {
         let addr = Addr(addr_val);
         if app_state.is_external(addr) {
@@ -1217,13 +1013,14 @@ pub(crate) fn get_hexdump_text(app_state: &AppState, start_addr: Addr, end_addr:
         }
         let idx = addr.offset_from(origin);
         let byte = app_state.raw_data[idx];
-        if (addr.0.wrapping_sub(start_addr.0)).is_multiple_of(16) {
-            if addr != start_addr {
+        if emitted_bytes.is_multiple_of(16) {
+            if emitted_bytes > 0 {
                 output.push('\n');
             }
-            output.push_str(&format!("${addr:04X}: "));
+            let _ = write!(output, "${addr:04X}: ");
         }
-        output.push_str(&format!("{byte:02X} "));
+        let _ = write!(output, "{byte:02X} ");
+        emitted_bytes += 1;
     }
     output
 }
@@ -1254,8 +1051,16 @@ mod tests {
                 label_type: crate::state::LabelType::UserDefined,
             }],
         );
+        app_state.labels.insert(
+            Addr(0x1020),
+            vec![crate::state::Label {
+                name: "later_label".to_string(),
+                kind: crate::state::LabelKind::User,
+                label_type: crate::state::LabelType::UserDefined,
+            }],
+        );
 
-        let args = json!({ "kind": "user" });
+        let args = json!({ "kind": "user", "start_address": "$1000", "end_address": "$1010" });
         let symbols = get_symbols_impl(&app_state, &args).expect("Should return symbols");
         assert_eq!(symbols.len(), 1);
         assert_eq!(symbols[0]["name"], "entry_point");
@@ -1351,6 +1156,29 @@ mod tests {
     }
 
     #[test]
+    fn test_r2000_get_address_details_3_byte_data_does_not_fabricate_referenced_address() {
+        let mut app_state = make_app_state(0x1000, 3);
+        app_state.raw_data = vec![0x11, 0x22, 0x33];
+        app_state.block_types = vec![BlockType::DataByte; 3];
+        app_state.disassemble();
+
+        let details = get_address_details_impl(&app_state, Addr(0x1000))
+            .expect("address details should succeed");
+        assert!(details["metadata"].get("referenced_address").is_none());
+    }
+
+    #[test]
+    fn test_r2000_add_scope_rejects_out_of_bounds_and_duplicate_label() {
+        let mut app_state = make_app_state(0x1000, 32);
+        let oob_err = add_scope_impl(
+            &mut app_state,
+            &json!({ "start_address": 0x2000, "end_address": 0x2010 }),
+        )
+        .expect_err("out of bounds scope must fail");
+        assert!(oob_err.message.contains("outside loaded binary range"));
+    }
+
+    #[test]
     fn test_r2000_get_binary_info_in_analysis_tools() {
         let app_state = make_app_state(0x1000, 256);
         let view_state = make_view_state();
@@ -1431,10 +1259,10 @@ mod tests {
         assert_eq!(side_comments.len(), 1);
         assert_eq!(side_comments[0]["comment"], "Inline side comment");
 
-        // Test address range filter
+        // Test address range filter (including hex string addresses)
         let range_res = handle_call(
             "r2000_get_comments",
-            &json!({ "start_address": 0x1000, "end_address": 0x1005 }),
+            &json!({ "start_address": "$1000", "end_address": "$1005" }),
             &mut app_state,
             &view_state,
         )
@@ -1443,10 +1271,10 @@ mod tests {
         let range_comments = parse_comments(range_res);
         assert_eq!(range_comments.len(), 2);
 
-        // Test addresses array filter
+        // Test addresses array filter (including hex string addresses)
         let addrs_res = handle_call(
             "r2000_get_comments",
-            &json!({ "addresses": [0x1010] }),
+            &json!({ "addresses": ["$1010"] }),
             &mut app_state,
             &view_state,
         )
@@ -1541,6 +1369,25 @@ mod tests {
 
         let text = res["content"][0]["text"].as_str().unwrap();
         assert!(text.contains("* = $1000"));
+    }
+
+    #[test]
+    fn test_r2000_read_selected_hexdump8_and_overflow_clamping() {
+        let app_state = make_app_state(0x1000, 32);
+        let mut view_state = make_view_state();
+        view_state.right_pane = crate::view_state::RightPane::HexDump8;
+        view_state.hex_cursor_index = 1;
+
+        let (start, end) = get_selection_range_hexdump(&app_state, &view_state)
+            .expect("hexdump8 selection range should succeed");
+        assert_eq!((start, end), (Addr(0x1008), Addr(0x100F)));
+
+        // Row index 4096 would wrap modulo 65536 to $1000 if truncated before bounds checking.
+        view_state.right_pane = crate::view_state::RightPane::HexDump16;
+        view_state.hex_cursor_index = 4096;
+        let (clamped_start, clamped_end) = get_selection_range_hexdump(&app_state, &view_state)
+            .expect("overflowing row index should clamp to binary end");
+        assert_eq!((clamped_start, clamped_end), (Addr(0x101F), Addr(0x101F)));
     }
 
     #[test]

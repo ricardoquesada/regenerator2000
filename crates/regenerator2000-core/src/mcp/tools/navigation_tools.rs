@@ -1,7 +1,7 @@
-//! MCP tool handlers for navigation and disassembly cursor retrieval.
+//! MCP tool handlers for navigation and disassembly cursor queries.
 //!
-//! This module provides tool definitions and execution handlers for retrieving cursor positions
-//! and jumping to specific memory addresses.
+//! This module defines schemas and execution handlers that read the active disassembly
+//! cursor address and jump the cursor to a target address.
 
 use crate::mcp::tools::common::{get_address, make_mcp_error};
 use crate::mcp::types::McpError;
@@ -10,22 +10,17 @@ use crate::view_state::CoreViewState;
 use serde_json::{Value, json};
 
 /// Returns JSON schemas for navigation and cursor tools.
-///
-/// # Returns
-///
-/// A vector of JSON [`Value`] objects defining the schemas for `r2000_get_disassembly_cursor`
-/// and `r2000_jump_to_address`.
 #[must_use]
 pub fn tool_schemas() -> Vec<Value> {
     vec![
         json!({
             "name": "r2000_get_disassembly_cursor",
-            "description": "Returns the memory address of the current cursor position in the disassembly view.",
+            "description": "Return the memory address of the current cursor position in the disassembly view.",
             "inputSchema": { "type": "object", "properties": {} }
         }),
         json!({
             "name": "r2000_jump_to_address",
-            "description": "Moves the disassembly cursor to a specific memory address and scrolls the view to make it visible. Also keeps the jump history.",
+            "description": "Move the disassembly cursor to a specific memory address, scroll the view to make it visible, and record the previous position in the navigation history.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -37,22 +32,10 @@ pub fn tool_schemas() -> Vec<Value> {
     ]
 }
 
-/// Handles execution of navigation tools.
+/// Dispatches navigation tool calls by `name`.
 ///
-/// # Arguments
-///
-/// * `name` - Tool name string to execute.
-/// * `args` - Tool argument JSON [`Value`].
-/// * `app_state` - Mutable reference to application state [`AppState`].
-/// * `view_state` - Mutable reference to view state [`CoreViewState`].
-///
-/// # Returns
-///
-/// `Some(Ok(value))` on success, `Some(Err(`[`McpError`]`))` on error, or `None` if `name` is unrecognized.
-///
-/// # Errors
-///
-/// Returns [`McpError`] if target address is missing or not found in disassembly.
+/// Returns `Some(Ok(value))` on success, `Some(Err(McpError))` on failure, or `None`
+/// if `name` does not match a navigation tool.
 pub fn handle_call(
     name: &str,
     args: &Value,
@@ -66,7 +49,7 @@ pub fn handle_call(
     }
 }
 
-/// Private helper to get the address at current disassembly cursor index.
+/// Returns the 6502 address at the active disassembly cursor and sub-cursor indices.
 fn get_disassembly_cursor_impl(
     app_state: &AppState,
     view_state: &CoreViewState,
@@ -76,16 +59,17 @@ fn get_disassembly_cursor_impl(
         .disassembly
         .get(idx)
         .ok_or_else(|| make_mcp_error(-32602, "Cursor out of bounds"))?;
+    let address = line.address_at_sub_index(app_state, view_state.sub_cursor_index);
 
     Ok(json!({
         "content": [{
             "type": "text",
-            "text": format!("${:04X}", line.address)
+            "text": format!("${address:04X}")
         }]
     }))
 }
 
-/// Private helper to jump cursor position to a target address in disassembly.
+/// Moves the disassembly cursor to the target `address` in `args`.
 fn jump_to_address_impl(
     app_state: &mut AppState,
     view_state: &mut CoreViewState,
@@ -118,6 +102,7 @@ fn jump_to_address_impl(
 mod tests {
     use super::*;
     use crate::mcp::tools::common::{make_app_state, make_view_state};
+    use crate::state::types::Addr;
 
     #[test]
     fn test_r2000_get_disassembly_cursor_initial() {
@@ -159,6 +144,72 @@ mod tests {
             .expect("Text field present");
         assert_eq!(text, "Jumped to $1010");
         assert_eq!(view_state.cursor_index, 16);
+    }
+
+    #[test]
+    fn test_r2000_jump_to_mid_instruction_and_external_equate_updates_cursor_address() {
+        let mut app_state = make_app_state(0x1000, 16);
+        app_state.settings.all_labels = true;
+        // JSR $FFD2 at $1000..$1002 creates an external equate for $FFD2 and spans $1000..=$1002.
+        app_state.raw_data[0..3].copy_from_slice(&[0x20, 0xD2, 0xFF]);
+        app_state.block_types[0..3].fill(crate::state::BlockType::Code);
+        app_state.labels.insert(
+            Addr(0x1001),
+            vec![crate::state::Label {
+                name: "mid_label".to_string(),
+                kind: crate::state::LabelKind::User,
+                label_type: crate::state::LabelType::UserDefined,
+            }],
+        );
+        app_state.perform_analysis();
+
+        let mut view_state = make_view_state();
+        handle_call(
+            "r2000_jump_to_address",
+            &json!({ "address": "$1001" }),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("Handler should match")
+        .expect("Jump to mid-instruction label should succeed");
+
+        // The instruction line starts at $1000, while sub_cursor_index points to $1001.
+        assert_eq!(
+            app_state.disassembly[view_state.cursor_index].address,
+            Addr(0x1000)
+        );
+        let cursor_res = handle_call(
+            "r2000_get_disassembly_cursor",
+            &json!({}),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("Handler should match")
+        .expect("Cursor query should succeed");
+        assert_eq!(cursor_res["content"][0]["text"], "$1001");
+
+        handle_call(
+            "r2000_jump_to_address",
+            &json!({ "address": "$FFD2" }),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("Handler should match")
+        .expect("Jump to external equate should succeed");
+
+        let ext_cursor_res = handle_call(
+            "r2000_get_disassembly_cursor",
+            &json!({}),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("Handler should match")
+        .expect("Cursor query should succeed");
+        assert_eq!(ext_cursor_res["content"][0]["text"], "$FFD2");
+        assert_eq!(
+            app_state.disassembly[view_state.cursor_index].external_label_address,
+            Some(Addr(0xFFD2))
+        );
     }
 
     #[test]

@@ -1,3 +1,8 @@
+//! Streamable HTTP transport for the Model Context Protocol (MCP) server.
+//!
+//! This module bridges [`rmcp`] HTTP sessions to the main application thread over an
+//! asynchronous [`McpRequest`] channel.
+
 use rmcp::{
     ServerHandler,
     model::{
@@ -19,17 +24,20 @@ use tokio::sync::oneshot;
 use crate::mcp::handler::{MCP_SERVER_DESCRIPTION, MCP_SERVER_INSTRUCTIONS, MCP_SERVER_NAME};
 use crate::mcp::types::McpRequest;
 
+/// Bridges [`rmcp::ServerHandler`] callbacks to the application thread via an [`McpRequest`] channel.
 #[derive(Clone)]
 pub struct RegeneratorOps {
     sender: Sender<McpRequest>,
 }
 
 impl RegeneratorOps {
+    /// Creates a new [`RegeneratorOps`] handler that forwards MCP requests to `sender`.
     #[must_use]
     pub fn new(sender: Sender<McpRequest>) -> Self {
         Self { sender }
     }
 
+    /// Sends an [`McpRequest`] over the channel and waits for the response.
     async fn send_request(&self, method: &str, params: Value) -> Result<Value, String> {
         let (tx, rx) = oneshot::channel();
         let request = McpRequest {
@@ -168,19 +176,21 @@ impl ServerHandler for RegeneratorOps {
     }
 }
 
-/// Runs the MCP HTTP server on the specified port.
+/// Runs the MCP HTTP server on `port`.
 ///
 /// # Errors
-/// Returns an error if the server fails to bind to the port or encounters an error while serving.
+///
+/// Returns an [`std::io::Error`] if the server cannot bind to `port` or encounters an I/O error.
 pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Result<()> {
     let (_tx, rx) = tokio::sync::oneshot::channel();
     run_server_with_shutdown(port, sender, rx).await
 }
 
-/// Runs the MCP HTTP server on the specified port with graceful shutdown support.
+/// Runs the MCP HTTP server on `port` until `shutdown_rx` resolves.
 ///
 /// # Errors
-/// Returns an error if the server fails to bind to the port or encounters an error while serving.
+///
+/// Returns an [`std::io::Error`] if the server cannot bind to `port` or encounters an I/O error.
 pub async fn run_server_with_shutdown(
     port: u16,
     sender: Sender<McpRequest>,
@@ -191,14 +201,15 @@ pub async fn run_server_with_shutdown(
     serve_listener_with_shutdown(listener, sender, shutdown_rx).await
 }
 
-/// Serves the MCP HTTP router on an already-bound [`tokio::net::TcpListener`] with graceful shutdown support.
+/// Serves the MCP HTTP router on a bound [`tokio::net::TcpListener`] until `shutdown_rx` resolves.
 ///
-/// Separating socket binding from request serving allows callers (such as the TUI background
-/// server thread) to verify that the TCP port bound successfully before emitting a "server started"
-/// event, and enables deterministic ephemeral-port (`127.0.0.1:0`) testing without port collisions.
+/// This function separates socket binding from request handling. Callers can verify that the
+/// TCP port bound before they emit a server start event, and tests can bind to `127.0.0.1:0`
+/// without port collisions.
 ///
 /// # Errors
-/// Returns an error if [`axum::serve()`] encounters an I/O error while serving.
+///
+/// Returns an [`std::io::Error`] if [`axum::serve()`] encounters an I/O error.
 pub async fn serve_listener_with_shutdown(
     listener: tokio::net::TcpListener,
     sender: Sender<McpRequest>,
@@ -207,9 +218,8 @@ pub async fn serve_listener_with_shutdown(
     let handler = RegeneratorOps::new(sender);
     let handler_clone = handler.clone();
 
-    // Create the session manager.
-    // Disable the default 5-minute keep_alive timeout: Regenerator 2000 is a
-    // local desktop app where MCP sessions can be idle for extended periods.
+    // Disable the default 5-minute keep_alive timeout because local desktop MCP
+    // sessions may remain idle for extended periods.
     let session_manager = Arc::new({
         use rmcp::transport::streamable_http_server::session::local::SessionConfig;
         let mut mgr =
@@ -220,17 +230,14 @@ pub async fn serve_listener_with_shutdown(
         mgr
     });
 
-    // Create the service
+    // Disable SSE retry priming events because some MCP clients parse every SSE event
+    // payload as JSON-RPC and reject empty `retry:` events.
     let service = StreamableHttpService::new(move || Ok(handler_clone.clone()), session_manager, {
         let mut config = StreamableHttpServerConfig::default();
-        // Disable SSE priming events (retry:) — clients like Antigravity
-        // try to parse every SSE event's data as JSON-RPC, and priming
-        // events have no `data:` field, causing "unexpected end of JSON input".
         config.sse_retry = None;
         config
     });
 
-    // Nest the MCP service into an Axum router
     let app = axum::Router::new().nest_service("/mcp", service);
 
     if let Ok(local_addr) = listener.local_addr() {

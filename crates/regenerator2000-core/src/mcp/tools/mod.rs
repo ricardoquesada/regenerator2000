@@ -1,11 +1,11 @@
-//! Model Context Protocol (MCP) tool handlers for Regenerator2000.
+//! Model Context Protocol (MCP) tool submodules for Regenerator 2000.
 //!
-//! This module organizes tool definitions and handlers into logical submodules:
-//! - [`analysis_tools`]: Tools for analyzing memory blocks, address details, symbols, cross-references, scopes, searching memory/disassembly, and reading regions.
-//! - [`common`]: Shared helper functions for parsing parameters, constructing errors, and converting regions.
-//! - [`modification_tools`]: Tools for setting labels, comments, data types, splitters, immediate formats, and project enums.
-//! - [`navigation_tools`]: Tools for retrieving cursor positions and jumping to specific addresses.
-//! - [`session_tools`]: Tools for querying binary metadata, unpacking 6502 payloads, triggering disassembly, saving projects, and undo/redo operations.
+//! This module organizes tool schemas and execution handlers into five submodules:
+//! - [`analysis_tools`]: Read-only inspection, search, scope creation, and memory analysis tools.
+//! - [`common`]: Shared parameter parsers, error constructors, and block conversion helpers.
+//! - [`modification_tools`]: State-mutation tools for labels, comments, data types, splitters, immediate formats, and enums.
+//! - [`navigation_tools`]: Cursor position queries and address jump tools.
+//! - [`session_tools`]: Binary unpacker, project save, and undo/redo tools.
 
 pub mod analysis_tools;
 pub mod common;

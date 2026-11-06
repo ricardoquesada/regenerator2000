@@ -1,7 +1,7 @@
-//! Central MCP request handler and tool dispatcher for Model Context Protocol interactions.
+//! Central Model Context Protocol (MCP) request handler and tool dispatcher.
 //!
-//! This module processes incoming JSON-RPC protocol requests ([`McpRequest`]), handles initialization,
-//! lists available tools and resources, and dispatches tool calls across analysis, navigation, modification,
+//! This module processes JSON-RPC protocol requests ([`McpRequest`]), initializes sessions,
+//! lists tools and resources, and dispatches tool calls to analysis, navigation, modification,
 //! and session tool submodules.
 
 use crate::mcp::tools::{
@@ -9,42 +9,43 @@ use crate::mcp::tools::{
 };
 use crate::mcp::types::{McpError, McpRequest, McpResponse};
 use crate::state::AppState;
+use crate::state::types::Addr;
 use crate::view_state::CoreViewState;
 use serde_json::{Value, json};
 
-/// Canonical MCP server name advertised during initialization and discovery.
+/// Canonical MCP server name for initialization and discovery responses.
 pub const MCP_SERVER_NAME: &str = "regenerator2000-core-mcp";
 
 /// Human-readable description of the Regenerator 2000 MCP server.
-pub const MCP_SERVER_DESCRIPTION: &str = "An interactive disassembler for the MOS 6502 assembly.";
+pub const MCP_SERVER_DESCRIPTION: &str = "An interactive disassembler for MOS 6502 assembly.";
 
-/// System instructions provided to MCP clients connecting to Regenerator 2000.
-pub const MCP_SERVER_INSTRUCTIONS: &str = "You are an expert in MOS 6502 assembly programmer. Always assume the code is 6502 assembly unless stated otherwise.";
+/// System instructions for MCP clients that connect to Regenerator 2000.
+pub const MCP_SERVER_INSTRUCTIONS: &str = "You are an expert MOS 6502 assembly programmer. Assume the code is 6502 assembly unless stated otherwise.";
 
-/// Main request handler for processing incoming Model Context Protocol [`McpRequest`] calls.
+/// Processes a Model Context Protocol [`McpRequest`] and returns an [`McpResponse`].
 ///
-/// Handles `initialize`, `notifications/initialized`, `ping`, `tools/list`, `resources/list`,
-/// `tools/call`, and `resources/read` request methods.
-///
-/// # Arguments
-///
-/// * `req` - Reference to the incoming [`McpRequest`].
-/// * `app_state` - Mutable reference to the application state [`AppState`].
-/// * `view_state` - Mutable reference to the UI viewport state [`CoreViewState`].
-///
-/// # Returns
-///
-/// An [`McpResponse`] containing either the JSON result payload or an error structure [`McpError`].
+/// This function handles the `initialize`, `notifications/initialized`, `ping`, `tools/list`,
+/// `resources/list`, `tools/call`, and `resources/read` methods.
 #[must_use]
 pub fn handle_request(
     req: &McpRequest,
     app_state: &mut AppState,
     view_state: &mut CoreViewState,
 ) -> McpResponse {
-    let result = match req.method.as_str() {
+    handle_method(&req.method, &req.params, app_state, view_state)
+}
+
+/// Processes a JSON-RPC method call directly without an [`McpRequest`] channel wrapper.
+#[must_use]
+pub(crate) fn handle_method(
+    method: &str,
+    params: &Value,
+    app_state: &mut AppState,
+    view_state: &mut CoreViewState,
+) -> McpResponse {
+    let result = match method {
         "initialize" => {
-            let protocol_version = req
-                .params
+            let protocol_version = params
                 .get("protocolVersion")
                 .and_then(Value::as_str)
                 .unwrap_or("2024-11-05");
@@ -66,11 +67,11 @@ pub fn handle_request(
         "ping" => Ok(json!({})),
         "tools/list" => list_tools(&app_state.system_config),
         "resources/list" => list_resources(),
-        "tools/call" => handle_tool_call(&req.params, app_state, view_state),
-        "resources/read" => handle_resource_read(&req.params, app_state),
+        "tools/call" => handle_tool_call(params, app_state, view_state),
+        "resources/read" => handle_resource_read(params, app_state),
         _ => Err(make_mcp_error(
             -32601,
-            format!("Method not found: {}", req.method),
+            format!("Method not found: {method}"),
         )),
     };
 
@@ -86,15 +87,7 @@ pub fn handle_request(
     }
 }
 
-/// Aggregates tool definitions across all tool submodules into a JSON list response.
-///
-/// # Arguments
-///
-/// * `system_config` - Reference to the system configuration [`SystemConfig`](crate::config::SystemConfig).
-///
-/// # Returns
-///
-/// A JSON [`Value`] object containing the aggregated tool schemas array under the `"tools"` key.
+/// Collects tool schemas from all tool submodules into a JSON list response.
 ///
 /// # Errors
 ///
@@ -109,7 +102,7 @@ fn list_tools(system_config: &crate::config::SystemConfig) -> Result<Value, McpE
 
     tools.push(json!({
         "name": "r2000_batch_execute",
-        "description": "Executes multiple tool calls sequentially in a single request. Use only when you have 5+ independent operations to perform at once.",
+        "description": "Execute multiple tool calls sequentially in a single request. Use this tool only when you have 5 or more independent operations to run at once.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -133,21 +126,11 @@ fn list_tools(system_config: &crate::config::SystemConfig) -> Result<Value, McpE
     Ok(json!({ "tools": tools }))
 }
 
-/// Handles `tools/call` JSON-RPC requests by extracting parameters and invoking tool execution.
-///
-/// # Arguments
-///
-/// * `params` - JSON [`Value`] holding the tool name and arguments.
-/// * `app_state` - Mutable reference to the application state [`AppState`].
-/// * `view_state` - Mutable reference to the UI viewport state [`CoreViewState`].
-///
-/// # Returns
-///
-/// A JSON [`Value`] containing the result payload returned by the dispatched tool execution handler.
+/// Extracts parameters from a `tools/call` request and executes the requested tool.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if `name` is missing or if tool execution returns an error.
+/// Returns [`McpError`] if `"name"` is missing or if tool execution fails.
 fn handle_tool_call(
     params: &Value,
     app_state: &mut AppState,
@@ -158,28 +141,17 @@ fn handle_tool_call(
         .and_then(|v| v.as_str())
         .ok_or_else(|| make_mcp_error(-32602, "Missing 'name' in tools/call"))?;
 
-    let args = params.get("arguments").cloned().unwrap_or(json!({}));
+    let default_args = json!({});
+    let args = params.get("arguments").unwrap_or(&default_args);
 
-    handle_tool_call_internal(name, &args, app_state, view_state)
+    handle_tool_call_internal(name, args, app_state, view_state)
 }
 
-/// Dispatches an MCP tool call to the appropriate submodule (`analysis_tools`, `navigation_tools`,
-/// `modification_tools`, or `session_tools`). Handles batch tool invocation recursively.
-///
-/// # Arguments
-///
-/// * `name` - The tool name (e.g. `"r2000_get_disassembly"`).
-/// * `args` - Reference to the tool arguments as a JSON [`Value`].
-/// * `app_state` - Mutable reference to the application state [`AppState`].
-/// * `view_state` - Mutable reference to the UI viewport state [`CoreViewState`].
-///
-/// # Returns
-///
-/// A JSON [`Value`] containing execution results for single or batch tool invocations.
+/// Dispatches an MCP tool call to the matching submodule or executes a batch call recursively.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if `name` is unrecognized or if the tool call fails.
+/// Returns [`McpError`] if `name` is unknown or if the tool execution fails.
 pub(crate) fn handle_tool_call_internal(
     name: &str,
     args: &Value,
@@ -192,7 +164,7 @@ pub(crate) fn handle_tool_call_internal(
             .and_then(|v| v.as_array())
             .ok_or_else(|| make_mcp_error(-32602, "Missing 'calls' array"))?;
 
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity(calls.len());
         let default_args = json!({});
         for call in calls {
             let tool_name = call
@@ -235,22 +207,18 @@ pub(crate) fn handle_tool_call_internal(
     Err(make_mcp_error(-32601, format!("Unknown tool: {name}")))
 }
 
-/// Returns a list of available MCP resource definitions.
-///
-/// # Returns
-///
-/// A JSON [`Value`] object containing the list of available resource definitions under the `"resources"` key.
+/// Returns the list of available MCP resource definitions.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if resource listing fails.
+/// Returns [`McpError`] if resource list construction fails.
 fn list_resources() -> Result<Value, McpError> {
     Ok(json!({
         "resources": [
             {
                 "uri": "binary://main",
                 "name": "Main Binary Data",
-                "description": "The raw PRG binary payload (including 2-byte load address header) encoded as base64 blob.",
+                "description": "The raw PRG binary payload (with a 2-byte load address header) encoded as a base64 blob.",
                 "mimeType": "application/octet-stream"
             },
             {
@@ -287,20 +255,26 @@ fn list_resources() -> Result<Value, McpError> {
     }))
 }
 
-/// Handles `resources/read` JSON-RPC requests for registered resource URIs.
-///
-/// # Arguments
-///
-/// * `params` - JSON [`Value`] containing `"uri"`.
-/// * `app_state` - Mutable reference to the application state [`AppState`].
-///
-/// # Returns
-///
-/// A JSON [`Value`] containing the contents payload for the requested resource URI.
+/// Returns the inclusive `(start, end)` address bounds for the loaded binary in `app_state`.
+#[must_use]
+fn binary_address_bounds(app_state: &AppState) -> (Addr, Addr) {
+    let start = app_state.origin;
+    let end = app_state
+        .raw_data
+        .len()
+        .checked_sub(1)
+        .map_or(start, |len_minus_1| {
+            #[allow(clippy::cast_possible_truncation)]
+            start.wrapping_add(len_minus_1 as u16)
+        });
+    (start, end)
+}
+
+/// Processes `resources/read` JSON-RPC requests for registered resource URIs.
 ///
 /// # Errors
 ///
-/// Returns [`McpError`] if `uri` is missing or unrecognized.
+/// Returns [`McpError`] if `"uri"` is missing or unknown.
 fn handle_resource_read(params: &Value, app_state: &mut AppState) -> Result<Value, McpError> {
     let uri = params
         .get("uri")
@@ -324,24 +298,14 @@ fn handle_resource_read(params: &Value, app_state: &mut AppState) -> Result<Valu
 
     let (mime_type, text) = match uri {
         "disassembly://current" => {
-            let start = app_state.origin;
-            let end = app_state
-                .raw_data
-                .len()
-                .checked_sub(1)
-                .map_or(start, |len_minus_1| start.wrapping_add(len_minus_1 as u16));
+            let (start, end) = binary_address_bounds(app_state);
             (
                 "text/x-asm",
                 analysis_tools::get_disassembly_text(app_state, start, end),
             )
         }
         "hexdump://current" => {
-            let start = app_state.origin;
-            let end = app_state
-                .raw_data
-                .len()
-                .checked_sub(1)
-                .map_or(start, |len_minus_1| start.wrapping_add(len_minus_1 as u16));
+            let (start, end) = binary_address_bounds(app_state);
             (
                 "text/plain",
                 analysis_tools::get_hexdump_text(app_state, start, end),
