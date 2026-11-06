@@ -1,53 +1,43 @@
 //! Static control-flow and data-reference analyzer for MOS 6502 binaries.
 //!
-//! This module scans [`AppState`] memory blocks, decodes 6502 instructions and address tables,
+//! Scans [`AppState`] memory blocks, decodes 6502 instructions and address tables,
 //! generates canonical auto-labels ([`LabelType`]), builds the typed cross-reference index
-//! (`BTreeMap<Addr, Vec<XRef>>`), resolves indirect jump tables (`JMP ($xxxx)`), and performs
-//! recursive control-flow tracing ([`flow_analyze`]).
+//! (`BTreeMap<Addr, Vec<XRef>>`), resolves indirect jump vectors (`JMP ($xxxx)`), and performs
+//! breadth-first control-flow reachability tracing ([`flow_analyze`]).
 
 use crate::cpu::{AddressingMode, Opcode};
-use crate::state::{Addr, AppState, BlockType, LabelType, XRef, XRefKind};
+use crate::state::{
+    Addr, AppState, BlockType, ImmediateFormat, Label, LabelKind, LabelType, XRef, XRefKind,
+};
 use std::collections::BTreeMap;
 
-/// Output of a full binary analysis pass produced by [`analyze`].
+/// Contains the generated label map and typed cross-reference index from [`analyze`].
 pub struct AnalysisResult {
-    /// Address-keyed map of preserved user/system labels and newly generated [`LabelKind::Auto`](crate::state::LabelKind::Auto) labels.
-    pub labels: BTreeMap<Addr, Vec<crate::state::Label>>,
-    /// Inverted index mapping each target [`Addr`] to a sorted, deduplicated list of typed [`XRef`]s referencing it.
+    /// Address-keyed map of preserved user/system labels and generated [`LabelKind::Auto`] labels.
+    pub labels: BTreeMap<Addr, Vec<Label>>,
+    /// Inverted index that maps each target [`Addr`] to a sorted, deduplicated [`XRef`] list.
     pub cross_refs: BTreeMap<Addr, Vec<XRef>>,
 }
 
-/// Per-target accumulator tracking reference counts by [`LabelType`], incoming [`XRef`] edges,
-/// and the first [`LabelType`] observed during the linear scan.
-type UsageData = (
-    BTreeMap<LabelType, usize>,
-    Vec<XRef>,
-    LabelType, // first overall
-);
+/// Stores incoming [`XRef`] edges and the first observed [`LabelType`] for a target address.
+type UsageData = (Vec<XRef>, LabelType);
 
-/// Performs a full static analysis pass over `state`, generating labels and typed cross-references.
+/// Runs a full static analysis pass over `state` and returns generated labels and cross-references.
 ///
-/// The analyzer executes five stages:
+/// The analyzer executes four stages:
 ///
-/// 1. **Linear instruction and data-block scan**: Decodes [`BlockType::Code`] instructions via
-///    `analyze_instruction` and extracts 16-bit target addresses from [`BlockType::Address`],
-///    [`BlockType::LoHiAddress`], and [`BlockType::HiLoAddress`] blocks as [`XRefKind::Offset`].
+/// 1. **Linear instruction and data-block scan**: Decodes [`BlockType::Code`] instructions
+///    (including indirect jump resolution through internal [`BlockType::Address`] vectors) and
+///    extracts 16-bit target addresses from [`BlockType::Address`], [`BlockType::LoHiAddress`],
+///    and [`BlockType::HiLoAddress`] blocks as [`XRefKind::Offset`].
 /// 2. **Return-stub promotion**: Promotes branch, jump, and subroutine targets whose first
 ///    instruction is `RTS` (`$60`) or `RTI` (`$40`) to [`LabelType::Return`].
 /// 3. **Immediate low/high byte offset collection**: Records [`XRefKind::Offset`] references for
-///    instructions annotated with [`ImmediateFormat::LowByte`](crate::state::ImmediateFormat::LowByte)
-///    or [`ImmediateFormat::HighByte`](crate::state::ImmediateFormat::HighByte).
+///    instructions annotated with [`ImmediateFormat::LowByte`] or [`ImmediateFormat::HighByte`].
 /// 4. **Canonical label and [`XRef`] normalization**: Sorts and deduplicates each target's
 ///    `Vec<XRef>` by `(from, kind)` and generates auto-labels while preserving user and system labels.
-/// 5. **Indirect jump resolution**: Traces `JMP ($xxxx)` instructions through internal
-///    [`BlockType::Address`] jump tables via `follow_indirect_jumps`.
 #[must_use]
 pub fn analyze(state: &AppState) -> AnalysisResult {
-    // We want to track ALL usages, illegal or not, and then pick the best ones.
-    // Map: Address -> Set of used LabelTypes
-    // We also need ref counts.
-    // Map: Address -> UsageData
-    // storing (counts, refs, first_seen_type)
     let mut usage_map: BTreeMap<Addr, UsageData> = BTreeMap::new();
     let mut pc = 0;
     let data_len = state.raw_data.len();
@@ -60,43 +50,47 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
             .copied()
             .unwrap_or(BlockType::Code);
 
-        if current_type == BlockType::Code {
-            let opcode_byte = state.raw_data[pc];
-            if let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] {
+        match current_type {
+            BlockType::Code => {
+                let opcode_byte = state.raw_data[pc];
+                let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] else {
+                    pc += 1;
+                    continue;
+                };
                 if opcode.illegal && !state.settings.use_illegal_opcodes {
-                    // TBD, but we can skip 1 byte, or the entire opcode.
-                    // Let's be safe, and skip 1 byte.
-                    // pc += opcode.size as usize;
                     pc += 1;
                     continue;
                 }
-                // Check if we have enough bytes
-                if pc + opcode.size as usize <= data_len {
-                    // Extract operands
-                    let mut operands = Vec::new();
-                    for i in 1..opcode.size {
-                        operands.push(state.raw_data[pc + i as usize]);
-                    }
 
+                // Consume the signature byte for 2-byte `BRK` when the next byte is also `Code`.
+                if opcode.mnemonic == "BRK"
+                    && !state.settings.brk_single_byte
+                    && pc + 1 < data_len
+                    && state.block_types.get(pc + 1) == Some(&BlockType::Code)
+                {
+                    pc += 2;
+                    continue;
+                }
+
+                let size = opcode.size as usize;
+                let all_code = pc + size <= data_len
+                    && (1..size).all(|i| state.block_types.get(pc + i) == Some(&BlockType::Code));
+
+                if all_code {
                     analyze_instruction(
                         state,
                         opcode,
-                        &operands,
+                        &state.raw_data[pc + 1..pc + size],
                         origin.wrapping_add(pc as u16),
                         &mut usage_map,
                     );
-
-                    pc += opcode.size as usize;
+                    pc += size;
                 } else {
                     pc += 1;
                 }
-            } else {
-                pc += 1;
             }
-        } else {
-            // Data skip
-            if current_type == BlockType::Address {
-                if pc + 2 <= data_len {
+            BlockType::Address => {
+                if has_unsplit_pair(state, pc, BlockType::Address) {
                     let low = state.raw_data[pc];
                     let high = state.raw_data[pc + 1];
                     let val = Addr(u16::from(high) << 8 | u16::from(low));
@@ -110,161 +104,73 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                 } else {
                     pc += 1;
                 }
-            } else if current_type == BlockType::DataWord {
-                pc += 2;
-            } else if current_type == BlockType::LoHiAddress {
-                // Determine the full length of this LoHi block, respecting splitters
-                let mut count = 0;
-                while pc + count < data_len
-                    && state.block_types.get(pc + count) == Some(&BlockType::LoHiAddress)
-                {
-                    if count > 0 {
-                        let current_addr = origin.wrapping_add((pc + count) as u16);
-                        if state.is_virtual_splitter(current_addr) {
-                            break;
-                        }
-                    }
-                    count += 1;
+            }
+            BlockType::DataWord => {
+                if has_unsplit_pair(state, pc, BlockType::DataWord) {
+                    pc += 2;
+                } else {
+                    pc += 1;
                 }
-
-                let pair_count = count / 2;
-                if pair_count > 0 {
-                    let split_offset = pair_count;
-                    for i in 0..pair_count {
-                        if pc + i < data_len && pc + split_offset + i < data_len {
-                            let lo = state.raw_data[pc + i];
-                            let hi = state.raw_data[pc + split_offset + i];
-                            let val = Addr(u16::from(hi) << 8 | u16::from(lo));
-                            update_usage(
-                                &mut usage_map,
-                                val,
-                                LabelType::AbsoluteAddress,
-                                XRef::new(origin.wrapping_add((pc + i) as u16), XRefKind::Offset),
-                            );
-                        }
-                    }
-                }
+            }
+            BlockType::LoHiAddress => {
+                let count = contiguous_block_len(state, pc, BlockType::LoHiAddress);
+                analyze_split_address_table(state, pc, count, true, &mut usage_map);
                 pc += count;
-            } else if current_type == BlockType::HiLoAddress {
-                // Determine the full length of this HiLo block, respecting splitters
-                let mut count = 0;
-                while pc + count < data_len
-                    && state.block_types.get(pc + count) == Some(&BlockType::HiLoAddress)
-                {
-                    if count > 0 {
-                        let current_addr = origin.wrapping_add((pc + count) as u16);
-                        if state.is_virtual_splitter(current_addr) {
-                            break;
-                        }
-                    }
-                    count += 1;
-                }
-
-                let pair_count = count / 2;
-                if pair_count > 0 {
-                    let split_offset = pair_count;
-                    for i in 0..pair_count {
-                        if pc + i < data_len && pc + split_offset + i < data_len {
-                            let hi = state.raw_data[pc + i];
-                            let lo = state.raw_data[pc + split_offset + i];
-                            let val = Addr(u16::from(hi) << 8 | u16::from(lo));
-                            update_usage(
-                                &mut usage_map,
-                                val,
-                                LabelType::AbsoluteAddress,
-                                XRef::new(origin.wrapping_add((pc + i) as u16), XRefKind::Offset),
-                            );
-                        }
-                    }
-                }
+            }
+            BlockType::HiLoAddress => {
+                let count = contiguous_block_len(state, pc, BlockType::HiLoAddress);
+                analyze_split_address_table(state, pc, count, false, &mut usage_map);
                 pc += count;
-            } else if current_type == BlockType::LoHiWord || current_type == BlockType::HiLoWord {
-                // Skip the whole block, respecting splitters
-                let mut count = 0;
-                while pc + count < data_len
-                    && state.block_types.get(pc + count) == Some(&current_type)
-                {
-                    if count > 0 {
-                        let current_addr = origin.wrapping_add((pc + count) as u16);
-                        if state.is_virtual_splitter(current_addr) {
-                            break;
-                        }
-                    }
-                    count += 1;
-                }
-                pc += count;
-            } else {
+            }
+            BlockType::LoHiWord | BlockType::HiLoWord => {
+                pc += contiguous_block_len(state, pc, current_type);
+            }
+            _ => {
                 pc += 1;
             }
         }
     }
 
-    // === Pre-label promotion passes ===
-
-    // Promote Branch/Jump/Subroutine labels to Return when the target's first
-    // instruction is RTS ($60) or RTI ($40).
     promote_return_labels(state, &mut usage_map);
 
-    // Generate labels
-    let mut labels: BTreeMap<Addr, Vec<crate::state::Label>> = BTreeMap::new();
+    let mut labels: BTreeMap<Addr, Vec<Label>> = BTreeMap::new();
     let mut cross_refs: BTreeMap<Addr, Vec<XRef>> = BTreeMap::new();
 
-    // 0. Pre-populate labels from immediate_value_formats (LoHi/HiLo)
+    // Record immediate low-byte and high-byte pointer references.
     for (addr, entry) in state.annotations.iter() {
-        if let Some(fmt) = &entry.immediate_format {
-            let target = match fmt {
-                crate::state::ImmediateFormat::LowByte(val) => Some(val),
-                crate::state::ImmediateFormat::HighByte(val) => Some(val),
-                _ => None,
-            };
-
-            if let Some(target_addr) = target {
-                // Add to usage map to ensure it's tracked
-                update_usage(
-                    &mut usage_map,
-                    *target_addr,
-                    LabelType::Pointer,
-                    XRef::new(addr, XRefKind::Offset),
-                );
-            }
-        }
+        let Some(ImmediateFormat::LowByte(target_addr) | ImmediateFormat::HighByte(target_addr)) =
+            &entry.immediate_format
+        else {
+            continue;
+        };
+        update_usage(
+            &mut usage_map,
+            *target_addr,
+            LabelType::Pointer,
+            XRef::new(addr, XRefKind::Offset),
+        );
     }
 
-    // 1. Process all used addresses
-    for (addr, (_types_map, mut refs, first_type)) in usage_map {
+    // Normalize cross-references and build canonical label lists for referenced addresses.
+    for (addr, (mut refs, first_type)) in usage_map {
         let mut addr_labels = Vec::new();
 
-        // Populate cross_refs
         if !refs.is_empty() {
             refs.sort_unstable();
             refs.dedup();
             cross_refs.insert(addr, refs);
         }
+
         if let Some(existing_vec) = state.labels.get(&addr) {
             for existing in existing_vec {
-                let should_preserve = existing.kind == crate::state::LabelKind::User
-                    || existing.kind == crate::state::LabelKind::System;
-
-                if should_preserve {
-                    addr_labels.push(crate::state::Label {
-                        name: existing.name.clone(),
-                        label_type: existing.label_type,
-                        kind: existing.kind.clone(), // User or System
-                    });
+                if matches!(existing.kind, LabelKind::User | LabelKind::System) {
+                    addr_labels.push(existing.clone());
                 }
             }
         }
 
-        // If we have User labels for *all* needed contexts, we might skip Auto generation?
-        // But for now, let's just generate Auto labels if needed.
-
-        // Single canonical label (first-wins) for both internal and external.
-        // If User/System label exists, do not add an Auto label.
-        if addr_labels.is_empty() {
-            let is_ext = state.is_external(addr);
-
-            // For external addresses, promote code-flow types to ExternalJump.
-            let final_type = if is_ext
+        if addr_labels.is_empty() && !state.excluded_addresses.contains(&addr) {
+            let final_type = if state.is_external(addr)
                 && matches!(
                     first_type,
                     LabelType::Jump | LabelType::Subroutine | LabelType::Branch | LabelType::Return
@@ -274,14 +180,11 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                 first_type
             };
 
-            if !state.excluded_addresses.contains(&addr) {
-                let name = final_type.format_label(addr.0);
-                addr_labels.push(crate::state::Label {
-                    name,
-                    label_type: final_type,
-                    kind: crate::state::LabelKind::Auto,
-                });
-            }
+            addr_labels.push(Label {
+                name: final_type.format_label(addr.0),
+                label_type: final_type,
+                kind: LabelKind::Auto,
+            });
         }
 
         if !addr_labels.is_empty() {
@@ -289,40 +192,82 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
         }
     }
 
-    // 2. Preserve strictly unused User labels
+    // Preserve unreferenced user-defined labels.
     for (addr, label_vec) in &state.labels {
-        if !labels.contains_key(addr) {
-            let mut preserved = Vec::new();
-            for label in label_vec {
-                if label.kind == crate::state::LabelKind::User {
-                    preserved.push(crate::state::Label {
-                        name: label.name.clone(),
-                        label_type: label.label_type,
-                        kind: crate::state::LabelKind::User,
-                    });
-                }
-            }
-            if !preserved.is_empty() {
-                labels.insert(*addr, preserved);
-            }
+        if labels.contains_key(addr) {
+            continue;
+        }
+        let preserved: Vec<Label> = label_vec
+            .iter()
+            .filter(|l| l.kind == LabelKind::User)
+            .cloned()
+            .collect();
+        if !preserved.is_empty() {
+            labels.insert(*addr, preserved);
         }
     }
-
-    // === Advanced analysis passes ===
-
-    // Follow JMP (Indirect) through jump tables to generate labels and cross-refs
-    follow_indirect_jumps(state, &mut labels, &mut cross_refs);
 
     AnalysisResult { labels, cross_refs }
 }
 
-/// Decodes a single instruction's operand target address and records its [`LabelType`] and typed
-/// [`XRef`] in `usage_map`.
-///
-/// The access classification is determined via [`Opcode::xref_kind`], defaulting to
-/// [`XRefKind::Read`] for any addressing mode that reaches a target branch in the match.
+/// Returns `true` when `pc` and `pc + 1` both have `block_type` with no splitter between them.
+#[must_use]
+fn has_unsplit_pair(state: &AppState, pc: usize, block_type: BlockType) -> bool {
+    pc + 2 <= state.raw_data.len()
+        && state.block_types.get(pc) == Some(&block_type)
+        && state.block_types.get(pc + 1) == Some(&block_type)
+        && !state.is_virtual_splitter(state.origin.wrapping_add((pc + 1) as u16))
+}
+
+/// Returns the byte length of the contiguous `block_type` run starting at `pc`, stopping at splitters.
+#[must_use]
+fn contiguous_block_len(state: &AppState, pc: usize, block_type: BlockType) -> usize {
+    let data_len = state.raw_data.len();
+    let origin = state.origin;
+    let mut count = 0;
+
+    while pc + count < data_len && state.block_types.get(pc + count) == Some(&block_type) {
+        if count > 0 && state.is_virtual_splitter(origin.wrapping_add((pc + count) as u16)) {
+            break;
+        }
+        count += 1;
+    }
+
+    count
+}
+
+/// Extracts 16-bit target addresses from a split `LoHiAddress` or `HiLoAddress` table.
+fn analyze_split_address_table(
+    state: &AppState,
+    pc: usize,
+    count: usize,
+    lo_first: bool,
+    usage_map: &mut BTreeMap<Addr, UsageData>,
+) {
+    let pair_count = count / 2;
+    let origin = state.origin;
+
+    for i in 0..pair_count {
+        let first = state.raw_data[pc + i];
+        let second = state.raw_data[pc + pair_count + i];
+        let (lo, hi) = if lo_first {
+            (first, second)
+        } else {
+            (second, first)
+        };
+        let val = Addr(u16::from(hi) << 8 | u16::from(lo));
+        update_usage(
+            usage_map,
+            val,
+            LabelType::AbsoluteAddress,
+            XRef::new(origin.wrapping_add((pc + i) as u16), XRefKind::Offset),
+        );
+    }
+}
+
+/// Decodes one instruction's operand target address and records its [`LabelType`] and [`XRef`].
 fn analyze_instruction(
-    _state: &AppState,
+    state: &AppState,
     opcode: &Opcode,
     operands: &[u8],
     address: Addr,
@@ -332,107 +277,109 @@ fn analyze_instruction(
     let xref = XRef::new(address, kind);
 
     match opcode.mode {
-        AddressingMode::Implied | AddressingMode::Accumulator | AddressingMode::Immediate => {}
+        AddressingMode::Implied
+        | AddressingMode::Accumulator
+        | AddressingMode::Immediate
+        | AddressingMode::Unknown => {}
         AddressingMode::ZeroPage => {
-            if !operands.is_empty() {
-                let addr = Addr(u16::from(operands[0]));
-                // "a: Zero Page Address"
-                update_usage(usage_map, addr, LabelType::ZeroPageAbsoluteAddress, xref);
+            if let Some(&zp) = operands.first() {
+                update_usage(
+                    usage_map,
+                    Addr(u16::from(zp)),
+                    LabelType::ZeroPageAbsoluteAddress,
+                    xref,
+                );
             }
         }
         AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
-            if !operands.is_empty() {
-                let addr = Addr(u16::from(operands[0]));
-                // Indexed zero page often used for arrays/fields
-                update_usage(usage_map, addr, LabelType::ZeroPageField, xref);
+            if let Some(&zp) = operands.first() {
+                update_usage(
+                    usage_map,
+                    Addr(u16::from(zp)),
+                    LabelType::ZeroPageField,
+                    xref,
+                );
             }
         }
         AddressingMode::Relative => {
-            if !operands.is_empty() {
-                let offset = operands[0] as i8;
+            if let Some(&rel) = operands.first() {
+                let offset = rel as i8;
                 let target = Addr((address.0.wrapping_add(2)).wrapping_add(offset as u16));
-                // "b: ... branch opcodes"
                 update_usage(usage_map, target, LabelType::Branch, xref);
             }
         }
         AddressingMode::Absolute => {
             if operands.len() >= 2 {
                 let target = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-
-                if opcode.mnemonic == "JSR" {
-                    update_usage(usage_map, target, LabelType::Subroutine, xref);
-                } else if opcode.mnemonic == "JMP" {
-                    update_usage(usage_map, target, LabelType::Jump, xref);
-                } else {
-                    // "a: ... absolute address"
-                    update_usage(usage_map, target, LabelType::AbsoluteAddress, xref);
-                }
+                let label_type = match opcode.mnemonic {
+                    "JSR" => LabelType::Subroutine,
+                    "JMP" => LabelType::Jump,
+                    _ => LabelType::AbsoluteAddress,
+                };
+                update_usage(usage_map, target, label_type, xref);
             }
         }
         AddressingMode::AbsoluteX | AddressingMode::AbsoluteY => {
             if operands.len() >= 2 {
                 let target = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                // Indexed absolute is also "absolute address" usage
                 update_usage(usage_map, target, LabelType::Field, xref);
             }
         }
         AddressingMode::Indirect => {
             if operands.len() >= 2 {
                 let pointer_addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                // "p: if this is a pointer"
-                // The address `pointer_addr` is BEING USED a pointer.
                 update_usage(usage_map, pointer_addr, LabelType::Pointer, xref);
+
+                // When `JMP ($xxxx)` points to an internal 2-byte `BlockType::Address` vector,
+                // record the dereferenced destination as a `Jump` target as well.
+                if opcode.mnemonic == "JMP" && !state.is_external(pointer_addr) {
+                    let ptr_offset = pointer_addr.offset_from(state.origin);
+                    if has_unsplit_pair(state, ptr_offset, BlockType::Address) {
+                        let target = Addr(
+                            u16::from(state.raw_data[ptr_offset + 1]) << 8
+                                | u16::from(state.raw_data[ptr_offset]),
+                        );
+                        update_usage(usage_map, target, LabelType::Jump, xref);
+                        if let Some((_, first_type)) = usage_map.get_mut(&target)
+                            && *first_type == LabelType::AbsoluteAddress
+                        {
+                            *first_type = LabelType::Jump;
+                        }
+                    }
+                }
             }
         }
-        AddressingMode::IndirectX => {
-            if !operands.is_empty() {
-                let base = Addr(u16::from(operands[0]));
-                // (base, X) -> points to a table of pointers in ZP? Or just ZP pointer?
-                // It is "Indirect" X. The address `base` (and base+1) holds the address.
-                // So `base` is a pointer.
-                update_usage(usage_map, base, LabelType::ZeroPagePointer, xref);
+        AddressingMode::IndirectX | AddressingMode::IndirectY => {
+            if let Some(&base) = operands.first() {
+                update_usage(
+                    usage_map,
+                    Addr(u16::from(base)),
+                    LabelType::ZeroPagePointer,
+                    xref,
+                );
             }
         }
-        AddressingMode::IndirectY => {
-            if !operands.is_empty() {
-                let base = Addr(u16::from(operands[0]));
-                // (base), Y -> base is a ZP pointer.
-                update_usage(usage_map, base, LabelType::ZeroPagePointer, xref);
-            }
-        }
-        AddressingMode::Unknown => {}
     }
 }
 
-/// Promote `Branch`, `Jump`, and `Subroutine` label types to `Return` when the
-/// target address is an internal address whose first byte is `RTS` ($60) or
-/// `RTI` ($40).
-///
-/// This mirrors IDA Pro's `locret_` convention: if a branch or call lands
-/// directly on a return instruction, the label gets the `r_` prefix so it is
-/// immediately recognisable as a "return stub".
+/// Promotes `Branch`, `Jump`, and `Subroutine` targets to [`LabelType::Return`] when the target
+/// is an internal [`BlockType::Code`] byte containing `RTS` (`$60`) or `RTI` (`$40`).
 fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageData>) {
     let origin = state.origin;
     let data = &state.raw_data;
 
-    for (addr, (_types, _refs, first_type)) in usage_map.iter_mut() {
-        // Only promote code-flow label types.
-        let is_code_flow = matches!(
+    for (addr, (_refs, first_type)) in usage_map.iter_mut() {
+        if !matches!(
             first_type,
             LabelType::Branch | LabelType::Jump | LabelType::Subroutine
-        );
-        if !is_code_flow {
+        ) {
             continue;
         }
-
-        // Only for internal addresses (we cannot inspect external bytes).
         if state.is_external(*addr) {
             continue;
         }
 
         let offset = addr.offset_from(origin);
-
-        // Target must be in a Code block.
         if state
             .block_types
             .get(offset)
@@ -443,139 +390,23 @@ fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageD
             continue;
         }
 
-        // Check if the first byte at the target is RTS ($60) or RTI ($40).
-        let first_byte = data[offset];
-        if first_byte == 0x60 || first_byte == 0x40 {
+        if matches!(data[offset], 0x60 | 0x40) {
             *first_type = LabelType::Return;
         }
     }
 }
 
-/// Records an incoming [`XRef`] and increments the [`LabelType`] usage counter for `addr`.
-///
-/// The first [`LabelType`] recorded for `addr` is retained as the canonical auto-label type
-/// unless later promoted by `promote_return_labels`.
+/// Appends `xref` to `addr` in `map` and retains the first [`LabelType`] recorded for `addr`.
 fn update_usage(map: &mut BTreeMap<Addr, UsageData>, addr: Addr, priority: LabelType, xref: XRef) {
     map.entry(addr)
-        .and_modify(|(types, refs, _first)| {
-            *types.entry(priority).or_insert(0) += 1;
+        .and_modify(|(refs, _first)| {
             refs.push(xref);
         })
-        .or_insert_with(|| {
-            let mut types = BTreeMap::new();
-            types.insert(priority, 1);
-            let refs = vec![xref];
-            (types, refs, priority)
-        });
+        .or_insert_with(|| (vec![xref], priority));
 }
 
-// =============================================================================
-// Pass 1: Follow JMP (Indirect) through jump tables
-// =============================================================================
-
-/// Resolves `JMP ($xxxx)` (`$6C`) indirect jumps when `$xxxx` points to an internal
-/// [`BlockType::Address`] block.
-///
-/// This pass reads the 16-bit target address from `state.raw_data`. It then adds an auto-generated
-/// jump label ([`LabelType::Jump`] or [`LabelType::ExternalJump`]) and a [`XRefKind::Jump`]
-/// cross-reference from the `JMP ($xxxx)` instruction address.
-fn follow_indirect_jumps(
-    state: &AppState,
-    labels: &mut BTreeMap<Addr, Vec<crate::state::Label>>,
-    cross_refs: &mut BTreeMap<Addr, Vec<XRef>>,
-) {
-    let data = &state.raw_data;
-    let origin = state.origin;
-    let data_len = data.len();
-
-    let mut pc = 0;
-    while pc < data_len {
-        let current_type = state
-            .block_types
-            .get(pc)
-            .copied()
-            .unwrap_or(BlockType::Code);
-
-        if current_type != BlockType::Code {
-            pc += 1;
-            continue;
-        }
-
-        let opcode_byte = data[pc];
-        // JMP Indirect = 0x6C
-        if opcode_byte != 0x6C {
-            if let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] {
-                if opcode.illegal && !state.settings.use_illegal_opcodes {
-                    pc += 1;
-                } else if pc + opcode.size as usize <= data_len {
-                    pc += opcode.size as usize;
-                } else {
-                    pc += 1;
-                }
-            } else {
-                pc += 1;
-            }
-            continue;
-        }
-
-        // JMP ($xxxx) - 3 bytes: 6C lo hi
-        if pc + 3 > data_len {
-            pc += 1;
-            continue;
-        }
-
-        let jmp_addr = origin.wrapping_add(pc as u16);
-        let pointer_addr = Addr(u16::from(data[pc + 2]) << 8 | u16::from(data[pc + 1]));
-
-        if !state.is_external(pointer_addr) {
-            let ptr_offset = pointer_addr.offset_from(origin);
-
-            // Check if the pointer location is an Address block
-            let is_address_block = ptr_offset + 1 < data_len
-                && state.block_types.get(ptr_offset) == Some(&BlockType::Address);
-
-            if is_address_block {
-                // Read the target address from the jump table
-                let target =
-                    Addr(u16::from(data[ptr_offset + 1]) << 8 | u16::from(data[ptr_offset]));
-
-                // Add label for the target
-                let is_target_external = state.is_external(target);
-                let label_type = if is_target_external {
-                    LabelType::ExternalJump
-                } else {
-                    LabelType::Jump
-                };
-
-                let label_name = label_type.format_label(target.0);
-
-                // Only add if no user label already exists at target
-                let existing = labels.get(&target);
-                let has_user_label = existing
-                    .is_some_and(|v| v.iter().any(|l| l.kind == crate::state::LabelKind::User));
-
-                if !has_user_label && !state.excluded_addresses.contains(&target) {
-                    labels.entry(target).or_default().push(crate::state::Label {
-                        name: label_name,
-                        label_type,
-                        kind: crate::state::LabelKind::Auto,
-                    });
-                }
-
-                // Append the resolved jump edge and re-normalize `(from, kind)` ordering.
-                let refs = cross_refs.entry(target).or_default();
-                refs.push(XRef::new(jmp_addr, XRefKind::Jump));
-                refs.sort_unstable();
-                refs.dedup();
-            }
-        }
-
-        pc += 3;
-    }
-}
-
-/// Performs a breadth-first control-flow reachability trace starting from `start`, returning
-/// the byte-offset ranges of reachable code segments within `state.raw_data`.
+/// Traces reachable code segments from `start` using breadth-first search and returns their
+/// byte-offset ranges in `state.raw_data`.
 #[must_use]
 pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<std::ops::Range<usize>> {
     let mut visited = std::collections::HashSet::new();
@@ -590,11 +421,10 @@ pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<std::ops::Range<usize>
         (offset < data_len).then_some(offset)
     };
 
-    if let Some(offset) = to_offset(start) {
-        queue.push_back(offset);
-    } else {
+    let Some(offset) = to_offset(start) else {
         return ranges;
-    }
+    };
+    queue.push_back(offset);
 
     while let Some(mut pc) = queue.pop_front() {
         if visited.contains(&pc) {
@@ -611,30 +441,29 @@ pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<std::ops::Range<usize>
                 break;
             }
 
-            visited.insert(pc);
-
             let opcode_byte = state.raw_data[pc];
-            let op_opt = &state.disassembler.opcodes[opcode_byte as usize];
-
-            let Some(op) = op_opt.as_ref() else {
+            let Some(op) = state.disassembler.opcodes[opcode_byte as usize].as_ref() else {
                 if pc > segment_start {
                     ranges.push(segment_start..pc);
                 }
                 break;
             };
 
-            if pc + op.size as usize > data_len {
+            if (op.illegal && !state.settings.use_illegal_opcodes)
+                || pc + op.size as usize > data_len
+            {
                 if pc > segment_start {
                     ranges.push(segment_start..pc);
                 }
                 break;
             }
 
+            visited.insert(pc);
             let next_pc = pc + op.size as usize;
 
             match op.mnemonic {
                 "JMP" => {
-                    if op.mode == crate::cpu::AddressingMode::Absolute && op.size == 3 {
+                    if op.mode == AddressingMode::Absolute && op.size == 3 {
                         let lo = state.raw_data[pc + 1];
                         let hi = state.raw_data[pc + 2];
                         let target_addr = Addr(u16::from(hi) << 8 | u16::from(lo));
@@ -665,7 +494,7 @@ pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<std::ops::Range<usize>
                     pc = next_pc;
                 }
                 _ => {
-                    if op.mode == crate::cpu::AddressingMode::Relative {
+                    if op.mode == AddressingMode::Relative {
                         let rel_offset = state.raw_data[pc + 1] as i8;
                         let current_addr_u16 = origin.0.wrapping_add(pc as u16);
                         let target_addr = Addr(
@@ -674,10 +503,8 @@ pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<std::ops::Range<usize>
                         if let Some(target_offset) = to_offset(target_addr) {
                             queue.push_back(target_offset);
                         }
-                        pc = next_pc;
-                    } else {
-                        pc = next_pc;
                     }
+                    pc = next_pc;
                 }
             }
         }
@@ -1708,5 +1535,99 @@ mod tests {
                 XRef::new(Addr(0x1003), XRefKind::Write),
             ])
         );
+    }
+
+    #[test]
+    fn test_flow_analyze_traces_calls_branches_and_stops_at_rts_or_illegal() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000..$1003: JSR $100A (20 0A 10)
+        // $1003..$1005: BNE $1008 (D0 03)
+        // $1005..$1008: JMP $100C (4C 0C 10)
+        // $1008..$100A: LAX $10 (A7 10) -> illegal opcode, stops when disabled
+        // $100A..$100B: NOP (EA)
+        // $100B..$100C: RTS (60)
+        // $100C..$100D: RTI (40)
+        state.raw_data = vec![
+            0x20, 0x0A, 0x10, // 0..3: JSR $100A
+            0xD0, 0x03, // 3..5: BNE $1008
+            0x4C, 0x0C, 0x10, // 5..8: JMP $100C
+            0xA7, 0x10, // 8..10: LAX $10 (illegal)
+            0xEA, // 10..11: NOP
+            0x60, // 11..12: RTS
+            0x40, // 12..13: RTI
+        ];
+        state.block_types = vec![BlockType::DataByte; state.raw_data.len()];
+        state.settings.use_illegal_opcodes = false;
+
+        let ranges = flow_analyze(&state, Addr(0x1000));
+        // Expected traced code ranges:
+        // - 0..8 (JSR, BNE, JMP)
+        // - 10..12 (NOP, RTS at $100A)
+        // - 8..8 (stopped immediately at illegal LAX when disabled -> not pushed)
+        // - 12..13 (RTI at $100C)
+        assert_eq!(ranges, vec![0..8, 10..12, 12..13]);
+
+        // Enabling illegal opcodes allows $1008..$100A (LAX $10) to be traced as code
+        state.settings.use_illegal_opcodes = true;
+        let ranges_with_illegal = flow_analyze(&state, Addr(0x1000));
+        assert_eq!(ranges_with_illegal, vec![0..8, 10..12, 8..10, 12..13]);
+    }
+
+    #[test]
+    fn test_analyze_two_byte_brk_and_partial_blocks() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000..$1002: BRK + signature $EA (00 EA)
+        // $1002: 1-byte Address block (0x34) followed by Code at $1003: LDA $2000 (AD 00 20)
+        state.raw_data = vec![0x00, 0xEA, 0x34, 0xAD, 0x00, 0x20];
+        state.block_types = vec![
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Address,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+        ];
+        state.settings.brk_single_byte = false;
+
+        let result = analyze(&state);
+        // The 1-byte partial Address block at $1002 must not consume $1003 (`0xAD`),
+        // so `LDA $2000` at $1003 is still analyzed cleanly.
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x2000)),
+            Some(&vec![XRef::new(Addr(0x1003), XRefKind::Read)])
+        );
+    }
+
+    #[test]
+    fn test_analyze_jmp_indirect_promotes_address_to_jump_without_duplicate() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000..$1002: Address word pointing to $1005 (05 10) -> processed first!
+        // $1002..$1005: JMP ($1000) (6C 00 10)
+        // $1005: NOP (EA)
+        state.raw_data = vec![0x05, 0x10, 0x6C, 0x00, 0x10, 0xEA];
+        state.block_types = vec![
+            BlockType::Address,
+            BlockType::Address,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+        ];
+
+        let result = analyze(&state);
+        let labels_at_1005 = result
+            .labels
+            .get(&0x1005)
+            .expect("Target $1005 must have a label");
+        assert_eq!(
+            labels_at_1005.len(),
+            1,
+            "Target $1005 must not have duplicate Auto labels"
+        );
+        assert_eq!(labels_at_1005[0].name, "j_1005");
+        assert_eq!(labels_at_1005[0].label_type, LabelType::Jump);
     }
 }

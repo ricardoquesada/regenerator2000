@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 static SYSTEMS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/assets/systems");
@@ -18,48 +18,44 @@ pub static C64_KERNAL_ROM: &[u8] = include_bytes!("../assets/roms/c64/kernal-901
 /// Default 4 KB Commodore 64 Character Generator ROM image (`$D000`–`$DFFF`).
 pub static C64_CHAR_ROM: &[u8] = include_bytes!("../assets/roms/c64/characters-901225-01.bin");
 
-/// Returns default BASIC ROM for the given target system, if available.
+/// Returns the default BASIC ROM image for `system`, if available.
 #[must_use]
 pub fn default_basic_rom(system: &crate::state::types::System) -> Option<Vec<u8>> {
-    if system.is_c64() {
-        Some(C64_BASIC_ROM.to_vec())
-    } else {
-        None
-    }
+    system.is_c64().then(|| C64_BASIC_ROM.to_vec())
 }
 
-/// Returns default KERNAL ROM for the given target system, if available.
+/// Returns the default KERNAL ROM image for `system`, if available.
 #[must_use]
 pub fn default_kernal_rom(system: &crate::state::types::System) -> Option<Vec<u8>> {
-    if system.is_c64() {
-        Some(C64_KERNAL_ROM.to_vec())
-    } else {
-        None
-    }
+    system.is_c64().then(|| C64_KERNAL_ROM.to_vec())
 }
 
-/// Returns default Character ROM for the given target system, if available.
+/// Returns the default Character Generator ROM image for `system`, if available.
 #[must_use]
 pub fn default_char_rom(system: &crate::state::types::System) -> Option<Vec<u8>> {
-    if system.is_c64() {
-        Some(C64_CHAR_ROM.to_vec())
-    } else {
-        None
-    }
+    system.is_c64().then(|| C64_CHAR_ROM.to_vec())
 }
 
+/// Describes a toggleable predefined label category for a target system.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LabelOption {
+    /// Unique feature identifier (for example, `"KERNAL"` or `"VIC_II"`).
     pub id: String,
+    /// Display name shown in the UI settings dialog.
     pub name: String,
+    /// Enables this label category by default for new projects when `true`.
     #[serde(default)]
     pub default: bool,
 }
 
+/// Summarizes the available predefined label categories, comments, and exclusions for a system.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SystemConfig {
+    /// Available label categories for the system.
     pub features: Vec<LabelOption>,
+    /// Indicates that the system asset file defines address comments.
     pub has_comments: bool,
+    /// Indicates that the system asset file defines excluded address ranges.
     pub has_excludes: bool,
 }
 
@@ -77,80 +73,61 @@ struct SystemData {
     excluded: Vec<String>,
 }
 
-/// Parse a [`SystemData`] from a string, trying TOML first and then JSON
-/// as a fallback for backward compatibility with existing user files.
+/// Parses a [`SystemData`] definition from TOML, or falls back to JSON for legacy files.
 fn parse_system_data(content: &str) -> Option<SystemData> {
     toml::from_str::<SystemData>(content)
         .ok()
         .or_else(|| serde_json::from_str::<SystemData>(content).ok())
 }
 
-/// Returns the path to the user's config directory where custom `system-*.toml`
-/// (or legacy `platform-*.toml` / `platform-*.json`) files can be placed to override
-/// or extend the built-in system definitions.
+/// Returns `true` when `feature_id` is enabled by default for a system.
+#[must_use]
+fn is_default_feature(feature_id: &str) -> bool {
+    matches!(feature_id, "KERNAL" | "SYSTEM")
+}
+
+/// Returns the user configuration directory where custom `system-*.toml` files reside.
 #[must_use]
 pub fn user_config_systems_dir() -> Option<PathBuf> {
     ProjectDirs::from("", "", "regenerator2000").map(|d| d.config_dir().to_path_buf())
 }
 
-/// Read a `system-*.toml` (or legacy `platform-*.toml` / `platform-*.json`) file
-/// for `system` as an owned `String`.
-///
-/// The user's config directory is checked first; if a matching file is found
-/// there it takes precedence over the built-in embedded version.  Both the
-/// exact filename and a normalized variant (lowercase, spaces → underscores)
-/// are tried in that order.  TOML files are preferred over JSON.
+/// Reads the raw configuration file content for `system`, checking `config_dir` before embedded assets.
 fn get_system_file_content_with_config_dir(
     system: &str,
     config_dir: Option<&Path>,
 ) -> Option<String> {
     let normalized = system.to_lowercase().replace(' ', "_");
 
-    // Build candidate filenames for the user config directory.
-    // Accept both "system-" and legacy "platform-" prefixes.
-    let user_candidates: Vec<String> = [
-        format!("system-{system}.toml"),
-        format!("system-{normalized}.toml"),
-        format!("platform-{system}.toml"),
-        format!("platform-{normalized}.toml"),
-        format!("platform-{system}.json"),
-        format!("platform-{normalized}.json"),
-    ]
-    .into_iter()
-    .collect();
-
-    // Deduplicate (when system == normalized, pairs are identical).
-    let mut seen_user = Vec::new();
-    for name in &user_candidates {
-        if !seen_user.contains(name) {
-            seen_user.push(name.clone());
-        }
-    }
-
-    // 1. Check the provided config directory first (user files take precedence).
+    // Check `config_dir` first so user files override embedded definitions.
     if let Some(dir) = config_dir {
-        for name in &seen_user {
-            let path = dir.join(name);
-            if let Ok(content) = std::fs::read_to_string(&path) {
+        let user_candidates = [
+            format!("system-{system}.toml"),
+            format!("system-{normalized}.toml"),
+            format!("platform-{system}.toml"),
+            format!("platform-{normalized}.toml"),
+            format!("platform-{system}.json"),
+            format!("platform-{normalized}.json"),
+        ];
+        for (idx, name) in user_candidates.iter().enumerate() {
+            if user_candidates[..idx].contains(name) {
+                continue;
+            }
+            if let Ok(content) = std::fs::read_to_string(dir.join(name)) {
                 return Some(content);
             }
         }
     }
 
-    // 2. Fall back to the embedded assets (which only use "system-" prefix).
-    let embedded_candidates: Vec<String> = [
+    // Fall back to embedded system assets.
+    let embedded_candidates = [
         format!("system-{system}.toml"),
         format!("system-{normalized}.toml"),
-    ]
-    .into_iter()
-    .collect();
-    let mut seen_embedded = Vec::new();
-    for name in &embedded_candidates {
-        if !seen_embedded.contains(name) {
-            seen_embedded.push(name.clone());
+    ];
+    for (idx, name) in embedded_candidates.iter().enumerate() {
+        if embedded_candidates[..idx].contains(name) {
+            continue;
         }
-    }
-    for name in &seen_embedded {
         if let Some(file) = SYSTEMS_DIR.get_file(name) {
             return file.contents_utf8().map(str::to_owned);
         }
@@ -163,24 +140,16 @@ fn get_system_file_content(system: &str) -> Option<String> {
     get_system_file_content_with_config_dir(system, user_config_systems_dir().as_deref())
 }
 
-/// Dump all embedded `system-*.toml` files into `dest_dir`.
-///
-/// The destination directory is created automatically if it does not exist.
-/// Each file is written with its original filename (e.g. `system-commodore_64.toml`).
-///
-/// # Errors
-///
-/// Returns an error if the directory cannot be created or if any file write fails.
-pub fn dump_system_config_files(dest_dir: &Path) -> Result<()> {
+fn dump_embedded_toml_files(embedded_dir: &Dir<'_>, prefix: &str, dest_dir: &Path) -> Result<()> {
     std::fs::create_dir_all(dest_dir)
         .with_context(|| format!("Failed to create directory {dest_dir:?}"))?;
 
-    for file in SYSTEMS_DIR.files() {
+    for file in embedded_dir.files() {
         let Some(filename) = file.path().file_name() else {
             continue;
         };
         let filename_str = filename.to_string_lossy();
-        if !filename_str.starts_with("system-") || !filename_str.ends_with(".toml") {
+        if !filename_str.starts_with(prefix) || !filename_str.ends_with(".toml") {
             continue;
         }
         let dest_path = dest_dir.join(filename);
@@ -192,64 +161,60 @@ pub fn dump_system_config_files(dest_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Check whether a filename has a recognized system config extension.
+/// Writes all embedded `system-*.toml` files into `dest_dir`.
 ///
-/// Accepts both `system-*.toml` and legacy `platform-*.toml`/`platform-*.json`
-/// filenames.
+/// Creates `dest_dir` if it does not exist.
+///
+/// # Errors
+///
+/// Returns an error if `dest_dir` cannot be created or if writing any file fails.
+pub fn dump_system_config_files(dest_dir: &Path) -> Result<()> {
+    dump_embedded_toml_files(&SYSTEMS_DIR, "system-", dest_dir)
+}
+
+/// Returns `true` when `filename` matches a supported system configuration file pattern.
 #[must_use]
 fn is_system_config_file(filename: &str) -> bool {
     (filename.starts_with("system-") || filename.starts_with("platform-"))
         && (filename.ends_with(".toml") || filename.ends_with(".json"))
 }
 
-/// Collect enabled system names from an iterator of `(filename, content)` pairs.
-fn collect_systems_from_iter<'a>(
-    iter: impl Iterator<Item = (&'a str, String)>,
-    systems: &mut Vec<String>,
-) {
-    for (filename, content) in iter {
-        if !is_system_config_file(filename) {
-            continue;
-        }
-        if let Some(data) = parse_system_data(&content)
-            && data.enabled
-        {
-            systems.push(data.system_name);
-        }
-    }
-}
-
 fn get_available_systems_with_config_dir(config_dir: Option<&Path>) -> Vec<String> {
     let mut systems: Vec<String> = Vec::new();
+    let mut seen_names: HashSet<String> = HashSet::new();
 
-    // 1. Collect from the provided config directory.
+    // 1. Collect from `config_dir` first, recording both enabled and disabled system names.
     if let Some(dir) = config_dir
         && let Ok(entries) = std::fs::read_dir(dir)
     {
-        let iter = entries.filter_map(|e| {
-            let entry = e.ok()?;
+        for entry in entries.flatten() {
             let path = entry.path();
-            let filename = path.file_name()?.to_str()?.to_owned();
-            let content = std::fs::read_to_string(&path).ok()?;
-            Some((filename, content))
-        });
-        // Collect via a vec so lifetimes work out
-        let pairs: Vec<(String, String)> = iter.collect();
-        collect_systems_from_iter(
-            pairs.iter().map(|(f, c)| (f.as_str(), c.clone())),
-            &mut systems,
-        );
+            let Some(filename) = path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            if !is_system_config_file(filename) {
+                continue;
+            }
+            let Ok(content) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            let Some(data) = parse_system_data(&content) else {
+                continue;
+            };
+            if seen_names.insert(data.system_name.clone()) && data.enabled {
+                systems.push(data.system_name);
+            }
+        }
     }
 
-    // 2. Collect from built-in embedded assets, skipping names already added
-    //    by the config directory.
+    // 2. Collect from embedded assets, skipping any system name already defined in `config_dir`.
     for file in SYSTEMS_DIR.files() {
         if let Some(filename) = file.path().file_name().and_then(|s| s.to_str())
             && is_system_config_file(filename)
             && let Some(content) = file.contents_utf8()
             && let Some(data) = parse_system_data(content)
+            && seen_names.insert(data.system_name.clone())
             && data.enabled
-            && !systems.contains(&data.system_name)
         {
             systems.push(data.system_name);
         }
@@ -259,16 +224,15 @@ fn get_available_systems_with_config_dir(config_dir: Option<&Path>) -> Vec<Strin
     systems
 }
 
-/// Return the list of all available system names.
+/// Returns the sorted list of all enabled system names from user and embedded assets.
 ///
-/// Systems defined in the user's config directory are included and, when a
-/// system name matches a built-in one, the user's version takes precedence
-/// (the built-in duplicate is excluded).
+/// User definitions in the configuration directory override embedded definitions with the same name.
 #[must_use]
 pub fn get_available_systems() -> Vec<String> {
     get_available_systems_with_config_dir(user_config_systems_dir().as_deref())
 }
 
+/// Loads the [`SystemConfig`] metadata (label categories, comments flag, excludes flag) for `system`.
 #[must_use]
 pub fn load_system_config(system: &str) -> SystemConfig {
     let mut features = Vec::new();
@@ -281,23 +245,12 @@ pub fn load_system_config(system: &str) -> SystemConfig {
         has_comments = !data.comments.is_empty();
         has_excludes = !data.excluded.is_empty();
 
-        // Convert hashmap keys to features
-        let mut keys: Vec<_> = data.labels.keys().collect();
-        keys.sort();
-
-        for key in keys {
+        for key in data.labels.keys() {
             features.push(LabelOption {
                 id: key.clone(),
                 name: key.clone(),
-                default: false,
+                default: is_default_feature(key),
             });
-        }
-    }
-
-    // Set defaults for specific features
-    for f in &mut features {
-        if f.id == "KERNAL" || f.id == "SYSTEM" {
-            f.default = true;
         }
     }
 
@@ -308,6 +261,7 @@ pub fn load_system_config(system: &str) -> SystemConfig {
     }
 }
 
+/// Loads the predefined system comment map (`address -> comment`) for `system`.
 #[must_use]
 pub fn load_comments(system: &str) -> BTreeMap<u16, String> {
     let mut comments = BTreeMap::new();
@@ -327,6 +281,7 @@ pub fn load_comments(system: &str) -> BTreeMap<u16, String> {
     comments
 }
 
+/// Loads predefined [`Label`] entries for `system`, filtered by `enabled_features`.
 #[must_use]
 pub fn load_labels(
     system: &str,
@@ -337,20 +292,11 @@ pub fn load_labels(
     if let Some(content) = get_system_file_content(system)
         && let Some(data) = parse_system_data(&content)
     {
-        let mut defaults = HashMap::new();
-        for key in data.labels.keys() {
-            let default_val = key == "KERNAL" || key == "SYSTEM";
-            defaults.insert(key.clone(), default_val);
-        }
-
         for (feature_id, label_map) in data.labels {
-            let is_enabled = if let Some(features) = enabled_features {
-                *features
-                    .get(&feature_id)
-                    .unwrap_or(defaults.get(&feature_id).unwrap_or(&false))
-            } else {
-                *defaults.get(&feature_id).unwrap_or(&false)
-            };
+            let default_enabled = is_default_feature(&feature_id);
+            let is_enabled = enabled_features
+                .and_then(|features| features.get(&feature_id).copied())
+                .unwrap_or(default_enabled);
 
             if is_enabled {
                 for (addr_str, name) in label_map {
@@ -372,6 +318,7 @@ pub fn load_labels(
     labels
 }
 
+/// Loads the list of addresses excluded from automatic label generation for `system`.
 #[must_use]
 pub fn load_excludes(system: &str) -> Vec<u16> {
     let mut excludes = Vec::new();
@@ -381,20 +328,15 @@ pub fn load_excludes(system: &str) -> Vec<u16> {
     {
         for line in data.excluded {
             let line = line.trim();
-            // Check for range: "031a-032d"
             if let Some((start_str, end_str)) = line.split_once('-') {
-                let start_res = u16::from_str_radix(start_str.trim(), 16);
-                let end_res = u16::from_str_radix(end_str.trim(), 16);
-                if let (Ok(start), Ok(end)) = (start_res, end_res) {
-                    for addr in start..=end {
-                        excludes.push(addr);
-                    }
+                if let (Ok(start), Ok(end)) = (
+                    u16::from_str_radix(start_str.trim(), 16),
+                    u16::from_str_radix(end_str.trim(), 16),
+                ) {
+                    excludes.extend(start..=end);
                 }
-            } else {
-                // Single address
-                if let Ok(addr) = u16::from_str_radix(line, 16) {
-                    excludes.push(addr);
-                }
+            } else if let Ok(addr) = u16::from_str_radix(line, 16) {
+                excludes.push(addr);
             }
         }
     }
@@ -406,13 +348,44 @@ pub fn load_excludes(system: &str) -> Vec<u16> {
 // Enum Assets Loading & Dumping
 // =============================================================================
 
-/// Returns the path to the user's config directory for custom global enums.
+/// Returns the user configuration directory where custom `enum-*.toml` files reside.
 #[must_use]
 pub fn user_config_enums_dir() -> Option<PathBuf> {
     ProjectDirs::from("", "", "regenerator2000").map(|d| d.config_dir().to_path_buf())
 }
 
-/// Load all built-in enums from the embedded `assets/enums/` directory.
+/// Converts an enum name into a sanitized `enum-<snake_case>.toml` file name.
+#[must_use]
+fn enum_filename(name: &str) -> String {
+    let mut snake = String::new();
+    let mut prev_was_upper = true;
+    for ch in name.chars() {
+        if ch.is_ascii_uppercase() {
+            if !prev_was_upper && !snake.ends_with('_') {
+                snake.push('_');
+            }
+            snake.push(ch.to_ascii_lowercase());
+            prev_was_upper = true;
+        } else if ch.is_ascii_alphanumeric() {
+            snake.push(ch);
+            prev_was_upper = false;
+        } else {
+            if !snake.is_empty() && !snake.ends_with('_') {
+                snake.push('_');
+            }
+            prev_was_upper = true;
+        }
+    }
+    let safe_name = snake.trim_matches('_');
+    let safe_name = if safe_name.is_empty() {
+        "unnamed"
+    } else {
+        safe_name
+    };
+    format!("enum-{safe_name}.toml")
+}
+
+/// Loads all built-in enums from the embedded `assets/enums/` directory.
 #[must_use]
 pub fn load_builtin_enums() -> BTreeMap<String, EnumDefinition> {
     let mut enums = BTreeMap::new();
@@ -422,7 +395,7 @@ pub fn load_builtin_enums() -> BTreeMap<String, EnumDefinition> {
         };
         if !filename.starts_with("enum-") || !filename.ends_with(".toml") {
             continue;
-        }
+        };
         let Some(content) = file.contents_utf8() else {
             continue;
         };
@@ -440,7 +413,7 @@ pub fn load_builtin_enums() -> BTreeMap<String, EnumDefinition> {
     enums
 }
 
-/// Load all custom global enums from the user's preferences directory.
+/// Loads all custom global enums from `dir`.
 #[must_use]
 pub fn load_global_enums(dir: &Path) -> BTreeMap<String, EnumDefinition> {
     let mut enums = BTreeMap::new();
@@ -477,35 +450,22 @@ pub fn load_global_enums(dir: &Path) -> BTreeMap<String, EnumDefinition> {
     enums
 }
 
-/// Dump all embedded `enum-*.toml` files into `dest_dir`.
+/// Writes all embedded `enum-*.toml` files into `dest_dir`.
+///
+/// Creates `dest_dir` if it does not exist.
 ///
 /// # Errors
-/// Returns an error if the directory cannot be created or if writing any file fails.
+///
+/// Returns an error if `dest_dir` cannot be created or if writing any file fails.
 pub fn dump_enum_files(dest_dir: &Path) -> Result<()> {
-    std::fs::create_dir_all(dest_dir)
-        .with_context(|| format!("Failed to create directory {dest_dir:?}"))?;
-
-    for file in ENUMS_DIR.files() {
-        let Some(filename) = file.path().file_name() else {
-            continue;
-        };
-        let filename_str = filename.to_string_lossy();
-        if !filename_str.starts_with("enum-") || !filename_str.ends_with(".toml") {
-            continue;
-        }
-        let dest_path = dest_dir.join(filename);
-        std::fs::write(&dest_path, file.contents())
-            .with_context(|| format!("Failed to write {dest_path:?}"))?;
-        println!("Wrote {dest_path:?}");
-    }
-
-    Ok(())
+    dump_embedded_toml_files(&ENUMS_DIR, "enum-", dest_dir)
 }
 
-/// Save a global user enum as TOML to the designated preferences directory.
+/// Saves `def` as a global TOML file in the user configuration directory.
 ///
 /// # Errors
-/// Returns an error if the config directory cannot be retrieved or if writing fails.
+///
+/// Returns an error if the configuration directory cannot be resolved or if writing the file fails.
 pub fn save_global_enum(def: &mut EnumDefinition) -> Result<()> {
     let dir =
         user_config_enums_dir().context("Failed to resolve user config directory for enums")?;
@@ -514,21 +474,7 @@ pub fn save_global_enum(def: &mut EnumDefinition) -> Result<()> {
     let filename = if let Some(sf) = &def.source_file {
         sf.clone()
     } else {
-        let mut snake = String::new();
-        for (i, ch) in def.name.char_indices() {
-            if ch.is_uppercase() {
-                if i > 0 && !def.name.as_bytes()[i - 1].is_ascii_uppercase() {
-                    snake.push('_');
-                }
-                snake.push(ch.to_ascii_lowercase());
-            } else if ch == ' ' || ch == '-' {
-                snake.push('_');
-            } else {
-                snake.push(ch);
-            }
-        }
-        let safe_name = snake.replace("__", "_").trim_matches('_').to_string();
-        let fname = format!("enum-{safe_name}.toml");
+        let fname = enum_filename(&def.name);
         def.source_file = Some(fname.clone());
         fname
     };
@@ -544,17 +490,18 @@ pub fn save_global_enum(def: &mut EnumDefinition) -> Result<()> {
     Ok(())
 }
 
-/// Delete a global user enum file from the preferences directory.
+/// Deletes the global enum file for `name` from the user configuration directory.
 ///
 /// # Errors
-/// Returns an error if the file cannot be deleted.
+///
+/// Returns an error if the configuration directory cannot be resolved or if removing the file fails.
 pub fn delete_global_enum(name: &str, state_def: Option<&EnumDefinition>) -> Result<()> {
     let dir =
         user_config_enums_dir().context("Failed to resolve user config directory for enums")?;
     let filename = if let Some(def) = state_def.and_then(|d| d.source_file.as_ref()) {
         def.clone()
     } else {
-        format!("enum-{name}.toml")
+        enum_filename(name)
     };
     let path = dir.join(filename);
     if path.exists() {
@@ -571,27 +518,21 @@ mod tests {
 
     #[test]
     fn test_assets_load() {
-        // Smoke test to ensure we can list systems
         let systems = get_available_systems();
-        println!("Systems: {systems:?}");
         assert!(!systems.is_empty(), "Should have at least one system");
     }
 
     #[test]
     fn test_get_system_file_content() {
-        // Test simple case
         let content_nes = get_system_file_content("NES");
         assert!(content_nes.is_some(), "NES config should exist");
 
-        // Test normalization case (Spaces -> Underscores)
         let content_c64 = get_system_file_content("Commodore 64");
         assert!(content_c64.is_some(), "Commodore 64 config should exist");
 
-        // Test another normalization case
         let content_atari = get_system_file_content("Atari 8bit");
         assert!(content_atari.is_some(), "Atari 8bit config should exist");
 
-        // Test VIC-20 case (hyphen)
         let content_vic20 = get_system_file_content("Commodore VIC-20");
         assert!(content_vic20.is_some(), "VIC-20 config should exist");
     }
@@ -601,12 +542,10 @@ mod tests {
         let config = load_system_config("Commodore 64");
         assert!(!config.features.is_empty(), "C64 should have features");
 
-        // Check that KERNAL has default true
         let kernal = config.features.iter().find(|f| f.id == "KERNAL");
         assert!(kernal.is_some(), "C64 should have KERNAL feature");
         assert!(kernal.unwrap().default, "KERNAL should default to true");
 
-        // Test VIC-20 case
         let config_vic20 = load_system_config("Commodore VIC-20");
         assert!(
             !config_vic20.features.is_empty(),
@@ -616,29 +555,24 @@ mod tests {
         assert!(config_vic20.has_excludes, "VIC-20 should have excludes");
     }
 
-    /// Minimal valid `SystemData` TOML for a custom test system.
+    /// Builds a minimal valid `SystemData` TOML string for a test system.
     fn make_custom_system_toml(system_name: &str) -> String {
         format!(
             "system_name = \"{system_name}\"\nenabled = true\nexcluded = []\n\n[labels.CUSTOM]\n\"1000\" = \"MY_LABEL\"\n\n[comments]\n"
         )
     }
 
-    /// Minimal valid `SystemData` JSON for testing backward compatibility
-    /// (uses the legacy `platform_name` key to verify the serde alias).
+    /// Builds a minimal valid `SystemData` JSON string using the legacy `platform_name` alias.
     fn make_custom_system_json(system_name: &str) -> String {
         format!(
             r#"{{"platform_name":"{system_name}","enabled":true,"labels":{{"CUSTOM":{{"1000":"MY_LABEL"}}}},"comments":{{}},"excluded":[]}}"#
         )
     }
 
-    /// Verify that a `system-*.toml` placed in the config directory:
-    ///   1. Is returned by `get_system_file_content_with_config_dir` (overriding built-ins).
-    ///   2. Appears in `get_available_systems_with_config_dir` as a new system.
-    ///   3. Built-in systems that were NOT overridden are still listed.
-    ///   4. An overridden built-in (same `system_name`) is NOT duplicated.
+    /// Verifies that `system-*.toml` files in `config_dir` override built-in definitions
+    /// without duplicating or re-enabling disabled systems.
     #[test]
     fn test_user_config_dir_overrides_builtin() {
-        // Use a unique temp directory per test run so parallel tests never collide.
         let test_id = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.subsec_nanos())
@@ -646,7 +580,6 @@ mod tests {
         let config_dir = std::env::temp_dir().join(format!("r2000_test_assets_{test_id}"));
         fs::create_dir_all(&config_dir).unwrap();
 
-        // ── 1. Custom (new) system via TOML ─────────────────────────────────
         let custom_toml = make_custom_system_toml("My Custom System");
         fs::write(
             config_dir.join("system-my_custom_system.toml"),
@@ -654,45 +587,20 @@ mod tests {
         )
         .unwrap();
 
-        // get_system_file_content_with_config_dir must find it.
         let content =
             get_system_file_content_with_config_dir("my_custom_system", Some(&config_dir));
-        assert!(
-            content.is_some(),
-            "Custom system file should be found in config dir"
-        );
-        assert_eq!(content.unwrap(), custom_toml);
+        assert_eq!(content.as_deref(), Some(custom_toml.as_str()));
 
-        // ── 2. Custom system appears in system list ────────────────────────
         let systems = get_available_systems_with_config_dir(Some(&config_dir));
-        assert!(
-            systems.contains(&"My Custom System".to_string()),
-            "Custom system should appear in available systems"
-        );
+        assert!(systems.contains(&"My Custom System".to_string()));
+        assert!(systems.contains(&"Commodore 64".to_string()));
 
-        // ── 3. Built-in systems are still listed ─────────────────────────────
-        assert!(
-            systems.contains(&"Commodore 64".to_string()),
-            "Built-in Commodore 64 should still be listed"
-        );
-
-        // ── 4. Override: config-dir TOML file wins over built-in ──────────────
-        // Write a file that shadows the built-in Commodore 64 definition.
         let override_toml = make_custom_system_toml("Commodore 64");
         fs::write(config_dir.join("system-commodore_64.toml"), &override_toml).unwrap();
 
         let overridden = get_system_file_content_with_config_dir("Commodore 64", Some(&config_dir));
-        assert!(
-            overridden.is_some(),
-            "Overridden Commodore 64 file should be found"
-        );
-        assert_eq!(
-            overridden.unwrap(),
-            override_toml,
-            "Config-dir version should take precedence over built-in"
-        );
+        assert_eq!(overridden.as_deref(), Some(override_toml.as_str()));
 
-        // System list must not contain duplicate "Commodore 64" entries.
         let systems_after_override = get_available_systems_with_config_dir(Some(&config_dir));
         let c64_count = systems_after_override
             .iter()
@@ -700,12 +608,22 @@ mod tests {
             .count();
         assert_eq!(c64_count, 1, "Commodore 64 should appear exactly once");
 
-        // Cleanup
+        // Disabling a built-in system in `config_dir` must suppress the embedded fallback.
+        fs::write(
+            config_dir.join("system-commodore_64.toml"),
+            "system_name = \"Commodore 64\"\nenabled = false\n",
+        )
+        .unwrap();
+        let systems_after_disable = get_available_systems_with_config_dir(Some(&config_dir));
+        assert!(
+            !systems_after_disable.contains(&"Commodore 64".to_string()),
+            "Disabled override in config_dir must not fall back to enabled built-in"
+        );
+
         let _ = fs::remove_dir_all(&config_dir);
     }
 
-    /// Verify that legacy `platform-*.json` files in the config directory still
-    /// work for backward compatibility.
+    /// Verifies that legacy `platform-*.json` files in `config_dir` remain supported.
     #[test]
     fn test_legacy_json_backward_compatibility() {
         let test_id = std::time::SystemTime::now()
@@ -729,5 +647,13 @@ mod tests {
         );
 
         let _ = fs::remove_dir_all(&config_dir);
+    }
+
+    #[test]
+    fn test_enum_filename_sanitization_and_consistency() {
+        assert_eq!(enum_filename("VicColors"), "enum-vic_colors.toml");
+        assert_eq!(enum_filename("CIA 1 Modes"), "enum-cia_1_modes.toml");
+        assert_eq!(enum_filename("../bad/path"), "enum-bad_path.toml");
+        assert_eq!(enum_filename("---"), "enum-unnamed.toml");
     }
 }

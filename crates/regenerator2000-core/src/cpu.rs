@@ -1,49 +1,49 @@
-//! MOS 6502/6510 opcode table, addressing modes, and cross-reference access classification.
+//! MOS 6502 and 6510 opcode table, addressing modes, and cross-reference classifications.
 //!
-//! This module defines all 256 byte opcodes of the MOS 6502/6510 processor (both documented
-//! instructions and undocumented/illegal opcodes), their [`AddressingMode`]s, instruction
-//! sizes, cycle counts, and semantic cross-reference classifications ([`Opcode::xref_kind`]).
+//! Defines all 256 opcode bytes of the MOS 6502/6510 processor (both documented instructions
+//! and undocumented opcodes), their [`AddressingMode`] variants, instruction sizes, cycle counts,
+//! and memory access classifications ([`Opcode::xref_kind`]).
 
 use crate::state::XRefKind;
 
-/// Addressing modes supported by the MOS 6502/6510 instruction set.
+/// Represents the operand addressing modes of the MOS 6502/6510 instruction set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
 pub enum AddressingMode {
-    /// Single-byte instruction with no explicit operand (for example, `RTS`, `CLC`, `NOP`).
+    /// Single-byte instruction with no explicit operand (such as `RTS`, `CLC`, or `NOP`).
     Implied,
-    /// Single-byte instruction operating directly on the accumulator register `A` (for example, `ASL A`, `ROR A`).
+    /// Single-byte instruction that operates on the accumulator register `A` (such as `ASL A`).
     Accumulator,
     /// Two-byte instruction with an 8-bit literal constant operand (`#$nn`).
     Immediate,
-    /// Two-byte instruction addressing zero-page memory `$0000..=$00FF` (`$nn`).
+    /// Two-byte instruction that addresses zero-page memory `$0000..=$00FF` (`$nn`).
     ZeroPage,
-    /// Two-byte instruction addressing zero-page memory indexed by `X` (`$nn,X`).
+    /// Two-byte instruction that addresses zero-page memory indexed by `X` (`$nn,X`).
     ZeroPageX,
-    /// Two-byte instruction addressing zero-page memory indexed by `Y` (`$nn,Y`).
+    /// Two-byte instruction that addresses zero-page memory indexed by `Y` (`$nn,Y`).
     ZeroPageY,
     /// Two-byte conditional branch instruction with a signed 8-bit PC-relative offset.
     Relative,
-    /// Three-byte instruction addressing a full 16-bit memory location (`$nnnn`).
+    /// Three-byte instruction that addresses a 16-bit memory location (`$nnnn`).
     Absolute,
-    /// Three-byte instruction addressing a 16-bit memory location indexed by `X` (`$nnnn,X`).
+    /// Three-byte instruction that addresses a 16-bit memory location indexed by `X` (`$nnnn,X`).
     AbsoluteX,
-    /// Three-byte instruction addressing a 16-bit memory location indexed by `Y` (`$nnnn,Y`).
+    /// Three-byte instruction that addresses a 16-bit memory location indexed by `Y` (`$nnnn,Y`).
     AbsoluteY,
-    /// Three-byte indirect jump instruction dereferencing a 16-bit pointer (`JMP ($nnnn)`).
+    /// Three-byte indirect jump instruction that dereferences a 16-bit pointer (`JMP ($nnnn)`).
     Indirect,
-    /// Two-byte indexed indirect instruction dereferencing a zero-page pointer table (`($nn,X)`).
+    /// Two-byte indexed indirect instruction that dereferences a zero-page pointer table (`($nn,X)`).
     IndirectX,
-    /// Two-byte indirect indexed instruction dereferencing a zero-page base pointer (`($nn),Y`).
+    /// Two-byte indirect indexed instruction that dereferences a zero-page base pointer (`($nn),Y`).
     IndirectY,
     /// Sentinel mode for undecodable or unknown opcodes.
     Unknown,
 }
 
-/// Metadata describing a single MOS 6502/6510 opcode byte (`0x00..=0xFF`).
+/// Describes a single MOS 6502/6510 opcode byte (`0x00..=0xFF`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Opcode {
-    /// Canonical uppercase instruction mnemonic (for example, `"LDA"`, `"STA"`, `"JSR"`).
+    /// Canonical uppercase instruction mnemonic (such as `"LDA"`, `"STA"`, or `"JSR"`).
     pub mnemonic: &'static str,
     /// Operand [`AddressingMode`] used by this opcode.
     pub mode: AddressingMode,
@@ -52,10 +52,10 @@ pub struct Opcode {
     /// Base execution time in CPU clock cycles.
     #[allow(dead_code)]
     pub cycles: u8,
-    /// Short human-readable summary of the instruction's behavior.
+    /// Short summary of the instruction behavior.
     #[allow(dead_code)]
     pub description: &'static str,
-    /// `true` if this opcode is an undocumented/illegal 6502 instruction.
+    /// Indicates that this opcode is an undocumented 6502 instruction when `true`.
     pub illegal: bool,
 }
 
@@ -79,7 +79,7 @@ impl Opcode {
         }
     }
 
-    /// Creates an undocumented/illegal 6502 [`Opcode`] descriptor (`illegal = true`).
+    /// Creates an undocumented 6502 [`Opcode`] descriptor (`illegal = true`).
     #[must_use]
     pub const fn new_illegal(
         mnemonic: &'static str,
@@ -98,47 +98,23 @@ impl Opcode {
         }
     }
 
-    /// Returns true if this opcode is a flow control instruction that targets a specific address
-    /// which should be visually indicated (e.g. with an arrow).
+    /// Returns `true` when this opcode transfers control to a direct static target address.
     ///
-    /// Includes:
-    /// - JMP Absolute
-    /// - JSR Absolute
-    /// - Branches (Relative)
-    ///
-    /// Excludes:
-    /// - JMP Indirect (JMP ($xxxx)) - usually dynamic/computed, harder to draw simple arrows to static target
-    /// - RTS, RTI, BRK - no specific target address in instruction
+    /// Matches relative branches, `JMP $nnnn`, and `JSR $nnnn`. Excludes `JMP ($nnnn)`, `RTS`,
+    /// `RTI`, and `BRK`.
     #[must_use]
     pub fn is_flow_control_with_target(&self) -> bool {
-        // JMP and JSR
-        if self.mnemonic == "JMP" || self.mnemonic == "JSR" {
-            match self.mode {
-                AddressingMode::Absolute => true,
-                _ => false, // Indirect JMP, etc.
-            }
-        }
-        // Branches
-        else if matches!(self.mode, AddressingMode::Relative) {
-            true
-        }
-        // Everything else
-        else {
-            false
-        }
+        matches!(self.mode, AddressingMode::Relative)
+            || (matches!(self.mnemonic, "JMP" | "JSR") && self.mode == AddressingMode::Absolute)
     }
 
-    /// Classifies the cross-reference access kind ([`XRefKind`]) for this opcode when it
-    /// references a memory or control-flow target address.
+    /// Classifies the cross-reference access kind ([`XRefKind`]) when this opcode addresses memory.
     ///
     /// # Classification Rules
     ///
     /// - **Non-addressing modes**: Returns `None` for [`AddressingMode::Implied`],
     ///   [`AddressingMode::Accumulator`], [`AddressingMode::Immediate`], and
     ///   [`AddressingMode::Unknown`] because those modes do not address memory.
-    ///   [`analyzer::analyze`](crate::analyzer::analyze) classifies immediate operands with
-    ///   [`ImmediateFormat::LowByte`](crate::state::ImmediateFormat::LowByte) or
-    ///   [`ImmediateFormat::HighByte`](crate::state::ImmediateFormat::HighByte) separately as [`XRefKind::Offset`].
     /// - **[`XRefKind::Read`]**: Load, bitwise, arithmetic, and compare opcodes
     ///   (`LDA`, `LDX`, `LDY`, `EOR`, `AND`, `ORA`, `ADC`, `SBC`, `CMP`, `CPX`, `CPY`, `BIT`, `LAX`).
     /// - **[`XRefKind::Write`]**: Store opcodes (`STA`, `STX`, `STY`, `SAX`).
@@ -154,14 +130,10 @@ impl Opcode {
     /// use regenerator2000_core::state::XRefKind;
     ///
     /// let opcodes = get_opcodes();
-    /// // $AD: LDA Absolute -> Read
     /// assert_eq!(opcodes[0xAD].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Read));
-    /// // $8D: STA Absolute -> Write
     /// assert_eq!(opcodes[0x8D].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Write));
-    /// // $0A: ASL Accumulator -> None (register-only), whereas $0E: ASL Absolute -> ReadModifyWrite
     /// assert_eq!(opcodes[0x0A].as_ref().and_then(Opcode::xref_kind), None);
     /// assert_eq!(opcodes[0x0E].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::ReadModifyWrite));
-    /// // $20: JSR Absolute -> Call
     /// assert_eq!(opcodes[0x20].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Call));
     /// ```
     #[must_use]
@@ -191,1345 +163,293 @@ impl Opcode {
     }
 }
 
-/// Returns the complete 256-entry MOS 6502/6510 opcode lookup table indexed by opcode byte (`0x00..=0xFF`).
+/// Returns the 256-entry MOS 6502/6510 opcode table indexed by opcode byte (`0x00..=0xFF`).
 #[must_use]
 pub fn get_opcodes() -> [Option<Opcode>; 256] {
+    use AddressingMode::{
+        Absolute, AbsoluteX, AbsoluteY, Accumulator, Immediate, Implied, Indirect, IndirectX,
+        IndirectY, Relative, ZeroPage, ZeroPageX, ZeroPageY,
+    };
+
+    const fn op(
+        mnemonic: &'static str,
+        mode: AddressingMode,
+        size: u8,
+        cycles: u8,
+        description: &'static str,
+    ) -> Option<Opcode> {
+        Some(Opcode::new(mnemonic, mode, size, cycles, description))
+    }
+
+    const fn ill(
+        mnemonic: &'static str,
+        mode: AddressingMode,
+        size: u8,
+        cycles: u8,
+        description: &'static str,
+    ) -> Option<Opcode> {
+        Some(Opcode::new_illegal(
+            mnemonic,
+            mode,
+            size,
+            cycles,
+            description,
+        ))
+    }
+
     const UNKNOWN: Option<Opcode> = None;
     let mut opcodes = [UNKNOWN; 256];
 
     // ADC
-    opcodes[0x69] = Some(Opcode::new(
-        "ADC",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Add with Carry",
-    ));
-    opcodes[0x65] = Some(Opcode::new(
-        "ADC",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Add with Carry",
-    ));
-    opcodes[0x75] = Some(Opcode::new(
-        "ADC",
-        AddressingMode::ZeroPageX,
-        2,
-        4,
-        "Add with Carry",
-    ));
-    opcodes[0x6D] = Some(Opcode::new(
-        "ADC",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Add with Carry",
-    ));
-    opcodes[0x7D] = Some(Opcode::new(
-        "ADC",
-        AddressingMode::AbsoluteX,
-        3,
-        4,
-        "Add with Carry",
-    )); // +1 if page crossed
-    opcodes[0x79] = Some(Opcode::new(
-        "ADC",
-        AddressingMode::AbsoluteY,
-        3,
-        4,
-        "Add with Carry",
-    )); // +1 if page crossed
-    opcodes[0x61] = Some(Opcode::new(
-        "ADC",
-        AddressingMode::IndirectX,
-        2,
-        6,
-        "Add with Carry",
-    ));
-    opcodes[0x71] = Some(Opcode::new(
-        "ADC",
-        AddressingMode::IndirectY,
-        2,
-        5,
-        "Add with Carry",
-    )); // +1 if page crossed
+    opcodes[0x69] = op("ADC", Immediate, 2, 2, "Add with Carry");
+    opcodes[0x65] = op("ADC", ZeroPage, 2, 3, "Add with Carry");
+    opcodes[0x75] = op("ADC", ZeroPageX, 2, 4, "Add with Carry");
+    opcodes[0x6D] = op("ADC", Absolute, 3, 4, "Add with Carry");
+    opcodes[0x7D] = op("ADC", AbsoluteX, 3, 4, "Add with Carry");
+    opcodes[0x79] = op("ADC", AbsoluteY, 3, 4, "Add with Carry");
+    opcodes[0x61] = op("ADC", IndirectX, 2, 6, "Add with Carry");
+    opcodes[0x71] = op("ADC", IndirectY, 2, 5, "Add with Carry");
 
     // AND
-    opcodes[0x29] = Some(Opcode::new(
-        "AND",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Logical AND",
-    ));
-    opcodes[0x25] = Some(Opcode::new(
-        "AND",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Logical AND",
-    ));
-    opcodes[0x35] = Some(Opcode::new(
-        "AND",
-        AddressingMode::ZeroPageX,
-        2,
-        4,
-        "Logical AND",
-    ));
-    opcodes[0x2D] = Some(Opcode::new(
-        "AND",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Logical AND",
-    ));
-    opcodes[0x3D] = Some(Opcode::new(
-        "AND",
-        AddressingMode::AbsoluteX,
-        3,
-        4,
-        "Logical AND",
-    )); // +1 if page crossed
-    opcodes[0x39] = Some(Opcode::new(
-        "AND",
-        AddressingMode::AbsoluteY,
-        3,
-        4,
-        "Logical AND",
-    )); // +1 if page crossed
-    opcodes[0x21] = Some(Opcode::new(
-        "AND",
-        AddressingMode::IndirectX,
-        2,
-        6,
-        "Logical AND",
-    ));
-    opcodes[0x31] = Some(Opcode::new(
-        "AND",
-        AddressingMode::IndirectY,
-        2,
-        5,
-        "Logical AND",
-    )); // +1 if page crossed
+    opcodes[0x29] = op("AND", Immediate, 2, 2, "Logical AND");
+    opcodes[0x25] = op("AND", ZeroPage, 2, 3, "Logical AND");
+    opcodes[0x35] = op("AND", ZeroPageX, 2, 4, "Logical AND");
+    opcodes[0x2D] = op("AND", Absolute, 3, 4, "Logical AND");
+    opcodes[0x3D] = op("AND", AbsoluteX, 3, 4, "Logical AND");
+    opcodes[0x39] = op("AND", AbsoluteY, 3, 4, "Logical AND");
+    opcodes[0x21] = op("AND", IndirectX, 2, 6, "Logical AND");
+    opcodes[0x31] = op("AND", IndirectY, 2, 5, "Logical AND");
 
     // ASL
-    opcodes[0x0A] = Some(Opcode::new(
-        "ASL",
-        AddressingMode::Accumulator,
-        1,
-        2,
-        "Arithmetic Shift Left",
-    ));
-    opcodes[0x06] = Some(Opcode::new(
-        "ASL",
-        AddressingMode::ZeroPage,
-        2,
-        5,
-        "Arithmetic Shift Left",
-    ));
-    opcodes[0x16] = Some(Opcode::new(
-        "ASL",
-        AddressingMode::ZeroPageX,
-        2,
-        6,
-        "Arithmetic Shift Left",
-    ));
-    opcodes[0x0E] = Some(Opcode::new(
-        "ASL",
-        AddressingMode::Absolute,
-        3,
-        6,
-        "Arithmetic Shift Left",
-    ));
-    opcodes[0x1E] = Some(Opcode::new(
-        "ASL",
-        AddressingMode::AbsoluteX,
-        3,
-        7,
-        "Arithmetic Shift Left",
-    ));
+    opcodes[0x0A] = op("ASL", Accumulator, 1, 2, "Arithmetic Shift Left");
+    opcodes[0x06] = op("ASL", ZeroPage, 2, 5, "Arithmetic Shift Left");
+    opcodes[0x16] = op("ASL", ZeroPageX, 2, 6, "Arithmetic Shift Left");
+    opcodes[0x0E] = op("ASL", Absolute, 3, 6, "Arithmetic Shift Left");
+    opcodes[0x1E] = op("ASL", AbsoluteX, 3, 7, "Arithmetic Shift Left");
 
-    // BCC
-    opcodes[0x90] = Some(Opcode::new(
-        "BCC",
-        AddressingMode::Relative,
-        2,
-        2,
-        "Branch if Carry Clear",
-    )); // +1 if branch taken, +2 if to new page
+    // Branches and BIT
+    opcodes[0x90] = op("BCC", Relative, 2, 2, "Branch if Carry Clear");
+    opcodes[0xB0] = op("BCS", Relative, 2, 2, "Branch if Carry Set");
+    opcodes[0xF0] = op("BEQ", Relative, 2, 2, "Branch if Equal");
+    opcodes[0x24] = op("BIT", ZeroPage, 2, 3, "Bit Test");
+    opcodes[0x2C] = op("BIT", Absolute, 3, 4, "Bit Test");
+    opcodes[0x30] = op("BMI", Relative, 2, 2, "Branch if Minus");
+    opcodes[0xD0] = op("BNE", Relative, 2, 2, "Branch if Not Equal");
+    opcodes[0x10] = op("BPL", Relative, 2, 2, "Branch if Positive");
+    opcodes[0x00] = op("BRK", Implied, 1, 7, "Force Interrupt");
+    opcodes[0x50] = op("BVC", Relative, 2, 2, "Branch if Overflow Clear");
+    opcodes[0x70] = op("BVS", Relative, 2, 2, "Branch if Overflow Set");
 
-    // BCS
-    opcodes[0xB0] = Some(Opcode::new(
-        "BCS",
-        AddressingMode::Relative,
-        2,
-        2,
-        "Branch if Carry Set",
-    ));
+    // Flag clear instructions
+    opcodes[0x18] = op("CLC", Implied, 1, 2, "Clear Carry Flag");
+    opcodes[0xD8] = op("CLD", Implied, 1, 2, "Clear Decimal Mode");
+    opcodes[0x58] = op("CLI", Implied, 1, 2, "Clear Interrupt Disable");
+    opcodes[0xB8] = op("CLV", Implied, 1, 2, "Clear Overflow Flag");
 
-    // BEQ
-    opcodes[0xF0] = Some(Opcode::new(
-        "BEQ",
-        AddressingMode::Relative,
-        2,
-        2,
-        "Branch if Equal",
-    ));
+    // CMP, CPX, CPY
+    opcodes[0xC9] = op("CMP", Immediate, 2, 2, "Compare");
+    opcodes[0xC5] = op("CMP", ZeroPage, 2, 3, "Compare");
+    opcodes[0xD5] = op("CMP", ZeroPageX, 2, 4, "Compare");
+    opcodes[0xCD] = op("CMP", Absolute, 3, 4, "Compare");
+    opcodes[0xDD] = op("CMP", AbsoluteX, 3, 4, "Compare");
+    opcodes[0xD9] = op("CMP", AbsoluteY, 3, 4, "Compare");
+    opcodes[0xC1] = op("CMP", IndirectX, 2, 6, "Compare");
+    opcodes[0xD1] = op("CMP", IndirectY, 2, 5, "Compare");
+    opcodes[0xE0] = op("CPX", Immediate, 2, 2, "Compare X Register");
+    opcodes[0xE4] = op("CPX", ZeroPage, 2, 3, "Compare X Register");
+    opcodes[0xEC] = op("CPX", Absolute, 3, 4, "Compare X Register");
+    opcodes[0xC0] = op("CPY", Immediate, 2, 2, "Compare Y Register");
+    opcodes[0xC4] = op("CPY", ZeroPage, 2, 3, "Compare Y Register");
+    opcodes[0xCC] = op("CPY", Absolute, 3, 4, "Compare Y Register");
 
-    // BIT
-    opcodes[0x24] = Some(Opcode::new(
-        "BIT",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Bit Test",
-    ));
-    opcodes[0x2C] = Some(Opcode::new(
-        "BIT",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Bit Test",
-    ));
-
-    // BMI
-    opcodes[0x30] = Some(Opcode::new(
-        "BMI",
-        AddressingMode::Relative,
-        2,
-        2,
-        "Branch if Minus",
-    ));
-
-    // BNE
-    opcodes[0xD0] = Some(Opcode::new(
-        "BNE",
-        AddressingMode::Relative,
-        2,
-        2,
-        "Branch if Not Equal",
-    ));
-
-    // BPL
-    opcodes[0x10] = Some(Opcode::new(
-        "BPL",
-        AddressingMode::Relative,
-        2,
-        2,
-        "Branch if Positive",
-    ));
-
-    // BRK
-    opcodes[0x00] = Some(Opcode::new(
-        "BRK",
-        AddressingMode::Implied,
-        1,
-        7,
-        "Force Interrupt",
-    ));
-
-    // BVC
-    opcodes[0x50] = Some(Opcode::new(
-        "BVC",
-        AddressingMode::Relative,
-        2,
-        2,
-        "Branch if Overflow Clear",
-    ));
-
-    // BVS
-    opcodes[0x70] = Some(Opcode::new(
-        "BVS",
-        AddressingMode::Relative,
-        2,
-        2,
-        "Branch if Overflow Set",
-    ));
-
-    // CLC
-    opcodes[0x18] = Some(Opcode::new(
-        "CLC",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Clear Carry Flag",
-    ));
-
-    // CLD
-    opcodes[0xD8] = Some(Opcode::new(
-        "CLD",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Clear Decimal Mode",
-    ));
-
-    // CLI
-    opcodes[0x58] = Some(Opcode::new(
-        "CLI",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Clear Interrupt Disable",
-    ));
-
-    // CLV
-    opcodes[0xB8] = Some(Opcode::new(
-        "CLV",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Clear Overflow Flag",
-    ));
-
-    // CMP
-    opcodes[0xC9] = Some(Opcode::new(
-        "CMP",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Compare",
-    ));
-    opcodes[0xC5] = Some(Opcode::new(
-        "CMP",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Compare",
-    ));
-    opcodes[0xD5] = Some(Opcode::new(
-        "CMP",
-        AddressingMode::ZeroPageX,
-        2,
-        4,
-        "Compare",
-    ));
-    opcodes[0xCD] = Some(Opcode::new(
-        "CMP",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Compare",
-    ));
-    opcodes[0xDD] = Some(Opcode::new(
-        "CMP",
-        AddressingMode::AbsoluteX,
-        3,
-        4,
-        "Compare",
-    ));
-    opcodes[0xD9] = Some(Opcode::new(
-        "CMP",
-        AddressingMode::AbsoluteY,
-        3,
-        4,
-        "Compare",
-    ));
-    opcodes[0xC1] = Some(Opcode::new(
-        "CMP",
-        AddressingMode::IndirectX,
-        2,
-        6,
-        "Compare",
-    ));
-    opcodes[0xD1] = Some(Opcode::new(
-        "CMP",
-        AddressingMode::IndirectY,
-        2,
-        5,
-        "Compare",
-    ));
-
-    // CPX
-    opcodes[0xE0] = Some(Opcode::new(
-        "CPX",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Compare X Register",
-    ));
-    opcodes[0xE4] = Some(Opcode::new(
-        "CPX",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Compare X Register",
-    ));
-    opcodes[0xEC] = Some(Opcode::new(
-        "CPX",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Compare X Register",
-    ));
-
-    // CPY
-    opcodes[0xC0] = Some(Opcode::new(
-        "CPY",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Compare Y Register",
-    ));
-    opcodes[0xC4] = Some(Opcode::new(
-        "CPY",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Compare Y Register",
-    ));
-    opcodes[0xCC] = Some(Opcode::new(
-        "CPY",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Compare Y Register",
-    ));
-
-    // DEC
-    opcodes[0xC6] = Some(Opcode::new(
-        "DEC",
-        AddressingMode::ZeroPage,
-        2,
-        5,
-        "Decrement Memory",
-    ));
-    opcodes[0xD6] = Some(Opcode::new(
-        "DEC",
-        AddressingMode::ZeroPageX,
-        2,
-        6,
-        "Decrement Memory",
-    ));
-    opcodes[0xCE] = Some(Opcode::new(
-        "DEC",
-        AddressingMode::Absolute,
-        3,
-        6,
-        "Decrement Memory",
-    ));
-    opcodes[0xDE] = Some(Opcode::new(
-        "DEC",
-        AddressingMode::AbsoluteX,
-        3,
-        7,
-        "Decrement Memory",
-    ));
-
-    // DEX
-    opcodes[0xCA] = Some(Opcode::new(
-        "DEX",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Decrement X Register",
-    ));
-
-    // DEY
-    opcodes[0x88] = Some(Opcode::new(
-        "DEY",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Decrement Y Register",
-    ));
+    // DEC, DEX, DEY
+    opcodes[0xC6] = op("DEC", ZeroPage, 2, 5, "Decrement Memory");
+    opcodes[0xD6] = op("DEC", ZeroPageX, 2, 6, "Decrement Memory");
+    opcodes[0xCE] = op("DEC", Absolute, 3, 6, "Decrement Memory");
+    opcodes[0xDE] = op("DEC", AbsoluteX, 3, 7, "Decrement Memory");
+    opcodes[0xCA] = op("DEX", Implied, 1, 2, "Decrement X Register");
+    opcodes[0x88] = op("DEY", Implied, 1, 2, "Decrement Y Register");
 
     // EOR
-    opcodes[0x49] = Some(Opcode::new(
-        "EOR",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Exclusive OR",
-    ));
-    opcodes[0x45] = Some(Opcode::new(
-        "EOR",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Exclusive OR",
-    ));
-    opcodes[0x55] = Some(Opcode::new(
-        "EOR",
-        AddressingMode::ZeroPageX,
-        2,
-        4,
-        "Exclusive OR",
-    ));
-    opcodes[0x4D] = Some(Opcode::new(
-        "EOR",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Exclusive OR",
-    ));
-    opcodes[0x5D] = Some(Opcode::new(
-        "EOR",
-        AddressingMode::AbsoluteX,
-        3,
-        4,
-        "Exclusive OR",
-    ));
-    opcodes[0x59] = Some(Opcode::new(
-        "EOR",
-        AddressingMode::AbsoluteY,
-        3,
-        4,
-        "Exclusive OR",
-    ));
-    opcodes[0x41] = Some(Opcode::new(
-        "EOR",
-        AddressingMode::IndirectX,
-        2,
-        6,
-        "Exclusive OR",
-    ));
-    opcodes[0x51] = Some(Opcode::new(
-        "EOR",
-        AddressingMode::IndirectY,
-        2,
-        5,
-        "Exclusive OR",
-    ));
+    opcodes[0x49] = op("EOR", Immediate, 2, 2, "Exclusive OR");
+    opcodes[0x45] = op("EOR", ZeroPage, 2, 3, "Exclusive OR");
+    opcodes[0x55] = op("EOR", ZeroPageX, 2, 4, "Exclusive OR");
+    opcodes[0x4D] = op("EOR", Absolute, 3, 4, "Exclusive OR");
+    opcodes[0x5D] = op("EOR", AbsoluteX, 3, 4, "Exclusive OR");
+    opcodes[0x59] = op("EOR", AbsoluteY, 3, 4, "Exclusive OR");
+    opcodes[0x41] = op("EOR", IndirectX, 2, 6, "Exclusive OR");
+    opcodes[0x51] = op("EOR", IndirectY, 2, 5, "Exclusive OR");
 
-    // INC
-    opcodes[0xE6] = Some(Opcode::new(
-        "INC",
-        AddressingMode::ZeroPage,
-        2,
-        5,
-        "Increment Memory",
-    ));
-    opcodes[0xF6] = Some(Opcode::new(
-        "INC",
-        AddressingMode::ZeroPageX,
-        2,
-        6,
-        "Increment Memory",
-    ));
-    opcodes[0xEE] = Some(Opcode::new(
-        "INC",
-        AddressingMode::Absolute,
-        3,
-        6,
-        "Increment Memory",
-    ));
-    opcodes[0xFE] = Some(Opcode::new(
-        "INC",
-        AddressingMode::AbsoluteX,
-        3,
-        7,
-        "Increment Memory",
-    ));
+    // INC, INX, INY
+    opcodes[0xE6] = op("INC", ZeroPage, 2, 5, "Increment Memory");
+    opcodes[0xF6] = op("INC", ZeroPageX, 2, 6, "Increment Memory");
+    opcodes[0xEE] = op("INC", Absolute, 3, 6, "Increment Memory");
+    opcodes[0xFE] = op("INC", AbsoluteX, 3, 7, "Increment Memory");
+    opcodes[0xE8] = op("INX", Implied, 1, 2, "Increment X Register");
+    opcodes[0xC8] = op("INY", Implied, 1, 2, "Increment Y Register");
 
-    // INX
-    opcodes[0xE8] = Some(Opcode::new(
-        "INX",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Increment X Register",
-    ));
+    // JMP, JSR
+    opcodes[0x4C] = op("JMP", Absolute, 3, 3, "Jump");
+    opcodes[0x6C] = op("JMP", Indirect, 3, 5, "Jump");
+    opcodes[0x20] = op("JSR", Absolute, 3, 6, "Jump to Subroutine");
 
-    // INY
-    opcodes[0xC8] = Some(Opcode::new(
-        "INY",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Increment Y Register",
-    ));
+    // LDA, LDX, LDY
+    opcodes[0xA9] = op("LDA", Immediate, 2, 2, "Load Accumulator");
+    opcodes[0xA5] = op("LDA", ZeroPage, 2, 3, "Load Accumulator");
+    opcodes[0xB5] = op("LDA", ZeroPageX, 2, 4, "Load Accumulator");
+    opcodes[0xAD] = op("LDA", Absolute, 3, 4, "Load Accumulator");
+    opcodes[0xBD] = op("LDA", AbsoluteX, 3, 4, "Load Accumulator");
+    opcodes[0xB9] = op("LDA", AbsoluteY, 3, 4, "Load Accumulator");
+    opcodes[0xA1] = op("LDA", IndirectX, 2, 6, "Load Accumulator");
+    opcodes[0xB1] = op("LDA", IndirectY, 2, 5, "Load Accumulator");
+    opcodes[0xA2] = op("LDX", Immediate, 2, 2, "Load X Register");
+    opcodes[0xA6] = op("LDX", ZeroPage, 2, 3, "Load X Register");
+    opcodes[0xB6] = op("LDX", ZeroPageY, 2, 4, "Load X Register");
+    opcodes[0xAE] = op("LDX", Absolute, 3, 4, "Load X Register");
+    opcodes[0xBE] = op("LDX", AbsoluteY, 3, 4, "Load X Register");
+    opcodes[0xA0] = op("LDY", Immediate, 2, 2, "Load Y Register");
+    opcodes[0xA4] = op("LDY", ZeroPage, 2, 3, "Load Y Register");
+    opcodes[0xB4] = op("LDY", ZeroPageX, 2, 4, "Load Y Register");
+    opcodes[0xAC] = op("LDY", Absolute, 3, 4, "Load Y Register");
+    opcodes[0xBC] = op("LDY", AbsoluteX, 3, 4, "Load Y Register");
 
-    // JMP
-    opcodes[0x4C] = Some(Opcode::new("JMP", AddressingMode::Absolute, 3, 3, "Jump"));
-    opcodes[0x6C] = Some(Opcode::new("JMP", AddressingMode::Indirect, 3, 5, "Jump"));
-
-    // JSR
-    opcodes[0x20] = Some(Opcode::new(
-        "JSR",
-        AddressingMode::Absolute,
-        3,
-        6,
-        "Jump to Subroutine",
-    ));
-
-    // LDA
-    opcodes[0xA9] = Some(Opcode::new(
-        "LDA",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Load Accumulator",
-    ));
-    opcodes[0xA5] = Some(Opcode::new(
-        "LDA",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Load Accumulator",
-    ));
-    opcodes[0xB5] = Some(Opcode::new(
-        "LDA",
-        AddressingMode::ZeroPageX,
-        2,
-        4,
-        "Load Accumulator",
-    ));
-    opcodes[0xAD] = Some(Opcode::new(
-        "LDA",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Load Accumulator",
-    ));
-    opcodes[0xBD] = Some(Opcode::new(
-        "LDA",
-        AddressingMode::AbsoluteX,
-        3,
-        4,
-        "Load Accumulator",
-    ));
-    opcodes[0xB9] = Some(Opcode::new(
-        "LDA",
-        AddressingMode::AbsoluteY,
-        3,
-        4,
-        "Load Accumulator",
-    ));
-    opcodes[0xA1] = Some(Opcode::new(
-        "LDA",
-        AddressingMode::IndirectX,
-        2,
-        6,
-        "Load Accumulator",
-    ));
-    opcodes[0xB1] = Some(Opcode::new(
-        "LDA",
-        AddressingMode::IndirectY,
-        2,
-        5,
-        "Load Accumulator",
-    ));
-
-    // LDX
-    opcodes[0xA2] = Some(Opcode::new(
-        "LDX",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Load X Register",
-    ));
-    opcodes[0xA6] = Some(Opcode::new(
-        "LDX",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Load X Register",
-    ));
-    opcodes[0xB6] = Some(Opcode::new(
-        "LDX",
-        AddressingMode::ZeroPageY,
-        2,
-        4,
-        "Load X Register",
-    ));
-    opcodes[0xAE] = Some(Opcode::new(
-        "LDX",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Load X Register",
-    ));
-    opcodes[0xBE] = Some(Opcode::new(
-        "LDX",
-        AddressingMode::AbsoluteY,
-        3,
-        4,
-        "Load X Register",
-    ));
-
-    // LDY
-    opcodes[0xA0] = Some(Opcode::new(
-        "LDY",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Load Y Register",
-    ));
-    opcodes[0xA4] = Some(Opcode::new(
-        "LDY",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Load Y Register",
-    ));
-    opcodes[0xB4] = Some(Opcode::new(
-        "LDY",
-        AddressingMode::ZeroPageX,
-        2,
-        4,
-        "Load Y Register",
-    ));
-    opcodes[0xAC] = Some(Opcode::new(
-        "LDY",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Load Y Register",
-    ));
-    opcodes[0xBC] = Some(Opcode::new(
-        "LDY",
-        AddressingMode::AbsoluteX,
-        3,
-        4,
-        "Load Y Register",
-    ));
-
-    // LSR
-    opcodes[0x4A] = Some(Opcode::new(
-        "LSR",
-        AddressingMode::Accumulator,
-        1,
-        2,
-        "Logical Shift Right",
-    ));
-    opcodes[0x46] = Some(Opcode::new(
-        "LSR",
-        AddressingMode::ZeroPage,
-        2,
-        5,
-        "Logical Shift Right",
-    ));
-    opcodes[0x56] = Some(Opcode::new(
-        "LSR",
-        AddressingMode::ZeroPageX,
-        2,
-        6,
-        "Logical Shift Right",
-    ));
-    opcodes[0x4E] = Some(Opcode::new(
-        "LSR",
-        AddressingMode::Absolute,
-        3,
-        6,
-        "Logical Shift Right",
-    ));
-    opcodes[0x5E] = Some(Opcode::new(
-        "LSR",
-        AddressingMode::AbsoluteX,
-        3,
-        7,
-        "Logical Shift Right",
-    ));
-
-    // NOP
-    opcodes[0xEA] = Some(Opcode::new(
-        "NOP",
-        AddressingMode::Implied,
-        1,
-        2,
-        "No Operation",
-    ));
+    // LSR, NOP
+    opcodes[0x4A] = op("LSR", Accumulator, 1, 2, "Logical Shift Right");
+    opcodes[0x46] = op("LSR", ZeroPage, 2, 5, "Logical Shift Right");
+    opcodes[0x56] = op("LSR", ZeroPageX, 2, 6, "Logical Shift Right");
+    opcodes[0x4E] = op("LSR", Absolute, 3, 6, "Logical Shift Right");
+    opcodes[0x5E] = op("LSR", AbsoluteX, 3, 7, "Logical Shift Right");
+    opcodes[0xEA] = op("NOP", Implied, 1, 2, "No Operation");
 
     // ORA
-    opcodes[0x09] = Some(Opcode::new(
-        "ORA",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Logical Inclusive OR",
-    ));
-    opcodes[0x05] = Some(Opcode::new(
-        "ORA",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Logical Inclusive OR",
-    ));
-    opcodes[0x15] = Some(Opcode::new(
-        "ORA",
-        AddressingMode::ZeroPageX,
-        2,
-        4,
-        "Logical Inclusive OR",
-    ));
-    opcodes[0x0D] = Some(Opcode::new(
-        "ORA",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Logical Inclusive OR",
-    ));
-    opcodes[0x1D] = Some(Opcode::new(
-        "ORA",
-        AddressingMode::AbsoluteX,
-        3,
-        4,
-        "Logical Inclusive OR",
-    ));
-    opcodes[0x19] = Some(Opcode::new(
-        "ORA",
-        AddressingMode::AbsoluteY,
-        3,
-        4,
-        "Logical Inclusive OR",
-    ));
-    opcodes[0x01] = Some(Opcode::new(
-        "ORA",
-        AddressingMode::IndirectX,
-        2,
-        6,
-        "Logical Inclusive OR",
-    ));
-    opcodes[0x11] = Some(Opcode::new(
-        "ORA",
-        AddressingMode::IndirectY,
-        2,
-        5,
-        "Logical Inclusive OR",
-    ));
+    opcodes[0x09] = op("ORA", Immediate, 2, 2, "Logical Inclusive OR");
+    opcodes[0x05] = op("ORA", ZeroPage, 2, 3, "Logical Inclusive OR");
+    opcodes[0x15] = op("ORA", ZeroPageX, 2, 4, "Logical Inclusive OR");
+    opcodes[0x0D] = op("ORA", Absolute, 3, 4, "Logical Inclusive OR");
+    opcodes[0x1D] = op("ORA", AbsoluteX, 3, 4, "Logical Inclusive OR");
+    opcodes[0x19] = op("ORA", AbsoluteY, 3, 4, "Logical Inclusive OR");
+    opcodes[0x01] = op("ORA", IndirectX, 2, 6, "Logical Inclusive OR");
+    opcodes[0x11] = op("ORA", IndirectY, 2, 5, "Logical Inclusive OR");
 
-    // PHA
-    opcodes[0x48] = Some(Opcode::new(
-        "PHA",
-        AddressingMode::Implied,
-        1,
-        3,
-        "Push Accumulator",
-    ));
+    // Stack and rotate instructions
+    opcodes[0x48] = op("PHA", Implied, 1, 3, "Push Accumulator");
+    opcodes[0x08] = op("PHP", Implied, 1, 3, "Push Processor Status");
+    opcodes[0x68] = op("PLA", Implied, 1, 4, "Pull Accumulator");
+    opcodes[0x28] = op("PLP", Implied, 1, 4, "Pull Processor Status");
+    opcodes[0x2A] = op("ROL", Accumulator, 1, 2, "Rotate Left");
+    opcodes[0x26] = op("ROL", ZeroPage, 2, 5, "Rotate Left");
+    opcodes[0x36] = op("ROL", ZeroPageX, 2, 6, "Rotate Left");
+    opcodes[0x2E] = op("ROL", Absolute, 3, 6, "Rotate Left");
+    opcodes[0x3E] = op("ROL", AbsoluteX, 3, 7, "Rotate Left");
+    opcodes[0x6A] = op("ROR", Accumulator, 1, 2, "Rotate Right");
+    opcodes[0x66] = op("ROR", ZeroPage, 2, 5, "Rotate Right");
+    opcodes[0x76] = op("ROR", ZeroPageX, 2, 6, "Rotate Right");
+    opcodes[0x6E] = op("ROR", Absolute, 3, 6, "Rotate Right");
+    opcodes[0x7E] = op("ROR", AbsoluteX, 3, 7, "Rotate Right");
+    opcodes[0x40] = op("RTI", Implied, 1, 6, "Return from Interrupt");
+    opcodes[0x60] = op("RTS", Implied, 1, 6, "Return from Subroutine");
 
-    // PHP
-    opcodes[0x08] = Some(Opcode::new(
-        "PHP",
-        AddressingMode::Implied,
-        1,
-        3,
-        "Push Processor Status",
-    ));
+    // SBC and flag set instructions
+    opcodes[0xE9] = op("SBC", Immediate, 2, 2, "Subtract with Carry");
+    opcodes[0xE5] = op("SBC", ZeroPage, 2, 3, "Subtract with Carry");
+    opcodes[0xF5] = op("SBC", ZeroPageX, 2, 4, "Subtract with Carry");
+    opcodes[0xED] = op("SBC", Absolute, 3, 4, "Subtract with Carry");
+    opcodes[0xFD] = op("SBC", AbsoluteX, 3, 4, "Subtract with Carry");
+    opcodes[0xF9] = op("SBC", AbsoluteY, 3, 4, "Subtract with Carry");
+    opcodes[0xE1] = op("SBC", IndirectX, 2, 6, "Subtract with Carry");
+    opcodes[0xF1] = op("SBC", IndirectY, 2, 5, "Subtract with Carry");
+    opcodes[0x38] = op("SEC", Implied, 1, 2, "Set Carry Flag");
+    opcodes[0xF8] = op("SED", Implied, 1, 2, "Set Decimal Flag");
+    opcodes[0x78] = op("SEI", Implied, 1, 2, "Set Interrupt Disable");
 
-    // PLA
-    opcodes[0x68] = Some(Opcode::new(
-        "PLA",
-        AddressingMode::Implied,
-        1,
-        4,
-        "Pull Accumulator",
-    ));
+    // STA, STX, STY, and register transfers
+    opcodes[0x85] = op("STA", ZeroPage, 2, 3, "Store Accumulator");
+    opcodes[0x95] = op("STA", ZeroPageX, 2, 4, "Store Accumulator");
+    opcodes[0x8D] = op("STA", Absolute, 3, 4, "Store Accumulator");
+    opcodes[0x9D] = op("STA", AbsoluteX, 3, 5, "Store Accumulator");
+    opcodes[0x99] = op("STA", AbsoluteY, 3, 5, "Store Accumulator");
+    opcodes[0x81] = op("STA", IndirectX, 2, 6, "Store Accumulator");
+    opcodes[0x91] = op("STA", IndirectY, 2, 6, "Store Accumulator");
+    opcodes[0x86] = op("STX", ZeroPage, 2, 3, "Store X Register");
+    opcodes[0x96] = op("STX", ZeroPageY, 2, 4, "Store X Register");
+    opcodes[0x8E] = op("STX", Absolute, 3, 4, "Store X Register");
+    opcodes[0x84] = op("STY", ZeroPage, 2, 3, "Store Y Register");
+    opcodes[0x94] = op("STY", ZeroPageX, 2, 4, "Store Y Register");
+    opcodes[0x8C] = op("STY", Absolute, 3, 4, "Store Y Register");
+    opcodes[0xAA] = op("TAX", Implied, 1, 2, "Transfer Accumulator to X");
+    opcodes[0xA8] = op("TAY", Implied, 1, 2, "Transfer Accumulator to Y");
+    opcodes[0xBA] = op("TSX", Implied, 1, 2, "Transfer Stack Pointer to X");
+    opcodes[0x8A] = op("TXA", Implied, 1, 2, "Transfer X to Accumulator");
+    opcodes[0x9A] = op("TXS", Implied, 1, 2, "Transfer X to Stack Pointer");
+    opcodes[0x98] = op("TYA", Implied, 1, 2, "Transfer Y to Accumulator");
 
-    // PLP
-    opcodes[0x28] = Some(Opcode::new(
-        "PLP",
-        AddressingMode::Implied,
-        1,
-        4,
-        "Pull Processor Status",
-    ));
+    // Undocumented opcodes: SLO, RLA, SRE, RRA, SAX, LAX, DCP, ISC, ANC, ASR, ARR, SBX
+    opcodes[0x07] = ill("SLO", ZeroPage, 2, 5, "ASL + ORA");
+    opcodes[0x17] = ill("SLO", ZeroPageX, 2, 6, "ASL + ORA");
+    opcodes[0x03] = ill("SLO", IndirectX, 2, 8, "ASL + ORA");
+    opcodes[0x13] = ill("SLO", IndirectY, 2, 8, "ASL + ORA");
+    opcodes[0x0F] = ill("SLO", Absolute, 3, 6, "ASL + ORA");
+    opcodes[0x1F] = ill("SLO", AbsoluteX, 3, 7, "ASL + ORA");
+    opcodes[0x1B] = ill("SLO", AbsoluteY, 3, 7, "ASL + ORA");
 
-    // ROL
-    opcodes[0x2A] = Some(Opcode::new(
-        "ROL",
-        AddressingMode::Accumulator,
-        1,
-        2,
-        "Rotate Left",
-    ));
-    opcodes[0x26] = Some(Opcode::new(
-        "ROL",
-        AddressingMode::ZeroPage,
-        2,
-        5,
-        "Rotate Left",
-    ));
-    opcodes[0x36] = Some(Opcode::new(
-        "ROL",
-        AddressingMode::ZeroPageX,
-        2,
-        6,
-        "Rotate Left",
-    ));
-    opcodes[0x2E] = Some(Opcode::new(
-        "ROL",
-        AddressingMode::Absolute,
-        3,
-        6,
-        "Rotate Left",
-    ));
-    opcodes[0x3E] = Some(Opcode::new(
-        "ROL",
-        AddressingMode::AbsoluteX,
-        3,
-        7,
-        "Rotate Left",
-    ));
+    opcodes[0x27] = ill("RLA", ZeroPage, 2, 5, "ROL + AND");
+    opcodes[0x37] = ill("RLA", ZeroPageX, 2, 6, "ROL + AND");
+    opcodes[0x23] = ill("RLA", IndirectX, 2, 8, "ROL + AND");
+    opcodes[0x33] = ill("RLA", IndirectY, 2, 8, "ROL + AND");
+    opcodes[0x2F] = ill("RLA", Absolute, 3, 6, "ROL + AND");
+    opcodes[0x3F] = ill("RLA", AbsoluteX, 3, 7, "ROL + AND");
+    opcodes[0x3B] = ill("RLA", AbsoluteY, 3, 7, "ROL + AND");
 
-    // ROR
-    opcodes[0x6A] = Some(Opcode::new(
-        "ROR",
-        AddressingMode::Accumulator,
-        1,
-        2,
-        "Rotate Right",
-    ));
-    opcodes[0x66] = Some(Opcode::new(
-        "ROR",
-        AddressingMode::ZeroPage,
-        2,
-        5,
-        "Rotate Right",
-    ));
-    opcodes[0x76] = Some(Opcode::new(
-        "ROR",
-        AddressingMode::ZeroPageX,
-        2,
-        6,
-        "Rotate Right",
-    ));
-    opcodes[0x6E] = Some(Opcode::new(
-        "ROR",
-        AddressingMode::Absolute,
-        3,
-        6,
-        "Rotate Right",
-    ));
-    opcodes[0x7E] = Some(Opcode::new(
-        "ROR",
-        AddressingMode::AbsoluteX,
-        3,
-        7,
-        "Rotate Right",
-    ));
+    opcodes[0x47] = ill("SRE", ZeroPage, 2, 5, "LSR + EOR");
+    opcodes[0x57] = ill("SRE", ZeroPageX, 2, 6, "LSR + EOR");
+    opcodes[0x43] = ill("SRE", IndirectX, 2, 8, "LSR + EOR");
+    opcodes[0x53] = ill("SRE", IndirectY, 2, 8, "LSR + EOR");
+    opcodes[0x4F] = ill("SRE", Absolute, 3, 6, "LSR + EOR");
+    opcodes[0x5F] = ill("SRE", AbsoluteX, 3, 7, "LSR + EOR");
+    opcodes[0x5B] = ill("SRE", AbsoluteY, 3, 7, "LSR + EOR");
 
-    // RTI
-    opcodes[0x40] = Some(Opcode::new(
-        "RTI",
-        AddressingMode::Implied,
-        1,
-        6,
-        "Return from Interrupt",
-    ));
+    opcodes[0x67] = ill("RRA", ZeroPage, 2, 5, "ROR + ADC");
+    opcodes[0x77] = ill("RRA", ZeroPageX, 2, 6, "ROR + ADC");
+    opcodes[0x63] = ill("RRA", IndirectX, 2, 8, "ROR + ADC");
+    opcodes[0x73] = ill("RRA", IndirectY, 2, 8, "ROR + ADC");
+    opcodes[0x6F] = ill("RRA", Absolute, 3, 6, "ROR + ADC");
+    opcodes[0x7F] = ill("RRA", AbsoluteX, 3, 7, "ROR + ADC");
+    opcodes[0x7B] = ill("RRA", AbsoluteY, 3, 7, "ROR + ADC");
 
-    // RTS
-    opcodes[0x60] = Some(Opcode::new(
-        "RTS",
-        AddressingMode::Implied,
-        1,
-        6,
-        "Return from Subroutine",
-    ));
+    opcodes[0x87] = ill("SAX", ZeroPage, 2, 3, "Store A & X");
+    opcodes[0x97] = ill("SAX", ZeroPageY, 2, 4, "Store A & X");
+    opcodes[0x83] = ill("SAX", IndirectX, 2, 6, "Store A & X");
+    opcodes[0x8F] = ill("SAX", Absolute, 3, 4, "Store A & X");
 
-    // SBC
-    opcodes[0xE9] = Some(Opcode::new(
-        "SBC",
-        AddressingMode::Immediate,
-        2,
-        2,
-        "Subtract with Carry",
-    ));
-    opcodes[0xE5] = Some(Opcode::new(
-        "SBC",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Subtract with Carry",
-    ));
-    opcodes[0xF5] = Some(Opcode::new(
-        "SBC",
-        AddressingMode::ZeroPageX,
-        2,
-        4,
-        "Subtract with Carry",
-    ));
-    opcodes[0xED] = Some(Opcode::new(
-        "SBC",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Subtract with Carry",
-    ));
-    opcodes[0xFD] = Some(Opcode::new(
-        "SBC",
-        AddressingMode::AbsoluteX,
-        3,
-        4,
-        "Subtract with Carry",
-    ));
-    opcodes[0xF9] = Some(Opcode::new(
-        "SBC",
-        AddressingMode::AbsoluteY,
-        3,
-        4,
-        "Subtract with Carry",
-    ));
-    opcodes[0xE1] = Some(Opcode::new(
-        "SBC",
-        AddressingMode::IndirectX,
-        2,
-        6,
-        "Subtract with Carry",
-    ));
-    opcodes[0xF1] = Some(Opcode::new(
-        "SBC",
-        AddressingMode::IndirectY,
-        2,
-        5,
-        "Subtract with Carry",
-    ));
+    opcodes[0xA7] = ill("LAX", ZeroPage, 2, 3, "Load A and X");
+    opcodes[0xB7] = ill("LAX", ZeroPageY, 2, 4, "Load A and X");
+    opcodes[0xA3] = ill("LAX", IndirectX, 2, 6, "Load A and X");
+    opcodes[0xB3] = ill("LAX", IndirectY, 2, 5, "Load A and X");
+    opcodes[0xAF] = ill("LAX", Absolute, 3, 4, "Load A and X");
+    opcodes[0xBF] = ill("LAX", AbsoluteY, 3, 4, "Load A and X");
+    opcodes[0xAB] = ill("LAX", Immediate, 2, 2, "Load A and X (Immediate)");
 
-    // SEC
-    opcodes[0x38] = Some(Opcode::new(
-        "SEC",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Set Carry Flag",
-    ));
+    opcodes[0xC7] = ill("DCP", ZeroPage, 2, 5, "DEC + CMP");
+    opcodes[0xD7] = ill("DCP", ZeroPageX, 2, 6, "DEC + CMP");
+    opcodes[0xC3] = ill("DCP", IndirectX, 2, 8, "DEC + CMP");
+    opcodes[0xD3] = ill("DCP", IndirectY, 2, 8, "DEC + CMP");
+    opcodes[0xCF] = ill("DCP", Absolute, 3, 6, "DEC + CMP");
+    opcodes[0xDF] = ill("DCP", AbsoluteX, 3, 7, "DEC + CMP");
+    opcodes[0xDB] = ill("DCP", AbsoluteY, 3, 7, "DEC + CMP");
 
-    // SED
-    opcodes[0xF8] = Some(Opcode::new(
-        "SED",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Set Decimal Flag",
-    ));
+    opcodes[0xE7] = ill("ISC", ZeroPage, 2, 5, "INC + SBC");
+    opcodes[0xF7] = ill("ISC", ZeroPageX, 2, 6, "INC + SBC");
+    opcodes[0xE3] = ill("ISC", IndirectX, 2, 8, "INC + SBC");
+    opcodes[0xF3] = ill("ISC", IndirectY, 2, 8, "INC + SBC");
+    opcodes[0xEF] = ill("ISC", Absolute, 3, 6, "INC + SBC");
+    opcodes[0xFF] = ill("ISC", AbsoluteX, 3, 7, "INC + SBC");
+    opcodes[0xFB] = ill("ISC", AbsoluteY, 3, 7, "INC + SBC");
 
-    // SEI
-    opcodes[0x78] = Some(Opcode::new(
-        "SEI",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Set Interrupt Disable",
-    ));
-
-    // STA
-    opcodes[0x85] = Some(Opcode::new(
-        "STA",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Store Accumulator",
-    ));
-    opcodes[0x95] = Some(Opcode::new(
-        "STA",
-        AddressingMode::ZeroPageX,
-        2,
-        4,
-        "Store Accumulator",
-    ));
-    opcodes[0x8D] = Some(Opcode::new(
-        "STA",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Store Accumulator",
-    ));
-    opcodes[0x9D] = Some(Opcode::new(
-        "STA",
-        AddressingMode::AbsoluteX,
-        3,
-        5,
-        "Store Accumulator",
-    ));
-    opcodes[0x99] = Some(Opcode::new(
-        "STA",
-        AddressingMode::AbsoluteY,
-        3,
-        5,
-        "Store Accumulator",
-    ));
-    opcodes[0x81] = Some(Opcode::new(
-        "STA",
-        AddressingMode::IndirectX,
-        2,
-        6,
-        "Store Accumulator",
-    ));
-    opcodes[0x91] = Some(Opcode::new(
-        "STA",
-        AddressingMode::IndirectY,
-        2,
-        6,
-        "Store Accumulator",
-    ));
-
-    // STX
-    opcodes[0x86] = Some(Opcode::new(
-        "STX",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Store X Register",
-    ));
-    opcodes[0x96] = Some(Opcode::new(
-        "STX",
-        AddressingMode::ZeroPageY,
-        2,
-        4,
-        "Store X Register",
-    ));
-    opcodes[0x8E] = Some(Opcode::new(
-        "STX",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Store X Register",
-    ));
-
-    // STY
-    opcodes[0x84] = Some(Opcode::new(
-        "STY",
-        AddressingMode::ZeroPage,
-        2,
-        3,
-        "Store Y Register",
-    ));
-    opcodes[0x94] = Some(Opcode::new(
-        "STY",
-        AddressingMode::ZeroPageX,
-        2,
-        4,
-        "Store Y Register",
-    ));
-    opcodes[0x8C] = Some(Opcode::new(
-        "STY",
-        AddressingMode::Absolute,
-        3,
-        4,
-        "Store Y Register",
-    ));
-
-    // TAX
-    opcodes[0xAA] = Some(Opcode::new(
-        "TAX",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Transfer Accumulator to X",
-    ));
-
-    // TAY
-    opcodes[0xA8] = Some(Opcode::new(
-        "TAY",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Transfer Accumulator to Y",
-    ));
-
-    // TSX
-    opcodes[0xBA] = Some(Opcode::new(
-        "TSX",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Transfer Stack Pointer to X",
-    ));
-
-    // TXA
-    opcodes[0x8A] = Some(Opcode::new(
-        "TXA",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Transfer X to Accumulator",
-    ));
-
-    // TXS
-    opcodes[0x9A] = Some(Opcode::new(
-        "TXS",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Transfer X to Stack Pointer",
-    ));
-
-    // TYA
-    opcodes[0x98] = Some(Opcode::new(
-        "TYA",
-        AddressingMode::Implied,
-        1,
-        2,
-        "Transfer Y to Accumulator",
-    ));
-
-    // ========================================================================
-    // UNDOCUMENTED OPCODES
-    // ========================================================================
-
-    // SLO (Shift Left then OR) -> ASL + ORA
-    let mut add_slo = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal("SLO", mode, size, cycles, "ASL + ORA"));
-    };
-    add_slo(0x07, AddressingMode::ZeroPage, 2, 5);
-    add_slo(0x17, AddressingMode::ZeroPageX, 2, 6);
-    add_slo(0x03, AddressingMode::IndirectX, 2, 8);
-    add_slo(0x13, AddressingMode::IndirectY, 2, 8);
-    add_slo(0x0F, AddressingMode::Absolute, 3, 6);
-    add_slo(0x1F, AddressingMode::AbsoluteX, 3, 7);
-    add_slo(0x1B, AddressingMode::AbsoluteY, 3, 7);
-
-    // RLA (Rotate Left then AND) -> ROL + AND
-    let mut add_rla = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal("RLA", mode, size, cycles, "ROL + AND"));
-    };
-    add_rla(0x27, AddressingMode::ZeroPage, 2, 5);
-    add_rla(0x37, AddressingMode::ZeroPageX, 2, 6);
-    add_rla(0x23, AddressingMode::IndirectX, 2, 8);
-    add_rla(0x33, AddressingMode::IndirectY, 2, 8);
-    add_rla(0x2F, AddressingMode::Absolute, 3, 6);
-    add_rla(0x3F, AddressingMode::AbsoluteX, 3, 7);
-    add_rla(0x3B, AddressingMode::AbsoluteY, 3, 7);
-
-    // SRE (Logical Shift Right then EOR) -> LSR + EOR
-    let mut add_sre = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal("SRE", mode, size, cycles, "LSR + EOR"));
-    };
-    add_sre(0x47, AddressingMode::ZeroPage, 2, 5);
-    add_sre(0x57, AddressingMode::ZeroPageX, 2, 6);
-    add_sre(0x43, AddressingMode::IndirectX, 2, 8);
-    add_sre(0x53, AddressingMode::IndirectY, 2, 8);
-    add_sre(0x4F, AddressingMode::Absolute, 3, 6);
-    add_sre(0x5F, AddressingMode::AbsoluteX, 3, 7);
-    add_sre(0x5B, AddressingMode::AbsoluteY, 3, 7);
-
-    // RRA (Rotate Right then ADC) -> ROR + ADC
-    let mut add_rra = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal("RRA", mode, size, cycles, "ROR + ADC"));
-    };
-    add_rra(0x67, AddressingMode::ZeroPage, 2, 5);
-    add_rra(0x77, AddressingMode::ZeroPageX, 2, 6);
-    add_rra(0x63, AddressingMode::IndirectX, 2, 8);
-    add_rra(0x73, AddressingMode::IndirectY, 2, 8);
-    add_rra(0x6F, AddressingMode::Absolute, 3, 6);
-    add_rra(0x7F, AddressingMode::AbsoluteX, 3, 7);
-    add_rra(0x7B, AddressingMode::AbsoluteY, 3, 7);
-
-    // SAX (Store A AND X) -> A & X -> Mem
-    let mut add_sax = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal(
-            "SAX",
-            mode,
-            size,
-            cycles,
-            "Store A & X",
-        ));
-    };
-    add_sax(0x87, AddressingMode::ZeroPage, 2, 3);
-    add_sax(0x97, AddressingMode::ZeroPageY, 2, 4); // Note: ZeroPageY for SAX
-    add_sax(0x83, AddressingMode::IndirectX, 2, 6);
-    add_sax(0x8F, AddressingMode::Absolute, 3, 4);
-
-    // LAX (Load A AND X) -> Mem -> A, Mem -> X
-    let mut add_lax = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal(
-            "LAX",
-            mode,
-            size,
-            cycles,
-            "Load A and X",
-        ));
-    };
-    add_lax(0xA7, AddressingMode::ZeroPage, 2, 3);
-    add_lax(0xB7, AddressingMode::ZeroPageY, 2, 4); // Note: ZeroPageY
-    add_lax(0xA3, AddressingMode::IndirectX, 2, 6);
-    add_lax(0xB3, AddressingMode::IndirectY, 2, 5);
-    add_lax(0xAF, AddressingMode::Absolute, 3, 4);
-    add_lax(0xBF, AddressingMode::AbsoluteY, 3, 4);
-
-    // DCP (Decrement then Compare) -> DEC + CMP
-    let mut add_dcp = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal("DCP", mode, size, cycles, "DEC + CMP"));
-    };
-    add_dcp(0xC7, AddressingMode::ZeroPage, 2, 5);
-    add_dcp(0xD7, AddressingMode::ZeroPageX, 2, 6);
-    add_dcp(0xC3, AddressingMode::IndirectX, 2, 8);
-    add_dcp(0xD3, AddressingMode::IndirectY, 2, 8);
-    add_dcp(0xCF, AddressingMode::Absolute, 3, 6);
-    add_dcp(0xDF, AddressingMode::AbsoluteX, 3, 7);
-    add_dcp(0xDB, AddressingMode::AbsoluteY, 3, 7);
-
-    // ISC (Increment then Subtract) -> INC + SBC
-    let mut add_isc = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal("ISC", mode, size, cycles, "INC + SBC"));
-    };
-    add_isc(0xE7, AddressingMode::ZeroPage, 2, 5);
-    add_isc(0xF7, AddressingMode::ZeroPageX, 2, 6);
-    add_isc(0xE3, AddressingMode::IndirectX, 2, 8);
-    add_isc(0xF3, AddressingMode::IndirectY, 2, 8);
-    add_isc(0xEF, AddressingMode::Absolute, 3, 6);
-    add_isc(0xFF, AddressingMode::AbsoluteX, 3, 7);
-    add_isc(0xFB, AddressingMode::AbsoluteY, 3, 7);
-
-    // ANC (aka AAC) - AND #imm then update Carry (some sources say it does ASL too implicitly on internal register?)
-    // This opcode is ANC #imm. It performs AND #imm, and updates N and Z.
-    // AND it also moves bit 7 of the result into the Carry flag.
-    let mut add_anc = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal(
-            "ANC",
-            mode,
-            size,
-            cycles,
-            "AND #imm + Carry",
-        ));
-    };
-    add_anc(0x0B, AddressingMode::Immediate, 2, 2);
-    add_anc(0x2B, AddressingMode::Immediate, 2, 2);
-
-    // ASR (aka ALR) - AND #imm then LSR A.
-    let mut add_asr = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal(
-            "ASR",
-            mode,
-            size,
-            cycles,
-            "AND #imm + LSR A",
-        ));
-    };
-    add_asr(0x4B, AddressingMode::Immediate, 2, 2);
-
-    // ARR - AND #imm then ROR A (with some weird C flag behavior involving Decimal mode on real hardware)
-    let mut add_arr = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal(
-            "ARR",
-            mode,
-            size,
-            cycles,
-            "AND #imm + ROR A",
-        ));
-    };
-    add_arr(0x6B, AddressingMode::Immediate, 2, 2);
-
-    // SBX (aka AXS) - (A & X) - #imm -> X
-    // CMP (A&X) #imm ... sets flags. Result stored in X.
-    let mut add_sbx = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal(
-            "SBX",
-            mode,
-            size,
-            cycles,
-            "(A & X) - #imm -> X",
-        ));
-    };
-    add_sbx(0xCB, AddressingMode::Immediate, 2, 2);
-
-    // LAX Immediate - Not usually listed as stable LAX, or sometimes called OAL / ATX / LXA.
-    // However unstable, some docs say $AB is LAX #imm.
-    // "LAX #$00" for $AB $00
-    // It loads A and X with the same immediate value (unstable, depends on line noise/temperature sometimes?
-    // but often simplified as A=X=imm).
-    // User specifically asked for $AB to be LAX (Immediate).
-    let mut add_lax_imm = |opcode, mode, size, cycles| {
-        opcodes[opcode] = Some(Opcode::new_illegal(
-            "LAX",
-            mode,
-            size,
-            cycles,
-            "Load A and X (Immediate)",
-        ));
-    };
-    add_lax_imm(0xAB, AddressingMode::Immediate, 2, 2);
+    opcodes[0x0B] = ill("ANC", Immediate, 2, 2, "AND #imm + Carry");
+    opcodes[0x2B] = ill("ANC", Immediate, 2, 2, "AND #imm + Carry");
+    opcodes[0x4B] = ill("ASR", Immediate, 2, 2, "AND #imm + LSR A");
+    opcodes[0x6B] = ill("ARR", Immediate, 2, 2, "AND #imm + ROR A");
+    opcodes[0xCB] = ill("SBX", Immediate, 2, 2, "(A & X) - #imm -> X");
 
     opcodes
 }

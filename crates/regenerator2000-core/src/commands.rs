@@ -1,169 +1,167 @@
-//! Executable command patterns and undo/redo infrastructure for Regenerator2000 state mutations.
+//! Undoable state mutation commands and the [`UndoStack`] history manager.
 //!
-//! This module defines the [`Command`] enum representing all state mutations (setting labels, comments,
-//! block types, scopes, immediate formats, enums, origin, and bookmarks) and the [`UndoStack`] manager
-//! that facilitates bi-directional state transitions.
+//! Defines [`Command`] variants for all user-facing [`AppState`] edits (block types, labels,
+//! comments, origin, immediate formats, collapsed blocks, splitters, scopes, bookmarks,
+//! excluded addresses, and enums) and provides [`UndoStack`] for undo and redo transitions.
 
-use crate::state::{Addr, AppState, BlockType, EnumDefinition, ImmediateFormat, Label};
+use crate::state::{Addr, AppState, BlockType, EnumDefinition, ImmediateFormat, Label, XRef};
 use std::collections::BTreeMap;
 
 /// Represents an executable and undoable state mutation command.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
 pub enum Command {
-    /// Sets the [`BlockType`] classification for a range of memory indices.
+    /// Sets the [`BlockType`] classification for a byte index range.
     SetBlockType {
-        /// Index range within the raw data buffer.
+        /// Byte offset range in `raw_data`.
         range: std::ops::Range<usize>,
-        /// The new block type classification to apply.
+        /// Block type to apply to `range`.
         new_type: BlockType,
-        /// The previous block types before modification (for undo).
+        /// Previous block types in `range` for undo.
         old_types: Vec<BlockType>,
     },
-    /// Sets or removes user-defined labels at a memory address [`Addr`].
+    /// Sets or removes labels at `address`.
     SetLabel {
-        /// Target memory address [`Addr`].
+        /// Target 6502 memory address.
         address: Addr,
-        /// The new label vector to assign, or `None` to clear.
-        new_label: Option<Vec<crate::state::Label>>,
-        /// The previous label vector at this address (for undo).
-        old_label: Option<Vec<crate::state::Label>>,
+        /// Replacement label list, or `None` to remove all labels at `address`.
+        new_label: Option<Vec<Label>>,
+        /// Previous label list at `address` for undo.
+        old_label: Option<Vec<Label>>,
     },
-    /// Bulk updates labels and cross-references resulting from an analysis pass.
+    /// Replaces labels and cross-references with the output of an analysis pass.
     SetAnalysisData {
-        /// New label mapping by address.
+        /// Replacement label map indexed by address.
         labels: BTreeMap<Addr, Vec<Label>>,
-        /// New cross-reference mapping by target address.
-        cross_refs: BTreeMap<Addr, Vec<crate::state::XRef>>,
-        /// Previous label mapping (for undo).
+        /// Replacement cross-reference map indexed by target address.
+        cross_refs: BTreeMap<Addr, Vec<XRef>>,
+        /// Previous label map for undo.
         old_labels: BTreeMap<Addr, Vec<Label>>,
-        /// Previous cross-reference mapping (for undo).
-        old_cross_refs: BTreeMap<Addr, Vec<crate::state::XRef>>,
+        /// Previous cross-reference map for undo.
+        old_cross_refs: BTreeMap<Addr, Vec<XRef>>,
     },
-    /// Sets or removes an inline side comment on an instruction row.
+    /// Sets or removes a user side comment at `address`.
     SetUserSideComment {
-        /// Target memory address [`Addr`].
+        /// Target 6502 memory address.
         address: Addr,
-        /// The new comment string to set, or `None` to clear.
+        /// New side comment text, or `None` to clear the comment.
         new_comment: Option<String>,
-        /// The previous comment string (for undo).
+        /// Previous side comment text for undo.
         old_comment: Option<String>,
     },
-    /// Sets or removes a line comment appearing above an instruction row.
+    /// Sets or removes a user line comment above `address`.
     SetUserLineComment {
-        /// Target memory address [`Addr`].
+        /// Target 6502 memory address.
         address: Addr,
-        /// The new line comment string, or `None` to clear.
+        /// New line comment text, or `None` to clear the comment.
         new_comment: Option<String>,
-        /// The previous line comment string (for undo).
+        /// Previous line comment text for undo.
         old_comment: Option<String>,
     },
-    /// Changes the base memory origin address [`Addr`] of the disassembly.
+    /// Changes the base load address (`origin`) of the binary.
     ChangeOrigin {
-        /// The new 16-bit origin address.
+        /// New 16-bit origin address.
         new_origin: Addr,
-        /// The previous origin address (for undo).
+        /// Previous 16-bit origin address for undo.
         old_origin: Addr,
     },
-    /// Configures immediate operand formatting [`ImmediateFormat`] at an instruction address.
+    /// Sets or clears the [`ImmediateFormat`] display override at `address`.
     SetImmediateFormat {
-        /// Target memory address [`Addr`].
+        /// Target instruction address.
         address: Addr,
-        /// The new operand format option, or `None` to reset to default.
+        /// New immediate operand format, or `None` to use default formatting.
         new_format: Option<ImmediateFormat>,
-        /// The previous operand format option (for undo).
+        /// Previous immediate operand format for undo.
         old_format: Option<ImmediateFormat>,
     },
-    /// Collapses a contiguous block range in the visual disassembly view.
+    /// Collapses a byte-offset block range in the disassembly view.
     CollapseBlock {
-        /// Tuple containing start and end line indices of the collapsed range.
+        /// Inclusive `(start_offset, end_offset)` byte range to collapse.
         range: (usize, usize),
     },
-    /// Uncollapses a previously collapsed block range in the visual disassembly view.
+    /// Expands a previously collapsed byte-offset block range.
     UncollapseBlock {
-        /// Tuple containing start and end line indices of the block range to expand.
+        /// Inclusive `(start_offset, end_offset)` byte range to expand.
         range: (usize, usize),
     },
-    /// Toggles a block splitter at an address [`Addr`] to control auto-merging.
+    /// Toggles a virtual block splitter at `address`.
     ToggleSplitter {
-        /// Target memory address [`Addr`].
+        /// Target 6502 memory address.
         address: Addr,
     },
-    /// Imports a batch of labels into memory from symbol files or external sources.
+    /// Imports a batch of `(Addr, Label)` pairs from an external symbol source.
     ImportLabels {
-        /// Vector of (Address, Label) tuples to import.
-        new_labels: Vec<(Addr, crate::state::Label)>,
-        /// Mapping of previous labels before importing (for undo).
-        old_labels: BTreeMap<Addr, Vec<crate::state::Label>>,
+        /// Imported `(address, label)` pairs.
+        new_labels: Vec<(Addr, Label)>,
+        /// Snapshot of `state.labels` before the import for undo.
+        old_labels: BTreeMap<Addr, Vec<Label>>,
     },
-    /// Defines a routine scope covering an address range [`Addr`].
+    /// Adds or updates a lexical scope spanning `start..=end`.
     AddScope {
-        /// Start address of the scope (inclusive).
+        /// Inclusive start address of the scope.
         start: Addr,
-        /// End address of the scope (inclusive).
+        /// Inclusive end address of the scope.
         end: Addr,
-        /// Previous scope end address if replacing an existing scope (for undo).
+        /// Previous end address at `start` for undo.
         old_end: Option<Addr>,
     },
-    /// Removes an existing scope starting at an address [`Addr`].
+    /// Removes the lexical scope that starts at `address`.
     RemoveScope {
         /// Start address of the scope to remove.
         address: Addr,
-        /// Previous scope end address (for undo).
+        /// Previous end address of the removed scope for undo.
         old_end: Addr,
     },
-    /// Sets or clears a named bookmark at a memory address [`Addr`].
+    /// Sets or clears a named bookmark at `address`.
     SetBookmark {
-        /// Target memory address [`Addr`].
+        /// Target 6502 memory address.
         address: Addr,
-        /// The new bookmark name string, or `None` to remove bookmark.
+        /// Bookmark name, or `None` to remove the bookmark.
         new_name: Option<String>,
-        /// The previous bookmark name string (for undo).
+        /// Previous bookmark name for undo.
         old_name: Option<String>,
     },
-    /// Adds or removes an address from the per-project user-excluded set.
+    /// Adds or removes `address` from the user-excluded system label set.
     SetUserExcludedAddress {
-        /// Target memory address [`Addr`].
+        /// Target 6502 memory address.
         address: Addr,
-        /// `true` if adding to exclusion list, `false` if removing.
+        /// `true` to exclude `address`, or `false` to restore it.
         add: bool,
-        /// Previous labels before exclusion (for undo).
-        old_labels: BTreeMap<Addr, Vec<crate::state::Label>>,
-        /// Previous cross-references before exclusion (for undo).
-        old_cross_refs: BTreeMap<Addr, Vec<crate::state::XRef>>,
+        /// Previous label map before exclusion for undo.
+        old_labels: BTreeMap<Addr, Vec<Label>>,
+        /// Previous cross-reference map before exclusion for undo.
+        old_cross_refs: BTreeMap<Addr, Vec<XRef>>,
     },
-    /// Applies or clears an enum usage annotation [`EnumDefinition`] at an address.
+    /// Sets or clears an [`EnumDefinition`] operand annotation at `address`.
     SetEnumUsage {
-        /// Target memory address [`Addr`].
+        /// Target instruction address.
         address: Addr,
-        /// Name of the enum to apply, or `None` to clear.
+        /// Enum name to apply, or `None` to clear.
         new_enum: Option<String>,
-        /// Name of the previous enum applied (for undo).
+        /// Previous enum name at `address` for undo.
         old_enum: Option<String>,
     },
-    /// Creates, updates, or deletes a project-specific enum definition [`EnumDefinition`].
+    /// Creates, updates, or deletes a project [`EnumDefinition`].
     SetEnumDefinition {
-        /// Unique name identifier of the enum.
+        /// Unique enum identifier.
         name: String,
-        /// The new enum definition struct, or `None` if deleting.
+        /// Replacement enum definition, or `None` to delete `name`.
         new_definition: Option<EnumDefinition>,
-        /// The previous enum definition struct (for undo).
+        /// Previous enum definition for undo.
         old_definition: Option<EnumDefinition>,
     },
-    /// Executes a series of commands sequentially as a single atomic undoable action.
+    /// Executes a sequence of commands as one atomic undoable action.
     Batch(Vec<Command>),
 }
 
 impl Command {
-    /// Applies the state modification represented by this command to [`AppState`].
-    ///
-    /// # Arguments
-    ///
-    /// * `state` - Mutable reference to the application state [`AppState`].
+    /// Applies this command to `state`.
     pub fn apply(&self, state: &mut AppState) {
         match self {
             Command::CollapseBlock { range } => {
-                state.collapsed_blocks.push(*range);
+                if !state.collapsed_blocks.contains(range) {
+                    state.collapsed_blocks.push(*range);
+                }
             }
             Command::UncollapseBlock { range } => {
                 state.collapsed_blocks.retain(|r| r != range);
@@ -173,16 +171,12 @@ impl Command {
                 new_type,
                 old_types: _,
             } => {
-                let max_len = state.block_types.len();
                 let start = range.start;
-                let end = range.end.min(max_len);
+                let end = range.end.min(state.block_types.len());
 
                 if start < end {
-                    for i in start..end {
-                        state.block_types[i] = *new_type;
-                    }
+                    state.block_types[start..end].fill(*new_type);
 
-                    // Re-analyze reference counts and labels
                     let result = crate::analyzer::analyze(state);
                     state.labels = result.labels;
                     state.cross_refs = result.cross_refs;
@@ -193,7 +187,7 @@ impl Command {
                 new_label,
                 old_label: _,
             } => {
-                if let Some(label) = new_label {
+                if let Some(label) = new_label.as_ref().filter(|v| !v.is_empty()) {
                     state.labels.insert(*address, label.clone());
                 } else {
                     state.labels.remove(address);
@@ -325,11 +319,7 @@ impl Command {
         }
     }
 
-    /// Reverts the state modification represented by this command on [`AppState`].
-    ///
-    /// # Arguments
-    ///
-    /// * `state` - Mutable reference to the application state [`AppState`].
+    /// Reverts this command on `state`.
     pub fn undo(&self, state: &mut AppState) {
         match self {
             Command::SetBlockType {
@@ -337,16 +327,15 @@ impl Command {
                 new_type: _,
                 old_types,
             } => {
-                let max_len = state.block_types.len();
                 let start = range.start;
-                let end = range.end.min(max_len);
+                let end = range.end.min(state.block_types.len());
 
                 if start < end {
-                    for (i, old_type) in (start..end).zip(old_types.iter()) {
-                        state.block_types[i] = *old_type;
+                    for (slot, old_type) in state.block_types[start..end].iter_mut().zip(old_types)
+                    {
+                        *slot = *old_type;
                     }
 
-                    // Re-analyze reference counts and labels
                     let result = crate::analyzer::analyze(state);
                     state.labels = result.labels;
                     state.cross_refs = result.cross_refs;
@@ -357,7 +346,7 @@ impl Command {
                 new_label: _,
                 old_label,
             } => {
-                if let Some(label) = old_label {
+                if let Some(label) = old_label.as_ref().filter(|v| !v.is_empty()) {
                     state.labels.insert(*address, label.clone());
                 } else {
                     state.labels.remove(address);
@@ -409,7 +398,9 @@ impl Command {
                 state.collapsed_blocks.retain(|r| r != range);
             }
             Command::UncollapseBlock { range } => {
-                state.collapsed_blocks.push(*range);
+                if !state.collapsed_blocks.contains(range) {
+                    state.collapsed_blocks.push(*range);
+                }
             }
             Command::ToggleSplitter { address } => {
                 state.toggle_splitter(*address);
@@ -421,7 +412,7 @@ impl Command {
                 let affected_addrs: std::collections::HashSet<Addr> =
                     new_labels.iter().map(|(a, _)| *a).collect();
                 for addr in affected_addrs {
-                    if let Some(labels) = old_labels.get(&addr) {
+                    if let Some(labels) = old_labels.get(&addr).filter(|v| !v.is_empty()) {
                         state.labels.insert(addr, labels.clone());
                     } else {
                         state.labels.remove(&addr);
@@ -443,14 +434,12 @@ impl Command {
                 old_labels,
                 old_cross_refs,
             } => {
-                // Reverse the exclusion set change
                 if *add {
                     state.user_excluded_addresses.remove(address);
                 } else {
                     state.user_excluded_addresses.insert(*address);
                 }
                 state.load_system_assets();
-                // Restore the exact pre-command labels and xrefs
                 state.labels = old_labels.clone();
                 state.cross_refs = old_cross_refs.clone();
                 state.disassemble();
@@ -496,12 +485,12 @@ impl Command {
     }
 }
 
-/// Stack manager for tracking applied commands and performing undo/redo state transitions.
+/// Manages the command history buffer and tracks the current undo/redo cursor.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UndoStack {
-    /// History buffer of executed commands.
+    /// Ordered list of applied commands.
     commands: Vec<Command>,
-    /// Pointer pointing to the next command index for execution.
+    /// Index of the next command to redo (`0..=commands.len()`).
     pointer: usize,
 }
 
@@ -512,11 +501,7 @@ impl Default for UndoStack {
 }
 
 impl UndoStack {
-    /// Constructs a new empty [`UndoStack`].
-    ///
-    /// # Returns
-    ///
-    /// An [`UndoStack`] initialized with an empty command history vector.
+    /// Creates an empty [`UndoStack`].
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -525,13 +510,8 @@ impl UndoStack {
         }
     }
 
-    /// Pushes a new [`Command`] onto the stack, clearing any existing redo history.
-    ///
-    /// # Arguments
-    ///
-    /// * `command` - The executed [`Command`] to append to history.
+    /// Appends `command` to the stack and discards any undone commands after `pointer`.
     pub fn push(&mut self, command: Command) {
-        // If we are not at the end, truncate the future
         if self.pointer < self.commands.len() {
             self.commands.truncate(self.pointer);
         }
@@ -539,63 +519,43 @@ impl UndoStack {
         self.pointer += 1;
     }
 
-    /// Reverts the previous command on the stack.
+    /// Reverts the most recent applied command and refreshes the disassembly.
     ///
-    /// # Arguments
-    ///
-    /// * `state` - Mutable reference to application state [`AppState`].
-    ///
-    /// # Returns
-    ///
-    /// `Some("Undone")` if a command was undone, or `None` if the stack is at the beginning.
+    /// Returns `Some("Undone")` when a command is reverted, or `None` when the stack is at index 0.
     pub fn undo(&mut self, state: &mut AppState) -> Option<String> {
         if self.pointer > 0 {
             self.pointer -= 1;
             let command = &self.commands[self.pointer];
             command.undo(state);
-            state.disassemble(); // Refresh view
+            state.disassemble();
             Some("Undone".to_string())
         } else {
             None
         }
     }
 
-    /// Re-applies the next undone command on the stack.
+    /// Reapplies the next undone command and refreshes the disassembly.
     ///
-    /// # Arguments
-    ///
-    /// * `state` - Mutable reference to application state [`AppState`].
-    ///
-    /// # Returns
-    ///
-    /// `Some("Redone")` if a command was redone, or `None` if no undone commands remain.
+    /// Returns `Some("Redone")` when a command is reapplied, or `None` when no undone commands remain.
     pub fn redo(&mut self, state: &mut AppState) -> Option<String> {
         if self.pointer < self.commands.len() {
             let command = &self.commands[self.pointer];
             command.apply(state);
             self.pointer += 1;
-            state.disassemble(); // Refresh view
+            state.disassemble();
             Some("Redone".to_string())
         } else {
             None
         }
     }
 
-    /// Checks if there are commands available to undo.
-    ///
-    /// # Returns
-    ///
-    /// `true` if `pointer > 0`, otherwise `false`.
+    /// Returns `true` when at least one command can be undone.
     #[must_use]
     pub fn can_undo(&self) -> bool {
         self.pointer > 0
     }
 
-    /// Checks if there are undone commands available to redo.
-    ///
-    /// # Returns
-    ///
-    /// `true` if `pointer < commands.len()`, otherwise `false`.
+    /// Returns `true` when at least one undone command can be redone.
     #[must_use]
     pub fn can_redo(&self) -> bool {
         self.pointer < self.commands.len()

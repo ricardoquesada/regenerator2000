@@ -1,23 +1,23 @@
 //! # regenerator2000-core
 //!
 //! Core library for [Regenerator 2000](https://github.com/ricardoquesada/regenerator2000),
-//! an interactive 6502 disassembler targeting Commodore 8-bit machines.
+//! an interactive 6502 disassembler for Commodore 8-bit machines.
 //!
 //! This crate provides all UI-agnostic logic:
 //!
-//! - **[`state`]** — Application state: memory, block types, labels, comments, cross-refs, undo stack.
-//! - **[`action_handlers`]** — Modular domain action handlers for processing user and MCP actions.
-//! - **[`disassembler`]** — 6502 instruction decoding and per-assembler formatters (64tass, ACME, KickAssembler, ca65).
-//! - **[`analyzer`]** — Auto-analysis to identify code and data regions, generate labels and cross-refs.
-//! - **[`commands`]** — Undoable command system (every mutation goes through `Command::apply`).
-//! - **[`parser`]** — File parsers for PRG, CRT, D64/D71/D81, T64, VSF, and VICE labels.
-//! - **[`exporter`]** — Assembly source code export with roundtrip verification.
+//! - **[`state`]** — Application state: memory, block types, labels, comments, cross-references, and undo stack.
+//! - **[`action_handlers`]** — Domain action handlers that process user and MCP actions.
+//! - **[`disassembler`]** — 6502 instruction decoders and assembler formatters (64tass, ACME, KickAssembler, ca65).
+//! - **[`analyzer`]** — Static analyzer that identifies code and data regions and generates labels and cross-references.
+//! - **[`commands`]** — Undoable command system (`Command::apply` and `Command::undo`).
+//! - **[`parser`]** — File parsers for PRG, CRT, D64/D71/D81, T64, VSF, `.dis65`, and VICE labels.
+//! - **[`exporter`]** — Assembly and HTML exporters with roundtrip verification.
 //! - **[`cpu`]** — 6502/6510 opcode table, addressing modes, and undocumented opcodes.
-//! - **[`vice`]** — VICE binary monitor protocol client for live debugging.
-//! - **[`mcp`]** — Model Context Protocol server for programmatic access (requires `mcp` feature).
+//! - **[`vice`]** — VICE binary monitor client for live debugging.
+//! - **[`mcp`]** — Model Context Protocol server for programmatic access (requires the `mcp` feature).
 
-// Stability: deny panic-inducing patterns in production code.
-// Tests are exempt so they can keep using .unwrap() / .expect() ergonomically.
+// Deny panic-inducing patterns in production code.
+// Tests remain exempt so assertions can use .unwrap() and .expect().
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
@@ -33,7 +33,7 @@ pub mod error;
 pub use core::Core;
 pub use error::*;
 
-/// A specialized [`Result`](std::result::Result) type for core operations returning [`CoreError`].
+/// Specialized [`Result`](std::result::Result) type for core operations that return [`CoreError`].
 pub type Result<T> = std::result::Result<T, CoreError>;
 pub mod disassembler;
 pub use disassembler::{

@@ -1,3 +1,5 @@
+//! Central application engine that coordinates [`AppState`], [`CoreViewState`], and action dispatch.
+
 use crate::action_handlers::{
     ActionContext, DebugActionHandler, DisassemblyActionHandler, DomainActionHandler,
     FileActionHandler, NavigationActionHandler,
@@ -7,19 +9,18 @@ use crate::state::AppState;
 use crate::state::actions::AppAction;
 use crate::view_state::CoreViewState;
 
-/// The central engine of Regenerator 2000.
+/// Owns the persistent [`AppState`] and transient [`CoreViewState`] for a session.
 ///
-/// Manages persistent state ([`AppState`]) and transient view state ([`CoreViewState`]).
-/// Frontends interact with this via [`Core::apply_action`].
+/// Frontends dispatch semantic actions through [`Core::apply_action`].
 pub struct Core {
-    /// Persistent application state (memory, disassembly, labels, configuration).
+    /// Persistent application state (memory, disassembly, labels, and configuration).
     pub state: AppState,
-    /// Transient UI view state (cursor indices, active pane, scroll offsets).
+    /// Transient view state (cursor indices, active pane, and scroll offsets).
     pub view: CoreViewState,
 }
 
 impl Core {
-    /// Creates a new default [`Core`] engine instance.
+    /// Creates a default [`Core`] engine instance.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -28,11 +29,11 @@ impl Core {
         }
     }
 
-    /// Handles a semantic [`AppAction`] and returns a list of emitted [`CoreEvent`]s for the frontend.
-    pub fn apply_action(&mut self, action: AppAction) -> Vec<CoreEvent> {
+    /// Applies `action` to the engine and returns the resulting [`CoreEvent`] list.
+    pub fn apply_action(&mut self, mut action: AppAction) -> Vec<CoreEvent> {
         let mut events = Vec::new();
 
-        // Check for unsaved changes on destructive actions
+        // Request user confirmation before running a destructive action with unsaved changes.
         if action.is_destructive() && self.state.is_dirty() {
             events.push(CoreEvent::DialogRequested(
                 crate::event::DialogType::Confirmation {
@@ -44,11 +45,10 @@ impl Core {
             return events;
         }
 
-        // Unwrap Confirmed for processing
-        let action = match action {
-            AppAction::Confirmed(inner) => *inner,
-            other => other,
-        };
+        // Unwrap any confirmation wrappers before dispatching to domain handlers.
+        while let AppAction::Confirmed(inner) = action {
+            action = *inner;
+        }
 
         if action.requires_document() && self.state.raw_data.is_empty() {
             events.push(CoreEvent::StatusMessage("No open document".to_string()));
@@ -103,20 +103,20 @@ impl Core {
         events
     }
 
-    /// Creates a project save context from current core state.
+    /// Creates a [`crate::state::ProjectSaveContext`] from the current application and view state.
     #[must_use]
     pub fn create_save_context(&self) -> crate::state::ProjectSaveContext {
         crate::navigation::create_save_context(&self.state, &self.view)
     }
 
-    /// Returns the default filename stem derived from the loaded file path.
+    /// Returns the default filename stem from the loaded file path, if present.
     #[must_use]
     pub fn get_default_filename_stem(&self) -> Option<String> {
         self.state
             .file_path
             .as_ref()
             .and_then(|p| p.file_stem())
-            .map(|s| s.to_string_lossy().to_string())
+            .map(|s| s.to_string_lossy().into_owned())
     }
 }
 

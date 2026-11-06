@@ -1,6 +1,11 @@
+//! Shared file-listing, checksum, entropy, and Commodore character-encoding utilities.
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Lists directories and files in `dir` that match `extensions` (case-insensitive).
+///
+/// Sorts directories before files, and sorts entries within each group by file name.
 #[must_use]
 pub fn list_files(dir: &Path, extensions: &[String]) -> Vec<PathBuf> {
     let mut files = Vec::new();
@@ -10,31 +15,25 @@ pub fn list_files(dir: &Path, extensions: &[String]) -> Vec<PathBuf> {
             let path = entry.path();
             if path.is_dir() {
                 files.push(path);
-            } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                let ext_lower = ext.to_lowercase();
-                if extensions.iter().any(|e| e.to_lowercase() == ext_lower) {
-                    files.push(path);
-                }
+            } else if let Some(ext) = path.extension().and_then(|e| e.to_str())
+                && extensions.iter().any(|e| e.eq_ignore_ascii_case(ext))
+            {
+                files.push(path);
             }
         }
     }
 
-    // Sort: directories first, then files alpha
+    // Sort directories first, then sort entries by file name.
     files.sort_by(|a, b| {
-        let a_is_dir = a.is_dir();
-        let b_is_dir = b.is_dir();
-        if a_is_dir && !b_is_dir {
-            std::cmp::Ordering::Less
-        } else if !a_is_dir && b_is_dir {
-            std::cmp::Ordering::Greater
-        } else {
-            a.file_name().cmp(&b.file_name())
-        }
+        b.is_dir()
+            .cmp(&a.is_dir())
+            .then_with(|| a.file_name().cmp(&b.file_name()))
     });
 
     files
 }
 
+/// Computes the Shannon entropy of `data` in bits per byte (`0.0` to `8.0`).
 #[must_use]
 pub fn calculate_entropy(data: &[u8]) -> f32 {
     if data.is_empty() {
@@ -58,14 +57,16 @@ pub fn calculate_entropy(data: &[u8]) -> f32 {
 
     entropy
 }
+
+/// Computes the IEEE 802.3 CRC-32 checksum of `data`.
 #[must_use]
 pub fn calculate_crc32(data: &[u8]) -> u32 {
-    let mut crc = 0xFFFFFFFFu32;
+    let mut crc = 0xFFFF_FFFFu32;
     for &byte in data {
         crc ^= u32::from(byte);
         for _ in 0..8 {
             if (crc & 1) != 0 {
-                crc = (crc >> 1) ^ 0xEDB88320;
+                crc = (crc >> 1) ^ 0xEDB8_8320;
             } else {
                 crc >>= 1;
             }
@@ -74,30 +75,22 @@ pub fn calculate_crc32(data: &[u8]) -> u32 {
     !crc
 }
 
+/// Converts a Commodore screen code byte to its equivalent PETSCII code.
+///
+/// Strips the reverse-video bit (bit 7) so reverse characters map to their base glyphs.
 #[must_use]
 pub fn screencode_to_petscii(byte: u8) -> u8 {
-    // Basic Screencode to PETSCII mapping
-    // This is a simplification, but covers the main displayable range
-    match byte {
-        0x00..=0x1F => byte + 0x40, // @ABC... -> @ABC... (40-5F)
-        0x20..=0x3F => byte,        //  !"#... ->  !"#... (20-3F)
-        0x40..=0x5F => byte + 0x20, // ─♠│... -> ─♠│... (60-7F)
-        0x60..=0x7F => byte + 0x40, //  ▌▄▔... ->  ▌▄▔... (A0-BF)
-        // Reverse characters (bit 7 set)
-        0x80..=0x9F => byte - 0x40 + 0x80,
-        _ => {
-            let b = byte & 0x7F;
-            match b {
-                0x00..=0x1F => b + 0x40,
-                0x20..=0x3F => b,
-                0x40..=0x5F => b + 0x20,
-                0x60..=0x7F => b + 0x40,
-                _ => b,
-            }
-        }
+    let b = byte & 0x7F;
+    match b {
+        0x00..=0x1F => b + 0x40, // @ABC... -> 0x40..=0x5F
+        0x20..=0x3F => b,        //  !"#... -> 0x20..=0x3F
+        0x40..=0x5F => b + 0x20, // ─♠│... -> 0x60..=0x7F
+        0x60..=0x7F => b + 0x40, //  ▌▄▔... -> 0xA0..=0xBF
+        _ => b,
     }
 }
 
+/// Converts a PETSCII byte to its Unicode representation for the selected shift mode.
 #[must_use]
 pub fn petscii_to_unicode(byte: u8, shifted: bool) -> char {
     let (unshifted_char, shifted_char) = PETSCII_MAP[byte as usize];
@@ -108,9 +101,8 @@ pub fn petscii_to_unicode(byte: u8, shifted: bool) -> char {
     }
 }
 
-// Mapping: (Unshifted, Shifted)
-// Based on https://github.com/9999years/Unicode-PETSCII/blob/master/table.txt
-// Control codes (0x00-0x1F, 0x80-0x9F) are mapped to '.' unless they have a specific meaning visualization like space
+// Mapping table of `(unshifted, shifted)` Unicode characters indexed by PETSCII byte.
+// Control codes (`0x00..=0x1F` and `0x80..=0x9F`) map to `.`.
 static PETSCII_MAP: [(char, char); 256] = [
     // $00 - $0F
     ('.', '.'),
@@ -452,5 +444,47 @@ mod tests {
         // 2 distinct values, equal probability -> 1 bit
         let data = vec![0, 0, 1, 1];
         assert!((calculate_entropy(&data) - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_screencode_to_petscii_normal_and_reverse() {
+        // Normal screen codes: 0x00 ('@'), 0x01 ('A'), 0x04 ('D'), 0x20 (' ')
+        assert_eq!(screencode_to_petscii(0x00), 0x40);
+        assert_eq!(screencode_to_petscii(0x01), 0x41);
+        assert_eq!(screencode_to_petscii(0x04), 0x44);
+        assert_eq!(screencode_to_petscii(0x20), 0x20);
+
+        // Reverse-video screen codes (bit 7 set) must map to the same base PETSCII codes
+        // so that unshifted mode renders 'D' instead of '.' (0xC4).
+        for sc in 0u8..=0x7F {
+            assert_eq!(screencode_to_petscii(sc | 0x80), screencode_to_petscii(sc));
+        }
+        assert_eq!(petscii_to_unicode(screencode_to_petscii(0x84), false), 'D');
+    }
+
+    #[test]
+    fn test_calculate_crc32_standard_check_value() {
+        assert_eq!(calculate_crc32(b""), 0x0000_0000);
+        assert_eq!(calculate_crc32(b"123456789"), 0xCBF4_3926);
+    }
+
+    #[test]
+    fn test_list_files_sorts_dirs_first_and_filters_case_insensitively() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("r2000_utils_test_{}", std::process::id()));
+        let sub_dir = temp_dir.join("zeta_dir");
+        fs::create_dir_all(&sub_dir).unwrap();
+        fs::write(temp_dir.join("b.PRG"), [0u8]).unwrap();
+        fs::write(temp_dir.join("a.prg"), [0u8]).unwrap();
+        fs::write(temp_dir.join("ignore.txt"), [0u8]).unwrap();
+
+        let listed = list_files(&temp_dir, &["prg".to_string()]);
+        let names: Vec<_> = listed
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, vec!["zeta_dir", "a.prg", "b.PRG"]);
+
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }
