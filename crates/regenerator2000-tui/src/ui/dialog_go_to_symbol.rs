@@ -13,6 +13,7 @@ use crate::ui::widget::{Widget, WidgetResult};
 pub struct GoToSymbolDialog {
     pub input: String,
     pub all_symbols: Vec<(u16, String)>,
+    all_symbols_lower: Vec<String>,
     pub filtered_symbols: Vec<(u16, String)>,
     pub selected_index: usize,
 }
@@ -20,20 +21,28 @@ pub struct GoToSymbolDialog {
 impl GoToSymbolDialog {
     #[must_use]
     pub fn new(app_state: &AppState) -> Self {
-        let mut symbols = Vec::new();
+        let mut entries: Vec<(u16, String, String)> = Vec::new();
         for (addr, labels) in &app_state.labels {
             for label in labels {
                 if label.kind != LabelKind::Auto {
-                    symbols.push((addr.0, label.name.clone()));
+                    entries.push((addr.0, label.name.clone(), label.name.to_lowercase()));
                 }
             }
         }
-        symbols.sort_by_key(|a| a.1.to_lowercase());
+        entries.sort_by(|a, b| a.2.cmp(&b.2));
+
+        let mut all_symbols = Vec::with_capacity(entries.len());
+        let mut all_symbols_lower = Vec::with_capacity(entries.len());
+        for (addr, name, lower) in entries {
+            all_symbols.push((addr, name));
+            all_symbols_lower.push(lower);
+        }
 
         Self {
             input: String::new(),
-            all_symbols: symbols.clone(),
-            filtered_symbols: symbols,
+            filtered_symbols: all_symbols.clone(),
+            all_symbols,
+            all_symbols_lower,
             selected_index: 0,
         }
     }
@@ -43,8 +52,9 @@ impl GoToSymbolDialog {
         self.filtered_symbols = self
             .all_symbols
             .iter()
-            .filter(|(_, name)| name.to_lowercase().contains(&query))
-            .cloned()
+            .zip(&self.all_symbols_lower)
+            .filter(|(_, lower_name)| lower_name.contains(&query))
+            .map(|(sym, _)| sym.clone())
             .collect();
 
         if self.selected_index >= self.filtered_symbols.len() && !self.filtered_symbols.is_empty() {

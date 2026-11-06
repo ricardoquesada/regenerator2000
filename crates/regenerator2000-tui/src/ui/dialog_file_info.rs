@@ -10,7 +10,9 @@ use ratatui::{
     widgets::{Clear, Paragraph},
 };
 
-pub struct FileInfoDialog;
+pub struct FileInfoDialog {
+    cached_file_info: std::sync::OnceLock<regenerator2000_core::state::FileInfo>,
+}
 
 impl Default for FileInfoDialog {
     fn default() -> Self {
@@ -21,7 +23,9 @@ impl Default for FileInfoDialog {
 impl FileInfoDialog {
     #[must_use]
     pub fn new() -> Self {
-        Self
+        Self {
+            cached_file_info: std::sync::OnceLock::new(),
+        }
     }
 }
 
@@ -49,7 +53,7 @@ impl Widget for FileInfoDialog {
             ])
             .split(inner);
 
-        let info = app_state.file_info();
+        let info = self.cached_file_info.get_or_init(|| app_state.file_info());
 
         let label_style = Style::default().fg(theme.dialog_fg);
         let val_style = Style::default()

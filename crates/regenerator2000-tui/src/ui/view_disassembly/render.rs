@@ -1085,12 +1085,11 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
         let scope = compute_scope_bounds(&ctx);
         let part_count = parts.len();
 
-        for (idx, part) in parts.into_iter().enumerate() {
+        for (idx, mut part) in parts.into_iter().enumerate() {
             let scope_span =
                 build_scope_gutter_span(&ctx, scope, idx, prefix_parts_count, part_count);
-            let mut new_spans = vec![scope_span];
-            new_spans.extend(part.spans);
-            let manipulated_part = Line::from(new_spans);
+            part.spans.insert(0, scope_span);
+            let manipulated_part = part;
 
             if idx >= current_sub {
                 let is_cursor_sub = is_cursor_row && idx == ui_state.sub_cursor_index;

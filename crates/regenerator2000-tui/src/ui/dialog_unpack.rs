@@ -18,6 +18,7 @@ pub struct UnpackDialog {
     pub dep_input: String,
     pub max_inst_input: String,
     pub active_field: usize, // 0: entry, 1: return, 2: depacker, 3: max_inst, 4: Unpack button, 5: Cancel button
+    cached_file_info: std::sync::OnceLock<regenerator2000_core::state::FileInfo>,
 }
 
 impl Default for UnpackDialog {
@@ -35,6 +36,7 @@ impl UnpackDialog {
             dep_input: String::new(),
             max_inst_input: "50000000".to_string(),
             active_field: 0,
+            cached_file_info: std::sync::OnceLock::new(),
         }
     }
 
@@ -205,7 +207,7 @@ impl Widget for UnpackDialog {
         f.render_widget(Paragraph::new(buttons_text), layout[5]);
 
         // --- Entropy & Packer Info (Bottom) ---
-        let file_info = app_state.file_info();
+        let file_info = self.cached_file_info.get_or_init(|| app_state.file_info());
         let status_str = if let Some(name) = file_info.packer_name {
             format!("Packed with {name}")
         } else if file_info.entropy >= app_state.system_config.entropy_threshold {

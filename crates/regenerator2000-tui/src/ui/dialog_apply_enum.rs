@@ -62,16 +62,16 @@ impl ApplyEnumDialog {
     fn recalculate_filtered_items(&mut self, app_state: &AppState) {
         let search_query = self.search_textarea.lines().join("").trim().to_lowercase();
 
-        // Combine enums using 3-tier precedence (local > global > builtin)
-        let mut all_enums: BTreeMap<String, &EnumDefinition> = BTreeMap::new();
+        // Combine enums using 3-tier precedence (local > global > builtin) without cloning keys
+        let mut all_enums: BTreeMap<&str, &EnumDefinition> = BTreeMap::new();
         for (name, def) in &app_state.builtin_enums {
-            all_enums.insert(name.clone(), def);
+            all_enums.insert(name.as_str(), def);
         }
         for (name, def) in &app_state.user_global_enums {
-            all_enums.insert(name.clone(), def);
+            all_enums.insert(name.as_str(), def);
         }
         for (name, def) in &app_state.enums {
-            all_enums.insert(name.clone(), def);
+            all_enums.insert(name.as_str(), def);
         }
 
         let mut matching = Vec::new();
@@ -85,13 +85,13 @@ impl ApplyEnumDialog {
 
             if let Some(variant) = enum_def.variants.get(&self.value) {
                 matching.push(EnumListItem::EnumEntry {
-                    name: name.clone(),
+                    name: name.to_string(),
                     matching_variant: Some(variant.clone()),
                     is_matching: true,
                 });
             } else {
                 other.push(EnumListItem::EnumEntry {
-                    name: name.clone(),
+                    name: name.to_string(),
                     matching_variant: None,
                     is_matching: false,
                 });

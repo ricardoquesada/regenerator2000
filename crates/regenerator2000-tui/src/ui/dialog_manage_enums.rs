@@ -8,7 +8,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
 };
-use regenerator2000_core::state::{Addr, AppState};
+use regenerator2000_core::state::AppState;
 
 use super::dialog_edit_enum::EditEnumDialog;
 
@@ -17,6 +17,7 @@ pub struct ManageEnumsDialog {
     project_enums: Vec<String>,
     global_enums: Vec<String>,
     system_enums: Vec<String>,
+    usage_counts: std::collections::BTreeMap<String, usize>,
     list_state: ListState,
     sub_dialog: Option<Box<dyn Widget>>,
 }
@@ -29,6 +30,7 @@ impl ManageEnumsDialog {
             project_enums: Vec::new(),
             global_enums: Vec::new(),
             system_enums: Vec::new(),
+            usage_counts: std::collections::BTreeMap::new(),
             list_state: ListState::default(),
             sub_dialog: None,
         };
@@ -43,6 +45,13 @@ impl ManageEnumsDialog {
         self.project_enums = app_state.enums.keys().cloned().collect();
         self.global_enums = app_state.user_global_enums.keys().cloned().collect();
         self.system_enums = app_state.builtin_enums.keys().cloned().collect();
+
+        self.usage_counts.clear();
+        for (_, entry) in app_state.annotations.iter() {
+            if let Some(enum_name) = &entry.enum_usage {
+                *self.usage_counts.entry(enum_name.clone()).or_insert(0) += 1;
+            }
+        }
 
         let current_len = self.active_list_len();
         if let Some(selected) = self.list_state.selected() {
@@ -221,19 +230,13 @@ impl Widget for ManageEnumsDialog {
                     let name_str = name.to_string();
                     let is_global = self.active_tab == 1;
 
-                    // 3-level usage detection check
-                    let usages: Vec<Addr> = app_state
-                        .annotations
-                        .iter()
-                        .filter(|(_, entry)| entry.enum_usage.as_deref() == Some(name_str.as_str()))
-                        .map(|(addr, _)| addr)
-                        .collect();
+                    // Check precomputed usage count
+                    let usage_count = self.usage_counts.get(&name_str).copied().unwrap_or(0);
 
                     let mut warning_msg = String::new();
-                    if !usages.is_empty() {
+                    if usage_count > 0 {
                         warning_msg = format!(
-                            "Warning: Enum is applied at {} addresses. Reverts to raw hex. ",
-                            usages.len()
+                            "Warning: Enum is applied at {usage_count} addresses. Reverts to raw hex. "
                         );
                     }
 
@@ -406,12 +409,8 @@ impl ManageEnumsDialog {
                     _ => "",
                 };
 
-                // Usage stats
-                let usage_count = app_state
-                    .annotations
-                    .iter()
-                    .filter(|(_, entry)| entry.enum_usage.as_deref() == Some(name))
-                    .count();
+                // Usage stats (precomputed in `recalculate_lists`)
+                let usage_count = self.usage_counts.get(name).copied().unwrap_or(0);
 
                 let mut detail_lines = vec![
                     Line::from(vec![
@@ -494,5 +493,34 @@ impl ManageEnumsDialog {
             .alignment(ratatui::layout::Alignment::Center)
             .style(Style::default().fg(theme.highlight_fg));
         f.render_widget(helpers, helpers_area);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use regenerator2000_core::state::{Addr, EnumDefinition};
+
+    #[test]
+    fn test_manage_enums_dialog_precomputes_usage_counts() {
+        let mut app_state = AppState::new();
+        app_state.enums.insert(
+            "Colors".to_string(),
+            EnumDefinition {
+                name: "Colors".to_string(),
+                description: None,
+                variants: std::collections::BTreeMap::new(),
+                source_file: None,
+            },
+        );
+        app_state
+            .annotations
+            .update(Addr(0x1000), |e| e.enum_usage = Some("Colors".to_string()));
+        app_state
+            .annotations
+            .update(Addr(0x1002), |e| e.enum_usage = Some("Colors".to_string()));
+
+        let dialog = ManageEnumsDialog::new(&app_state);
+        assert_eq!(dialog.usage_counts.get("Colors").copied(), Some(2));
     }
 }

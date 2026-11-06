@@ -57,8 +57,16 @@ pub struct UIState {
     pub new_version_available: Option<String>,
 
     // Flash countdown for debugger status line when breakpoint/watchpoint is hit.
-    // Decremented each render frame; while > 0, renders with attention-grabbing style.
+    // Decremented on timer ticks; while > 0, renders with attention-grabbing style.
     pub debugger_flash_remaining: u8,
+    /// Cached live disassembly lines for `DebuggerView` keyed by `(mem_start, live_bytes)`.
+    pub debugger_disasm_cache: Option<(
+        u16,
+        Vec<u8>,
+        Vec<regenerator2000_core::disassembler::DisassemblyLine>,
+    )>,
+    /// Per-frame cached `BlockItem` list computed during `sync_views_before_render` and consumed by `BlocksView::render`.
+    pub cached_blocks_items: Option<Vec<regenerator2000_core::state::BlockItem>>,
 
     // Layout Areas for Mouse Interaction
     pub menu_area: ratatui::layout::Rect,
@@ -119,6 +127,8 @@ impl UIState {
 
             new_version_available: None,
             debugger_flash_remaining: 0,
+            debugger_disasm_cache: None,
+            cached_blocks_items: None,
 
             menu_area: ratatui::layout::Rect::default(),
             main_area: ratatui::layout::Rect::default(),

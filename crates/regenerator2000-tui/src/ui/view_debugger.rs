@@ -52,8 +52,7 @@ impl Widget for DebuggerView {
                     None => "⏸ PAUSED".to_string(),
                 };
                 let style = if ui_state.debugger_flash_remaining > 0 {
-                    ui_state.debugger_flash_remaining -= 1;
-                    // Attention-grabbing flash: red background
+                    // Attention-grabbing flash: red background (countdown is driven by AppEvent::Tick).
                     Style::default()
                         .fg(Color::White)
                         .bg(Color::Red)
@@ -115,27 +114,39 @@ impl Widget for DebuggerView {
             use crate::state::{BlockType, DocumentSettings};
             use std::collections::{BTreeMap, BTreeSet};
 
-            let block_types: Vec<BlockType> = vec![BlockType::Code; live_bytes.len()];
-            let empty_labels: BTreeMap<crate::state::Addr, Vec<crate::state::Label>> =
-                BTreeMap::new();
-            let empty_annotations = crate::state::AnnotationManager::default();
-            let empty_xrefs: BTreeMap<crate::state::Addr, Vec<crate::state::XRef>> =
-                BTreeMap::new();
-            let empty_splitters: BTreeSet<crate::state::Addr> = BTreeSet::new();
-            let settings = DocumentSettings::default();
-            let collapsed: Vec<(usize, usize)> = Vec::new();
-
-            let live_lines = app_state.disassembler.disassemble(
-                live_bytes,
-                &block_types,
-                &empty_labels,
-                crate::state::Addr(mem_start),
-                &settings,
-                &empty_annotations,
-                &empty_xrefs,
-                &collapsed,
-                &empty_splitters,
+            let cache_hit = ui_state.debugger_disasm_cache.as_ref().is_some_and(
+                |(cached_start, cached_bytes, _)| {
+                    *cached_start == mem_start && cached_bytes.as_slice() == live_bytes.as_slice()
+                },
             );
+            if !cache_hit {
+                let block_types: Vec<BlockType> = vec![BlockType::Code; live_bytes.len()];
+                let empty_labels: BTreeMap<crate::state::Addr, Vec<crate::state::Label>> =
+                    BTreeMap::new();
+                let empty_annotations = crate::state::AnnotationManager::default();
+                let empty_xrefs: BTreeMap<crate::state::Addr, Vec<crate::state::XRef>> =
+                    BTreeMap::new();
+                let empty_splitters: BTreeSet<crate::state::Addr> = BTreeSet::new();
+                let settings = DocumentSettings::default();
+                let collapsed: Vec<(usize, usize)> = Vec::new();
+
+                let lines = app_state.disassembler.disassemble(
+                    live_bytes,
+                    &block_types,
+                    &empty_labels,
+                    crate::state::Addr(mem_start),
+                    &settings,
+                    &empty_annotations,
+                    &empty_xrefs,
+                    &collapsed,
+                    &empty_splitters,
+                );
+                ui_state.debugger_disasm_cache = Some((mem_start, live_bytes.clone(), lines));
+            }
+            let live_lines = ui_state
+                .debugger_disasm_cache
+                .as_ref()
+                .map_or(&[][..], |(_, _, lines)| lines.as_slice());
 
             let pc_live_idx = live_lines.iter().position(|l| l.address == pc).unwrap_or(0);
             let panel_rows = (LIVE_PANEL_HEIGHT as usize).saturating_sub(1);
@@ -811,5 +822,34 @@ mod tests {
                 view.render(f, area, &app_state, &mut ui_state);
             })
             .unwrap();
+    }
+
+    #[test]
+    fn test_debugger_view_render_preserves_flash_and_caches_live_disasm() {
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+
+        let view = DebuggerView;
+        let mut app_state = AppState::new();
+        app_state.vice_state.connected = true;
+        app_state.vice_state.running = false;
+        app_state.vice_state.live_memory_start = 0x0800;
+        app_state.vice_state.live_memory = Some(vec![0xEA, 0x60]);
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.debugger_flash_remaining = 5;
+
+        let area = Rect::new(0, 0, 80, 30);
+        let backend = TestBackend::new(80, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|f| {
+                view.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        assert_eq!(ui_state.debugger_flash_remaining, 5);
+        assert!(ui_state.debugger_disasm_cache.is_some());
     }
 }

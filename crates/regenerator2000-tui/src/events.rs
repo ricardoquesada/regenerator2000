@@ -123,7 +123,10 @@ pub fn run_app<B: Backend>(
                 should_render = true;
             }
             AppEvent::Tick => {
-                // Drive time-based animations (e.g. easter egg typing effect).
+                // Drive time-based animations (e.g. easter egg typing effect and debugger stop flash).
+                if ui_state.debugger_flash_remaining > 0 {
+                    ui_state.debugger_flash_remaining -= 1;
+                }
                 should_render = true;
                 // Give the active dialog a chance to auto-close on a timer.
                 if let Some(mut dialog) = ui_state.active_dialog.take() {
@@ -1036,6 +1039,8 @@ fn dispatch_menu_action(
 /// Sync right-pane views with the disassembly cursor position and update
 /// menu availability. Called once before each render.
 fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
+    ui_state.cached_blocks_items = None;
+
     // Update menu availability
     ui_state.menu.update_availability(
         app_state,
@@ -1054,12 +1059,17 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     };
     let target_addr = line.address;
 
-    // Sync Blocks view
+    // Sync Blocks view and retain `items` for `BlocksView::render` in the same frame.
     if ui_state.right_pane == crate::ui_state::RightPane::Blocks
         && app_state.system_config.sync_blocks_view
-        && let Some(idx) = app_state.get_block_index_for_address(target_addr, line.is_splitter())
     {
-        ui_state.blocks_list_state.select(Some(idx));
+        let items = app_state.get_blocks_view_items();
+        if let Some(idx) =
+            AppState::find_block_index_in_items(&items, target_addr, line.is_splitter())
+        {
+            ui_state.blocks_list_state.select(Some(idx));
+        }
+        ui_state.cached_blocks_items = Some(items);
     }
 
     // Sync HexDump view

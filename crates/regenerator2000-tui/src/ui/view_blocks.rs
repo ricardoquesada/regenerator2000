@@ -174,8 +174,12 @@ impl Widget for BlocksView {
         let inner_area = block.inner(area);
         f.render_widget(block, area);
 
-        // Fetch the ordered list of blocks, manual splitters, and lexical scopes from core state.
-        let block_items = app_state.get_blocks_view_items();
+        // Reuse the `BlockItem` list computed in `sync_views_before_render` during this frame,
+        // or fetch it from core state if `sync_blocks_view` did not precompute it.
+        let block_items = ui_state
+            .cached_blocks_items
+            .take()
+            .unwrap_or_else(|| app_state.get_blocks_view_items());
         let total_items = block_items.len();
         let visible_height = inner_area.height as usize;
 

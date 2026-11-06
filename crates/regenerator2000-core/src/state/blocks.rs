@@ -184,11 +184,17 @@ impl AppState {
     #[must_use]
     pub fn get_blocks_view_items(&self) -> Vec<BlockItem> {
         let compressed_blocks = self.get_compressed_blocks();
-        let mut items = Vec::new();
+        let mut items = Vec::with_capacity(
+            compressed_blocks.len() + self.splitters.len() + self.annotations.scopes().len(),
+        );
 
-        let mut virtual_splitters = self.splitters.clone();
-        virtual_splitters.extend(self.annotations.scopes().keys().copied());
-        virtual_splitters.extend(self.annotations.scope_ends_set().iter().copied());
+        let has_scopes = !self.annotations.scopes().is_empty();
+        let mut virtual_splitters = BTreeSet::new();
+        if !self.splitters.is_empty() || has_scopes {
+            virtual_splitters.extend(self.splitters.iter().copied());
+            virtual_splitters.extend(self.annotations.scopes().keys().copied());
+            virtual_splitters.extend(self.annotations.scope_ends_set().iter().copied());
+        }
 
         // Convert compressed blocks to our list, splicing in splitters
         for block in compressed_blocks {
@@ -241,58 +247,64 @@ impl AppState {
             }
         }
 
-        // Add Scopes
-        for (&start_addr, &end_addr) in self.annotations.scopes() {
-            let name = self
-                .labels
-                .get(&start_addr)
-                .and_then(|l| l.first().map(|l| l.name.clone()));
-            items.push(BlockItem::Scope {
-                start: start_addr,
-                end: end_addr,
-                name,
+        // Add Scopes and sort only when lexical scopes exist (compressed blocks and spliced
+        // manual splitters are already emitted in ascending `(start_addr, type_rank)` order).
+        if has_scopes {
+            for (&start_addr, &end_addr) in self.annotations.scopes() {
+                let name = self
+                    .labels
+                    .get(&start_addr)
+                    .and_then(|l| l.first().map(|l| l.name.clone()));
+                items.push(BlockItem::Scope {
+                    start: start_addr,
+                    end: end_addr,
+                    name,
+                });
+            }
+
+            // Sort items by start address, breaking ties with `type_rank` (`Scope` = 0, `Splitter` = 1,
+            // `Block` = 2) so a `BlockItem::Scope` header always precedes any `Splitter` or `Block`
+            // starting at the same address, allowing `BlocksView` to indent them inside the scope.
+            items.sort_by(|a, b| {
+                let addr_a = match a {
+                    BlockItem::Block { start, .. } => *start,
+                    BlockItem::Splitter(addr) => *addr,
+                    BlockItem::Scope { start, .. } => *start,
+                };
+                let addr_b = match b {
+                    BlockItem::Block { start, .. } => *start,
+                    BlockItem::Splitter(addr) => *addr,
+                    BlockItem::Scope { start, .. } => *start,
+                };
+
+                if addr_a != addr_b {
+                    addr_a.cmp(&addr_b)
+                } else {
+                    let type_rank = |item: &BlockItem| match item {
+                        BlockItem::Scope { .. } => 0,
+                        BlockItem::Splitter(_) => 1,
+                        BlockItem::Block { .. } => 2,
+                    };
+                    type_rank(a).cmp(&type_rank(b))
+                }
             });
         }
-
-        // Sort items by start address, breaking ties with `type_rank` (`Scope` = 0, `Splitter` = 1,
-        // `Block` = 2) so a `BlockItem::Scope` header always precedes any `Splitter` or `Block`
-        // starting at the same address, allowing `BlocksView` to indent them inside the scope.
-        items.sort_by(|a, b| {
-            let addr_a = match a {
-                BlockItem::Block { start, .. } => *start,
-                BlockItem::Splitter(addr) => *addr,
-                BlockItem::Scope { start, .. } => *start,
-            };
-            let addr_b = match b {
-                BlockItem::Block { start, .. } => *start,
-                BlockItem::Splitter(addr) => *addr,
-                BlockItem::Scope { start, .. } => *start,
-            };
-
-            if addr_a != addr_b {
-                addr_a.cmp(&addr_b)
-            } else {
-                let type_rank = |item: &BlockItem| match item {
-                    BlockItem::Scope { .. } => 0,
-                    BlockItem::Splitter(_) => 1,
-                    BlockItem::Block { .. } => 2,
-                };
-                type_rank(a).cmp(&type_rank(b))
-            }
-        });
 
         items
     }
 
-    /// Returns the index in [`AppState::get_blocks_view_items`] that matches `address`.
+    /// Returns the index in `items` that matches `address`.
     ///
     /// When `is_splitter` is `true`, this method matches a [`BlockItem::Splitter`] at `address`
     /// or a [`BlockItem::Scope`] that contains `address`. When `is_splitter` is `false`, it
     /// matches the first [`BlockItem::Scope`] or [`BlockItem::Block`] whose inclusive range
     /// `start..=end` contains `address`.
     #[must_use]
-    pub fn get_block_index_for_address(&self, address: Addr, is_splitter: bool) -> Option<usize> {
-        let items = self.get_blocks_view_items();
+    pub fn find_block_index_in_items(
+        items: &[BlockItem],
+        address: Addr,
+        is_splitter: bool,
+    ) -> Option<usize> {
         items.iter().position(|item| match item {
             BlockItem::Block { start, end, .. } => {
                 if !is_splitter {
@@ -318,6 +330,18 @@ impl AppState {
                 }
             }
         })
+    }
+
+    /// Returns the index in [`AppState::get_blocks_view_items`] that matches `address`.
+    ///
+    /// When `is_splitter` is `true`, this method matches a [`BlockItem::Splitter`] at `address`
+    /// or a [`BlockItem::Scope`] that contains `address`. When `is_splitter` is `false`, it
+    /// matches the first [`BlockItem::Scope`] or [`BlockItem::Block`] whose inclusive range
+    /// `start..=end` contains `address`.
+    #[must_use]
+    pub fn get_block_index_for_address(&self, address: Addr, is_splitter: bool) -> Option<usize> {
+        let items = self.get_blocks_view_items();
+        Self::find_block_index_in_items(&items, address, is_splitter)
     }
 
     /// Builds a single external label equate [`DisassemblyLine`] with side comments and optional cross-references.
