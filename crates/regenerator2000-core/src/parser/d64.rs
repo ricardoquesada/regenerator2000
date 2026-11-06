@@ -1,17 +1,15 @@
-// D64 disk image parser
-// Standard D64 format: 174,848 bytes (35 tracks)
-// Track 18 = directory track
-// Track 18, Sector 1+ = directory entries
+//! Commodore 1541, 1571, and 1581 disk image parser (`.d64`, `.d71`, `.d81`).
 
 use anyhow::{Result, anyhow};
+use std::collections::HashSet;
 
 const D64_STANDARD_SIZE: usize = 174_848;
 const D64_WITH_ERROR_INFO_SIZE: usize = 175_531;
 const D64_40_TRACK_SIZE: usize = 196_608;
-const D64_40_TRACK_WITH_ERROR_INFO_SIZE: usize = 197_376; // 196608 + 768 (40 * 19? no, usually 683 for 35 tracks, let's just allow > 40 track size)
-const D64_42_TRACK_SIZE: usize = 205_312; // 802 sectors × 256
+const D64_40_TRACK_WITH_ERROR_INFO_SIZE: usize = 197_376;
+const D64_42_TRACK_SIZE: usize = 205_312;
 const D71_STANDARD_SIZE: usize = 349_696;
-/// D71 with 40 tracks per side (80 tracks total): 2 × 196,608 bytes.
+/// D71 image size with 40 tracks per side (80 tracks total, `2 * 196_608` bytes).
 const D71_80_TRACK_SIZE: usize = 393_216;
 const D81_STANDARD_SIZE: usize = 819_200;
 const SECTOR_SIZE: usize = 256;
@@ -22,60 +20,89 @@ const D81_DIR_SECTOR: u8 = 3;
 const ENTRIES_PER_SECTOR: usize = 8;
 const ENTRY_SIZE: usize = 32;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// Disk image geometry variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiskType {
+    /// Single-sided 1541 image (35, 40, or 42 tracks).
     D64,
-    /// D71 with 35 tracks per side (70 tracks total).
+    /// Double-sided 1571 image with 35 tracks per side (70 tracks total).
     D71_70,
-    /// D71 with 40 tracks per side (80 tracks total).
+    /// Double-sided 1571 image with 40 tracks per side (80 tracks total).
     D71_80,
+    /// Double-sided 3.5-inch 1581 image (80 tracks, 40 sectors per track).
     D81,
 }
 
-#[derive(Debug, Clone)]
+/// Directory entry parsed from a `.d64`, `.d71`, or `.d81` disk image.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct D64FileEntry {
+    /// Trimmed UTF-8 filename converted from 16-byte PETSCII.
     pub filename: String,
+    /// Commodore DOS file type.
     pub file_type: FileType,
+    /// 1-based starting track number of the file's sector chain.
     pub track: u8,
+    /// 0-based starting sector number of the file's sector chain.
     pub sector: u8,
+    /// File size in 254-byte disk blocks as recorded in the directory entry.
     pub size_sectors: u16,
+    /// Disk image geometry that owns this entry.
     pub disk_type: DiskType,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+/// Commodore DOS directory file type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileType {
+    /// Deleted (`DEL`) file entry.
     DEL,
+    /// Sequential (`SEQ`) data file.
     SEQ,
+    /// Program (`PRG`) binary file with a 2-byte load address header.
     PRG,
+    /// User (`USR`) file.
     USR,
+    /// Relative (`REL`) record file.
     REL,
 }
 
 impl FileType {
     fn from_byte(byte: u8) -> Result<Self> {
         match byte & 0x0F {
-            0 => Ok(FileType::DEL),
-            1 => Ok(FileType::SEQ),
-            2 => Ok(FileType::PRG),
-            3 => Ok(FileType::USR),
-            4 => Ok(FileType::REL),
+            0 => Ok(Self::DEL),
+            1 => Ok(Self::SEQ),
+            2 => Ok(Self::PRG),
+            3 => Ok(Self::USR),
+            4 => Ok(Self::REL),
             _ => Err(anyhow!("Unknown file type: {byte}")),
         }
     }
 
+    /// Returns the 3-letter Commodore DOS mnemonic (`"DEL"`, `"SEQ"`, `"PRG"`, `"USR"`, or `"REL"`).
     #[must_use]
-    pub fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &'static str {
         match self {
-            FileType::DEL => "DEL",
-            FileType::SEQ => "SEQ",
-            FileType::PRG => "PRG",
-            FileType::USR => "USR",
-            FileType::REL => "REL",
+            Self::DEL => "DEL",
+            Self::SEQ => "SEQ",
+            Self::PRG => "PRG",
+            Self::USR => "USR",
+            Self::REL => "REL",
         }
     }
 }
 
-/// Calculate byte offset for a given track and sector
+/// Returns the number of 256-byte sectors on `track` (1..=42) for a single-sided 1541 layout.
+#[must_use]
+const fn d64_sectors_per_track(track: u8) -> Option<usize> {
+    match track {
+        1..=17 => Some(21),
+        18..=24 => Some(19),
+        25..=30 => Some(18),
+        31..=42 => Some(17),
+        _ => None,
+    }
+}
+
+/// Calculates the byte offset in a disk image for `track` and `sector`.
 fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize> {
     match disk_type {
         DiskType::D81 => {
@@ -85,8 +112,6 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
             if sector >= 40 {
                 return Err(anyhow!("Invalid sector {sector} for track {track}"));
             }
-            // D81: 40 sectors per track, standard layout
-            // Track 1 is at 0
             Ok((track as usize - 1) * 40 * SECTOR_SIZE + sector as usize * SECTOR_SIZE)
         }
         DiskType::D64 | DiskType::D71_70 => {
@@ -94,23 +119,17 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
                 return Err(anyhow!("Invalid track: {track}"));
             }
 
-            // Handle D71 second side (Tracks 36-70).
-            // They map to the same geometry as Tracks 1-35 but are offset
-            // by the size of one standard D64 image.
+            // Side 2 of a 70-track D71 (tracks 36-70) mirrors tracks 1-35 after `D64_STANDARD_SIZE`.
             if track > 35 && disk_type == DiskType::D71_70 {
                 let offset_in_side_2 = calculate_offset(track - 35, sector, DiskType::D64)?;
                 return Ok(D64_STANDARD_SIZE + offset_in_side_2);
             }
 
-            let max_sector = match track {
-                1..=17 => 21,
-                18..=24 => 19,
-                25..=30 => 18,
-                31..=42 => 17, // 40- and 42-track D64 support
-                _ => return Err(anyhow!("Invalid track: {track}")),
+            let Some(max_sector) = d64_sectors_per_track(track) else {
+                return Err(anyhow!("Invalid track: {track}"));
             };
 
-            if sector >= max_sector {
+            if usize::from(sector) >= max_sector {
                 return Err(anyhow!(
                     "Invalid sector {} for track {} (max: {})",
                     sector,
@@ -120,27 +139,17 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
             }
 
             let mut offset = 0usize;
-
-            // Add sectors from previous tracks
             for t in 1..track {
-                offset += match t {
-                    1..=17 => 21,
-                    18..=24 => 19,
-                    25..=30 => 18,
-                    31..=42 => 17,
-                    _ => unreachable!(),
-                } * SECTOR_SIZE;
+                if let Some(sectors) = d64_sectors_per_track(t) {
+                    offset += sectors * SECTOR_SIZE;
+                }
             }
-
-            // Add sectors within current track
-            offset += sector as usize * SECTOR_SIZE;
+            offset += usize::from(sector) * SECTOR_SIZE;
 
             Ok(offset)
         }
         DiskType::D71_80 => {
-            // 80-track D71: 40 tracks per side (tracks 1-80).
-            // Side 2 (tracks 41-80) mirrors the 40-track D64 geometry,
-            // offset by D64_40_TRACK_SIZE bytes.
+            // Side 2 of an 80-track D71 (tracks 41-80) mirrors tracks 1-40 after `D64_40_TRACK_SIZE`.
             if track == 0 || track > 80 {
                 return Err(anyhow!("Invalid track: {track}"));
             }
@@ -150,35 +159,27 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
                 return Ok(D64_40_TRACK_SIZE + offset_in_side_2);
             }
 
-            // Side 1: same geometry as a 40-track D64
             calculate_offset(track, sector, DiskType::D64)
         }
     }
 }
 
-/// Parse the D64 directory and return list of files
+/// Parses the directory chain of a `.d64`, `.d71`, or `.d81` disk image.
 ///
 /// # Errors
-/// Returns an error if the disk image size is invalid or the directory chain is corrupt/out of bounds.
+///
+/// Returns an error if `data` does not match a supported disk image size or if the
+/// directory sector chain is out of bounds or contains a cycle.
 pub fn parse_d64_directory(data: &[u8]) -> Result<Vec<D64FileEntry>> {
-    // D64 size check (relaxed)
-    // We accept:
-    // 1. Standard D64 (174,848)
-    // 2. D64 with error info (175,531)
-    // 3. 40-track D64 (196,608)
-    // 4. 40-track D64 with error info (197,376)
-    // 5. 42-track D64 (205,312)
-    // 6. D71_70 (349,696)
-    // 7. D71_80 (393,216)
-    // 8. D81 (819,200)
-
     let size = data.len();
-    let is_valid_d64 = size == D64_STANDARD_SIZE
-        || size == D64_WITH_ERROR_INFO_SIZE
-        || size == D64_40_TRACK_SIZE
-        || size == D64_40_TRACK_WITH_ERROR_INFO_SIZE
-        || size == D64_42_TRACK_SIZE;
-
+    let is_valid_d64 = matches!(
+        size,
+        D64_STANDARD_SIZE
+            | D64_WITH_ERROR_INFO_SIZE
+            | D64_40_TRACK_SIZE
+            | D64_40_TRACK_WITH_ERROR_INFO_SIZE
+            | D64_42_TRACK_SIZE
+    );
     let is_valid_d71 = size == D71_STANDARD_SIZE || size == D71_80_TRACK_SIZE;
     let is_valid_d81 = size == D81_STANDARD_SIZE;
 
@@ -199,62 +200,48 @@ pub fn parse_d64_directory(data: &[u8]) -> Result<Vec<D64FileEntry>> {
     };
 
     let mut files = Vec::new();
+    let mut visited_sectors = HashSet::new();
     let (mut current_track, mut current_sector) = if disk_type == DiskType::D81 {
         (D81_DIR_TRACK, D81_DIR_SECTOR)
     } else {
         (DIR_TRACK, DIR_SECTOR)
     };
 
-    // Follow the directory chain
     loop {
-        let offset = calculate_offset(current_track, current_sector, disk_type)?;
+        if !visited_sectors.insert((current_track, current_sector)) {
+            return Err(anyhow!("Directory chain too long (possible corruption)"));
+        }
 
+        let offset = calculate_offset(current_track, current_sector, disk_type)?;
         if offset + SECTOR_SIZE > data.len() {
-            // Be lenient with D81 directory chain which might just end?
-            // Actually D81 uses standard next_track/sector links
             return Err(anyhow!("Directory sector out of bounds"));
         }
 
         let sector_data = &data[offset..offset + SECTOR_SIZE];
-
-        // Read next track/sector from first two bytes
         let next_track = sector_data[0];
         let next_sector = sector_data[1];
 
-        // Parse directory entries
         for i in 0..ENTRIES_PER_SECTOR {
             let entry_offset = i * ENTRY_SIZE + 2;
-
-            // Ensure we have enough data for the entry fields we care about (up to size at 29)
             if entry_offset + 30 > sector_data.len() {
                 continue;
             }
 
-            let limit = std::cmp::min(entry_offset + ENTRY_SIZE, sector_data.len());
+            let limit = (entry_offset + ENTRY_SIZE).min(sector_data.len());
             let entry = &sector_data[entry_offset..limit];
 
-            // Check if entry is valid (file type byte indicates if entry is used)
             let file_type_byte = entry[0];
             if file_type_byte == 0x00 {
-                // Empty entry, skip
                 continue;
             }
 
-            // Parse file type
-            let file_type = match FileType::from_byte(file_type_byte) {
-                Ok(ft) => ft,
-                Err(_) => continue, // Skip invalid entries
+            let Ok(file_type) = FileType::from_byte(file_type_byte) else {
+                continue;
             };
 
-            // Parse start track/sector
             let track = entry[1];
             let sector = entry[2];
-
-            // Parse filename (bytes 3-18, 16 bytes PETSCII)
-            let filename_bytes = &entry[3..19];
-            let filename = petscii_to_string(filename_bytes);
-
-            // Parse size in sectors (bytes 28-29, little-endian)
+            let filename = petscii_to_string(&entry[3..19]);
             let size_sectors = u16::from_le_bytes([entry[28], entry[29]]);
 
             files.push(D64FileEntry {
@@ -267,21 +254,13 @@ pub fn parse_d64_directory(data: &[u8]) -> Result<Vec<D64FileEntry>> {
             });
         }
 
-        // Check if we've reached the end of the directory chain
         if next_track == 0 || (disk_type == DiskType::D81 && next_track == 255) {
-            // D81 apparently can use 0 or 255? Standard CBM is 0.
-            // 1581 disk format: last sector usually has $00 $FF.
-            // Let's stick with 0 for now, add 255 if needed, but 0 is standard terminator.
             break;
         }
 
         current_track = next_track;
         current_sector = next_sector;
 
-        // Safety check to prevent infinite loops
-        // D81 has way more sectors, so directory could be larger?
-        // 144 max entries for D64. D81 has max 296 entries? (Track 40 has 40 sectors... dedicated to dir?)
-        // Let's increase limit for D81.
         let limit = if disk_type == DiskType::D81 {
             4000
         } else {
@@ -295,40 +274,41 @@ pub fn parse_d64_directory(data: &[u8]) -> Result<Vec<D64FileEntry>> {
     Ok(files)
 }
 
-/// Extract a specific file from the disk image
+/// Extracts the raw byte stream for `entry` by following its sector chain in `data`.
 ///
 /// # Errors
-/// Returns an error if the file image is too small, a sector is out of bounds, or if the file appears corrupt.
+///
+/// Returns an error if `data` is smaller than a standard D64 image, a sector is out of bounds,
+/// the sector chain contains a cycle, or the extracted payload has fewer than 2 bytes.
 pub fn extract_file(data: &[u8], entry: &D64FileEntry) -> Result<Vec<u8>> {
     if data.len() < D64_STANDARD_SIZE {
         return Err(anyhow!("Invalid D64/D71/D81 file size"));
     }
 
     let mut file_data = Vec::new();
+    let mut visited_sectors = HashSet::new();
     let mut current_track = entry.track;
     let mut current_sector = entry.sector;
 
-    // Follow the file's sector chain
     loop {
-        let offset = calculate_offset(current_track, current_sector, entry.disk_type)?;
+        if !visited_sectors.insert((current_track, current_sector)) {
+            return Err(anyhow!("File too large (possible corruption)"));
+        }
 
+        let offset = calculate_offset(current_track, current_sector, entry.disk_type)?;
         if offset + SECTOR_SIZE > data.len() {
             return Err(anyhow!("File sector out of bounds"));
         }
 
         let sector_data = &data[offset..offset + SECTOR_SIZE];
-
-        // Read next track/sector
         let next_track = sector_data[0];
         let next_sector = sector_data[1];
 
-        // Determine how many bytes to read from this sector
         if next_track == 0 {
-            // Last sector - next_sector contains the number of bytes to read (1-255)
             let bytes_to_read = if next_sector == 0 {
-                254 // If 0, read all except first two bytes
+                254
             } else {
-                next_sector as usize - 1
+                usize::from(next_sector) - 1
             };
 
             if bytes_to_read > 0 && bytes_to_read <= 254 {
@@ -336,18 +316,16 @@ pub fn extract_file(data: &[u8], entry: &D64FileEntry) -> Result<Vec<u8>> {
             }
             break;
         }
-        // Not the last sector, read all data bytes (254 bytes, skip first two)
+
         file_data.extend_from_slice(&sector_data[2..]);
         current_track = next_track;
         current_sector = next_sector;
 
-        // Safety check
         if file_data.len() > 1_000_000 {
             return Err(anyhow!("File too large (possible corruption)"));
         }
     }
 
-    // Verify it has at least a load address
     if file_data.len() < 2 {
         return Err(anyhow!("File too small (no load address)"));
     }
@@ -355,20 +333,15 @@ pub fn extract_file(data: &[u8], entry: &D64FileEntry) -> Result<Vec<u8>> {
     Ok(file_data)
 }
 
-/// Convert PETSCII bytes to UTF-8 string
+/// Converts a 16-byte PETSCII directory filename slice into a trimmed UTF-8 [`String`].
 fn petscii_to_string(bytes: &[u8]) -> String {
     bytes
         .iter()
-        .take_while(|&&b| b != 0xA0) // 0xA0 is shifted space (padding)
-        .map(|&b| {
-            match b {
-                0x00 => '\0',
-                0x20..=0x5F => b as char, // Standard ASCII range (includes A-Z)
-                0x61..=0x7A => b as char, // a-z (PETSCII lowercase)
-                0xA0 => ' ',              // Shifted space
-                0xC1..=0xDA => (b - 0x80) as char, // Uppercase A-Z in PETSCII
-                _ => '?',                 // Unknown character
-            }
+        .take_while(|&&b| b != 0xA0 && b != 0x00)
+        .map(|&b| match b {
+            0x20..=0x5F | 0x61..=0x7A => b as char,
+            0xC1..=0xDA => (b - 0x80) as char,
+            _ => '?',
         })
         .collect::<String>()
         .trim()
@@ -381,50 +354,36 @@ mod tests {
 
     #[test]
     fn test_calculate_offset() {
-        // Track 1, Sector 0 should be at offset 0
         assert_eq!(calculate_offset(1, 0, DiskType::D64).unwrap(), 0);
-
-        // Track 1, Sector 1 should be at 256
         assert_eq!(calculate_offset(1, 1, DiskType::D64).unwrap(), 256);
-
-        // Track 2, Sector 0 should be at 21 * 256
         assert_eq!(calculate_offset(2, 0, DiskType::D64).unwrap(), 21 * 256);
 
-        // Track 18 (directory track)
-        let expected = 17 * 21 * 256; // Tracks 1-17
+        let expected = 17 * 21 * 256;
         assert_eq!(calculate_offset(18, 0, DiskType::D64).unwrap(), expected);
 
-        // Track 25 (first track with 18 sectors)
-        let expected = 17 * 21 * 256 + 7 * 19 * 256; // Tracks 1-17 + 18-24
+        let expected = 17 * 21 * 256 + 7 * 19 * 256;
         assert_eq!(calculate_offset(25, 0, DiskType::D64).unwrap(), expected);
     }
 
     #[test]
     fn test_calculate_offset_40_tracks() {
-        // Track 36 (first extended track)
-        // Standard 35 tracks = 683 sectors
         let expected = 683 * 256;
         assert_eq!(calculate_offset(36, 0, DiskType::D64).unwrap(), expected);
     }
 
     #[test]
     fn test_calculate_offset_42_tracks() {
-        // Tracks 41 and 42 extend the 40-track geometry with 17 sectors each.
-        // 40-track total = 768 sectors => track 41 starts at 768 * 256
         let expected_41 = 768 * 256;
         assert_eq!(calculate_offset(41, 0, DiskType::D64).unwrap(), expected_41);
 
-        // Track 42 starts one track (17 sectors) after track 41
         let expected_42 = (768 + 17) * 256;
         assert_eq!(calculate_offset(42, 0, DiskType::D64).unwrap(), expected_42);
 
-        // Last sector of track 42
         assert_eq!(
             calculate_offset(42, 16, DiskType::D64).unwrap(),
             expected_42 + 16 * 256
         );
 
-        // Track 43 should be invalid
         assert!(calculate_offset(43, 0, DiskType::D64).is_err());
     }
 
@@ -432,7 +391,7 @@ mod tests {
     fn test_d64_42_track_real_file() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../../tests/6502/d64_42_tracks.d64"
+            "/../../tests/6502/d64_42_tracks.d64"
         );
         let Ok(data) = std::fs::read(path) else {
             return;
@@ -457,8 +416,8 @@ mod tests {
     fn test_invalid_track_sector() {
         assert!(calculate_offset(0, 0, DiskType::D64).is_err());
         assert!(calculate_offset(71, 0, DiskType::D64).is_err());
-        assert!(calculate_offset(1, 21, DiskType::D64).is_err()); // Track 1 has only 21 sectors (0-20)
-        assert!(calculate_offset(18, 19, DiskType::D64).is_err()); // Track 18 has only 19 sectors (0-18)
+        assert!(calculate_offset(1, 21, DiskType::D64).is_err());
+        assert!(calculate_offset(18, 19, DiskType::D64).is_err());
     }
 
     #[test]
@@ -472,11 +431,9 @@ mod tests {
 
     #[test]
     fn test_petscii_to_string() {
-        // Test basic ASCII
         let bytes = b"HELLO\xA0\xA0\xA0\xA0\xA0\xA0\xA0\xA0\xA0\xA0\xA0";
         assert_eq!(petscii_to_string(bytes), "HELLO");
 
-        // Test with padding
         let bytes = b"TEST.PRG\xA0\xA0\xA0\xA0\xA0\xA0\xA0\xA0";
         assert_eq!(petscii_to_string(bytes), "TEST.PRG");
     }
@@ -488,37 +445,43 @@ mod tests {
     }
 
     #[test]
+    fn test_empty_dir_chain_loop_terminates() {
+        // Directory sector points to itself while containing zero valid entries.
+        let mut data = vec![0u8; D64_STANDARD_SIZE];
+        let dir_offset = calculate_offset(18, 1, DiskType::D64).unwrap();
+        data[dir_offset] = 18;
+        data[dir_offset + 1] = 1;
+        assert!(parse_d64_directory(&data).is_err());
+    }
+
+    #[test]
     fn test_parse_and_extract() {
         let mut data = vec![0u8; D64_STANDARD_SIZE];
 
-        // Setup Track 18, Sector 1 (Directory)
         let dir_offset = calculate_offset(18, 1, DiskType::D64).unwrap();
-        data[dir_offset] = 0; // Next track
-        data[dir_offset + 1] = 255; // Next sector
+        data[dir_offset] = 0;
+        data[dir_offset + 1] = 255;
 
-        // Setup Entry 1 (PRG, Track 1, Sector 0, name "TEST", 1 sector)
         let entry_offset = dir_offset + 2;
         data[entry_offset] = 0x82; // PRG
         data[entry_offset + 1] = 1; // Track
         data[entry_offset + 2] = 0; // Sector
         data[entry_offset + 3..entry_offset + 7].copy_from_slice(b"TEST");
         for i in 7..19 {
-            data[entry_offset + i] = 0xA0; // Padding
+            data[entry_offset + i] = 0xA0;
         }
-        data[entry_offset + 28] = 1; // Size low
-        data[entry_offset + 29] = 0; // Size high
+        data[entry_offset + 28] = 1;
+        data[entry_offset + 29] = 0;
 
-        // Setup File Data (Track 1, Sector 0)
         let file_offset = calculate_offset(1, 0, DiskType::D64).unwrap();
-        data[file_offset] = 0; // Next track (last sector)
-        data[file_offset + 1] = 6; // Next sector value (bytes used + 1 = 5 + 1 = 6)
-        data[file_offset + 2] = 0x01; // Load address low
-        data[file_offset + 3] = 0x08; // Load address high
-        data[file_offset + 4] = 0xEA; // NOP
-        data[file_offset + 5] = 0xEA; // NOP
-        data[file_offset + 6] = 0x60; // RTS
+        data[file_offset] = 0;
+        data[file_offset + 1] = 6;
+        data[file_offset + 2] = 0x01;
+        data[file_offset + 3] = 0x08;
+        data[file_offset + 4] = 0xEA;
+        data[file_offset + 5] = 0xEA;
+        data[file_offset + 6] = 0x60;
 
-        // Parse
         let files = parse_d64_directory(&data).unwrap();
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].filename, "TEST");
@@ -526,36 +489,25 @@ mod tests {
         assert_eq!(files[0].track, 1);
         assert_eq!(files[0].sector, 0);
 
-        // Extract
         let prg_bytes = extract_file(&data, &files[0]).unwrap();
         let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
         let extracted_data = prg_bytes[2..].to_vec();
         assert_eq!(load_addr, 0x0801);
         assert_eq!(extracted_data, vec![0xEA, 0xEA, 0x60]);
     }
+
     #[test]
     fn test_calculate_offset_d71() {
-        // Test D71 offsets (Tracks 36-70)
-
-        // Track 36, Sector 0 (First sector of Side 2)
-        // Should be at D64_STANDARD_SIZE + offset of Track 1, Sector 0
         let expected = D64_STANDARD_SIZE;
         assert_eq!(calculate_offset(36, 0, DiskType::D71_70).unwrap(), expected);
 
-        // Track 36, Sector 1
         let expected = D64_STANDARD_SIZE + 256;
         assert_eq!(calculate_offset(36, 1, DiskType::D71_70).unwrap(), expected);
 
-        // Track 53 (Directory track for Side 2 - mirrors Track 18)
-        // Track 53 matches Track 18 geometry wise.
-        // Track 18 offset is start of directory.
-        // So Track 53 offset = D64_STANDARD_SIZE + calculate_offset(18, 0)
         let t18_offset = calculate_offset(18, 0, DiskType::D64).unwrap();
         let expected = D64_STANDARD_SIZE + t18_offset;
         assert_eq!(calculate_offset(53, 0, DiskType::D71_70).unwrap(), expected);
 
-        // Track 70 (Last track)
-        // Matches Track 35 geometry.
         let t35_offset = calculate_offset(35, 0, DiskType::D64).unwrap();
         let expected = D64_STANDARD_SIZE + t35_offset;
         assert_eq!(calculate_offset(70, 0, DiskType::D71_70).unwrap(), expected);
@@ -565,41 +517,35 @@ mod tests {
     fn test_d71_feature() {
         let mut data = vec![0u8; D71_STANDARD_SIZE];
 
-        // 1. Setup Directory on Side 1 (Track 18) to point to a file on Side 2 (Track 36)
         let dir_offset = calculate_offset(18, 1, DiskType::D71_70).unwrap();
-        data[dir_offset] = 0; // Next track
-        data[dir_offset + 1] = 255; // Next sector
+        data[dir_offset] = 0;
+        data[dir_offset + 1] = 255;
 
-        // Setup Entry
         let entry_offset = dir_offset + 2;
-        data[entry_offset] = 0x82; // PRG
-        data[entry_offset + 1] = 36; // Track 36 (Side 2)
-        data[entry_offset + 2] = 0; // Sector 0
+        data[entry_offset] = 0x82;
+        data[entry_offset + 1] = 36;
+        data[entry_offset + 2] = 0;
         data[entry_offset + 3..entry_offset + 8].copy_from_slice(b"SIDE2");
         for i in 8..19 {
-            data[entry_offset + i] = 0xA0; // Padding
+            data[entry_offset + i] = 0xA0;
         }
-        data[entry_offset + 28] = 1; // Size low
-        data[entry_offset + 29] = 0; // Size high
+        data[entry_offset + 28] = 1;
+        data[entry_offset + 29] = 0;
 
-        // 2. Setup File Data on Side 2 (Track 36, Sector 0)
         let file_offset = calculate_offset(36, 0, DiskType::D71_70).unwrap();
-        // This is physically at D64_STANDARD_SIZE + 0
         assert_eq!(file_offset, D64_STANDARD_SIZE);
 
-        data[file_offset] = 0; // Next track (last sector)
-        data[file_offset + 1] = 4; // Next sector value (bytes used + 1 = 3 + 1 = 4)
-        data[file_offset + 2] = 0x00; // Load address low
-        data[file_offset + 3] = 0x10; // Load address high (0x1000)
-        data[file_offset + 4] = 0x42; // Data byte
+        data[file_offset] = 0;
+        data[file_offset + 1] = 4;
+        data[file_offset + 2] = 0x00;
+        data[file_offset + 3] = 0x10;
+        data[file_offset + 4] = 0x42;
 
-        // Parse
         let files = parse_d64_directory(&data).unwrap();
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].filename, "SIDE2");
         assert_eq!(files[0].track, 36);
 
-        // Extract
         let prg_bytes = extract_file(&data, &files[0]).unwrap();
         let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
         let extracted_data = prg_bytes[2..].to_vec();
@@ -609,32 +555,26 @@ mod tests {
 
     #[test]
     fn test_calculate_offset_d71_80_track() {
-        // Track 41 (first track of side 2 on 80-track D71)
-        // Should be at D64_40_TRACK_SIZE + offset of Track 1, Sector 0
         let expected = D64_40_TRACK_SIZE;
         assert_eq!(calculate_offset(41, 0, DiskType::D71_80).unwrap(), expected);
 
-        // Track 41, Sector 1
         assert_eq!(
             calculate_offset(41, 1, DiskType::D71_80).unwrap(),
             D64_40_TRACK_SIZE + 256
         );
 
-        // Track 58 mirrors Track 18 on side 2 (directory geometry)
         let t18_offset = calculate_offset(18, 0, DiskType::D64).unwrap();
         assert_eq!(
             calculate_offset(58, 0, DiskType::D71_80).unwrap(),
             D64_40_TRACK_SIZE + t18_offset
         );
 
-        // Track 80 (last track, mirrors Track 40 of a 40-track D64)
         let t40_offset = calculate_offset(40, 0, DiskType::D64).unwrap();
         assert_eq!(
             calculate_offset(80, 0, DiskType::D71_80).unwrap(),
             D64_40_TRACK_SIZE + t40_offset
         );
 
-        // Track 81 should be invalid
         assert!(calculate_offset(81, 0, DiskType::D71_80).is_err());
     }
 
@@ -642,15 +582,14 @@ mod tests {
     fn test_d71_80_track_feature() {
         let mut data = vec![0u8; D71_80_TRACK_SIZE];
 
-        // Setup Directory on Side 1 (Track 18, Sector 1) pointing to a file on Side 2
         let dir_offset = calculate_offset(18, 1, DiskType::D71_80).unwrap();
-        data[dir_offset] = 0; // No next sector (last dir sector)
+        data[dir_offset] = 0;
         data[dir_offset + 1] = 255;
 
         let entry_offset = dir_offset + 2;
-        data[entry_offset] = 0x82; // PRG
-        data[entry_offset + 1] = 41; // Track 41 (Side 2, track 1)
-        data[entry_offset + 2] = 0; // Sector 0
+        data[entry_offset] = 0x82;
+        data[entry_offset + 1] = 41;
+        data[entry_offset + 2] = 0;
         data[entry_offset + 3..entry_offset + 9].copy_from_slice(b"SIDE2B");
         for i in 9..19 {
             data[entry_offset + i] = 0xA0;
@@ -658,13 +597,12 @@ mod tests {
         data[entry_offset + 28] = 1;
         data[entry_offset + 29] = 0;
 
-        // Setup File Data on Side 2 (Track 41, Sector 0)
         let file_offset = calculate_offset(41, 0, DiskType::D71_80).unwrap();
         assert_eq!(file_offset, D64_40_TRACK_SIZE);
-        data[file_offset] = 0; // Last sector
-        data[file_offset + 1] = 5; // 4 bytes of payload
-        data[file_offset + 2] = 0x00; // Load address low
-        data[file_offset + 3] = 0x20; // Load address high (0x2000)
+        data[file_offset] = 0;
+        data[file_offset + 1] = 5;
+        data[file_offset + 2] = 0x00;
+        data[file_offset + 3] = 0x20;
         data[file_offset + 4] = 0xDE;
         data[file_offset + 5] = 0xAD;
 
@@ -685,9 +623,8 @@ mod tests {
     fn test_d71_80_track_real_file() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../../tests/6502/d71_80_tracks.d71"
+            "/../../tests/6502/d71_80_tracks.d71"
         );
-        // The test fixture may not be present in all CI environments; skip gracefully.
         let Ok(data) = std::fs::read(path) else {
             return;
         };
@@ -696,7 +633,6 @@ mod tests {
         let files = parse_d64_directory(&data).unwrap();
         assert!(!files.is_empty(), "expected at least one file in the image");
 
-        // All files should be extractable without error
         for entry in &files {
             let result = extract_file(&data, entry);
             assert!(
@@ -710,57 +646,41 @@ mod tests {
 
     #[test]
     fn test_d64_size_variants() {
-        // Standard D64
         let data = vec![0u8; D64_STANDARD_SIZE];
         assert!(parse_d64_directory(&data).is_ok());
 
-        // D64 with error info
         let data = vec![0u8; D64_WITH_ERROR_INFO_SIZE];
         assert!(parse_d64_directory(&data).is_ok());
 
-        // 40-track D64
         let data = vec![0u8; D64_40_TRACK_SIZE];
         assert!(parse_d64_directory(&data).is_ok());
 
-        // 40-track D64 with error info
         let data = vec![0u8; D64_40_TRACK_WITH_ERROR_INFO_SIZE];
         assert!(parse_d64_directory(&data).is_ok());
 
-        // 42-track D64
         let data = vec![0u8; D64_42_TRACK_SIZE];
         assert!(parse_d64_directory(&data).is_ok());
 
-        // D71 standard (70 tracks)
         let data = vec![0u8; D71_STANDARD_SIZE];
         assert!(parse_d64_directory(&data).is_ok());
 
-        // D71 80-track
         let data = vec![0u8; D71_80_TRACK_SIZE];
         assert!(parse_d64_directory(&data).is_ok());
 
-        // Invalid size
         let data = vec![0u8; D64_STANDARD_SIZE + 100];
         assert!(parse_d64_directory(&data).is_err());
     }
 
     #[test]
     fn test_calculate_offset_d81() {
-        // Track 1, Sector 0 => 0
         assert_eq!(calculate_offset(1, 0, DiskType::D81).unwrap(), 0);
-
-        // Track 1, Sector 1 => 256
         assert_eq!(calculate_offset(1, 1, DiskType::D81).unwrap(), 256);
-
-        // Track 2, Sector 0 => 40 * 256 = 10240
         assert_eq!(calculate_offset(2, 0, DiskType::D81).unwrap(), 40 * 256);
-
-        // Track 40 (Dir), Sector 0
         assert_eq!(
             calculate_offset(40, 0, DiskType::D81).unwrap(),
             39 * 40 * 256
         );
 
-        // Track 80, Sector 39 (Last sector)
         let expected = 79 * 40 * 256 + 39 * 256;
         assert_eq!(calculate_offset(80, 39, DiskType::D81).unwrap(), expected);
     }
@@ -769,16 +689,14 @@ mod tests {
     fn test_d81_parsing() {
         let mut data = vec![0u8; D81_STANDARD_SIZE];
 
-        // Setup D81 Directory (Track 40, Sector 3)
         let dir_offset = calculate_offset(40, 3, DiskType::D81).unwrap();
         data[dir_offset] = 0;
         data[dir_offset + 1] = 255;
 
-        // Entry
         let entry_offset = dir_offset + 2;
-        data[entry_offset] = 0x82; // PRG
-        data[entry_offset + 1] = 1; // Track 1
-        data[entry_offset + 2] = 0; // Sector 0
+        data[entry_offset] = 0x82;
+        data[entry_offset + 1] = 1;
+        data[entry_offset + 2] = 0;
         data[entry_offset + 3..entry_offset + 10].copy_from_slice(b"D81TEST");
         for i in 10..19 {
             data[entry_offset + i] = 0xA0;
@@ -786,7 +704,6 @@ mod tests {
         data[entry_offset + 28] = 0;
         data[entry_offset + 29] = 0;
 
-        // Setup file data at Track 1, Sector 0
         let file_offset = calculate_offset(1, 0, DiskType::D81).unwrap();
         data[file_offset] = 0;
         data[file_offset + 1] = 4;
@@ -794,13 +711,11 @@ mod tests {
         data[file_offset + 3] = 0x20;
         data[file_offset + 4] = 0xFF;
 
-        // Parse
         let files = parse_d64_directory(&data).unwrap();
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].filename, "D81TEST");
         assert_eq!(files[0].disk_type, DiskType::D81);
 
-        // Extract
         let prg_bytes = extract_file(&data, &files[0]).unwrap();
         let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
         let extracted = prg_bytes[2..].to_vec();

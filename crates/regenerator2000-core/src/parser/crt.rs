@@ -1,24 +1,51 @@
+//! Commodore 64 `.crt` cartridge image parser.
+
 use anyhow::{Result, anyhow};
 
-#[derive(Debug, Clone)]
+/// Minimum `.crt` container header size in bytes.
+const CRT_MIN_HEADER_LEN: usize = 0x40;
+
+/// `.crt` container magic signature (`"C64 CARTRIDGE   "`).
+const CRT_SIGNATURE: &[u8; 16] = b"C64 CARTRIDGE   ";
+
+/// Minimum `CHIP` packet header size in bytes.
+const CHIP_HEADER_LEN: usize = 0x10;
+
+/// Exclusive upper bound of the 64 KiB 6502 address space.
+const ADDRESS_SPACE_END: usize = 0x1_0000;
+
+/// Single ROM or RAM bank (`CHIP` packet) inside a `.crt` cartridge image.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrtChip {
+    /// 6502 start address where this bank maps into memory.
     pub load_address: u16,
+    /// Cartridge bank index.
     pub bank: u16,
+    /// Chip memory type (`0` = ROM, `1` = RAM, `2` = Flash ROM).
     pub chip_type: u16,
+    /// Raw ROM image bytes for this bank.
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+/// Parsed `.crt` cartridge header and its `CHIP` banks.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CrtHeader {
+    /// Cartridge format version (for example, `0x0100` for version 1.0).
     pub version: u16,
+    /// Numeric VICE cartridge hardware ID.
     pub hardware_type: u16,
+    /// Initial `EXROM` line state (`0` = active low, `1` = inactive high).
     pub exrom: u8,
+    /// Initial `GAME` line state (`0` = active low, `1` = inactive high).
     pub game: u8,
+    /// Cartridge title from the 32-byte header field.
     pub name: String,
+    /// Ordered list of `CHIP` packets stored in the cartridge.
     pub chips: Vec<CrtChip>,
 }
 
 impl CrtHeader {
+    /// Returns the human-readable cartridge hardware name for [`Self::hardware_type`].
     #[must_use]
     pub fn get_hardware_name(&self) -> String {
         match self.hardware_type {
@@ -48,53 +75,43 @@ impl CrtHeader {
     }
 }
 
-/// Parses the chips from a CRT file.
+/// Parses the header and `CHIP` packets from a `.crt` file byte slice.
 ///
 /// # Errors
-/// Returns an error if the file is too short, has an invalid signature,
-/// or contains invalid CHIP packets.
+///
+/// Returns an error if `data` is shorter than 64 bytes, has an invalid signature,
+/// contains a malformed or truncated `CHIP` packet, or contains no valid `CHIP` packets.
 pub fn parse_crt_chips(data: &[u8]) -> Result<CrtHeader> {
-    if data.len() < 0x40 {
+    if data.len() < CRT_MIN_HEADER_LEN {
         return Err(anyhow!("File too short to be a valid CRT file"));
     }
 
-    // Check signature "C64 CARTRIDGE   "
-    let signature = &data[0..16];
-    let expected_sig = b"C64 CARTRIDGE   ";
-    if signature != expected_sig {
+    if &data[0..16] != CRT_SIGNATURE {
         return Err(anyhow!("Invalid CRT signature"));
     }
 
-    // Header length is at 0x10-0x13 (Big Endian)
     let header_len = u32::from_be_bytes([data[0x10], data[0x11], data[0x12], data[0x13]]) as usize;
-
-    // Version at 0x14-0x15
     let version = u16::from_be_bytes([data[0x14], data[0x15]]);
-
-    // Hardware Type at 0x16-0x17
     let hardware_type = u16::from_be_bytes([data[0x16], data[0x17]]);
-
-    // EXROM (0x18) and GAME (0x19) line status
     let exrom = data[0x18];
     let game = data[0x19];
 
-    // Name at 0x20-0x3F (32 bytes max, stops at null)
     let name_bytes = &data[0x20..0x40];
     let end_index = name_bytes.iter().position(|&x| x == 0).unwrap_or(32);
     let name = String::from_utf8_lossy(&name_bytes[..end_index]).to_string();
 
-    // Iterate through CHIP packets
     let mut current_offset = header_len;
     let mut chips = Vec::new();
 
     while current_offset < data.len() {
-        if current_offset + 0x10 > data.len() {
-            break; // Not enough data for a chip header
+        let Some(rom_data_offset) = current_offset.checked_add(CHIP_HEADER_LEN) else {
+            break;
+        };
+        if rom_data_offset > data.len() {
+            break;
         }
 
-        let chip_sig = &data[current_offset..current_offset + 4];
-        if chip_sig != b"CHIP" {
-            // Stop if we lose sync or find garbage
+        if &data[current_offset..current_offset + 4] != b"CHIP" {
             break;
         }
 
@@ -105,35 +122,38 @@ pub fn parse_crt_chips(data: &[u8]) -> Result<CrtHeader> {
             data[current_offset + 7],
         ]) as usize;
 
-        if packet_len < 0x10 {
+        if packet_len < CHIP_HEADER_LEN {
             return Err(anyhow!(
                 "Invalid CHIP packet length at offset {current_offset:x}"
             ));
         }
 
-        // Chip type at 0x08-0x09 (Big Endian)
         let chip_type =
             u16::from_be_bytes([data[current_offset + 0x08], data[current_offset + 0x09]]);
-
-        // Bank number at 0x0A-0x0B (Big Endian)
         let bank = u16::from_be_bytes([data[current_offset + 0x0A], data[current_offset + 0x0B]]);
-
-        // Chip load address at 0x0C-0x0D (Big Endian)
         let load_address =
             u16::from_be_bytes([data[current_offset + 0x0C], data[current_offset + 0x0D]]);
-
-        // ROM size at 0x0E-0x0F (Big Endian)
         let rom_size =
             u16::from_be_bytes([data[current_offset + 0x0E], data[current_offset + 0x0F]]) as usize;
 
-        let rom_data_offset = current_offset + 0x10;
-        if rom_data_offset + rom_size > data.len() {
+        let Some(rom_end) = rom_data_offset.checked_add(rom_size) else {
+            return Err(anyhow!(
+                "CHIP packet data truncated at offset {current_offset:x}"
+            ));
+        };
+        if rom_end > data.len() {
             return Err(anyhow!(
                 "CHIP packet data truncated at offset {current_offset:x}"
             ));
         }
 
-        let rom_data = data[rom_data_offset..rom_data_offset + rom_size].to_vec();
+        if packet_len < CHIP_HEADER_LEN + rom_size {
+            return Err(anyhow!(
+                "Invalid CHIP packet length at offset {current_offset:x}"
+            ));
+        }
+
+        let rom_data = data[rom_data_offset..rom_end].to_vec();
         chips.push(CrtChip {
             load_address,
             bank,
@@ -141,7 +161,10 @@ pub fn parse_crt_chips(data: &[u8]) -> Result<CrtHeader> {
             data: rom_data,
         });
 
-        current_offset += packet_len;
+        let Some(next_offset) = current_offset.checked_add(packet_len) else {
+            break;
+        };
+        current_offset = next_offset;
     }
 
     if chips.is_empty() {
@@ -158,22 +181,27 @@ pub fn parse_crt_chips(data: &[u8]) -> Result<CrtHeader> {
     })
 }
 
-/// Parses a CRT file and returns the lowest load address and a flat memory buffer.
+/// Parses a `.crt` file and flattens all `CHIP` banks into one contiguous memory buffer.
+///
+/// Returns `(origin, memory)` where `origin` is the lowest `CHIP` load address.
+/// Earlier `CHIP` banks (such as Bank 0) take precedence over later overlapping banks.
 ///
 /// # Errors
-/// Returns an error if the CRT chips cannot be parsed or if the memory range
-/// cannot be determined.
+///
+/// Returns an error if [`parse_crt_chips`] fails or if the combined memory range is empty.
 pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
     let header = parse_crt_chips(data)?;
     let chips = header.chips;
 
-    // Calculate total memory range
-    let mut min_addr = 0xFFFF;
-    let mut max_addr = 0x0000;
+    let mut min_addr = usize::MAX;
+    let mut max_addr = 0usize;
 
     for chip in &chips {
-        let start = chip.load_address;
-        let end = start as usize + chip.data.len();
+        if chip.data.is_empty() {
+            continue;
+        }
+        let start = usize::from(chip.load_address);
+        let end = start.saturating_add(chip.data.len()).min(ADDRESS_SPACE_END);
         if start < min_addr {
             min_addr = start;
         }
@@ -182,60 +210,58 @@ pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
         }
     }
 
-    if min_addr > max_addr as u16 {
-        // Should not happen if chips is not empty
+    if min_addr >= max_addr || min_addr > usize::from(u16::MAX) {
         return Err(anyhow!("Could not determine memory range"));
     }
 
-    // Create flat buffer
-    let size = max_addr - min_addr as usize;
+    let size = max_addr - min_addr;
     let mut memory = vec![0u8; size];
 
-    // Map chips into buffer
-    // Note: Iterate in reverse so that earlier chips (e.g. Bank 0) overwrite later ones in the flat memory model.
-    // This ensures that the main code (usually in the first chips) is what we see in a flat disassembly.
+    // Iterate in reverse so earlier chips (such as Bank 0) overwrite later overlapping banks.
     for chip in chips.iter().rev() {
-        let offset = (chip.load_address - min_addr) as usize;
-        let len = chip.data.len();
-        if offset + len <= memory.len() {
-            memory[offset..offset + len].copy_from_slice(&chip.data);
+        let start = usize::from(chip.load_address);
+        if start < min_addr {
+            continue;
         }
+        let offset = start - min_addr;
+        if offset >= memory.len() {
+            continue;
+        }
+        let copy_len = chip.data.len().min(memory.len() - offset);
+        memory[offset..offset + copy_len].copy_from_slice(&chip.data[..copy_len]);
     }
 
-    Ok((min_addr, memory))
+    Ok((min_addr as u16, memory))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn make_crt_header() -> Vec<u8> {
+        let mut data = Vec::with_capacity(CRT_MIN_HEADER_LEN);
+        data.extend_from_slice(CRT_SIGNATURE);
+        data.extend_from_slice(&(CRT_MIN_HEADER_LEN as u32).to_be_bytes());
+        data.extend_from_slice(&[0x01, 0x00]); // Version 1.0
+        data.extend_from_slice(&[0x00, 0x00]); // Hardware type 0 (Normal)
+        data.resize(CRT_MIN_HEADER_LEN, 0);
+        data
+    }
+
     #[test]
     fn test_parse_crt_simple() {
-        let mut data = Vec::new();
-        // CRT Header (0x40 bytes)
-        data.extend_from_slice(b"C64 CARTRIDGE   "); // 0x00: Signature
-        data.extend_from_slice(&0x40u32.to_be_bytes()); // 0x10: Header length
-        data.extend_from_slice(&[0x01, 0x00]); // 0x14: Version
-        data.extend_from_slice(&[0x00, 0x00]); // 0x16: Hardware type (0=Normal)
-        data.extend_from_slice(&[0; 6]); // 0x18: EXROM/GAME/Reserved
-        data.extend_from_slice(&[0; 32]); // 0x20: Name
+        let mut data = make_crt_header();
 
-        while data.len() < 0x40 {
-            data.push(0);
-        }
-
-        // CHIP Packet 1 (at 0x40)
-        // Load at 0x8000, size 0x10 (tiny)
         let chip_data = b"1234567890abcdef";
         let packet_len = 0x10 + chip_data.len() as u32;
 
-        data.extend_from_slice(b"CHIP"); // 0x00
-        data.extend_from_slice(&packet_len.to_be_bytes()); // 0x04: Total header length
-        data.extend_from_slice(&[0x00, 0x00]); // 0x08: Type
-        data.extend_from_slice(&[0x00, 0x00]); // 0x0A: Bank
-        data.extend_from_slice(&0x8000u16.to_be_bytes()); // 0x0C: Load Address
-        data.extend_from_slice(&(chip_data.len() as u16).to_be_bytes()); // 0x0E: ROM Size
-        data.extend_from_slice(chip_data); // 0x10: Data
+        data.extend_from_slice(b"CHIP");
+        data.extend_from_slice(&packet_len.to_be_bytes());
+        data.extend_from_slice(&[0x00, 0x00]); // Type
+        data.extend_from_slice(&[0x00, 0x00]); // Bank
+        data.extend_from_slice(&0x8000u16.to_be_bytes()); // Load address
+        data.extend_from_slice(&(chip_data.len() as u16).to_be_bytes()); // ROM size
+        data.extend_from_slice(chip_data);
 
         let (origin, mem) = parse_crt(&data).expect("Should parse valid CRT");
         assert_eq!(origin, 0x8000);
@@ -245,47 +271,54 @@ mod tests {
 
     #[test]
     fn test_parse_crt_overlapping() {
-        // Build a minimal CRT header
-        let mut data = Vec::new();
-        data.extend_from_slice(b"C64 CARTRIDGE   "); // 0x00
-        data.extend_from_slice(&0x40u32.to_be_bytes()); // 0x10 Header len
-        data.extend_from_slice(&[0x01, 0x00]); // 0x14 Version
-        data.extend_from_slice(&[0x00, 0x00]); // 0x16 Hardware type (0=Normal)
-        data.extend_from_slice(&[0; 6]); // 0x18
-        data.extend_from_slice(&[0; 32]); // 0x20
-        // Pad header to 0x40
-        while data.len() < 0x40 {
-            data.push(0);
-        }
+        let mut data = make_crt_header();
 
-        // Chip 1: Bank 0 (Main Code) - "MAIN_CODE_BLOCK_"
+        // Chip 1: Bank 0 (Main Code)
         let chip1_content = b"MAIN_CODE_BLOCK_";
         let pkt1_len = 0x10 + chip1_content.len() as u32;
 
         data.extend_from_slice(b"CHIP");
-        data.extend_from_slice(&pkt1_len.to_be_bytes()); // Packet 1 Len
+        data.extend_from_slice(&pkt1_len.to_be_bytes());
         data.extend_from_slice(&[0x00, 0x00]); // Type: ROM
         data.extend_from_slice(&[0x00, 0x00]); // Bank: 0
-        data.extend_from_slice(&0x8000u16.to_be_bytes()); // Load: 8000
-        data.extend_from_slice(&(chip1_content.len() as u16).to_be_bytes()); // Size
+        data.extend_from_slice(&0x8000u16.to_be_bytes());
+        data.extend_from_slice(&(chip1_content.len() as u16).to_be_bytes());
         data.extend_from_slice(chip1_content);
 
-        // Chip 2: Bank 1 (Data that overwrites Code) - "OVERWRITE_DATA__"
+        // Chip 2: Bank 1 at the same load address
         let chip2_content = b"OVERWRITE_DATA__";
         let pkt2_len = 0x10 + chip2_content.len() as u32;
 
         data.extend_from_slice(b"CHIP");
-        data.extend_from_slice(&pkt2_len.to_be_bytes()); // Packet 2 Len
+        data.extend_from_slice(&pkt2_len.to_be_bytes());
         data.extend_from_slice(&[0x00, 0x00]); // Type: ROM
         data.extend_from_slice(&[0x00, 0x01]); // Bank: 1
-        data.extend_from_slice(&0x8000u16.to_be_bytes()); // Load: 8000
-        data.extend_from_slice(&(chip2_content.len() as u16).to_be_bytes()); // Size
+        data.extend_from_slice(&0x8000u16.to_be_bytes());
+        data.extend_from_slice(&(chip2_content.len() as u16).to_be_bytes());
         data.extend_from_slice(chip2_content);
 
         let (origin, mem) = parse_crt(&data).expect("Should parse valid CRT");
-
         assert_eq!(origin, 0x8000);
-        // We expect the FIRST chip (Bank 0) to be visible, not overwriten by Bank 1
         assert_eq!(mem, chip1_content);
+    }
+
+    #[test]
+    fn test_parse_crt_ultimax_top_of_memory() {
+        // An 8 KiB Ultimax/KERNAL bank at $E000..=$FFFF has exclusive end 0x10000.
+        let mut data = make_crt_header();
+        let chip_data = vec![0xEAu8; 0x2000];
+        let packet_len = 0x10 + chip_data.len() as u32;
+
+        data.extend_from_slice(b"CHIP");
+        data.extend_from_slice(&packet_len.to_be_bytes());
+        data.extend_from_slice(&[0x00, 0x00]);
+        data.extend_from_slice(&[0x00, 0x00]);
+        data.extend_from_slice(&0xE000u16.to_be_bytes());
+        data.extend_from_slice(&(chip_data.len() as u16).to_be_bytes());
+        data.extend_from_slice(&chip_data);
+
+        let (origin, mem) = parse_crt(&data).expect("Ultimax $E000-$FFFF CRT must parse");
+        assert_eq!(origin, 0xE000);
+        assert_eq!(mem.len(), 0x2000);
     }
 }

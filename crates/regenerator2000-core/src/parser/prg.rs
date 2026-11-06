@@ -1,23 +1,32 @@
+//! Commodore `.prg` binary file parser.
+
 use crate::state::types::System;
 use anyhow::{Result, anyhow};
 
+/// Parsed Commodore `.prg` file payload and inferred platform hints.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PrgData {
+    /// 16-bit load address read from the first 2 little-endian bytes of the `.prg` file.
     pub origin: u16,
+    /// Binary payload following the 2-byte load address header.
     pub raw_data: Vec<u8>,
+    /// Target [`System`] inferred from standard Commodore BASIC start addresses.
     pub suggested_system: Option<System>,
+    /// Machine-code entry point parsed from a leading BASIC `SYS` stub, if present.
     pub suggested_entry_point: Option<u16>,
 }
 
-/// Parses a PRG file content to extract data and platform info.
+/// Parses a `.prg` byte slice into its load origin, payload, and platform hints.
 ///
 /// # Errors
-/// Returns an error if the data is too short to contain a valid PRG header.
+///
+/// Returns an error if `data` has fewer than 2 bytes.
 pub fn parse_prg(data: &[u8]) -> Result<PrgData> {
     if data.len() < 2 {
         return Err(anyhow!("PRG file too short"));
     }
 
-    let origin = u16::from(data[1]) << 8 | u16::from(data[0]);
+    let origin = u16::from_le_bytes([data[0], data[1]]);
     let raw_data = data[2..].to_vec();
 
     let suggested_system = match origin {
@@ -55,9 +64,7 @@ mod tests {
             0x00, // Terminator
         ];
 
-        let result = parse_prg(&data);
-        assert!(result.is_ok());
-        let prg = result.unwrap();
+        let prg = parse_prg(&data).expect("Valid PRG must parse");
         assert_eq!(prg.origin, 0x0801);
         assert_eq!(prg.suggested_system, Some(System::new(System::C64)));
         assert_eq!(prg.suggested_entry_point, Some(2061));
@@ -67,30 +74,27 @@ mod tests {
     fn test_parse_prg_suggests_platform_multi_line() {
         let data = vec![
             0x01, 0x08, // Load address $0801
-            0x07, 0x08, // Next line pointer (Offset 2, points to $0807 = offset 8)
+            0x07, 0x08, // Next line pointer (offset 2 -> $0807 = offset 8)
             0x0A, 0x00, // Line number 10
             0x99, // PRINT token
             0x00, // Terminator
-            // Line 2 starts at offset 8 (which is $0807)
-            0x11, 0x08, // Next line pointer (Offset 8, points to $0811 = offset 18)
+            // Line 2 starts at offset 8 ($0807)
+            0x11, 0x08, // Next line pointer (offset 8 -> $0811 = offset 18)
             0x14, 0x00, // Line number 20
             0x9E, // SYS token
             0x31, 0x35, 0x33, 0x36, // "1536"
             0x00, // Terminator
-            // Line 3 starts at offset 18 (which is $0811)
-            0x00, 0x00, // End of program
+            // End of program at offset 18 ($0811)
+            0x00, 0x00,
         ];
 
-        let result = parse_prg(&data);
-        assert!(result.is_ok());
-        let prg = result.unwrap();
+        let prg = parse_prg(&data).expect("Multi-line PRG must parse");
         assert_eq!(prg.suggested_entry_point, Some(1536));
     }
 
     #[test]
     fn test_parse_prg_too_short() {
         let data = vec![0x01];
-        let result = parse_prg(&data);
-        assert!(result.is_err());
+        assert!(parse_prg(&data).is_err());
     }
 }

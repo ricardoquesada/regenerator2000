@@ -1,43 +1,49 @@
-use regex::Regex;
+//! VICE monitor label file (`.lbl`) parser and generator.
 
-/// Parses VICE labels file content into a list of (address, name) tuples.
+use std::fmt::Write;
+
+/// Parses VICE label commands (`al [C:][$]<hex_addr> .[label]`) into `(address, name)` pairs.
+///
+/// Lines that do not match the `al` command format or whose hexadecimal address exceeds
+/// `u16::MAX` are ignored. Leading `.` characters on label names are stripped.
 ///
 /// # Errors
-/// Returns an error if the regex pattern cannot be compiled.
+///
+/// This function is infallible and always returns `Ok`.
 pub fn parse_vice_labels(content: &str) -> Result<Vec<(u16, String)>, String> {
     let mut labels = Vec::new();
-    // Regex for "al $<hex_addr> .<label>"
-    // Also handle possible variations if necessary, but standard is `al C:address .label` or just `al address .label`?
-    // User example: `al $C000 .main_loop`
-    // So looking for `al $<hex> <name>`
-    // The dot might be part of the name in the file, we need to strip it.
-    let re = Regex::new(r"(?m)^\s*al\s+(?:C:)?\$?([0-9a-fA-F]+)\s+(\.?)(.+)\s*$")
-        .map_err(|e| e.to_string())?;
 
     for line in content.lines() {
-        if let Some(caps) = re.captures(line) {
-            let addr_str = caps.get(1).map_or("", |m| m.as_str());
-            let _dot = caps.get(2).map_or("", |m| m.as_str());
-            let name = caps.get(3).map_or("", |m| m.as_str());
+        let mut parts = line.split_whitespace();
+        let Some("al") = parts.next() else {
+            continue;
+        };
+        let (Some(addr_token), Some(name_token), None) = (parts.next(), parts.next(), parts.next())
+        else {
+            continue;
+        };
 
-            if let Ok(addr) = u16::from_str_radix(addr_str, 16) {
-                // We keep the name as is, since we captured the dot separately (group 2) and name (group 3)
-                // If the regex matched `(\.?)(.+)`, group 2 matches the dot if present, group 3 matches the rest.
-                // So `name` is already stripped of the leading dot if it was there.
-                labels.push((addr, name.to_string()));
-            }
+        let addr_str = addr_token.strip_prefix("C:").unwrap_or(addr_token);
+        let addr_str = addr_str.strip_prefix('$').unwrap_or(addr_str);
+        let name = name_token.strip_prefix('.').unwrap_or(name_token);
+
+        if !name.is_empty()
+            && let Ok(addr) = u16::from_str_radix(addr_str, 16)
+        {
+            labels.push((addr, name.to_string()));
         }
     }
 
     Ok(labels)
 }
 
+/// Formats `(address, name)` pairs into VICE monitor `al C:<addr> .<name>` lines.
 #[must_use]
 pub fn generate_vice_labels(labels: &[(u16, String)]) -> String {
     let mut content = String::new();
     for (addr, name) in labels {
-        // format: al C:address .label
-        content.push_str(&format!("al C:{addr:04x} .{name}\n"));
+        let clean_name = name.strip_prefix('.').unwrap_or(name);
+        let _ = writeln!(content, "al C:{addr:04x} .{clean_name}");
     }
     content
 }
@@ -48,11 +54,12 @@ mod tests {
 
     #[test]
     fn test_parse_vice_labels() {
-        let content = r"
-al $1000 .start
-al $1003 .loop
-al C:2000 .data_start
-al $3000 no_dot_label
+        let content = "\
+al $1000 .start   \n\
+al $1003 .loop\n\
+al C:2000 .data_start\n\
+al $3000 no_dot_label\n\
+al $4000 .\n\
 ";
         let labels = parse_vice_labels(content).unwrap();
         assert_eq!(labels.len(), 4);
@@ -64,9 +71,9 @@ al $3000 no_dot_label
 
     #[test]
     fn test_generate_vice_labels() {
-        let labels = vec![(0x1000, "start".to_string()), (0x2000, "loop".to_string())];
+        let labels = vec![(0x1000, "start".to_string()), (0x2000, ".loop".to_string())];
         let content = generate_vice_labels(&labels);
-        assert!(content.contains("al C:1000 .start"));
-        assert!(content.contains("al C:2000 .loop"));
+        assert!(content.contains("al C:1000 .start\n"));
+        assert!(content.contains("al C:2000 .loop\n"));
     }
 }

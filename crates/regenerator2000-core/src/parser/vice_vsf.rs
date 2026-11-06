@@ -1,286 +1,199 @@
+//! VICE Snapshot File (`.vsf`) parser.
+
 use anyhow::{Result, anyhow};
 
+const VSF_MIN_HEADER_LEN: usize = 37;
+const VSF_MAGIC: &[u8; 19] = b"VICE Snapshot File\x1a";
+const MODULE_HEADER_LEN: usize = 22;
+const C64_RAM_SIZE: usize = 65_536;
+const CART_ROM_BASE: usize = 0x8000;
+const CART_MIN_ROM_SIZE: usize = 8_192;
+
+/// Extracted memory image, CPU program counter, and machine identifier from a `.vsf` snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VsfData {
+    /// 64 KiB system RAM image extracted from `C64MEM` (with optional `CARTGENERIC` overlay).
     pub memory: Vec<u8>,
+    /// CPU `PC` register extracted from the `MAINCPU` module, if present.
     pub start_address: Option<u16>,
+    /// Trimmed machine name from the VSF header (such as `"C64"` or `"C128"`).
     pub machine_name: String,
 }
 
-/// Parses a VICE Snapshot File (VSF).
+/// Parses a VICE Snapshot File (`.vsf`) byte slice into a [`VsfData`] record.
 ///
 /// # Errors
-/// Returns an error if the file is too short, has an invalid signature,
-/// or lacks the required memory module.
+///
+/// Returns an error if `data` is shorter than 37 bytes, has an invalid magic signature,
+/// contains a module with a size smaller than 22 bytes or extending past `data.len()`,
+/// or lacks a valid `C64MEM` module.
 pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
-    if data.len() < 0x25 {
-        // 19 + 2 + 16 minimal header
+    if data.len() < VSF_MIN_HEADER_LEN {
         return Err(anyhow!("File too short to be a valid VSF file"));
     }
 
-    // 1. Check Magic "VICE Snapshot File\x1a"
-    let magic = &data[0..19];
-    let expected_magic = b"VICE Snapshot File\x1a";
-    if magic != expected_magic {
+    if &data[0..19] != VSF_MAGIC {
         return Err(anyhow!("Invalid VSF signature"));
     }
 
-    // 2. Parse Main Header
-    // Offset 19: Major Version
-    // Offset 20: Minor Version
-    // Offset 21: Machine Name (16 bytes)
-
-    let machine_name_bytes = &data[21..37];
-    let machine_name = String::from_utf8_lossy(machine_name_bytes)
+    let machine_name = String::from_utf8_lossy(&data[21..37])
         .trim_matches(char::from(0))
         .to_string();
 
-    let mut current_offset = 37; // 19 + 1 + 1 + 16
-
-    let mut memory: Option<Vec<u8>> = None;
+    let mut current_offset = VSF_MIN_HEADER_LEN;
+    let mut c64mem_ram: Option<&[u8]> = None;
+    let mut cart_rom: Option<&[u8]> = None;
     let mut pc: Option<u16> = None;
 
     while current_offset < data.len() {
-        // Module Header: Name (16), Major (1), Minor (1), Size (4) = 22 bytes
-        // But need to check if we have at least 22 bytes.
-        if current_offset + 22 > data.len() {
+        let Some(header_end) = current_offset.checked_add(MODULE_HEADER_LEN) else {
+            break;
+        };
+        if header_end > data.len() {
             break;
         }
 
-        let module_name_bytes = &data[current_offset..current_offset + 16];
-        let module_name = String::from_utf8_lossy(module_name_bytes);
+        let module_name = String::from_utf8_lossy(&data[current_offset..current_offset + 16]);
         let module_name_trimmed = module_name.trim_matches(char::from(0));
 
         if module_name.starts_with("VICE Version") {
-            // This is the extended header info, not a real module.
-            // It consists of "VICE Version" (16 bytes) + 4 bytes version info.
-            // Plus potential padding?
+            // Extended header record: 16-byte tag + 4-byte version + zero padding.
             current_offset += 16 + 4;
-
-            // Skip any zero padding to find start of next module name (which should be ASCII)
             while current_offset < data.len() && data[current_offset] == 0 {
                 current_offset += 1;
             }
             continue;
         }
 
-        let _major = data[current_offset + 16];
-        let _minor = data[current_offset + 17];
-
-        // Size is Little Endian
-        let size_bytes = [
+        let size = u32::from_le_bytes([
             data[current_offset + 18],
             data[current_offset + 19],
             data[current_offset + 20],
             data[current_offset + 21],
-        ];
-        let size = u32::from_le_bytes(size_bytes) as usize;
+        ]) as usize;
 
-        // Size includes the header (22 bytes) or not?
-        // Spec: "SIZE: 4 bytes (DWORD, low-byte first), representing the total size of the module including this header"
-        // Yes, includes header.
-
-        if size < 22 {
+        if size < MODULE_HEADER_LEN {
             return Err(anyhow!("Invalid module size"));
         }
 
-        // Ensure we don't go out of bounds
-        if current_offset + size > data.len() {
+        let Some(module_end) = current_offset.checked_add(size) else {
+            return Err(anyhow!("Module {module_name_trimmed} truncated"));
+        };
+        if module_end > data.len() {
             return Err(anyhow!("Module {module_name_trimmed} truncated"));
         }
 
-        let module_data = &data[current_offset + 22..current_offset + size];
+        let module_data = &data[header_end..module_end];
 
-        if module_name_trimmed == "C64MEM" {
-            // C64MEM Data:
-            // Byte 0: CPU Data (RAM $01)
-            // Byte 1: CPU Dir (RAM $00)
-            // Byte 2: EXROM
-            // Byte 3: GAME
-            // Byte 4..: 64K RAM
-            // Data length should be at least 4 + 65536
-            if module_data.len() >= 4 + 65536 {
-                if memory.is_none() {
-                    let mut ram = vec![0u8; 65536];
-                    ram.copy_from_slice(&module_data[4..4 + 65536]);
-                    memory = Some(ram);
-                } else {
-                    // If we already have memory (e.g. allocated earlier?), unlikely for C64MEM.
-                    // But if we did, we'd copy into it.
-                    if let Some(mem) = &mut memory
-                        && mem.len() >= 65536
-                    {
-                        mem[0..65536].copy_from_slice(&module_data[4..4 + 65536]);
-                    }
-                }
+        match module_name_trimmed {
+            "C64MEM" if module_data.len() >= 4 + C64_RAM_SIZE => {
+                // Byte 0: CPUDATA ($01), Byte 1: CPUDIR ($00), Byte 2: EXROM, Byte 3: GAME, Bytes 4..: 64 KiB RAM.
+                c64mem_ram = Some(&module_data[4..4 + C64_RAM_SIZE]);
             }
-        } else if module_name_trimmed == "MAINCPU" {
-            // MAINCPU Data:
-            // Regs at offset 0x0C: PC (Lo), PC (Hi)
-            if module_data.len() > 14 {
-                // Offset 12 seems to be PC (after 8 bytes clock? + ?)
-                // From debug: 75 03 3B 00 00 00 00 00 00 01 00 FF [DC 8B]
-                // 0-7: Clock?
-                // 8: ?
-                // 9: ?
-                // 10: ?
-                // 11: ?
-                // 12: PC Lo
-                // 13: PC Hi
-                let pc_lo = module_data[12];
-                let pc_hi = module_data[13];
-                let pc_val = u16::from(pc_hi) << 8 | u16::from(pc_lo);
-                pc = Some(pc_val);
+            "MAINCPU" if module_data.len() >= 14 => {
+                // Offset 12..=13 holds the little-endian 16-bit program counter (`PC`).
+                pc = Some(u16::from_le_bytes([module_data[12], module_data[13]]));
             }
-        } else if module_name_trimmed == "CARTGENERIC" {
-            // Generic Cartridge Data usually mapped at $8000.
-            // Can be 8KB or 16KB.
-            let cart_len = module_data.len();
-            if cart_len >= 8192 {
-                // Ensure we have a memory buffer to write to.
-                // C64MEM usually comes before or after? VSF order is not strictly guaranteed but usually C64MEM is early.
-                // If memory is not yet allocated, we can allocate it (initialized to 0) and hope C64MEM fills the rest later.
-                if memory.is_none() {
-                    memory = Some(vec![0u8; 65536]);
-                }
-
-                if let Some(mem) = &mut memory
-                    && mem.len() >= 0x8000 + cart_len
-                {
-                    mem[0x8000..0x8000 + cart_len].copy_from_slice(&module_data[0..cart_len]);
-                    // Note: If 16KB, it fills $8000-$BFFF.
-                }
+            "CARTGENERIC" if module_data.len() >= CART_MIN_ROM_SIZE => {
+                cart_rom = Some(module_data);
             }
+            _ => {}
         }
 
-        current_offset += size;
+        current_offset = module_end;
     }
 
-    if let Some(mem) = memory {
-        Ok(VsfData {
-            memory: mem,
-            start_address: pc,
-            machine_name,
-        })
-    } else {
-        Err(anyhow!("C64MEM module not found in VSF file"))
+    let Some(ram_slice) = c64mem_ram else {
+        return Err(anyhow!("C64MEM module not found in VSF file"));
+    };
+
+    let mut memory = ram_slice.to_vec();
+    if let Some(cart) = cart_rom {
+        let max_cart_len = C64_RAM_SIZE - CART_ROM_BASE;
+        if cart.len() <= max_cart_len {
+            memory[CART_ROM_BASE..CART_ROM_BASE + cart.len()].copy_from_slice(cart);
+        }
     }
+
+    Ok(VsfData {
+        memory,
+        start_address: pc,
+        machine_name,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_parse_vsf_c64mem() {
+    fn make_vsf_header(machine: &[u8]) -> Vec<u8> {
         let mut data = Vec::new();
-        // Magic
-        data.extend_from_slice(b"VICE Snapshot File\x1a");
-        // Major/Minor
-        data.push(0);
-        data.push(0);
-        // Machine Name "C64" + padding
-        data.extend_from_slice(b"C64");
-        data.extend_from_slice(&[0u8; 13]);
-
-        // Module "C64MEM"
-        let mod_name = b"C64MEM";
-        data.extend_from_slice(mod_name);
-        data.extend_from_slice(&[0u8; 10]); // padding to 16
+        data.extend_from_slice(VSF_MAGIC);
         data.push(0); // Major
         data.push(0); // Minor
+        let mut name_buf = [0u8; 16];
+        let copy_len = machine.len().min(16);
+        name_buf[..copy_len].copy_from_slice(&machine[..copy_len]);
+        data.extend_from_slice(&name_buf);
+        data
+    }
 
-        // Data size: 4 (header regs) + 65536 (RAM)
-        let data_size = 4 + 65536;
-        let total_size = 22 + data_size; // Header (22) + Data
+    fn append_module(data: &mut Vec<u8>, name: &[u8], payload: &[u8]) {
+        let mut name_buf = [0u8; 16];
+        let copy_len = name.len().min(16);
+        name_buf[..copy_len].copy_from_slice(&name[..copy_len]);
+        data.extend_from_slice(&name_buf);
+        data.push(0); // Major
+        data.push(0); // Minor
+        let total_size = (MODULE_HEADER_LEN + payload.len()) as u32;
+        data.extend_from_slice(&total_size.to_le_bytes());
+        data.extend_from_slice(payload);
+    }
 
-        data.extend_from_slice(&(total_size as u32).to_le_bytes());
+    fn make_c64mem_payload(fill: u8) -> Vec<u8> {
+        let mut payload = vec![0x37, 0x2F, 0x00, 0x00];
+        payload.extend(std::iter::repeat_n(fill, C64_RAM_SIZE));
+        payload
+    }
 
-        // Module Data
-        data.push(0x37); // CPUDATA
-        data.push(0x2F); // CPUDIR
-        data.push(0); // EXROM
-        data.push(0); // GAME
+    #[test]
+    fn test_parse_vsf_c64mem() {
+        let mut data = make_vsf_header(b"C64");
+        append_module(&mut data, b"C64MEM", &make_c64mem_payload(0xEA));
 
-        // RAM
-        let ram = vec![0xEA; 65536]; // NOPs
-        data.extend_from_slice(&ram);
-
-        let result = parse_vsf(&data);
-        assert!(result.is_ok());
-        let vsf = result.unwrap();
-        assert_eq!(vsf.memory.len(), 65536);
+        let vsf = parse_vsf(&data).expect("Valid VSF must parse");
+        assert_eq!(vsf.memory.len(), C64_RAM_SIZE);
         assert_eq!(vsf.memory[0], 0xEA);
         assert_eq!(vsf.memory[65535], 0xEA);
     }
 
     #[test]
     fn test_parse_vsf_with_pc() {
-        let mut data = Vec::new();
-        // Magic
-        data.extend_from_slice(b"VICE Snapshot File\x1a");
-        // Major/Minor
-        data.push(0);
-        data.push(0);
-        // Machine Name "C64" + padding
-        data.extend_from_slice(b"C64");
-        data.extend_from_slice(&[0u8; 13]);
+        let mut data = make_vsf_header(b"C64");
+        append_module(&mut data, b"C64MEM", &make_c64mem_payload(0xEA));
 
-        // Module "C64MEM"
-        let mod_name = b"C64MEM";
-        data.extend_from_slice(mod_name);
-        data.extend_from_slice(&[0u8; 10]); // padding to 16
-        data.push(0); // Major
-        data.push(0); // Minor
-        let data_size = 4 + 65536;
-        let total_size = 22 + data_size;
-        data.extend_from_slice(&(total_size as u32).to_le_bytes());
-        data.push(0x37); // CPUDATA
-        data.push(0x2F); // CPUDIR
-        data.push(0); // EXROM
-        data.push(0); // GAME
-        let ram = vec![0xEA; 65536];
-        data.extend_from_slice(&ram);
+        // Exact 14-byte MAINCPU payload with PC at bytes 12..=13.
+        let mut cpu_data = vec![0u8; 14];
+        cpu_data[12] = 0x34;
+        cpu_data[13] = 0x12;
+        append_module(&mut data, b"MAINCPU", &cpu_data);
 
-        // Module "MAINCPU"
-        let mod_name = b"MAINCPU";
-        data.extend_from_slice(mod_name);
-        data.extend_from_slice(&[0u8; 9]); // padding to 16
-        data.push(0); // Major
-        data.push(0); // Minor
-        let data_size = 20; // Needs to be > 14
-        let total_size = 22 + data_size;
-        data.extend_from_slice(&(total_size as u32).to_le_bytes());
-
-        // MAINCPU data
-        let mut cpu_data = vec![0u8; data_size];
-        cpu_data[12] = 0x34; // PC Lo
-        cpu_data[13] = 0x12; // PC Hi
-        data.extend_from_slice(&cpu_data);
-
-        let result = parse_vsf(&data);
-        assert!(result.is_ok());
-        let vsf = result.unwrap();
+        let vsf = parse_vsf(&data).expect("VSF with MAINCPU must parse");
         assert_eq!(vsf.start_address, Some(0x1234));
         assert_eq!(vsf.machine_name, "C64");
     }
 
     #[test]
-    fn test_repro_frogger() {
-        let path = std::path::Path::new("tests/frogger.vsf");
-        if path.exists() {
-            let data = std::fs::read(path).unwrap();
-            let res = parse_vsf(&data);
-            assert!(res.is_ok());
-            let vsf = res.unwrap();
+    fn test_parse_vsf_cartgeneric_before_c64mem_preserves_cart_rom() {
+        let mut data = make_vsf_header(b"C64");
+        let cart_rom = vec![0x42u8; CART_MIN_ROM_SIZE];
+        append_module(&mut data, b"CARTGENERIC", &cart_rom);
+        append_module(&mut data, b"C64MEM", &make_c64mem_payload(0xEA));
 
-            // Check potential PC at $8BDC
-            let addr = 0x8BDC;
-            if addr + 4 <= vsf.memory.len() {
-                let actual = &vsf.memory[addr..addr + 4];
-                println!("Content at PC {addr:04X}: {actual:02X?}");
-            }
-        } else {
-            // Test is skipped if file not found
-        }
+        let vsf = parse_vsf(&data).expect("VSF with CARTGENERIC before C64MEM must parse");
+        assert_eq!(vsf.memory[0x0000], 0xEA);
+        assert_eq!(vsf.memory[0x8000], 0x42);
+        assert_eq!(vsf.memory[0x9FFF], 0x42);
+        assert_eq!(vsf.memory[0xA000], 0xEA);
     }
 }

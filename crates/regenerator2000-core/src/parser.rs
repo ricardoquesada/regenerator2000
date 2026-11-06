@@ -1,3 +1,5 @@
+//! File format parsers for Commodore 8-bit binaries, disk and tape images, snapshots, and project metadata.
+
 pub mod basic;
 pub mod crt;
 pub mod d64;
