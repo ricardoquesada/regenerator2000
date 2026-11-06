@@ -1,127 +1,78 @@
-pub struct Vic2State {
-    pub raster_line: u16,
-    pub blanking: bool,
-    pub bitmap_mode: bool,
-    pub extended_bg_color: bool,
-    pub text_mode: bool,
-    pub multicolor_mode: bool,
-    pub y_scroll: u8,
-    pub x_scroll: u8,
-    pub columns: u8,
-    pub rows: u8,
-    pub screen_mem_address: u16,
-    pub charset_address: u16,
-    pub bitmap_address: u16,
-    pub irq_status: u8,
-    pub border_color: u8,
-    pub bg_color: u8,
-}
+//! Decoders for Commodore 64 and Commodore 128 I/O hardware registers.
 
-impl Vic2State {
-    #[must_use]
-    pub fn decode(io_mem: &[u8]) -> Self {
-        if io_mem.len() < 0x40 {
-            return Self::default();
-        }
-
-        let d011 = io_mem[0x11];
-        let d012 = io_mem[0x12];
-        let d016 = io_mem[0x16];
-        let d018 = io_mem[0x18];
-        let d019 = io_mem[0x19];
-        let d020 = io_mem[0x20];
-        let d021 = io_mem[0x21];
-
-        let raster_line = ((u16::from(d011) & 0x80) << 1) | u16::from(d012);
-        let blanking = (d011 & 0x10) == 0;
-        let extended_bg_color = (d011 & 0x40) != 0;
-        let bitmap_mode = (d011 & 0x20) != 0;
-        let rows = if (d011 & 0x08) != 0 { 25 } else { 24 };
-        let y_scroll = d011 & 0x07;
-
-        let columns = if (d016 & 0x08) != 0 { 40 } else { 38 };
-        let x_scroll = d016 & 0x07;
-        let multicolor_mode = (d016 & 0x10) != 0;
-
-        let screen_mem_address = u16::from(d018 & 0xF0) << 6;
-        let charset_address = u16::from(d018 & 0x0E) << 10;
-        let bitmap_address = u16::from(d018 & 0x08) << 10;
-        let text_mode = !bitmap_mode;
-
-        Self {
-            raster_line,
-            blanking,
-            bitmap_mode,
-            extended_bg_color,
-            text_mode,
-            multicolor_mode,
-            y_scroll,
-            x_scroll,
-            columns,
-            rows,
-            screen_mem_address,
-            charset_address,
-            bitmap_address,
-            irq_status: d019,
-            border_color: d020 & 0x0F,
-            bg_color: d021 & 0x0F,
-        }
-    }
-}
-
-impl Default for Vic2State {
-    fn default() -> Self {
-        Self {
-            raster_line: 0,
-            blanking: false,
-            bitmap_mode: false,
-            extended_bg_color: false,
-            text_mode: true,
-            multicolor_mode: false,
-            y_scroll: 3,
-            x_scroll: 0,
-            columns: 40,
-            rows: 25,
-            screen_mem_address: 0x0400,
-            charset_address: 0x1000,
-            bitmap_address: 0x2000,
-            irq_status: 0,
-            border_color: 14,
-            bg_color: 6,
-        }
-    }
-}
-
-#[derive(Default)]
+/// Decoded snapshot of a MOS 6526 Complex Interface Adapter (CIA) register block.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CiaState {
+    /// Data Port A (`$DC00` on CIA 1, `$DD00` on CIA 2).
     pub pra: u8,
+    /// Data Port B (`$DC01` on CIA 1, `$DD01` on CIA 2).
     pub prb: u8,
+    /// Data Direction Register A (`$DC02` on CIA 1, `$DD02` on CIA 2).
     pub ddra: u8,
+    /// Data Direction Register B (`$DC03` on CIA 1, `$DD03` on CIA 2).
     pub ddrb: u8,
+    /// Timer A 16-bit counter value (`$DC04`–`$DC05` or `$DD04`–`$DD05`).
     pub timer_a: u16,
+    /// Timer B 16-bit counter value (`$DC06`–`$DC07` or `$DD06`–`$DD07`).
     pub timer_b: u16,
 }
 
 impl CiaState {
+    /// Decodes a 16-byte CIA register window from `io_mem` at `offset`.
+    ///
+    /// Returns [`CiaState::default`] if `io_mem` does not contain 16 bytes starting at `offset`.
     #[must_use]
     pub fn decode(io_mem: &[u8], offset: usize) -> Self {
-        if io_mem.len() < offset + 16 {
+        let Some(regs) = io_mem.get(offset..).and_then(|s| s.get(..16)) else {
             return Self::default();
-        }
-        let pra = io_mem[offset];
-        let prb = io_mem[offset + 0x01];
-        let ddra = io_mem[offset + 0x02];
-        let ddrb = io_mem[offset + 0x03];
-        let timer_a = u16::from(io_mem[offset + 0x04]) | (u16::from(io_mem[offset + 0x05]) << 8);
-        let timer_b = u16::from(io_mem[offset + 0x06]) | (u16::from(io_mem[offset + 0x07]) << 8);
+        };
 
         Self {
-            pra,
-            prb,
-            ddra,
-            ddrb,
-            timer_a,
-            timer_b,
+            pra: regs[0x00],
+            prb: regs[0x01],
+            ddra: regs[0x02],
+            ddrb: regs[0x03],
+            timer_a: u16::from_le_bytes([regs[0x04], regs[0x05]]),
+            timer_b: u16::from_le_bytes([regs[0x06], regs[0x07]]),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decode_cia_state_valid_window() {
+        let mut io_mem = vec![0u8; 32];
+        let offset = 16;
+        io_mem[offset] = 0x7F;
+        io_mem[offset + 1] = 0xFF;
+        io_mem[offset + 2] = 0xFF;
+        io_mem[offset + 3] = 0x00;
+        io_mem[offset + 4] = 0x25;
+        io_mem[offset + 5] = 0x40;
+        io_mem[offset + 6] = 0xCD;
+        io_mem[offset + 7] = 0xAB;
+
+        let state = CiaState::decode(&io_mem, offset);
+        assert_eq!(
+            state,
+            CiaState {
+                pra: 0x7F,
+                prb: 0xFF,
+                ddra: 0xFF,
+                ddrb: 0x00,
+                timer_a: 0x4025,
+                timer_b: 0xABCD,
+            }
+        );
+    }
+
+    #[test]
+    fn decode_cia_state_short_slice_or_overflow_returns_default() {
+        let io_mem = [0xFFu8; 15];
+        assert_eq!(CiaState::decode(&io_mem, 0), CiaState::default());
+        assert_eq!(CiaState::decode(&io_mem, usize::MAX), CiaState::default());
     }
 }

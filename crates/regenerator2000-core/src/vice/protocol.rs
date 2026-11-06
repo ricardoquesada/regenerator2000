@@ -1,45 +1,76 @@
+//! VICE Binary Monitor v2 frame encoding, frame decoding, and response parsers.
+
 use crate::error::ViceError;
 
+/// Start-of-transmission marker byte (`0x02`) for VICE Binary Monitor frames.
 pub const STX: u8 = 0x02;
-pub const API_VERSION: u8 = 0x02; // Version 2
 
+/// Binary monitor protocol version byte (`0x02`).
+pub const API_VERSION: u8 = 0x02;
+
+/// Maximum accepted response payload size (1 MiB) before [`ViceMessage::decode`] rejects the frame.
+pub const MAX_PAYLOAD_LEN: usize = 1024 * 1024;
+
+/// Binary monitor command or response frame exchanged with VICE.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ViceMessage {
+    /// Command or response type code (see [`ViceCommand`]).
     pub command: u8,
+    /// Raw command arguments or response body bytes.
     pub payload: Vec<u8>,
+    /// Client-assigned correlation identifier echoed by VICE in responses.
     pub request_id: u32,
+    /// Response status code (`0x00` indicates success).
     pub error_code: u8,
 }
 
+/// Bitmask constants for the checkpoint `cpu_operation` field.
 pub struct ViceCpuOp;
 
 impl ViceCpuOp {
-    pub const LOAD: u8 = 0x01; // Break on memory read
-    pub const STORE: u8 = 0x02; // Break on memory write
-    pub const EXEC: u8 = 0x04; // Break on execution
+    /// Stops when the CPU reads from the watched address.
+    pub const LOAD: u8 = 0x01;
+    /// Stops when the CPU writes to the watched address.
+    pub const STORE: u8 = 0x02;
+    /// Stops when the CPU executes an instruction at the address.
+    pub const EXEC: u8 = 0x04;
 }
 
+/// Command and push-notification opcodes for the VICE Binary Monitor v2 protocol.
 pub struct ViceCommand;
 
 impl ViceCommand {
+    /// Reads a range of bytes from emulated memory.
     pub const MEMORY_GET: u8 = 0x01;
+    /// Writes a range of bytes to emulated memory.
     pub const MEMORY_SET: u8 = 0x02;
+    /// Queries or reports a single checkpoint.
     pub const CHECKPOINT_GET: u8 = 0x11;
+    /// Creates a new breakpoint or watchpoint.
     pub const CHECKPOINT_SET: u8 = 0x12;
+    /// Deletes an existing checkpoint by ID.
     pub const CHECKPOINT_DELETE: u8 = 0x13;
+    /// Lists all registered checkpoints.
     pub const CHECKPOINT_LIST: u8 = 0x14;
+    /// Reads CPU register values.
     pub const REGISTERS_GET: u8 = 0x31;
+    /// Steps the CPU by a given number of instructions.
     pub const ADVANCE_INSTRUCTION: u8 = 0x71;
+    /// Executes instructions until the current subroutine returns.
     pub const EXECUTE_UNTIL_RETURN: u8 = 0x73;
-    pub const EXIT_MONITOR: u8 = 0xaa; // Resume/continue execution (MON_CMD_EXIT)
+    /// Exits the monitor and resumes normal emulation (`MON_CMD_EXIT`).
+    pub const EXIT_MONITOR: u8 = 0xaa;
+    /// Pings the monitor connection.
     pub const PING: u8 = 0x81;
 
-    // Push notifications from VICE (not request/response — VICE sends these unsolicited)
-    pub const STOPPED: u8 = 0x62; // CPU stopped (checkpoint hit, step complete)
-    pub const RESUMED: u8 = 0x65; // CPU resumed execution
+    /// Unsolicited notification sent when the emulated CPU stops.
+    pub const STOPPED: u8 = 0x62;
+    /// Unsolicited notification sent when the emulated CPU resumes execution.
+    pub const RESUMED: u8 = 0x65;
 }
 
 impl ViceMessage {
+    /// Creates a request message with `request_id` and `error_code` set to `0`.
     #[must_use]
     pub fn new(command: u8, payload: Vec<u8>) -> Self {
         Self {
@@ -50,6 +81,7 @@ impl ViceMessage {
         }
     }
 
+    /// Creates a request message with an explicit `request_id`.
     #[must_use]
     pub fn with_id(command: u8, payload: Vec<u8>, request_id: u32) -> Self {
         Self {
@@ -60,10 +92,11 @@ impl ViceMessage {
         }
     }
 
+    /// Encodes this message into an 11-byte VICE request header followed by `payload`.
     #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         let length = self.payload.len() as u32;
-        let mut buf = Vec::with_capacity(11 + length as usize);
+        let mut buf = Vec::with_capacity(11 + self.payload.len());
         buf.push(STX);
         buf.push(API_VERSION);
         buf.extend_from_slice(&length.to_le_bytes());
@@ -73,10 +106,16 @@ impl ViceMessage {
         buf
     }
 
-    /// Decode a raw byte buffer into a ViceMessage.
+    /// Decodes the next complete VICE response frame from `buf`.
+    ///
+    /// Returns `Ok(None)` if `buf` holds fewer than 12 header bytes or fewer than
+    /// `12 + payload_length` total bytes. Returns `Ok(Some((message, consumed_bytes)))`
+    /// when a complete frame is available.
     ///
     /// # Errors
-    /// Returns an error if the STX byte is invalid.
+    ///
+    /// Returns [`ViceError::ProtocolFraming`] if `buf[0]` is not [`STX`] or if the
+    /// declared payload length exceeds [`MAX_PAYLOAD_LEN`].
     pub fn decode(buf: &[u8]) -> Result<Option<(Self, usize)>, ViceError> {
         if buf.len() < 12 {
             return Ok(None);
@@ -88,10 +127,15 @@ impl ViceMessage {
             )));
         }
         let length = u32::from_le_bytes([buf[2], buf[3], buf[4], buf[5]]) as usize;
+        if length > MAX_PAYLOAD_LEN {
+            return Err(ViceError::ProtocolFraming(format!(
+                "Payload length {length} exceeds maximum {MAX_PAYLOAD_LEN} bytes"
+            )));
+        }
         let total_size = 12 + length;
 
         if buf.len() < total_size {
-            return Ok(None); // Need more data
+            return Ok(None);
         }
 
         let command = buf[6];
@@ -111,29 +155,28 @@ impl ViceMessage {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Typed response structs & parsing functions
-// ---------------------------------------------------------------------------
-
-/// Parsed register set from a REGISTERS_GET response.
+/// CPU register values parsed from a [`ViceCommand::REGISTERS_GET`] response.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Registers {
+    /// Accumulator (`A`, register ID `0x00`).
     pub a: Option<u8>,
+    /// X index (`X`, register ID `0x01`).
     pub x: Option<u8>,
+    /// Y index (`Y`, register ID `0x02`).
     pub y: Option<u8>,
+    /// Program Counter (`PC`, register ID `0x03`).
     pub pc: Option<u16>,
+    /// Stack Pointer (`SP`, register ID `0x04`).
     pub sp: Option<u8>,
-    /// Status flags (processor flags register).
+    /// Processor status flags (`P`, register ID `0x05`).
     pub p: Option<u8>,
 }
 
-/// Parse register items from a REGISTERS_GET response payload.
+/// Parses CPU register items from a [`ViceCommand::REGISTERS_GET`] response payload.
 ///
-/// Payload format:
-///   `ref_count` (2 LE) followed by `ref_count` register items, each:
-///   `item_size` (1) `reg_id` (1) `value` (item_size - 1 bytes, LE)
-///
-/// Register IDs: 0x00=A, 0x01=X, 0x02=Y, 0x03=PC, 0x04=SP, 0x05=P.
+/// The payload begins with a 16-bit little-endian item count, followed by items of the form
+/// `[item_size, reg_id, value_bytes...]`, where `item_size` counts `reg_id` plus the value bytes.
+/// Returns `None` if `payload` is shorter than 2 bytes.
 #[must_use]
 pub fn parse_registers(payload: &[u8]) -> Option<Registers> {
     if payload.len() < 2 {
@@ -149,7 +192,7 @@ pub fn parse_registers(payload: &[u8]) -> Option<Registers> {
             break;
         }
         let item_size = payload[offset] as usize;
-        if offset + 1 + item_size > payload.len() {
+        if item_size == 0 || offset + 1 + item_size > payload.len() {
             break;
         }
 
@@ -185,28 +228,28 @@ pub fn parse_registers(payload: &[u8]) -> Option<Registers> {
     Some(regs)
 }
 
-/// Parsed checkpoint info from a CHECKPOINT_SET / CHECKPOINT_GET response.
+/// Checkpoint descriptor parsed from a [`ViceCommand::CHECKPOINT_SET`] or [`ViceCommand::CHECKPOINT_GET`] response.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckpointInfo {
+    /// Checkpoint number assigned by VICE.
     pub id: u32,
-    /// True when this checkpoint was the one that just caused the CPU to stop.
-    /// False for regular query/list responses.
+    /// True when this checkpoint caused the current CPU stop.
     pub currently_hit: bool,
+    /// Start address of the checkpoint.
     pub address: u16,
+    /// True when the checkpoint is enabled.
     pub enabled: bool,
+    /// Bitmask of [`ViceCpuOp`] flags (`EXEC`, `LOAD`, `STORE`).
     pub cpu_op: u8,
+    /// True when VICE deletes this checkpoint automatically after the first hit.
     pub temporary: bool,
 }
 
-/// Parse checkpoint info from a CHECKPOINT_SET (0x12) or CHECKPOINT_GET (0x11) payload.
+/// Parses checkpoint metadata from a [`ViceCommand::CHECKPOINT_SET`] or [`ViceCommand::CHECKPOINT_GET`] payload.
 ///
-/// Payload format (at least 13 bytes):
-///   `CN`(4 LE) `CH`(1) `SA`(2 LE) `EA`(2 LE) `ST`(1) `EN`(1) `OP`(1) `TM`(1) ...
-///
-/// Fields:
-///   CN = checkpoint number (id), CH = currently hit flag,
-///   SA/EA = start/end address, ST = stop when hit, EN = enabled,
-///   OP = cpu operation (exec/load/store), TM = temporary.
+/// Expects at least 13 bytes: `id` (4 LE), `currently_hit` (1), `start_addr` (2 LE),
+/// `end_addr` (2 LE), `stop_when_hit` (1), `enabled` (1), `cpu_op` (1), and `temporary` (1).
+/// Returns `None` if `payload` is shorter than 13 bytes.
 #[must_use]
 pub fn parse_checkpoint_info(payload: &[u8]) -> Option<CheckpointInfo> {
     if payload.len() < 13 {
@@ -230,15 +273,17 @@ pub fn parse_checkpoint_info(payload: &[u8]) -> Option<CheckpointInfo> {
     })
 }
 
-/// Parsed response from a MEMORY_GET command.
+/// Memory bytes parsed from a [`ViceCommand::MEMORY_GET`] response.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MemoryGetResponse {
+    /// Raw memory bytes returned by VICE.
     pub bytes: Vec<u8>,
 }
 
-/// Parse a MEMORY_GET response payload.
+/// Parses a [`ViceCommand::MEMORY_GET`] response payload.
 ///
-/// Payload format: `length` (2 LE) followed by `length` bytes of memory data.
+/// The payload begins with a 16-bit little-endian byte length followed by that many memory bytes.
+/// Returns `None` if the declared length is `0` or if `payload` is truncated.
 #[must_use]
 pub fn parse_memory_get(payload: &[u8]) -> Option<MemoryGetResponse> {
     if payload.len() < 2 {
@@ -259,24 +304,17 @@ pub fn parse_memory_get(payload: &[u8]) -> Option<MemoryGetResponse> {
 mod tests {
     use super::*;
 
-    // -----------------------------------------------------------------------
-    // ViceMessage encode / decode round-trip
-    // -----------------------------------------------------------------------
-
     #[test]
     fn decode_valid_response() {
-        // Build a valid response frame manually:
-        // STX(1) + api_version(1) + length(4 LE) + command(1) + error_code(1)
-        // + request_id(4 LE) + payload
         let payload = vec![1u8, 2, 3];
         let length = payload.len() as u32;
         let mut buf = Vec::new();
-        buf.push(STX); // 0x02
-        buf.push(API_VERSION); // api version
-        buf.extend_from_slice(&length.to_le_bytes()); // 3, 0, 0, 0
-        buf.push(ViceCommand::MEMORY_GET); // command
-        buf.push(0x00); // error_code
-        buf.extend_from_slice(&42u32.to_le_bytes()); // request_id
+        buf.push(STX);
+        buf.push(API_VERSION);
+        buf.extend_from_slice(&length.to_le_bytes());
+        buf.push(ViceCommand::MEMORY_GET);
+        buf.push(0x00);
+        buf.extend_from_slice(&42u32.to_le_bytes());
         buf.extend_from_slice(&payload);
 
         let (decoded, size) = ViceMessage::decode(&buf).unwrap().unwrap();
@@ -291,15 +329,14 @@ mod tests {
     fn encode_produces_valid_request_frame() {
         let msg = ViceMessage::with_id(ViceCommand::REGISTERS_GET, vec![0], 5);
         let encoded = msg.encode();
-        // STX + API_VERSION + length(4) + request_id(4) + command + payload
         assert_eq!(encoded[0], STX);
         assert_eq!(encoded[1], API_VERSION);
         let length = u32::from_le_bytes([encoded[2], encoded[3], encoded[4], encoded[5]]);
-        assert_eq!(length, 1); // payload is [0]
+        assert_eq!(length, 1);
         let req_id = u32::from_le_bytes([encoded[6], encoded[7], encoded[8], encoded[9]]);
         assert_eq!(req_id, 5);
         assert_eq!(encoded[10], ViceCommand::REGISTERS_GET);
-        assert_eq!(encoded[11], 0); // payload byte
+        assert_eq!(encoded[11], 0);
     }
 
     #[test]
@@ -314,9 +351,15 @@ mod tests {
         assert!(ViceMessage::decode(&buf).is_err());
     }
 
-    // -----------------------------------------------------------------------
-    // parse_registers
-    // -----------------------------------------------------------------------
+    #[test]
+    fn decode_oversized_length_returns_error() {
+        let mut buf = vec![0u8; 12];
+        buf[0] = STX;
+        buf[1] = API_VERSION;
+        let oversized = (MAX_PAYLOAD_LEN as u32) + 1;
+        buf[2..6].copy_from_slice(&oversized.to_le_bytes());
+        assert!(ViceMessage::decode(&buf).is_err());
+    }
 
     #[test]
     fn parse_registers_empty_payload() {
@@ -330,39 +373,16 @@ mod tests {
 
     #[test]
     fn parse_registers_all_regs() {
-        // Build a register payload with 6 items (A, X, Y, PC, SP, P)
         let mut payload = Vec::new();
-        payload.extend_from_slice(&6u16.to_le_bytes()); // ref_count = 6
+        payload.extend_from_slice(&6u16.to_le_bytes());
 
-        // A = 0x42 (reg_id=0x00, item_size=2)
-        payload.push(2); // item_size
-        payload.push(0x00); // reg_id A
-        payload.push(0x42); // value
-
-        // X = 0x10 (reg_id=0x01, item_size=2)
-        payload.push(2);
-        payload.push(0x01);
-        payload.push(0x10);
-
-        // Y = 0x20 (reg_id=0x02, item_size=2)
-        payload.push(2);
-        payload.push(0x02);
-        payload.push(0x20);
-
-        // PC = 0xC000 (reg_id=0x03, item_size=3)
-        payload.push(3);
-        payload.push(0x03);
+        payload.extend_from_slice(&[2, 0x00, 0x42]);
+        payload.extend_from_slice(&[2, 0x01, 0x10]);
+        payload.extend_from_slice(&[2, 0x02, 0x20]);
+        payload.extend_from_slice(&[3, 0x03]);
         payload.extend_from_slice(&0xC000u16.to_le_bytes());
-
-        // SP = 0xFF (reg_id=0x04, item_size=2)
-        payload.push(2);
-        payload.push(0x04);
-        payload.push(0xFF);
-
-        // P = 0x24 (reg_id=0x05, item_size=2)
-        payload.push(2);
-        payload.push(0x05);
-        payload.push(0x24);
+        payload.extend_from_slice(&[2, 0x04, 0xFF]);
+        payload.extend_from_slice(&[2, 0x05, 0x24]);
 
         let regs = parse_registers(&payload).unwrap();
         assert_eq!(regs.a, Some(0x42));
@@ -375,16 +395,10 @@ mod tests {
 
     #[test]
     fn parse_registers_partial() {
-        // Only A and PC
         let mut payload = Vec::new();
         payload.extend_from_slice(&2u16.to_le_bytes());
-
-        payload.push(2);
-        payload.push(0x00);
-        payload.push(0xAA);
-
-        payload.push(3);
-        payload.push(0x03);
+        payload.extend_from_slice(&[2, 0x00, 0xAA]);
+        payload.extend_from_slice(&[3, 0x03]);
         payload.extend_from_slice(&0x0800u16.to_le_bytes());
 
         let regs = parse_registers(&payload).unwrap();
@@ -398,41 +412,39 @@ mod tests {
 
     #[test]
     fn parse_registers_truncated_item() {
-        // ref_count says 2 but only 1 complete item
         let mut payload = Vec::new();
         payload.extend_from_slice(&2u16.to_le_bytes());
-
-        // Complete item
-        payload.push(2);
-        payload.push(0x00);
-        payload.push(0x42);
-
-        // Truncated item (item_size says 3 but only 1 byte follows)
-        payload.push(3);
-        payload.push(0x03);
-        // missing value bytes
+        payload.extend_from_slice(&[2, 0x00, 0x42]);
+        payload.extend_from_slice(&[3, 0x03]);
 
         let regs = parse_registers(&payload).unwrap();
         assert_eq!(regs.a, Some(0x42));
-        assert_eq!(regs.pc, None); // truncated, not parsed
+        assert_eq!(regs.pc, None);
+    }
+
+    #[test]
+    fn parse_registers_zero_item_size_does_not_panic() {
+        // item_size == 0 at end of slice previously caused an out-of-bounds panic at payload[offset + 1].
+        let payload = [1u8, 0, 0];
+        let regs = parse_registers(&payload).unwrap();
+        assert_eq!(regs, Registers::default());
+
+        // item_size == 0 after a valid item stops parsing cleanly without corrupting prior items.
+        let payload_with_valid = [2u8, 0, 2, 0x00, 0x42, 0, 2, 0x01, 0x99];
+        let regs2 = parse_registers(&payload_with_valid).unwrap();
+        assert_eq!(regs2.a, Some(0x42));
+        assert_eq!(regs2.x, None);
     }
 
     #[test]
     fn parse_registers_unknown_reg_id() {
         let mut payload = Vec::new();
         payload.extend_from_slice(&1u16.to_le_bytes());
-
-        payload.push(2);
-        payload.push(0xFF); // unknown reg id
-        payload.push(0x42);
+        payload.extend_from_slice(&[2, 0xFF, 0x42]);
 
         let regs = parse_registers(&payload).unwrap();
         assert_eq!(regs, Registers::default());
     }
-
-    // -----------------------------------------------------------------------
-    // parse_checkpoint_info
-    // -----------------------------------------------------------------------
 
     #[test]
     fn parse_checkpoint_info_empty() {
@@ -447,14 +459,14 @@ mod tests {
     #[test]
     fn parse_checkpoint_info_exec_breakpoint() {
         let mut p = Vec::new();
-        p.extend_from_slice(&1u32.to_le_bytes()); // id = 1           [0..4]
-        p.push(0); // currently_hit = false                            [4]
-        p.extend_from_slice(&0xC000u16.to_le_bytes()); // start_addr   [5..7]
-        p.extend_from_slice(&0xC000u16.to_le_bytes()); // end_addr     [7..9]
-        p.push(1); // stop_when_hit                                    [9]
-        p.push(1); // enabled                                          [10]
-        p.push(0x04); // cpu_op = EXEC                                 [11]
-        p.push(0); // temporary = false                                [12]
+        p.extend_from_slice(&1u32.to_le_bytes());
+        p.push(0);
+        p.extend_from_slice(&0xC000u16.to_le_bytes());
+        p.extend_from_slice(&0xC000u16.to_le_bytes());
+        p.push(1);
+        p.push(1);
+        p.push(0x04);
+        p.push(0);
 
         let info = parse_checkpoint_info(&p).unwrap();
         assert_eq!(info.id, 1);
@@ -468,14 +480,14 @@ mod tests {
     #[test]
     fn parse_checkpoint_info_currently_hit() {
         let mut p = Vec::new();
-        p.extend_from_slice(&3u32.to_le_bytes()); // id = 3           [0..4]
-        p.push(1); // currently_hit = true                             [4]
-        p.extend_from_slice(&0xD015u16.to_le_bytes()); // start_addr   [5..7]
-        p.extend_from_slice(&0xD015u16.to_le_bytes()); // end_addr     [7..9]
-        p.push(1); // stop_when_hit                                    [9]
-        p.push(1); // enabled                                          [10]
-        p.push(0x01); // cpu_op = LOAD (read watchpoint)               [11]
-        p.push(0); // temporary = false                                [12]
+        p.extend_from_slice(&3u32.to_le_bytes());
+        p.push(1);
+        p.extend_from_slice(&0xD015u16.to_le_bytes());
+        p.extend_from_slice(&0xD015u16.to_le_bytes());
+        p.push(1);
+        p.push(1);
+        p.push(0x01);
+        p.push(0);
 
         let info = parse_checkpoint_info(&p).unwrap();
         assert_eq!(info.id, 3);
@@ -488,20 +500,15 @@ mod tests {
     fn parse_checkpoint_info_temporary() {
         let mut p = vec![0u8; 13];
         p[0..4].copy_from_slice(&7u32.to_le_bytes());
-        // p[4] = 0 (currently_hit = false)
-        p[10] = 1; // enabled
-        p[11] = 0x04; // cpu_op = EXEC
-        p[12] = 1; // temporary
+        p[10] = 1;
+        p[11] = 0x04;
+        p[12] = 1;
 
         let info = parse_checkpoint_info(&p).unwrap();
         assert_eq!(info.id, 7);
         assert!(!info.currently_hit);
         assert!(info.temporary);
     }
-
-    // -----------------------------------------------------------------------
-    // parse_memory_get
-    // -----------------------------------------------------------------------
 
     #[test]
     fn parse_memory_get_empty() {
@@ -525,7 +532,6 @@ mod tests {
 
     #[test]
     fn parse_memory_get_truncated() {
-        // Length says 10 but only 3 bytes follow
         let mut payload = Vec::new();
         payload.extend_from_slice(&10u16.to_le_bytes());
         payload.extend_from_slice(&[0x01, 0x02, 0x03]);

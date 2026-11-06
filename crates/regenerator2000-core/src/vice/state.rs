@@ -1,91 +1,129 @@
+//! Live debugger state, register snapshots, and checkpoint records for VICE.
+
+use super::protocol::ViceCpuOp;
+
+/// CPU operation that triggers a VICE checkpoint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BreakpointKind {
+    /// Stops when the CPU executes an instruction at the target address.
     Exec,
+    /// Stops when the CPU reads from the target address.
     Load,
+    /// Stops when the CPU writes to the target address.
     Store,
+    /// Stops when the CPU reads from or writes to the target address.
     LoadStore,
 }
 
 impl BreakpointKind {
+    /// Converts a VICE `cpu_operation` bitmask into a [`BreakpointKind`].
+    ///
+    /// Maps `0x01` to [`BreakpointKind::Load`], `0x02` to [`BreakpointKind::Store`],
+    /// and `0x03` to [`BreakpointKind::LoadStore`]. All other values map to
+    /// [`BreakpointKind::Exec`].
     #[must_use]
     pub fn from_cpu_op(op: u8) -> Self {
+        const LOAD_STORE: u8 = ViceCpuOp::LOAD | ViceCpuOp::STORE;
         match op {
-            0x01 => BreakpointKind::Load,
-            0x02 => BreakpointKind::Store,
-            0x03 => BreakpointKind::LoadStore,
-            _ => BreakpointKind::Exec,
+            ViceCpuOp::LOAD => Self::Load,
+            ViceCpuOp::STORE => Self::Store,
+            LOAD_STORE => Self::LoadStore,
+            _ => Self::Exec,
         }
     }
 
+    /// Returns the short UI label (`"X"`, `"R"`, `"W"`, or `"RW"`) for this kind.
     #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
-            BreakpointKind::Exec => "X",
-            BreakpointKind::Load => "R",
-            BreakpointKind::Store => "W",
-            BreakpointKind::LoadStore => "RW",
+            Self::Exec => "X",
+            Self::Load => "R",
+            Self::Store => "W",
+            Self::LoadStore => "RW",
         }
     }
 }
 
-#[derive(Debug, Clone)]
+/// Persistent breakpoint or watchpoint registered in VICE.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ViceBreakpoint {
+    /// Checkpoint ID assigned by VICE.
     pub id: u32,
+    /// Target 6502 memory address.
     pub address: u16,
+    /// True when the checkpoint is active in VICE.
     pub enabled: bool,
+    /// Trigger operation for this checkpoint.
     pub kind: BreakpointKind,
 }
 
-#[derive(Debug, Clone, Default)]
+/// Live debugger state synchronized with a connected VICE instance.
+#[derive(Debug, Clone)]
 pub struct ViceState {
+    /// True when the TCP connection to the VICE Binary Monitor is open.
     pub connected: bool,
+    /// Program Counter (`PC`) register.
     pub pc: Option<u16>,
+    /// Accumulator (`A`) register.
     pub a: Option<u8>,
+    /// X index (`X`) register.
     pub x: Option<u8>,
+    /// Y index (`Y`) register.
     pub y: Option<u8>,
+    /// Stack Pointer (`SP`) register.
     pub sp: Option<u8>,
-    pub p: Option<u8>, // status flags
+    /// Processor status flags (`P`) register.
+    pub p: Option<u8>,
+    /// Connection status label.
     pub status: String,
+    /// True when the emulated CPU is executing instructions.
     pub running: bool,
 
-    // Live memory snapshot: bytes fetched from VICE via MEMORY_GET
+    /// Memory bytes around `PC` fetched via `MEMORY_GET`.
     pub live_memory: Option<Vec<u8>>,
-    pub live_memory_start: u16, // the address that live_memory[0] corresponds to
+    /// Start address corresponding to `live_memory[0]`.
+    pub live_memory_start: u16,
 
-    // Stack page snapshot ($0100–$01FF), fetched after each step
+    /// Stack page snapshot (`$0100`–`$01FF`).
     pub stack_memory: Option<Vec<u8>>,
 
-    // I/O block snapshot ($D000–$DFFF), fetched after each step if platform is C64/C128
+    /// Hardware I/O register block snapshot.
     pub io_memory: Option<Vec<u8>>,
 
+    /// CPU port registers at `$0000`–`$0001` on C64 and C128 targets.
     pub zp00_01: Option<Vec<u8>>,
+    /// Hardware vector table (`$FFFA`–`$FFFF`).
     pub vectors: Option<Vec<u8>>,
 
-    // User-requested memory dump (32 bytes)
+    /// Start address for the user-configured memory dump panel.
     pub dump_address: Option<u16>,
+    /// Memory bytes fetched at `dump_address`.
     pub dump_memory: Option<Vec<u8>>,
 
-    // Persistent breakpoints (excludes temporary run-to-cursor checkpoints)
+    /// Persistent checkpoints (breakpoints and watchpoints).
     pub breakpoints: Vec<ViceBreakpoint>,
 
-    // Tracks temporary breakpoints (like run-to-cursor) so we can clear them
-    // if the CPU stops before reaching them.
+    /// Temporary checkpoint IDs (such as run-to-cursor) to delete on the next stop.
     pub temporary_breakpoints: Vec<u32>,
 
-    // Human-readable reason the CPU stopped (e.g. "Breakpoint #2 at $C123")
-    // Set when a checkpoint is hit, cleared on resume.
+    /// Reason the CPU stopped (for example, `"Breakpoint #2 at $C123"`).
     pub stop_reason: Option<String>,
 
-    // The checkpoint ID that was last hit (from an unsolicited CHECKPOINT_GET
-    // response). Used to build `stop_reason` for watchpoints, where the PC
-    // differs from the watched address.
+    /// Checkpoint ID from the latest hit notification.
     pub last_hit_checkpoint_id: Option<u32>,
 
-    // Snapshot of the state from the previous stop, used to highlight changed registers/memory.
+    /// State snapshot from the previous CPU stop, used to highlight changed values.
     pub previous: Option<Box<ViceState>>,
 }
 
+impl Default for ViceState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ViceState {
+    /// Creates a disconnected [`ViceState`] with default dump address `$0000`.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -114,31 +152,18 @@ impl ViceState {
         }
     }
 
+    /// Clears all registers, memory snapshots, and checkpoints while preserving `connected` and `status`.
     pub fn reset_registers(&mut self) {
-        self.pc = None;
-        self.a = None;
-        self.x = None;
-        self.y = None;
-        self.sp = None;
-        self.p = None;
-        self.running = false;
-        self.live_memory = None;
-        self.live_memory_start = 0;
-        self.stack_memory = None;
-        self.io_memory = None;
-        self.zp00_01 = None;
-        self.vectors = None;
-        self.dump_address = Some(0x0000);
-        self.dump_memory = None;
-        self.breakpoints.clear();
-        self.temporary_breakpoints.clear();
-        self.stop_reason = None;
-        self.last_hit_checkpoint_id = None;
-        self.previous = None;
+        let connected = self.connected;
+        let status = std::mem::take(&mut self.status);
+        *self = Self {
+            connected,
+            status,
+            ..Self::new()
+        };
     }
 
-    /// Creates a clone of this state without the `previous` field, suitable for saving
-    /// as the new `previous` state.
+    /// Clones this state without the `previous` field to store as the next baseline snapshot.
     #[must_use]
     pub fn snapshot(&self) -> Box<ViceState> {
         let mut snap = self.clone();
@@ -146,7 +171,7 @@ impl ViceState {
         Box::new(snap)
     }
 
-    /// Returns true if there is a persistent breakpoint at `addr`.
+    /// Returns true if a persistent checkpoint exists at `addr`.
     #[must_use]
     pub fn has_breakpoint_at(&self, addr: u16) -> bool {
         self.breakpoints.iter().any(|bp| bp.address == addr)
