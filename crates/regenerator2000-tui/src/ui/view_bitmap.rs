@@ -11,10 +11,29 @@ use ratatui::{
 };
 use ratatui_image::StatefulImage;
 
-use crate::ui::navigable::{Navigable, handle_nav_input};
+use crate::ui::navigable::{
+    AlignedGridRange, Navigable, handle_nav_input, jump_to_disassembly_at_address,
+    right_pane_mouse_inner_area,
+};
 use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct BitmapView;
+
+impl BitmapView {
+    /// Bitmaps are aligned to 8,192-byte (`$2000`) boundaries with an 8,000-byte active payload.
+    const ALIGNMENT: usize = 8192;
+    const PAYLOAD_BYTES: usize = 8000;
+
+    #[must_use]
+    fn grid_range(app_state: &AppState) -> AlignedGridRange {
+        AlignedGridRange::new(
+            app_state,
+            Self::ALIGNMENT,
+            Self::ALIGNMENT,
+            Self::PAYLOAD_BYTES,
+        )
+    }
+}
 
 /// Calculate screen RAM address based on mode and bitmap address
 fn calculate_screen_ram_addr(bitmap_addr: usize, mode: ScreenRamMode) -> usize {
@@ -31,14 +50,7 @@ fn calculate_screen_ram_addr(bitmap_addr: usize, mode: ScreenRamMode) -> usize {
 
 impl Navigable for BitmapView {
     fn len(&self, app_state: &AppState) -> usize {
-        // Bitmaps must be aligned to 8192-byte ($2000) boundaries.
-        // Align to the floor to support partial bitmaps (padding with zeros before origin).
-        let origin = app_state.origin.0 as usize;
-        let aligned_origin = (origin / 8192) * 8192;
-        let end_address = (origin + app_state.raw_data.len()).min(0x10000);
-
-        let total_bytes = end_address.saturating_sub(aligned_origin);
-        total_bytes.div_ceil(8192)
+        Self::grid_range(app_state).item_count()
     }
 
     fn current_index(&self, _app_state: &AppState, ui_state: &UIState) -> usize {
@@ -71,16 +83,6 @@ impl Navigable for BitmapView {
         ui_state.bitmap_cursor_index = index.min(total.saturating_sub(1));
     }
 
-    fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
-        let total = self.len(app_state);
-        let target = if input == 0 {
-            total.saturating_sub(1)
-        } else {
-            input.saturating_sub(1).min(total.saturating_sub(1))
-        };
-        ui_state.bitmap_cursor_index = target;
-    }
-
     fn item_name(&self) -> &'static str {
         "bitmap"
     }
@@ -93,19 +95,7 @@ impl Widget for BitmapView {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        let area = ui_state.right_pane_area;
-        let inner_area = Rect {
-            x: area.x + 1,
-            y: area.y + 1,
-            width: area.width.saturating_sub(2),
-            height: area.height.saturating_sub(2),
-        };
-
-        if mouse.column < inner_area.x
-            || mouse.column >= inner_area.x + inner_area.width
-            || mouse.row < inner_area.y
-            || mouse.row >= inner_area.y + inner_area.height
-        {
+        if right_pane_mouse_inner_area(ui_state, &mouse).is_none() {
             return WidgetResult::Ignored;
         }
 
@@ -158,20 +148,16 @@ impl Widget for BitmapView {
             return;
         }
 
-        let origin = app_state.origin.0 as usize;
-        // Align to floor boundary to support partial bitmaps (bytes before origin are zeros).
-        let aligned_origin = (origin / 8192) * 8192;
-        let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
-
-        let end_address = (origin + app_state.raw_data.len()).min(0x10000);
-        if bitmap_addr >= end_address {
+        let grid = Self::grid_range(app_state);
+        let bitmap_addr = grid.item_addr(ui_state.bitmap_cursor_index);
+        if bitmap_addr >= grid.end_address {
             return;
         }
 
         // Calculate the actual data range within this 8000-byte bitmap.
-        let bitmap_end = bitmap_addr + 8000;
-        let data_start_in_bitmap = origin.max(bitmap_addr).min(bitmap_end);
-        let data_end_in_bitmap = end_address.min(bitmap_end).max(data_start_in_bitmap);
+        let bitmap_end = bitmap_addr + Self::PAYLOAD_BYTES;
+        let data_start_in_bitmap = grid.origin.max(bitmap_addr).min(bitmap_end);
+        let data_end_in_bitmap = grid.end_address.min(bitmap_end).max(data_start_in_bitmap);
 
         // Show the first loaded address inside the bitmap when available.
         let display_addr =
@@ -263,7 +249,7 @@ impl Widget for BitmapView {
         ui_state.bitmap_cache.entry(cache_key).or_insert_with(|| {
             convert_to_dynamic_image(
                 &app_state.raw_data,
-                origin,
+                &grid,
                 bitmap_addr,
                 screen_ram_addr,
                 multicolor_mode,
@@ -345,47 +331,18 @@ impl Widget for BitmapView {
                 WidgetResult::Action(AppAction::ToggleBitmapMulticolor)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
-                // Convert current bitmap to bytes block (8000 bytes per bitmap).
-                let origin = app_state.origin.0 as usize;
-                let aligned_origin = (origin / 8192) * 8192;
-                let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
-                let bitmap_end = bitmap_addr + 8000;
-                let end_address = (origin + app_state.raw_data.len()).min(0x10000);
-
-                if bitmap_end <= origin || bitmap_addr >= end_address {
-                    return WidgetResult::Ignored;
-                }
-
-                let start_addr = bitmap_addr.max(origin);
-                let end_addr = (bitmap_end - 1).min(end_address.saturating_sub(1));
-                let start_offset = start_addr - origin;
-                let end_offset = end_addr - origin;
-
-                if start_offset < app_state.raw_data.len() && start_offset <= end_offset {
-                    WidgetResult::Action(AppAction::SetBytesBlockByOffset {
-                        start: start_offset,
-                        end: end_offset,
+                let idx = ui_state.bitmap_cursor_index;
+                Self::grid_range(app_state)
+                    .item_range_byte_offsets(idx, idx)
+                    .map_or(WidgetResult::Ignored, |(start, end)| {
+                        WidgetResult::Action(AppAction::SetBytesBlockByOffset { start, end })
                     })
-                } else {
-                    WidgetResult::Ignored
-                }
             }
-            KeyCode::Enter if key.modifiers.is_empty() => {
-                let origin = app_state.origin.0 as usize;
-                let end_address = (origin + app_state.raw_data.len()).min(0x10000);
-                if end_address <= origin {
-                    return WidgetResult::Ignored;
-                }
-                let aligned_origin = (origin / 8192) * 8192;
-                let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
-                let display_addr = bitmap_addr.max(origin).min(end_address - 1);
-
-                crate::ui::navigable::jump_to_disassembly_at_address(
-                    app_state,
-                    ui_state,
-                    crate::state::Addr(display_addr as u16),
-                )
-            }
+            KeyCode::Enter if key.modifiers.is_empty() => Self::grid_range(app_state)
+                .clamped_item_addr(ui_state.bitmap_cursor_index)
+                .map_or(WidgetResult::Ignored, |addr| {
+                    jump_to_disassembly_at_address(app_state, ui_state, addr)
+                }),
             _ => WidgetResult::Ignored,
         }
     }
@@ -393,24 +350,14 @@ impl Widget for BitmapView {
 
 fn convert_to_dynamic_image(
     raw_data: &[u8],
-    origin: usize,
+    grid: &AlignedGridRange,
     bitmap_addr: usize,
     screen_ram_addr: usize,
     multicolor: bool,
 ) -> DynamicImage {
     // C64 resolution 320x200 scaled 2x to 640x400
     let mut rgb_img = RgbImage::new(640, 400);
-
-    let end_address = origin + raw_data.len();
-
-    // Helper to get byte at absolute address
-    let get_byte = |addr: usize| -> u8 {
-        if addr >= origin && addr < end_address {
-            raw_data[addr - origin]
-        } else {
-            0
-        }
-    };
+    let get_byte = |addr: usize| -> u8 { grid.byte_at(raw_data, addr) };
 
     if multicolor {
         // Multicolor Mode: 160x200 fat pixels

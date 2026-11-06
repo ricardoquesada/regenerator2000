@@ -50,29 +50,11 @@ impl Navigable for BlocksView {
         ui_state.blocks_list_state.select(Some(next));
     }
 
-    fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
-        self.move_down(app_state, ui_state, 10);
-    }
-
-    fn page_up(&self, app_state: &AppState, ui_state: &mut UIState) {
-        self.move_up(app_state, ui_state, 10);
-    }
-
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
         let len = self.len(app_state);
         ui_state
             .blocks_list_state
             .select(Some(index.min(len.saturating_sub(1))));
-    }
-
-    fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
-        let len = self.len(app_state);
-        let target = if input == 0 {
-            len.saturating_sub(1)
-        } else {
-            input.saturating_sub(1).min(len.saturating_sub(1))
-        };
-        ui_state.blocks_list_state.select(Some(target));
     }
 
     fn item_name(&self) -> &'static str {

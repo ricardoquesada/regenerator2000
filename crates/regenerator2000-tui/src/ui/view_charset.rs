@@ -1,7 +1,6 @@
 use crate::state::AppState;
-use crate::ui::view_disassembly::DisassemblyView;
 use crate::ui_state::{ActivePane, AppAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -10,51 +9,32 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
+use crate::ui::navigable::{
+    AlignedGridRange, Navigable, apply_grid_mouse_click, compute_scroll_offset,
+    handle_grid_selection_input, handle_nav_input, is_grid_item_selected, move_grid_cursor_down,
+    move_grid_cursor_up, right_pane_mouse_inner_area, sync_grid_item_to_disassembly,
+};
 use crate::ui::widget::{Widget, WidgetResult};
-
-use crate::ui::navigable::{Navigable, handle_nav_input};
 
 /// Immediately mirror the charset cursor / selection into the disassembly
 /// view's `cursor_index` / `selection_start`.  Called eagerly so both views
 /// are consistent within the same render frame.
 fn sync_charset_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
-    if app_state.raw_data.is_empty() || app_state.disassembly.is_empty() {
-        return;
-    }
-    let origin = app_state.origin.0 as usize;
-    let base_alignment = 0x400;
-    let aligned_start_addr = (origin / base_alignment) * base_alignment;
-
-    let cursor_addr = (aligned_start_addr + ui_state.charset_cursor_index * 8)
-        .max(origin)
-        .min(origin + app_state.raw_data.len().saturating_sub(1));
-
-    if let Some(inst_idx) =
-        app_state.get_line_index_containing_address(crate::state::Addr(cursor_addr as u16))
-    {
-        ui_state.cursor_index = inst_idx;
-        let counts =
-            DisassemblyView::get_visual_line_counts(&app_state.disassembly[inst_idx], app_state);
-        ui_state.sub_cursor_index = counts.opcode_sub_index();
-
-        ui_state.selection_start = ui_state.charset_selection_start.and_then(|sel_idx| {
-            let anchor_addr = (aligned_start_addr + sel_idx * 8)
-                .max(origin)
-                .min(origin + app_state.raw_data.len().saturating_sub(1));
-            app_state.get_line_index_containing_address(crate::state::Addr(anchor_addr as u16))
-        });
-    }
+    let grid = CharsetView::grid_range(app_state);
+    sync_grid_item_to_disassembly(
+        app_state,
+        ui_state,
+        &grid,
+        ui_state.charset_cursor_index,
+        ui_state.charset_selection_start,
+    );
 }
 
 pub struct CharsetView;
 
 impl Navigable for CharsetView {
     fn len(&self, app_state: &AppState) -> usize {
-        let origin = app_state.origin.0 as usize;
-        let base_alignment = 0x400;
-        let aligned_start_addr = (origin / base_alignment) * base_alignment;
-        let end_addr = origin + app_state.raw_data.len();
-        (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8)
+        Self::grid_range(app_state).item_count()
     }
 
     fn current_index(&self, _app_state: &AppState, ui_state: &UIState) -> usize {
@@ -62,61 +42,32 @@ impl Navigable for CharsetView {
     }
 
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
-        if ui_state.is_visual_mode {
-            if ui_state.charset_selection_start.is_none() {
-                ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
-            }
-        } else {
-            ui_state.charset_selection_start = None;
-        }
-        let max_char_index = self.len(app_state);
-        let grid_cols = charset_grid_cols(ui_state);
-        // Move Down by grid_cols (one visual row)
-        if ui_state.charset_cursor_index + (amount * grid_cols) < max_char_index {
-            ui_state.charset_cursor_index += amount * grid_cols;
-        } else {
-            ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
-        }
+        let total = self.len(app_state);
+        let delta = amount * charset_grid_cols(ui_state);
+        move_grid_cursor_down(
+            &mut ui_state.core.charset_cursor_index,
+            &mut ui_state.core.charset_selection_start,
+            ui_state.core.is_visual_mode,
+            false,
+            delta,
+            total,
+        );
     }
 
     fn move_up(&self, _app_state: &AppState, ui_state: &mut UIState, amount: usize) {
-        if ui_state.is_visual_mode {
-            if ui_state.charset_selection_start.is_none() {
-                ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
-            }
-        } else {
-            ui_state.charset_selection_start = None;
-        }
-        let grid_cols = charset_grid_cols(ui_state);
-        // Move Up by grid_cols (one visual row)
-        ui_state.charset_cursor_index = ui_state
-            .charset_cursor_index
-            .saturating_sub(amount * grid_cols);
-    }
-
-    fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
-        self.move_down(app_state, ui_state, 10);
-    }
-
-    fn page_up(&self, app_state: &AppState, ui_state: &mut UIState) {
-        self.move_up(app_state, ui_state, 10);
+        let delta = amount * charset_grid_cols(ui_state);
+        move_grid_cursor_up(
+            &mut ui_state.core.charset_cursor_index,
+            &mut ui_state.core.charset_selection_start,
+            ui_state.core.is_visual_mode,
+            false,
+            delta,
+        );
     }
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
         let max_char_index = self.len(app_state);
         ui_state.charset_cursor_index = index.min(max_char_index.saturating_sub(1));
-    }
-
-    fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
-        let max_char_index = self.len(app_state);
-        let target_char = if input == 0 {
-            max_char_index.saturating_sub(1)
-        } else {
-            input
-                .saturating_sub(1)
-                .min(max_char_index.saturating_sub(1))
-        };
-        ui_state.charset_cursor_index = target_char;
     }
 
     fn item_name(&self) -> &'static str {
@@ -135,6 +86,9 @@ fn charset_grid_cols(ui_state: &UIState) -> usize {
 }
 
 impl CharsetView {
+    const BASE_ALIGNMENT: usize = 0x400;
+    const CHAR_BYTES: usize = 8;
+
     /// Grid layout constants (must stay in sync with `render`).
     /// Note: `GRID_COLS` is now dynamic — use [`charset_grid_cols`] instead.
     const CHAR_RENDER_WIDTH: usize = 8;
@@ -143,33 +97,18 @@ impl CharsetView {
     const ITEM_WIDTH: usize = Self::CHAR_RENDER_WIDTH + Self::COL_SPACING; // 9
     const ITEM_HEIGHT: usize = 4 + Self::ROW_SPACING; // 5
 
-    /// Computes the scroll row using scroll-margin logic and clamps it to `total_rows`.
-    ///
-    /// Updates `ui_state.charset_scroll_row` in place and returns the clamped row.
-    fn compute_scroll_row(ui_state: &mut UIState, rows_fit: usize, total_rows: usize) -> usize {
-        let grid_cols = charset_grid_cols(ui_state);
-        let cursor_grid_row = ui_state.charset_cursor_index / grid_cols;
-        let margin = 1_usize.min(rows_fit / 3);
-
-        let mut scroll_row = ui_state.charset_scroll_row;
-
-        // Cursor too close to the bottom -> scroll down.
-        if cursor_grid_row >= scroll_row + rows_fit.saturating_sub(margin) {
-            scroll_row =
-                cursor_grid_row.saturating_sub(rows_fit.saturating_sub(margin).saturating_sub(1));
-        }
-        // Cursor too close to the top -> scroll up.
-        if cursor_grid_row < scroll_row + margin {
-            scroll_row = cursor_grid_row.saturating_sub(margin);
-        }
-
-        scroll_row = scroll_row.min(total_rows.saturating_sub(rows_fit));
-        ui_state.charset_scroll_row = scroll_row;
-        scroll_row
+    #[must_use]
+    fn grid_range(app_state: &AppState) -> AlignedGridRange {
+        AlignedGridRange::new(
+            app_state,
+            Self::BASE_ALIGNMENT,
+            Self::CHAR_BYTES,
+            Self::CHAR_BYTES,
+        )
     }
 
-    /// Map a mouse position (column, row) to a character index, replicating the
-    /// render loop's grid layout (scroll offset, header rows, grid geometry).
+    /// Map a mouse position (column, row) inside `inner_area` to a character index,
+    /// replicating the render loop's grid layout (scroll offset, header rows, grid geometry).
     ///
     /// Returns `None` if the position doesn't land on a character cell.
     #[must_use]
@@ -177,26 +116,16 @@ impl CharsetView {
         &self,
         mouse_col: u16,
         mouse_row: u16,
+        inner_area: Rect,
         app_state: &AppState,
         ui_state: &UIState,
     ) -> Option<usize> {
-        let area = ui_state.right_pane_area;
-        let inner_area = Rect {
-            x: area.x + 1,
-            y: area.y + 1,
-            width: area.width.saturating_sub(2),
-            height: area.height.saturating_sub(2),
-        };
-
         if app_state.raw_data.is_empty() {
             return None;
         }
 
-        let origin = app_state.origin.0 as usize;
-        let base_alignment = 0x400;
-        let aligned_start_addr = (origin / base_alignment) * base_alignment;
-        let end_address = origin + app_state.raw_data.len();
-        let total_chars = (end_address.saturating_sub(aligned_start_addr)).div_ceil(8);
+        let grid = Self::grid_range(app_state);
+        let total_chars = grid.item_count();
         let grid_cols = charset_grid_cols(ui_state);
 
         let visible_rows = inner_area.height as usize;
@@ -217,7 +146,7 @@ impl CharsetView {
                 break;
             }
 
-            let charset_address = aligned_start_addr + (row_idx * grid_cols * 8);
+            let charset_address = grid.item_addr(row_idx * grid_cols);
             // Header row (every 2048 bytes)
             if charset_address.is_multiple_of(2048) {
                 if click_rel_y == y_offset {
@@ -241,10 +170,7 @@ impl CharsetView {
                 }
 
                 let char_idx = row_idx * grid_cols + col_idx;
-                if char_idx < total_chars {
-                    return Some(char_idx);
-                }
-                return None;
+                return (char_idx < total_chars).then_some(char_idx);
             }
 
             // Check if click is in the row_spacing gap below the char cells
@@ -266,21 +192,9 @@ impl Widget for CharsetView {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        let area = ui_state.right_pane_area;
-        let inner_area = Rect {
-            x: area.x + 1,
-            y: area.y + 1,
-            width: area.width.saturating_sub(2),
-            height: area.height.saturating_sub(2),
-        };
-
-        if mouse.column < inner_area.x
-            || mouse.column >= inner_area.x + inner_area.width
-            || mouse.row < inner_area.y
-            || mouse.row >= inner_area.y + inner_area.height
-        {
+        let Some(inner_area) = right_pane_mouse_inner_area(ui_state, &mouse) else {
             return WidgetResult::Ignored;
-        }
+        };
 
         match mouse.kind {
             MouseEventKind::ScrollDown => {
@@ -294,24 +208,20 @@ impl Widget for CharsetView {
                 WidgetResult::Handled
             }
             MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => {
-                let is_drag = matches!(mouse.kind, MouseEventKind::Drag(_));
-                let shift_held = mouse.modifiers.contains(KeyModifiers::SHIFT);
-
-                if let Some(char_idx) =
-                    self.hit_test_char_index(mouse.column, mouse.row, app_state, ui_state)
-                {
-                    // Drag or Shift+Click or visual mode: anchor selection
-                    if is_drag || shift_held || ui_state.is_visual_mode {
-                        if ui_state.charset_selection_start.is_none() {
-                            ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
-                        }
-                    } else {
-                        // Plain click: clear selection
-                        ui_state.charset_selection_start = None;
-                    }
-
-                    ui_state.charset_cursor_index = char_idx;
-                }
+                let hit = self.hit_test_char_index(
+                    mouse.column,
+                    mouse.row,
+                    inner_area,
+                    app_state,
+                    ui_state,
+                );
+                apply_grid_mouse_click(
+                    &mouse,
+                    ui_state.core.is_visual_mode,
+                    &mut ui_state.core.charset_cursor_index,
+                    &mut ui_state.core.charset_selection_start,
+                    hit,
+                );
                 sync_charset_to_disassembly(app_state, ui_state);
                 WidgetResult::Handled
             }
@@ -327,16 +237,13 @@ impl Widget for CharsetView {
             Style::default().fg(ui_state.theme.border_inactive)
         };
 
-        let origin = app_state.origin.0 as usize;
-        // Align origin to next multiple of $400 as per user request (and consistent with events.rs)
-        let base_alignment = 0x400;
-        let aligned_start_addr = (origin / base_alignment) * base_alignment;
+        let grid = Self::grid_range(app_state);
 
         let cursor_info = if app_state.raw_data.is_empty() {
             String::new()
         } else {
-            let cursor_char_addr = aligned_start_addr + ui_state.charset_cursor_index * 8;
-            let cursor_char_idx = (cursor_char_addr / 8) % 256;
+            let cursor_char_addr = grid.item_addr(ui_state.charset_cursor_index);
+            let cursor_char_idx = (cursor_char_addr / Self::CHAR_BYTES) % 256;
             format!(" - Char #{cursor_char_idx}, Addr: ${cursor_char_addr:04X}")
         };
 
@@ -366,14 +273,20 @@ impl Widget for CharsetView {
 
         let visible_rows = inner_area.height as usize;
 
-        let end_address = origin + app_state.raw_data.len();
-        let total_chars = (end_address.saturating_sub(aligned_start_addr)).div_ceil(8);
+        let total_chars = grid.item_count();
         let grid_cols = charset_grid_cols(ui_state);
         let total_rows = total_chars.div_ceil(grid_cols);
 
         // Scroll-margin logic: shift viewport only when cursor enters the margin zone.
         let rows_fit = visible_rows.div_ceil(Self::ITEM_HEIGHT);
-        let scroll_row = Self::compute_scroll_row(ui_state, rows_fit, total_rows);
+        let scroll_row = compute_scroll_offset(
+            ui_state.charset_scroll_row,
+            ui_state.charset_cursor_index / grid_cols,
+            rows_fit,
+            total_rows,
+            1,
+        );
+        ui_state.charset_scroll_row = scroll_row;
 
         let end_row = scroll_row + rows_fit + 1; // Render a bit extra
 
@@ -384,7 +297,7 @@ impl Widget for CharsetView {
                 break;
             }
 
-            let charset_address = aligned_start_addr + (row_idx * grid_cols * 8);
+            let charset_address = grid.item_addr(row_idx * grid_cols);
             // Header every 2048 bytes (address-aligned)
             if charset_address.is_multiple_of(2048) {
                 // There can only be at most 8 charsets per VIC-II bank (16K per bank)
@@ -414,23 +327,17 @@ impl Widget for CharsetView {
                     continue;
                 }
 
-                let char_offset = char_idx * 8;
-                let char_addr = aligned_start_addr + char_offset;
+                let char_addr = grid.item_addr(char_idx);
 
                 // Render Char
                 let x_pos = inner_area.x + (col_idx * Self::ITEM_WIDTH) as u16 + 1; // +1 margin
                 let y_pos = inner_area.y + y_offset as u16;
 
-                let is_selected = if let Some(sel_start) = ui_state.charset_selection_start {
-                    let (start, end) = if sel_start < ui_state.charset_cursor_index {
-                        (sel_start, ui_state.charset_cursor_index)
-                    } else {
-                        (ui_state.charset_cursor_index, sel_start)
-                    };
-                    char_idx >= start && char_idx <= end
-                } else {
-                    char_idx == ui_state.charset_cursor_index
-                };
+                let is_selected = is_grid_item_selected(
+                    char_idx,
+                    ui_state.charset_cursor_index,
+                    ui_state.charset_selection_start,
+                );
 
                 // Draw 4 lines of half-blocks
                 for line in 0..4 {
@@ -438,19 +345,8 @@ impl Widget for CharsetView {
                         break;
                     }
 
-                    let row_addr_top = char_addr + line * 2;
-                    let byte_top = if row_addr_top >= origin && row_addr_top < end_address {
-                        app_state.raw_data[row_addr_top - origin]
-                    } else {
-                        0
-                    };
-
-                    let row_addr_bot = char_addr + line * 2 + 1;
-                    let byte_bot = if row_addr_bot >= origin && row_addr_bot < end_address {
-                        app_state.raw_data[row_addr_bot - origin]
-                    } else {
-                        0
-                    };
+                    let byte_top = grid.byte_at(&app_state.raw_data, char_addr + line * 2);
+                    let byte_bot = grid.byte_at(&app_state.raw_data, char_addr + line * 2 + 1);
 
                     // Different rendering for multicolor vs standard
                     if ui_state.charset_multicolor_mode {
@@ -484,8 +380,6 @@ impl Widget for CharsetView {
 
                             let mut style = Style::default().fg(color_top).bg(color_bot);
 
-                            // Apply selection - tricky with multicolor.
-                            // If selected, force background 00 to be selection_bg?
                             if is_selected {
                                 if bits_top == 0b00 {
                                     style = style.fg(ui_state.theme.selection_bg);
@@ -583,206 +477,27 @@ impl Widget for CharsetView {
             sync_charset_to_disassembly(app_state, ui_state);
             return WidgetResult::Handled;
         }
+        if key.code == KeyCode::Char('m') && key.modifiers.is_empty() {
+            return WidgetResult::Action(AppAction::ToggleCharsetMulticolor);
+        }
 
-        // Recalculate max_char_index for local logic (h/l)
-        // Or could we extract it?
-        // Let's rely on self.len() helper but it needs AppState.
-        // It's cleaner to just recalc here or use the helper if I made it public/extractable,
-        // but Navigable::len takes &self.
-        // So I can call self.len(app_state).
-
-        let result = match key.code {
-            // Escape cancels visual mode / selection
-            KeyCode::Esc if key.modifiers.is_empty() => {
-                if ui_state.charset_selection_start.is_some() || ui_state.is_visual_mode {
-                    ui_state.charset_selection_start = None;
-                    ui_state.is_visual_mode = false;
-                    ui_state.set_status_message("");
-                    WidgetResult::Handled
-                } else {
-                    WidgetResult::Ignored
-                }
-            }
-            // Visual mode toggle
-            KeyCode::Char('V')
-                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
-            {
-                if !app_state.raw_data.is_empty() {
-                    ui_state.is_visual_mode = !ui_state.is_visual_mode;
-                    if ui_state.is_visual_mode {
-                        ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
-                        ui_state.set_status_message("Visual Mode");
-                    } else {
-                        ui_state.charset_selection_start = None;
-                        ui_state.set_status_message("");
-                    }
-                }
-                WidgetResult::Handled
-            }
-            // Shift+Down for selection
-            KeyCode::Down if key.modifiers == KeyModifiers::SHIFT => {
-                let saved_selection = ui_state.charset_selection_start;
-                if saved_selection.is_none() {
-                    ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
-                }
-                let selection_to_keep = ui_state.charset_selection_start;
-                // Move cursor down by grid_cols (one visual row)
-                let max_char_index = self.len(app_state);
-                let grid_cols = charset_grid_cols(ui_state);
-                if ui_state.charset_cursor_index + grid_cols < max_char_index {
-                    ui_state.charset_cursor_index += grid_cols;
-                } else {
-                    ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
-                }
-                // Restore selection for shift+arrow mode
-                ui_state.charset_selection_start = selection_to_keep;
-                WidgetResult::Handled
-            }
-            // Shift+Up for selection
-            KeyCode::Up if key.modifiers == KeyModifiers::SHIFT => {
-                let saved_selection = ui_state.charset_selection_start;
-                if saved_selection.is_none() {
-                    ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
-                }
-                let selection_to_keep = ui_state.charset_selection_start;
-                // Move cursor up by grid_cols (one visual row)
-                let grid_cols = charset_grid_cols(ui_state);
-                ui_state.charset_cursor_index =
-                    ui_state.charset_cursor_index.saturating_sub(grid_cols);
-                // Restore selection for shift+arrow mode
-                ui_state.charset_selection_start = selection_to_keep;
-                WidgetResult::Handled
-            }
-            // Shift+Left for selection
-            KeyCode::Left if key.modifiers == KeyModifiers::SHIFT => {
-                let saved_selection = ui_state.charset_selection_start;
-                if saved_selection.is_none() {
-                    ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
-                }
-                let selection_to_keep = ui_state.charset_selection_start;
-                if ui_state.charset_cursor_index > 0 {
-                    ui_state.charset_cursor_index -= 1;
-                }
-                ui_state.charset_selection_start = selection_to_keep;
-                WidgetResult::Handled
-            }
-            // Shift+Right for selection
-            KeyCode::Right if key.modifiers == KeyModifiers::SHIFT => {
-                let saved_selection = ui_state.charset_selection_start;
-                if saved_selection.is_none() {
-                    ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
-                }
-                let selection_to_keep = ui_state.charset_selection_start;
-                let max_char_index = self.len(app_state);
-                if ui_state.charset_cursor_index < max_char_index.saturating_sub(1) {
-                    ui_state.charset_cursor_index += 1;
-                }
-                ui_state.charset_selection_start = selection_to_keep;
-                WidgetResult::Handled
-            }
-            // Guard `Left`/`Right`/`h`/`l` with `key.modifiers.is_empty()` so modified arrow keys
-            // (such as `Alt+Left`/`Alt+Right` or `Ctrl+Left`/`Ctrl+Right`) are not swallowed here.
-            KeyCode::Left | KeyCode::Char('h') if key.modifiers.is_empty() => {
-                ui_state.input_buffer.clear();
-                if ui_state.is_visual_mode {
-                    if ui_state.charset_selection_start.is_none() {
-                        ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
-                    }
-                } else {
-                    ui_state.charset_selection_start = None;
-                }
-                if ui_state.charset_cursor_index > 0 {
-                    ui_state.charset_cursor_index -= 1;
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Right | KeyCode::Char('l') if key.modifiers.is_empty() => {
-                ui_state.input_buffer.clear();
-                if ui_state.is_visual_mode {
-                    if ui_state.charset_selection_start.is_none() {
-                        ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
-                    }
-                } else {
-                    ui_state.charset_selection_start = None;
-                }
-                let max_char_index = self.len(app_state);
-                if ui_state.charset_cursor_index < max_char_index.saturating_sub(1) {
-                    ui_state.charset_cursor_index += 1;
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Char('m') if key.modifiers.is_empty() => {
-                WidgetResult::Action(AppAction::ToggleCharsetMulticolor)
-            }
-            KeyCode::Char('b') if key.modifiers.is_empty() => {
-                // Convert selected characters or current character to bytes block (8 bytes per character).
-                let origin = app_state.origin.0 as usize;
-                let base_alignment = 0x400;
-                let aligned_start_addr = (origin / base_alignment) * base_alignment;
-
-                // Determine character range based on selection.
-                let (start_char, end_char) =
-                    if let Some(sel_start) = ui_state.charset_selection_start {
-                        if sel_start < ui_state.charset_cursor_index {
-                            (sel_start, ui_state.charset_cursor_index)
-                        } else {
-                            (ui_state.charset_cursor_index, sel_start)
-                        }
-                    } else {
-                        (ui_state.charset_cursor_index, ui_state.charset_cursor_index)
-                    };
-
-                let start_addr = aligned_start_addr + (start_char * 8);
-                let end_addr = aligned_start_addr + ((end_char + 1) * 8) - 1;
-
-                if end_addr < origin || start_addr >= origin + app_state.raw_data.len() {
-                    return WidgetResult::Ignored;
-                }
-
-                // Calculate the byte offset range within raw_data.
-                let start_offset = start_addr.saturating_sub(origin);
-                let end_offset = (end_addr.saturating_sub(origin))
-                    .min(app_state.raw_data.len().saturating_sub(1));
-
-                // Clear all selection state (including `selection_start` synced to Core) before
-                // dispatching `SetBytesBlockByOffset` so `handle_menu_action` syncs the cleared
-                // visual/selection flags into `core.view`.
-                ui_state.charset_selection_start = None;
-                ui_state.is_visual_mode = false;
-                ui_state.selection_start = None;
-
-                if start_offset < app_state.raw_data.len() {
-                    WidgetResult::Action(AppAction::SetBytesBlockByOffset {
-                        start: start_offset,
-                        end: end_offset,
-                    })
-                } else {
-                    WidgetResult::Ignored
-                }
-            }
-            KeyCode::Enter if key.modifiers.is_empty() => {
-                let origin = app_state.origin.0 as usize;
-                let base_alignment = 0x400;
-                let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                let char_offset = ui_state.charset_cursor_index * 8;
-                let char_addr = aligned_start_addr + char_offset;
-
-                // If this char contains the origin, jump to origin instead of the aligned boundary
-                let target_addr = if origin >= char_addr && origin < char_addr + 8 {
-                    origin as u16
-                } else {
-                    char_addr as u16
-                };
-
-                crate::ui::navigable::jump_to_disassembly_at_address(
-                    app_state,
-                    ui_state,
-                    crate::state::Addr(target_addr),
-                )
-            }
-            _ => WidgetResult::Ignored,
-        };
-
+        let grid = Self::grid_range(app_state);
+        let cols = charset_grid_cols(ui_state);
+        let cursor = ui_state.charset_cursor_index;
+        let selection = ui_state.charset_selection_start;
+        let result = handle_grid_selection_input(
+            key,
+            app_state,
+            ui_state,
+            &grid,
+            cols,
+            cursor,
+            selection,
+            |ui, new_cursor, new_sel| {
+                ui.charset_cursor_index = new_cursor;
+                ui.charset_selection_start = new_sel;
+            },
+        );
         if matches!(result, WidgetResult::Handled) {
             sync_charset_to_disassembly(app_state, ui_state);
         }
@@ -795,6 +510,7 @@ mod tests {
     use super::*;
     use crate::state::{Addr, BlockType};
     use crate::theme::Theme;
+    use crossterm::event::KeyModifiers;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
 
