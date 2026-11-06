@@ -13,6 +13,7 @@ pub enum ViceEvent {
 
 pub struct ViceClient {
     cmd_tx: Sender<ViceMessage>,
+    event_rx: Option<mpsc::Receiver<ViceEvent>>,
 }
 
 impl ViceClient {
@@ -89,7 +90,21 @@ impl ViceClient {
             let _ = write_stream.shutdown(Shutdown::Both);
         });
 
-        Ok(Self { cmd_tx })
+        Ok(Self {
+            cmd_tx,
+            event_rx: None,
+        })
+    }
+
+    /// Stores the [`ViceEvent`] channel receiver inside this client so headless callers keep the reader channel open.
+    pub fn set_event_receiver(&mut self, rx: mpsc::Receiver<ViceEvent>) {
+        self.event_rx = Some(rx);
+    }
+
+    /// Returns a reference to the owned [`ViceEvent`] channel receiver, if set.
+    #[must_use]
+    pub fn event_receiver(&self) -> Option<&mpsc::Receiver<ViceEvent>> {
+        self.event_rx.as_ref()
     }
 
     pub fn send(&self, msg: ViceMessage) {

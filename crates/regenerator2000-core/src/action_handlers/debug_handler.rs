@@ -1,10 +1,10 @@
-//! Debug domain action handler for VICE monitor protocol, breakpoints, watchpoints, and step execution.
+//! Debug domain action handler for the VICE monitor protocol, checkpoints, and step execution.
 
 use super::{ActionContext, CoreError, DomainActionHandler};
 use crate::event::CoreEvent;
 use crate::state::actions::AppAction;
 
-/// Handler for VICE live debugging actions.
+/// Handler for live VICE debugging actions.
 #[derive(Debug, Default)]
 pub struct DebugActionHandler;
 
@@ -14,6 +14,37 @@ impl DebugActionHandler {
     pub fn new() -> Self {
         Self
     }
+}
+
+/// Toggles an execution breakpoint at `address` on the active VICE connection.
+fn handle_toggle_exec_breakpoint(ctx: &mut ActionContext<'_>, address: u16) {
+    let Some(client) = &ctx.state.vice_client else {
+        ctx.events.push(CoreEvent::StatusMessage(
+            "Not connected to VICE".to_string(),
+        ));
+        return;
+    };
+
+    let existing_id = ctx
+        .state
+        .vice_state
+        .breakpoints
+        .iter()
+        .find(|bp| bp.address == address && bp.kind == crate::vice::state::BreakpointKind::Exec)
+        .map(|bp| bp.id);
+
+    if let Some(id) = existing_id {
+        client.send_checkpoint_delete(id);
+        ctx.events.push(CoreEvent::StatusMessage(format!(
+            "Deleting breakpoint #{id} at ${address:04X}"
+        )));
+    } else {
+        client.send_checkpoint_set_exec(address);
+        ctx.events.push(CoreEvent::StatusMessage(format!(
+            "Creating breakpoint at ${address:04X}"
+        )));
+    }
+    ctx.events.push(CoreEvent::StateChanged);
 }
 
 impl DomainActionHandler for DebugActionHandler {
@@ -33,10 +64,14 @@ impl DomainActionHandler for DebugActionHandler {
                 Ok(true)
             }
             AppAction::ViceConnectAddress(addr) => {
-                let (tx, _rx) = std::sync::mpsc::channel();
+                let (tx, rx) = std::sync::mpsc::channel();
                 match crate::vice::ViceClient::connect(addr, tx) {
-                    Ok(client) => {
+                    Ok(mut client) => {
+                        client.set_event_receiver(rx);
                         ctx.state.vice_state.previous = Some(ctx.state.vice_state.snapshot());
+                        ctx.state.vice_state.connected = true;
+                        client.send_registers_get();
+                        client.send_checkpoint_list();
                         ctx.state.vice_client = Some(client);
                         ctx.events.push(CoreEvent::StatusMessage(format!(
                             "Connected to VICE at {addr}"
@@ -126,34 +161,12 @@ impl DomainActionHandler for DebugActionHandler {
                 Ok(true)
             }
             AppAction::ViceToggleBreakpoint => {
-                if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
-                    let checkpoint_id = ctx
-                        .state
-                        .vice_state
-                        .breakpoints
-                        .iter()
-                        .find(|bp| {
-                            bp.address == line.address.0
-                                && bp.kind == crate::vice::state::BreakpointKind::Exec
-                        })
-                        .map(|bp| bp.id);
-
-                    if let Some(id) = checkpoint_id {
-                        if let Some(client) = &ctx.state.vice_client {
-                            client.send_checkpoint_delete(id);
-                            ctx.events.push(CoreEvent::StatusMessage(format!(
-                                "Deleting breakpoint #{id} at ${:04X}",
-                                line.address.0
-                            )));
-                        }
-                    } else if let Some(client) = &ctx.state.vice_client {
-                        client.send_checkpoint_set_exec(line.address.0);
-                        ctx.events.push(CoreEvent::StatusMessage(format!(
-                            "Creating breakpoint at ${:04X}",
-                            line.address.0
-                        )));
-                    }
-                    ctx.events.push(CoreEvent::StateChanged);
+                if ctx.state.vice_client.is_none() {
+                    ctx.events.push(CoreEvent::StatusMessage(
+                        "Not connected to VICE".to_string(),
+                    ));
+                } else if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
+                    handle_toggle_exec_breakpoint(ctx, line.address.0);
                 }
                 Ok(true)
             }
@@ -169,33 +182,7 @@ impl DomainActionHandler for DebugActionHandler {
                 Ok(true)
             }
             AppAction::ViceSetBreakpointAt { address } => {
-                if let Some(client) = &ctx.state.vice_client {
-                    let existing_id = ctx
-                        .state
-                        .vice_state
-                        .breakpoints
-                        .iter()
-                        .find(|bp| {
-                            bp.address == address.0
-                                && bp.kind == crate::vice::state::BreakpointKind::Exec
-                        })
-                        .map(|bp| bp.id);
-
-                    if let Some(id) = existing_id {
-                        client.send_checkpoint_delete(id);
-                        ctx.events.push(CoreEvent::StatusMessage(format!(
-                            "Deleting breakpoint #{id} at ${:04X}",
-                            address.0
-                        )));
-                    } else {
-                        client.send_checkpoint_set_exec(address.0);
-                        ctx.events.push(CoreEvent::StatusMessage(format!(
-                            "Creating breakpoint at ${:04X}",
-                            address.0
-                        )));
-                    }
-                    ctx.events.push(CoreEvent::StateChanged);
-                }
+                handle_toggle_exec_breakpoint(ctx, address.0);
                 Ok(true)
             }
             AppAction::ViceToggleWatchpoint => {
@@ -231,49 +218,152 @@ impl DomainActionHandler for DebugActionHandler {
                 Ok(true)
             }
             AppAction::ViceSetWatchpoint { address, kind } => {
-                if let Some(client) = &ctx.state.vice_client {
-                    let existing_id = ctx
-                        .state
-                        .vice_state
-                        .breakpoints
-                        .iter()
-                        .find(|bp| {
-                            bp.address == address.0
-                                && bp.kind != crate::vice::state::BreakpointKind::Exec
-                        })
-                        .map(|bp| bp.id);
+                let Some(client) = &ctx.state.vice_client else {
+                    ctx.events.push(CoreEvent::StatusMessage(
+                        "Not connected to VICE".to_string(),
+                    ));
+                    return Ok(true);
+                };
 
-                    if let Some(id) = existing_id {
-                        client.send_checkpoint_delete(id);
-                        ctx.events.push(CoreEvent::StatusMessage(format!(
-                            "Deleting watchpoint #{id} at ${:04X}",
-                            address.0
-                        )));
-                    } else {
-                        match kind {
-                            crate::vice::state::BreakpointKind::Load => {
-                                client.send_checkpoint_set_load(address.0);
-                            }
-                            crate::vice::state::BreakpointKind::Store => {
-                                client.send_checkpoint_set_store(address.0);
-                            }
-                            crate::vice::state::BreakpointKind::LoadStore => {
-                                client.send_checkpoint_set_load_store(address.0);
-                            }
-                            _ => {
-                                client.send_checkpoint_set_load_store(address.0);
-                            }
+                let existing_id = ctx
+                    .state
+                    .vice_state
+                    .breakpoints
+                    .iter()
+                    .find(|bp| {
+                        bp.address == address.0
+                            && bp.kind != crate::vice::state::BreakpointKind::Exec
+                    })
+                    .map(|bp| bp.id);
+
+                if let Some(id) = existing_id {
+                    client.send_checkpoint_delete(id);
+                    ctx.events.push(CoreEvent::StatusMessage(format!(
+                        "Deleting watchpoint #{id} at ${:04X}",
+                        address.0
+                    )));
+                } else {
+                    match kind {
+                        crate::vice::state::BreakpointKind::Load => {
+                            client.send_checkpoint_set_load(address.0);
                         }
-                        ctx.events.push(CoreEvent::StatusMessage(format!(
-                            "Creating watchpoint at ${:04X}",
-                            address.0
-                        )));
+                        crate::vice::state::BreakpointKind::Store => {
+                            client.send_checkpoint_set_store(address.0);
+                        }
+                        crate::vice::state::BreakpointKind::LoadStore
+                        | crate::vice::state::BreakpointKind::Exec => {
+                            client.send_checkpoint_set_load_store(address.0);
+                        }
                     }
-                    ctx.events.push(CoreEvent::StateChanged);
+                    ctx.events.push(CoreEvent::StatusMessage(format!(
+                        "Creating watchpoint at ${:04X}",
+                        address.0
+                    )));
                 }
+                ctx.events.push(CoreEvent::StateChanged);
                 Ok(true)
             }
             _ => Ok(false),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::AppState;
+    use crate::state::types::Addr;
+    use crate::view_state::CoreViewState;
+
+    #[test]
+    fn test_vice_connect_address_retains_event_receiver() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr_str = listener.local_addr().unwrap().to_string();
+
+        let mut state = AppState::new();
+        let mut view = CoreViewState::new();
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = DebugActionHandler::new();
+        assert!(
+            handler
+                .handle_action(&AppAction::ViceConnectAddress(addr_str), &mut ctx)
+                .unwrap()
+        );
+        assert!(ctx.state.vice_state.connected);
+        let client = ctx
+            .state
+            .vice_client
+            .as_ref()
+            .expect("Expected connected ViceClient");
+        let rx = client
+            .event_receiver()
+            .expect("Expected event_receiver to remain attached");
+        let first_event = rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .expect("Expected ViceEvent::Connected");
+        assert!(matches!(first_event, crate::vice::ViceEvent::Connected));
+    }
+
+    #[test]
+    fn test_disconnected_breakpoint_and_watchpoint_actions_report_status() {
+        let mut state = AppState::new();
+        state.load_binary(Addr(0x1000), vec![0xEA]).unwrap();
+        let mut view = CoreViewState::new();
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = DebugActionHandler::new();
+        handler
+            .handle_action(&AppAction::ViceToggleBreakpoint, &mut ctx)
+            .unwrap();
+        assert_eq!(
+            *ctx.events,
+            vec![CoreEvent::StatusMessage(
+                "Not connected to VICE".to_string()
+            )]
+        );
+
+        ctx.events.clear();
+        handler
+            .handle_action(
+                &AppAction::ViceSetBreakpointAt {
+                    address: Addr(0x1000),
+                },
+                &mut ctx,
+            )
+            .unwrap();
+        assert_eq!(
+            *ctx.events,
+            vec![CoreEvent::StatusMessage(
+                "Not connected to VICE".to_string()
+            )]
+        );
+
+        ctx.events.clear();
+        handler
+            .handle_action(
+                &AppAction::ViceSetWatchpoint {
+                    address: Addr(0x1000),
+                    kind: crate::vice::state::BreakpointKind::Store,
+                },
+                &mut ctx,
+            )
+            .unwrap();
+        assert_eq!(
+            *ctx.events,
+            vec![CoreEvent::StatusMessage(
+                "Not connected to VICE".to_string()
+            )]
+        );
     }
 }

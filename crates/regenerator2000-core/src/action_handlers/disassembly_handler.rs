@@ -19,88 +19,104 @@ impl DisassemblyActionHandler {
     }
 }
 
-/// Applies `new_type` to the currently active line, range selection (`Shift+V` or `Shift+Arrows`),
-/// or selected block in `Blocks` view, and records an undoable batch command.
+/// Returns the half-open binary byte offset range `start..end` covered by `line`.
+///
+/// Returns `None` for external equates, preamble headers, splitters, and scope delimiters.
+fn line_byte_offset_range(
+    state: &crate::state::AppState,
+    line: &crate::disassembler::DisassemblyLine,
+) -> Option<std::ops::Range<usize>> {
+    if line.external_label_address.is_some() || state.is_external(line.address) {
+        return None;
+    }
+    let start_offset = line.address.offset_from(state.origin);
+    if start_offset >= state.raw_data.len() {
+        return None;
+    }
+    if line.is_collapsed {
+        if let Some(&(_, end_offset)) = state
+            .collapsed_blocks
+            .iter()
+            .find(|&&(s, _)| s == start_offset)
+        {
+            let end_excl = (end_offset + 1).min(state.raw_data.len());
+            return Some(start_offset..end_excl);
+        }
+        if let Some((start_addr, end_addr)) = state.get_block_range(line.address) {
+            let s = start_addr.offset_from(state.origin);
+            let e = (end_addr.offset_from(state.origin) + 1).min(state.raw_data.len());
+            return Some(s..e);
+        }
+    }
+    if line.bytes.is_empty() {
+        return None;
+    }
+    let end_excl = (start_offset + line.bytes.len()).min(state.raw_data.len());
+    Some(start_offset..end_excl)
+}
+
+/// Applies `block_cmd`, records the pre-command analysis snapshot, rebuilds disassembly, and pushes a batch command.
+fn apply_block_command_with_analysis(
+    state: &mut crate::state::AppState,
+    block_cmd: crate::commands::Command,
+) {
+    let old_labels = state.labels.clone();
+    let old_cross_refs = state.cross_refs.clone();
+    block_cmd.apply(state);
+    let analysis_cmd = crate::commands::Command::SetAnalysisData {
+        labels: state.labels.clone(),
+        cross_refs: state.cross_refs.clone(),
+        old_labels,
+        old_cross_refs,
+    };
+    state.disassemble();
+    state.push_command(crate::commands::Command::Batch(vec![
+        analysis_cmd,
+        block_cmd,
+    ]));
+}
+
+/// Applies `new_type` to the active line, range selection, or selected block in `Blocks` view.
 fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockType) {
-    let origin = ctx.state.origin.0;
     let selected_range = match ctx.view.active_pane {
         ActivePane::Disassembly => {
-            // Check both persistent visual mode (`Shift+V`, where `is_visual_mode` is true)
-            // and transient `Shift+Arrow` range selection (where `selection_start` is `Some`
-            // while `is_visual_mode` remains false) so block conversions apply across the
-            // entire selected range in both workflows.
+            // Support both persistent visual mode (`Shift+V`) and `Shift+Arrow` range selection.
             if ctx.view.is_visual_mode || ctx.view.selection_start.is_some() {
                 let start_idx = ctx.view.selection_start.unwrap_or(ctx.view.cursor_index);
                 let end_idx = ctx.view.cursor_index;
                 let (min_idx, max_idx) = (start_idx.min(end_idx), start_idx.max(end_idx));
 
-                let min_addr = ctx.state.disassembly.get(min_idx).map(|l| l.address);
-                let max_addr = ctx.state.disassembly.get(max_idx).map(|l| {
-                    if l.bytes.is_empty() {
-                        l.address
-                    } else {
-                        l.address.wrapping_add(l.bytes.len() as u16 - 1)
-                    }
-                });
-
-                if let (Some(start), Some(end)) = (min_addr, max_addr) {
-                    if start.0 >= origin && end.0 >= origin && start.0 <= end.0 {
-                        let start_offset = (start.0 - origin) as usize;
-                        let end_offset = (end.0 - origin) as usize;
-                        if start_offset < ctx.state.raw_data.len()
-                            && end_offset < ctx.state.raw_data.len()
-                        {
-                            Some(start_offset..(end_offset + 1))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            } else if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
-                let addr = line.address.0;
-                if addr >= origin {
-                    let offset = (addr - origin) as usize;
-                    if offset < ctx.state.raw_data.len() {
-                        let len = if line.bytes.is_empty() {
-                            1
-                        } else {
-                            line.bytes.len()
-                        };
-                        let end_offset = (offset + len).min(ctx.state.raw_data.len());
-                        Some(offset..end_offset)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+                ctx.state
+                    .disassembly
+                    .get(min_idx..=max_idx)
+                    .and_then(|slice| {
+                        let first = slice
+                            .iter()
+                            .find_map(|l| line_byte_offset_range(ctx.state, l))?;
+                        let last = slice
+                            .iter()
+                            .rev()
+                            .find_map(|l| line_byte_offset_range(ctx.state, l))?;
+                        (first.start < last.end).then_some(first.start..last.end)
+                    })
             } else {
-                None
+                ctx.state
+                    .disassembly
+                    .get(ctx.view.cursor_index)
+                    .and_then(|line| line_byte_offset_range(ctx.state, line))
             }
         }
         ActivePane::Blocks => {
             let blocks = ctx.state.get_blocks_view_items();
             let idx = ctx.view.blocks_selected_index.unwrap_or(0);
-            if idx < blocks.len()
-                && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+            if let Some(crate::state::BlockItem::Block { start, end, .. }) = blocks.get(idx)
+                && !ctx.state.is_external(*start)
+                && !ctx.state.is_external(*end)
             {
-                if start.0 >= origin && end.0 >= origin && start.0 <= end.0 {
-                    let start_offset = (start.0 - origin) as usize;
-                    let end_offset = (end.0 - origin) as usize;
-                    if start_offset < ctx.state.raw_data.len()
-                        && end_offset < ctx.state.raw_data.len()
-                    {
-                        Some(start_offset..(end_offset + 1))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+                let start_offset = start.offset_from(ctx.state.origin);
+                let end_offset = end.offset_from(ctx.state.origin);
+                (start_offset <= end_offset && end_offset < ctx.state.raw_data.len())
+                    .then_some(start_offset..(end_offset + 1))
             } else {
                 None
             }
@@ -132,11 +148,8 @@ fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockTy
     };
 
     ctx.preserve_cursor(|c| {
-        cmd1.apply(c.state);
-        let (cmd2, _) = c.state.perform_analysis();
-        c.state
-            .push_command(crate::commands::Command::Batch(vec![cmd1, cmd2]));
-        // Exit both visual mode and Shift+Arrow range selection once the conversion succeeds.
+        apply_block_command_with_analysis(c.state, cmd1);
+        // Clear both visual mode and Shift+Arrow range selection after conversion.
         c.view.selection_start = None;
         c.view.is_visual_mode = false;
     });
@@ -148,9 +161,17 @@ fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockTy
     ctx.events.push(CoreEvent::ViewChanged);
 }
 
-/// Creates a lexical scope covering either the active multi-line selection (`Shift+V` or
-/// `Shift+Arrows`) or the subroutine starting at the cursor up to the next terminating control-flow
-/// instruction (`RTS`, `RTI`, or `JMP`).
+/// Returns `true` if `line` represents in-range binary content that can anchor a lexical scope.
+fn is_scope_content_line(
+    state: &crate::state::AppState,
+    line: &crate::disassembler::DisassemblyLine,
+) -> bool {
+    line.external_label_address.is_none()
+        && !state.is_external(line.address)
+        && (!line.bytes.is_empty() || line.is_collapsed)
+}
+
+/// Creates a lexical scope for the active selection or the subroutine at the cursor.
 fn handle_add_scope(ctx: &mut ActionContext<'_>) {
     // Support both persistent visual mode (`Shift+V`) and `Shift+Arrow` range selection.
     let scope_range = if ctx.view.is_visual_mode || ctx.view.selection_start.is_some() {
@@ -158,24 +179,34 @@ fn handle_add_scope(ctx: &mut ActionContext<'_>) {
         let end_idx = ctx.view.cursor_index;
         let (min_idx, max_idx) = (start_idx.min(end_idx), start_idx.max(end_idx));
 
-        let start_addr = ctx.state.disassembly.get(min_idx).map(|l| l.address);
-        let end_addr = ctx.state.disassembly.get(max_idx).map(|l| l.address);
-
-        if let (Some(start), Some(end)) = (start_addr, end_addr) {
-            Some((start, end))
-        } else {
-            None
-        }
+        ctx.state
+            .disassembly
+            .get(min_idx..=max_idx)
+            .and_then(|slice| {
+                let start = slice
+                    .iter()
+                    .find(|l| is_scope_content_line(ctx.state, l))
+                    .map(|l| l.address)?;
+                let end = slice
+                    .iter()
+                    .rev()
+                    .find(|l| is_scope_content_line(ctx.state, l))
+                    .map(|l| l.address)?;
+                (start <= end).then_some((start, end))
+            })
     } else if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
+        if !is_scope_content_line(ctx.state, line) {
+            return;
+        }
         let start_addr = line.address;
-        let current_scope = ctx
+        let in_existing_scope = ctx
             .state
             .annotations
+            .scopes()
             .iter()
-            .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
-            .find(|&(s, e)| start_addr >= s && start_addr <= e);
+            .any(|(&s, &e)| start_addr >= s && start_addr <= e);
 
-        if current_scope.is_some() {
+        if in_existing_scope {
             ctx.events.push(CoreEvent::StatusMessage(
                 "Scope already exists at target position".to_string(),
             ));
@@ -198,12 +229,19 @@ fn handle_add_scope(ctx: &mut ActionContext<'_>) {
     };
 
     if let Some((start_addr, end_addr)) = scope_range {
+        if start_addr > end_addr
+            || ctx.state.is_external(start_addr)
+            || ctx.state.is_external(end_addr)
+        {
+            return;
+        }
+
         let overlaps = ctx
             .state
             .annotations
+            .scopes()
             .iter()
-            .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
-            .any(|(s, e)| !(end_addr < s || start_addr > e));
+            .any(|(&s, &e)| !(end_addr < s || start_addr > e));
 
         if overlaps {
             ctx.events.push(CoreEvent::StatusMessage(
@@ -255,6 +293,7 @@ fn handle_add_scope(ctx: &mut ActionContext<'_>) {
     }
 }
 
+/// Expands or shrinks the end boundary of the active scope by one disassembly content line.
 fn handle_nudge_scope_boundary(ctx: &mut ActionContext<'_>, expand: bool) {
     let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) else {
         return;
@@ -263,9 +302,10 @@ fn handle_nudge_scope_boundary(ctx: &mut ActionContext<'_>, expand: bool) {
     let active_scope = ctx
         .state
         .annotations
+        .scopes()
         .iter()
-        .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
-        .find(|&(s, e)| current_addr >= s && current_addr <= e);
+        .find(|&(&s, &e)| current_addr >= s && current_addr <= e)
+        .map(|(&s, &e)| (s, e));
 
     let Some((start_addr, end_addr)) = active_scope else {
         ctx.events.push(CoreEvent::StatusMessage(
@@ -274,45 +314,37 @@ fn handle_nudge_scope_boundary(ctx: &mut ActionContext<'_>, expand: bool) {
         return;
     };
 
-    let line_indices: Vec<usize> = ctx
+    let Some(end_idx) = ctx
         .state
-        .disassembly
-        .iter()
-        .enumerate()
-        .filter(|(_, l)| !l.bytes.is_empty())
-        .map(|(idx, _)| idx)
-        .collect();
-
-    let Some(end_idx) = ctx.state.get_line_index_for_address(end_addr) else {
-        return;
-    };
-    let Some(curr_line_pos) = line_indices.iter().position(|&i| i == end_idx) else {
+        .get_line_index_containing_address(end_addr)
+        .or_else(|| ctx.state.get_line_index_for_address(end_addr))
+    else {
         return;
     };
 
-    let new_pos = if expand {
-        curr_line_pos + 1
+    let target_line_idx = if expand {
+        (end_idx + 1..ctx.state.disassembly.len())
+            .find(|&i| !ctx.state.disassembly[i].bytes.is_empty())
     } else {
-        curr_line_pos.saturating_sub(1)
+        (0..end_idx)
+            .rev()
+            .find(|&i| !ctx.state.disassembly[i].bytes.is_empty())
+    };
+    let Some(target_line_idx) = target_line_idx else {
+        return;
     };
 
-    if new_pos >= line_indices.len() {
-        return;
-    }
-
-    let target_line_idx = line_indices[new_pos];
     let new_end_addr = ctx.state.disassembly[target_line_idx].address;
-
-    if new_end_addr < start_addr {
+    if new_end_addr < start_addr || new_end_addr == end_addr {
         return;
     }
 
     let other_overlap = ctx
         .state
         .annotations
+        .scopes()
         .iter()
-        .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
-        .any(|(s, e)| s != start_addr && !(new_end_addr < s || start_addr > e));
+        .any(|(&s, &e)| s != start_addr && !(new_end_addr < s || start_addr > e));
 
     if other_overlap {
         ctx.events.push(CoreEvent::StatusMessage(
@@ -342,15 +374,17 @@ fn handle_nudge_scope_boundary(ctx: &mut ActionContext<'_>, expand: bool) {
     ctx.events.push(CoreEvent::ViewChanged);
 }
 
+/// Removes the lexical scope that contains the current cursor address.
 fn handle_remove_scope(ctx: &mut ActionContext<'_>) {
     if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
         let current_addr = line.address;
         let active_scope = ctx
             .state
             .annotations
+            .scopes()
             .iter()
-            .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
-            .find(|&(s, e)| current_addr >= s && current_addr <= e);
+            .find(|&(&s, &e)| current_addr >= s && current_addr <= e)
+            .map(|(&s, &e)| (s, e));
 
         if let Some((start_addr, end_addr)) = active_scope {
             let cmd_scope = crate::commands::Command::RemoveScope {
@@ -379,40 +413,35 @@ fn handle_remove_scope(ctx: &mut ActionContext<'_>) {
     }
 }
 
+/// Applies or clears a user label at `address` and emits status and state events.
 fn handle_apply_label(ctx: &mut ActionContext<'_>, address: Addr, name: &str, is_local: bool) {
-    if name.trim().is_empty() {
-        if let Ok(command) = ctx
-            .state
-            .create_set_user_label_command(address, "", is_local)
-        {
+    let trimmed = name.trim();
+    match ctx
+        .state
+        .create_set_user_label_command(address, trimmed, is_local)
+    {
+        Ok(command) => {
             ctx.preserve_cursor(|c| {
                 command.apply(c.state);
                 c.state.push_command(command);
                 c.state.disassemble();
             });
+            let msg = if trimmed.is_empty() {
+                format!("Label cleared at ${address:04X}")
+            } else {
+                format!("Label '{name}' applied to ${address:04X}")
+            };
+            ctx.events.push(CoreEvent::StatusMessage(msg));
+            ctx.events.push(CoreEvent::StateChanged);
+            ctx.events.push(CoreEvent::ViewChanged);
         }
-        ctx.events.push(CoreEvent::StatusMessage(format!(
-            "Label cleared at ${address:04X}"
-        )));
-    } else {
-        if let Ok(command) = ctx
-            .state
-            .create_set_user_label_command(address, name, is_local)
-        {
-            ctx.preserve_cursor(|c| {
-                command.apply(c.state);
-                c.state.push_command(command);
-                c.state.disassemble();
-            });
+        Err(err) => {
+            ctx.events.push(CoreEvent::StatusMessage(err));
         }
-        ctx.events.push(CoreEvent::StatusMessage(format!(
-            "Label '{name}' applied to ${address:04X}"
-        )));
     }
-    ctx.events.push(CoreEvent::StateChanged);
-    ctx.events.push(CoreEvent::ViewChanged);
 }
 
+/// Applies or clears an enum operand annotation at `address`.
 fn handle_apply_enum_usage(ctx: &mut ActionContext<'_>, address: Addr, enum_name: Option<&str>) {
     let old_enum = ctx
         .state
@@ -438,6 +467,7 @@ fn handle_apply_enum_usage(ctx: &mut ActionContext<'_>, address: Addr, enum_name
     ctx.events.push(CoreEvent::ViewChanged);
 }
 
+/// Applies a user side comment or line comment at `address`.
 fn handle_apply_comment(
     ctx: &mut ActionContext<'_>,
     address: Addr,
@@ -462,8 +492,7 @@ fn handle_apply_comment(
 /// Opens the label editor dialog for the 6502 [`Addr`] at `(cursor_index, sub_cursor_index)`.
 ///
 /// Uses [`DisassemblyLine::address_at_sub_index`](crate::disassembler::DisassemblyLine::address_at_sub_index)
-/// so invoking `SetLabel` while the sub-cursor is parked on a mid-instruction relative label row
-/// (`* + offset`) edits that intermediate byte's label rather than the instruction's base address.
+/// so mid-instruction label rows (`* + offset`) edit the intermediate byte label.
 fn handle_set_label(ctx: &mut ActionContext<'_>) {
     if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
         let is_external = line.external_label_address.is_some();
@@ -506,18 +535,25 @@ fn handle_set_label(ctx: &mut ActionContext<'_>) {
     }
 }
 
+/// Returns the immediate operand byte if `line` is an immediate `LDA`, `LDX`, or `LDY` instruction.
+fn extract_immediate_load_byte(line: &crate::disassembler::DisassemblyLine) -> Option<u8> {
+    if let Some(op) = &line.opcode
+        && op.mode == crate::cpu::AddressingMode::Immediate
+        && matches!(op.mnemonic, "LDA" | "LDX" | "LDY")
+    {
+        line.bytes.get(1).copied()
+    } else {
+        None
+    }
+}
+
+/// Pairs immediate load instructions into 16-bit low/high or high/low address operands.
 fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
     let mut indices = Vec::new();
     if let Some(start) = ctx.view.selection_start {
         let end = ctx.view.cursor_index;
-        let (low, high) = if start < end {
-            (start, end)
-        } else {
-            (end, start)
-        };
-        for i in low..=high {
-            indices.push(i);
-        }
+        let (low, high) = (start.min(end), start.max(end));
+        indices.extend(low..=high);
     } else {
         indices.push(ctx.view.cursor_index);
     }
@@ -535,33 +571,23 @@ fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
 
     while i < indices.len() {
         let idx1 = indices[i];
-        let val1 = ctx.state.disassembly.get(idx1).and_then(|l| {
-            if let Some(op) = &l.opcode
-                && op.mode == crate::cpu::AddressingMode::Immediate
-                && matches!(op.mnemonic, "LDA" | "LDX" | "LDY")
-            {
-                l.bytes.get(1).copied()
-            } else {
-                None
-            }
-        });
+        let val1 = ctx
+            .state
+            .disassembly
+            .get(idx1)
+            .and_then(extract_immediate_load_byte);
 
         if let Some(v1) = val1 {
             let mut j = i + 1;
             let mut found_match = None;
             while j < indices.len() {
                 let idx2 = indices[j];
-                let val2 = ctx.state.disassembly.get(idx2).and_then(|l| {
-                    if let Some(op) = &l.opcode
-                        && op.mode == crate::cpu::AddressingMode::Immediate
-                        && matches!(op.mnemonic, "LDA" | "LDX" | "LDY")
-                    {
-                        l.bytes.get(1).copied()
-                    } else {
-                        None
-                    }
-                });
-                if let Some(v2) = val2 {
+                if let Some(v2) = ctx
+                    .state
+                    .disassembly
+                    .get(idx2)
+                    .and_then(extract_immediate_load_byte)
+                {
                     found_match = Some((j, idx2, v2));
                     break;
                 }
@@ -622,7 +648,6 @@ fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
             let (analysis_cmd, _) = c.state.perform_analysis();
             let final_cmd = crate::commands::Command::Batch(vec![batch, analysis_cmd]);
             c.state.push_command(final_cmd);
-            c.state.disassemble();
 
             c.view.selection_start = None;
             c.view.is_visual_mode = false;
@@ -636,10 +661,7 @@ fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
     } else if ctx.view.selection_start.is_none() {
         let idx = ctx.view.cursor_index;
         if let Some(line) = ctx.state.disassembly.get(idx)
-            && let Some(op) = &line.opcode
-            && op.mode == crate::cpu::AddressingMode::Immediate
-            && matches!(op.mnemonic, "LDA" | "LDX" | "LDY")
-            && let Some(known_byte) = line.bytes.get(1).copied()
+            && let Some(known_byte) = extract_immediate_load_byte(line)
         {
             ctx.events.push(CoreEvent::DialogRequested(
                 crate::event::DialogType::CompleteAddress {
@@ -658,6 +680,7 @@ fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
     }
 }
 
+/// Cycles the immediate operand display format at the current disassembly line.
 fn cycle_immediate_format(ctx: &mut ActionContext<'_>, forward: bool) {
     use crate::state::types::ImmediateFormat;
     if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
@@ -712,13 +735,10 @@ fn cycle_immediate_format(ctx: &mut ActionContext<'_>, forward: bool) {
     }
 }
 
-/// Toggles the collapsed state of the target block, resolving the block from
-/// `blocks_selected_index` when invoked from [`ActivePane::Blocks`] or from the disassembly
-/// cursor line otherwise.
+/// Toggles the collapsed state of the target block in `Blocks` view or `Disassembly` view.
 fn toggle_collapsed_block(ctx: &mut ActionContext<'_>) {
-    // When invoked from the Blocks pane (`Ctrl+K`), collapse/expand the block highlighted in
-    // `BlocksView` rather than the block under the DisassemblyView cursor, which may point to a
-    // different block if `sync_blocks_view` is disabled or the user navigated the Blocks list.
+    // In the Blocks pane (`Ctrl+K`), resolve the block from `blocks_selected_index`.
+    // This targets the highlighted block even when `sync_blocks_view` is disabled.
     let block_range = if ctx.view.active_pane == ActivePane::Blocks {
         let blocks = ctx.state.get_blocks_view_items();
         let idx = ctx.view.blocks_selected_index.unwrap_or(0);
@@ -872,16 +892,9 @@ impl DomainActionHandler for DisassemblyActionHandler {
                 }
                 if !commands.is_empty() {
                     let batch = crate::commands::Command::Batch(commands);
-                    batch.apply(ctx.state);
-                    let (analysis_cmd, _) = ctx.state.perform_analysis();
-                    let final_cmd = crate::commands::Command::Batch(vec![batch, analysis_cmd]);
-                    ctx.state.push_command(final_cmd);
-
-                    if let Some(idx) = ctx.state.get_line_index_containing_address(addr) {
-                        ctx.view.cursor_index = idx;
-                    } else if let Some(idx) = ctx.state.get_line_index_for_address(addr) {
-                        ctx.view.cursor_index = idx;
-                    }
+                    ctx.preserve_cursor(|c| {
+                        apply_block_command_with_analysis(c.state, batch);
+                    });
 
                     ctx.events.push(CoreEvent::StatusMessage(format!(
                         "Flow analyzed from ${:04X}",
@@ -910,11 +923,7 @@ impl DomainActionHandler for DisassemblyActionHandler {
                         old_types,
                     };
                     ctx.preserve_cursor(|c| {
-                        cmd1.apply(c.state);
-                        c.state.disassemble();
-                        let (cmd2, _) = c.state.perform_analysis();
-                        c.state
-                            .push_command(crate::commands::Command::Batch(vec![cmd1, cmd2]));
+                        apply_block_command_with_analysis(c.state, cmd1);
                     });
 
                     let origin = ctx.state.origin.0 as usize;
@@ -1160,9 +1169,8 @@ impl DomainActionHandler for DisassemblyActionHandler {
             AppAction::ToggleBookmark => {
                 if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
                     if line.external_label_address.is_none() {
-                        // Resolve `sub_cursor_index` via `address_at_sub_index` so toggling a
-                        // bookmark on a mid-instruction label row (`* + offset`) bookmarks that
-                        // intermediate byte address, matching the `+` indicator in the TUI gutter.
+                        // Resolve `sub_cursor_index` via `address_at_sub_index`.
+                        // Mid-instruction label rows (`* + offset`) bookmark that intermediate byte.
                         let address =
                             line.address_at_sub_index(ctx.state, ctx.view.sub_cursor_index);
                         let is_bookmarked = ctx
@@ -1172,8 +1180,8 @@ impl DomainActionHandler for DisassemblyActionHandler {
                             .and_then(|e| e.bookmark.as_ref())
                             .is_some();
 
-                        // Use a non-empty default bookmark name (`"Bookmark"`) because
-                        // `AnnotationManager` normalizes whitespace and prunes empty strings.
+                        // Use a non-empty default bookmark name (`"Bookmark"`).
+                        // `AnnotationManager` normalizes whitespace and removes empty strings.
                         let command = crate::commands::Command::SetBookmark {
                             address,
                             new_name: if is_bookmarked {
@@ -1228,12 +1236,15 @@ impl DomainActionHandler for DisassemblyActionHandler {
                             old_labels,
                             old_cross_refs,
                         };
-                        command.apply(ctx.state);
-                        ctx.state.push_command(command);
+                        ctx.preserve_cursor(|c| {
+                            command.apply(c.state);
+                            c.state.push_command(command);
+                        });
                         ctx.events.push(CoreEvent::StatusMessage(format!(
                             "Excluded ${ext_addr:04X} from analysis"
                         )));
                         ctx.events.push(CoreEvent::StateChanged);
+                        ctx.events.push(CoreEvent::ViewChanged);
                     }
                 }
                 Ok(true)
@@ -1255,18 +1266,25 @@ impl DomainActionHandler for DisassemblyActionHandler {
             }
             AppAction::ApplyOrigin(new_origin) => {
                 let old_origin = ctx.state.origin;
-                let command = crate::commands::Command::ChangeOrigin {
+                let cmd_origin = crate::commands::Command::ChangeOrigin {
                     new_origin: *new_origin,
                     old_origin,
                 };
-                command.apply(ctx.state);
-                ctx.state.push_command(command);
-                ctx.state.disassemble();
+                let saved_index = ctx.view.cursor_index;
+                cmd_origin.apply(ctx.state);
+                let (cmd_analysis, _) = ctx.state.perform_analysis();
+                ctx.state.push_command(crate::commands::Command::Batch(vec![
+                    cmd_origin,
+                    cmd_analysis,
+                ]));
+                let max_idx = ctx.state.disassembly.len().saturating_sub(1);
+                ctx.view.cursor_index = saved_index.min(max_idx);
                 ctx.events.push(CoreEvent::StatusMessage(format!(
                     "Origin changed to ${:04X}",
                     new_origin.0
                 )));
                 ctx.events.push(CoreEvent::StateChanged);
+                ctx.events.push(CoreEvent::ViewChanged);
                 Ok(true)
             }
             AppAction::ToggleCollapsedBlock => {
@@ -1302,8 +1320,7 @@ mod tests {
 
         assert!(
             events.iter().any(|e| matches!(e, CoreEvent::StateChanged)),
-            "Events did not contain StateChanged: {:?}",
-            events
+            "Events did not contain StateChanged: {events:?}"
         );
         assert_eq!(core.view.selection_start, None);
 
@@ -1341,8 +1358,7 @@ mod tests {
 
         assert!(
             events.iter().any(|e| matches!(e, CoreEvent::StateChanged)),
-            "Events did not contain StateChanged: {:?}",
-            events
+            "Events did not contain StateChanged: {events:?}"
         );
 
         // HiLo address: first byte is High ($16), second is Low ($88) -> Target $1688
@@ -1491,5 +1507,94 @@ mod tests {
                 ..
             })
         )));
+    }
+
+    #[test]
+    fn test_apply_label_duplicate_reports_error_without_state_change() {
+        let mut core = Core::new();
+        core.state
+            .load_binary(Addr(0x1000), vec![0xEA, 0xEA])
+            .unwrap();
+
+        let events1 = core.apply_action(AppAction::ApplyLabel {
+            address: Addr(0x1000),
+            name: "main_loop".to_string(),
+            is_local: false,
+        });
+        assert!(events1.contains(&CoreEvent::StateChanged));
+
+        let events2 = core.apply_action(AppAction::ApplyLabel {
+            address: Addr(0x1001),
+            name: "main_loop".to_string(),
+            is_local: false,
+        });
+        assert!(!events2.contains(&CoreEvent::StateChanged));
+        assert!(!events2.contains(&CoreEvent::ViewChanged));
+        assert!(
+            events2.iter().any(
+                |e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("already exists"))
+            )
+        );
+    }
+
+    #[test]
+    fn test_apply_block_type_on_collapsed_block_converts_entire_range() {
+        let mut core = Core::new();
+        core.state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        core.state.collapsed_blocks.push((0, 3));
+        core.state.disassemble();
+
+        core.view.active_pane = ActivePane::Disassembly;
+        core.view.cursor_index = 0;
+
+        core.apply_action(AppAction::Byte);
+        assert_eq!(
+            core.state.block_types,
+            vec![crate::state::BlockType::DataByte; 4]
+        );
+    }
+
+    #[test]
+    fn test_apply_origin_updates_analysis_and_emits_view_changed() {
+        let mut core = Core::new();
+        // BNE +1 ($D0, $01), NOP ($EA), RTS ($60)
+        core.state
+            .load_binary(Addr(0x1000), vec![0xD0, 0x01, 0xEA, 0x60])
+            .unwrap();
+        core.state.block_types = vec![crate::state::BlockType::Code; 4];
+        core.state.perform_analysis();
+        assert!(core.state.labels.contains_key(&Addr(0x1003)));
+
+        let events = core.apply_action(AppAction::ApplyOrigin(Addr(0x2000)));
+        assert!(events.contains(&CoreEvent::StateChanged));
+        assert!(events.contains(&CoreEvent::ViewChanged));
+        assert!(!core.state.labels.contains_key(&Addr(0x1003)));
+        assert!(core.state.labels.contains_key(&Addr(0x2003)));
+
+        // Undo restores origin and prior labels
+        core.apply_action(AppAction::Undo);
+        assert_eq!(core.state.origin, Addr(0x1000));
+        assert!(core.state.labels.contains_key(&Addr(0x1003)));
+    }
+
+    #[test]
+    fn test_nudge_scope_boundary_shrink_at_first_line_is_noop() {
+        let mut core = Core::new();
+        core.state
+            .load_binary(Addr(0x1000), vec![0xEA, 0x60])
+            .unwrap();
+        core.state
+            .annotations
+            .update(Addr(0x1000), |e| e.scope = Some(Addr(0x1000)));
+        core.state.disassemble();
+
+        let undo_before = core.state.undo_stack.can_undo();
+        core.view.cursor_index = core
+            .state
+            .get_line_index_for_address(Addr(0x1000))
+            .unwrap_or(0);
+        let events = core.apply_action(AppAction::NudgeScopeBoundary { expand: false });
+        assert!(events.is_empty());
+        assert_eq!(core.state.undo_stack.can_undo(), undo_before);
     }
 }

@@ -1,4 +1,4 @@
-//! Navigation domain action handler for cursor movement, view pane toggling, search, address jumps, and system settings.
+//! Navigation domain action handler for cursor movement, pane toggling, search, address jumps, and settings.
 
 use super::{ActionContext, CoreError, DomainActionHandler};
 use crate::cpu::AddressingMode;
@@ -19,27 +19,35 @@ impl NavigationActionHandler {
     }
 }
 
+/// Synchronizes the active right-pane cursor with the current disassembly cursor address.
 fn sync_pane_cursor_to_disassembly(ctx: &mut ActionContext<'_>) {
-    let cursor_line = ctx.state.disassembly.get(ctx.view.cursor_index);
-    let addr = match cursor_line {
-        Some(l) => l.address,
-        None => return,
+    let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) else {
+        return;
     };
+    let addr = line.address;
+    let is_splitter = line.is_splitter();
     match ctx.view.active_pane {
         ActivePane::HexDump => {
-            let origin = ctx.state.origin.0;
-            if addr.0 >= origin {
-                let offset = (addr.0 - origin) as usize;
+            let origin = ctx.state.origin.0 as usize;
+            let addr_val = addr.0 as usize;
+            if addr_val >= origin {
+                let offset = addr_val - origin;
                 if offset < ctx.state.raw_data.len() {
-                    ctx.view.hex_cursor_index = offset / 16;
-                    ctx.view.sub_cursor_index = offset % 16;
+                    let bytes_per_row =
+                        if ctx.view.right_pane == crate::view_state::RightPane::HexDump8 {
+                            8
+                        } else {
+                            16
+                        };
+                    let alignment_padding = origin % bytes_per_row;
+                    ctx.view.hex_cursor_index = (offset + alignment_padding) / bytes_per_row;
                 }
             }
         }
         ActivePane::Sprites => {
             let origin = ctx.state.origin.0;
             let padding = (64 - (origin % 64)) % 64;
-            let first_aligned = origin + padding;
+            let first_aligned = origin.wrapping_add(padding);
             if addr.0 >= first_aligned {
                 let offset = (addr.0 - first_aligned) as usize;
                 ctx.view.sprites_cursor_index = offset / 64;
@@ -54,21 +62,15 @@ fn sync_pane_cursor_to_disassembly(ctx: &mut ActionContext<'_>) {
             }
         }
         ActivePane::Bitmap => {
-            let origin = ctx.state.origin.0;
-            let first_aligned =
-                ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
-            if addr.0 >= first_aligned {
-                let offset = (addr.0 - first_aligned) as usize;
+            let origin = ctx.state.origin.0 as usize;
+            let first_aligned = origin.div_ceil(8192) * 8192;
+            if (addr.0 as usize) >= first_aligned {
+                let offset = (addr.0 as usize) - first_aligned;
                 ctx.view.bitmap_cursor_index = offset / 8192;
             }
         }
         ActivePane::Blocks => {
-            let items = ctx.state.get_blocks_view_items();
-            if let Some(pos) = items.iter().position(|item| match item {
-                crate::state::BlockItem::Block { start, end, .. } => addr >= *start && addr <= *end,
-                crate::state::BlockItem::Splitter(s) => addr == *s,
-                crate::state::BlockItem::Scope { start, end, .. } => addr >= *start && addr <= *end,
-            }) {
+            if let Some(pos) = ctx.state.get_block_index_for_address(addr, is_splitter) {
                 ctx.view.blocks_selected_index = Some(pos);
             }
         }
@@ -76,6 +78,86 @@ fn sync_pane_cursor_to_disassembly(ctx: &mut ActionContext<'_>) {
     }
 }
 
+/// Cycles a two-layout right-hand pane (`wide -> narrow -> None -> wide`) or restores `last_pane`.
+#[allow(clippy::too_many_arguments)]
+fn toggle_two_column_pane(
+    ctx: &mut ActionContext<'_>,
+    active_pane: ActivePane,
+    wide: crate::view_state::RightPane,
+    narrow: crate::view_state::RightPane,
+    last_pane: fn(&mut crate::view_state::CoreViewState) -> &mut crate::view_state::RightPane,
+    wide_msg: &str,
+    narrow_msg: &str,
+    hidden_msg: &str,
+) {
+    use crate::view_state::RightPane;
+    match ctx.view.right_pane {
+        p if p == wide => {
+            ctx.view.right_pane = narrow;
+            *last_pane(ctx.view) = narrow;
+            ctx.view.active_pane = active_pane;
+            sync_pane_cursor_to_disassembly(ctx);
+            ctx.events
+                .push(CoreEvent::StatusMessage(narrow_msg.to_string()));
+        }
+        p if p == narrow => {
+            ctx.view.right_pane = RightPane::None;
+            ctx.events
+                .push(CoreEvent::StatusMessage(hidden_msg.to_string()));
+            if ctx.view.active_pane == active_pane {
+                ctx.view.active_pane = ActivePane::Disassembly;
+            }
+        }
+        RightPane::None => {
+            ctx.view.right_pane = wide;
+            *last_pane(ctx.view) = wide;
+            ctx.view.active_pane = active_pane;
+            sync_pane_cursor_to_disassembly(ctx);
+            ctx.events
+                .push(CoreEvent::StatusMessage(wide_msg.to_string()));
+        }
+        _ => {
+            let restored = *last_pane(ctx.view);
+            ctx.view.right_pane = restored;
+            ctx.view.active_pane = active_pane;
+            sync_pane_cursor_to_disassembly(ctx);
+            let msg = if restored == narrow {
+                narrow_msg
+            } else {
+                wide_msg
+            };
+            ctx.events.push(CoreEvent::StatusMessage(msg.to_string()));
+        }
+    }
+    ctx.events.push(CoreEvent::ViewChanged);
+}
+
+/// Toggles a single-layout right-hand pane (`right_pane <-> None`) and synchronizes its cursor.
+fn toggle_single_pane(
+    ctx: &mut ActionContext<'_>,
+    right_pane: crate::view_state::RightPane,
+    active_pane: ActivePane,
+    shown_msg: &str,
+    hidden_msg: &str,
+) {
+    if ctx.view.right_pane == right_pane {
+        ctx.view.right_pane = crate::view_state::RightPane::None;
+        ctx.events
+            .push(CoreEvent::StatusMessage(hidden_msg.to_string()));
+        if ctx.view.active_pane == active_pane {
+            ctx.view.active_pane = ActivePane::Disassembly;
+        }
+    } else {
+        ctx.view.right_pane = right_pane;
+        ctx.view.active_pane = active_pane;
+        sync_pane_cursor_to_disassembly(ctx);
+        ctx.events
+            .push(CoreEvent::StatusMessage(shown_msg.to_string()));
+    }
+    ctx.events.push(CoreEvent::ViewChanged);
+}
+
+/// Jumps the disassembly cursor to `target_addr` and records navigation history.
 fn handle_navigate_to_address(ctx: &mut ActionContext<'_>, target_addr: Addr) {
     crate::navigation::perform_jump_to_address(ctx.state, ctx.view, target_addr);
     if let Some(msg) = &ctx.view.status_message {
@@ -84,6 +166,7 @@ fn handle_navigate_to_address(ctx: &mut ActionContext<'_>, target_addr: Addr) {
     ctx.events.push(CoreEvent::ViewChanged);
 }
 
+/// Jumps to the next or previous `BlockType::Undefined` region in the binary.
 fn handle_jump_unexplored(ctx: &mut ActionContext<'_>, forward: bool) {
     use crate::state::BlockType;
 
@@ -170,6 +253,7 @@ fn handle_jump_unexplored(ctx: &mut ActionContext<'_>, forward: bool) {
     }
 }
 
+/// Searches disassembly lines and collapsed blocks in `forward` or reverse order for `last_search_query`.
 fn perform_search(ctx: &mut ActionContext<'_>, forward: bool) {
     let query = ctx.view.last_search_query.clone();
     if query.is_empty() {
@@ -277,11 +361,8 @@ fn perform_search(ctx: &mut ActionContext<'_>, forward: bool) {
                 return;
             }
 
-            // Check collapsed content: collapsed blocks appear in `ctx.state.disassembly` as a
-            // single summary line at their starting offset (`pc`), hiding their constituent
-            // instructions/data lines. Inspecting `collapsed_blocks` via `search_collapsed_content`
-            // ensures both modal `Ctrl+F` search and inline `/` Vim search land on the collapsed
-            // block header when the query matches inside the collapsed range.
+            // Collapsed blocks appear as a single summary line at their starting offset (`pc`).
+            // Inspect `collapsed_blocks` via `search_collapsed_content` to match hidden lines.
             let pc = line.address.offset_from(ctx.state.origin);
             if ctx
                 .state
@@ -447,162 +528,54 @@ impl DomainActionHandler for NavigationActionHandler {
             }
             AppAction::ToggleHexDump => {
                 use crate::view_state::RightPane;
-                match ctx.view.right_pane {
-                    RightPane::HexDump16 => {
-                        ctx.view.right_pane = RightPane::HexDump8;
-                        ctx.view.last_hexdump_pane = RightPane::HexDump8;
-                        ctx.view.active_pane = ActivePane::HexDump;
-                        sync_pane_cursor_to_disassembly(ctx);
-                        ctx.events.push(CoreEvent::StatusMessage(
-                            "Hex Dump View (8 columns)".to_string(),
-                        ));
-                    }
-                    RightPane::HexDump8 => {
-                        ctx.view.right_pane = RightPane::None;
-                        ctx.events
-                            .push(CoreEvent::StatusMessage("Hex Dump View Hidden".to_string()));
-                        if ctx.view.active_pane == ActivePane::HexDump {
-                            ctx.view.active_pane = ActivePane::Disassembly;
-                        }
-                    }
-                    RightPane::None => {
-                        ctx.view.right_pane = RightPane::HexDump16;
-                        ctx.view.last_hexdump_pane = RightPane::HexDump16;
-                        ctx.view.active_pane = ActivePane::HexDump;
-                        sync_pane_cursor_to_disassembly(ctx);
-                        ctx.events.push(CoreEvent::StatusMessage(
-                            "Hex Dump View (16 columns)".to_string(),
-                        ));
-                    }
-                    _ => {
-                        let restored = ctx.view.last_hexdump_pane;
-                        ctx.view.right_pane = restored;
-                        ctx.view.active_pane = ActivePane::HexDump;
-                        sync_pane_cursor_to_disassembly(ctx);
-                        let cols = if restored == RightPane::HexDump8 {
-                            "8"
-                        } else {
-                            "16"
-                        };
-                        ctx.events.push(CoreEvent::StatusMessage(format!(
-                            "Hex Dump View ({cols} columns)"
-                        )));
-                    }
-                }
-                ctx.events.push(CoreEvent::ViewChanged);
+                toggle_two_column_pane(
+                    ctx,
+                    ActivePane::HexDump,
+                    RightPane::HexDump16,
+                    RightPane::HexDump8,
+                    |v| &mut v.last_hexdump_pane,
+                    "Hex Dump View (16 columns)",
+                    "Hex Dump View (8 columns)",
+                    "Hex Dump View Hidden",
+                );
                 Ok(true)
             }
             AppAction::ToggleSpritesView => {
                 use crate::view_state::RightPane;
-                match ctx.view.right_pane {
-                    RightPane::Sprites2Col => {
-                        ctx.view.right_pane = RightPane::Sprites1Col;
-                        ctx.view.last_sprites_pane = RightPane::Sprites1Col;
-                        ctx.view.active_pane = ActivePane::Sprites;
-                        sync_pane_cursor_to_disassembly(ctx);
-                        ctx.events.push(CoreEvent::StatusMessage(
-                            "Sprites View (1 column)".to_string(),
-                        ));
-                    }
-                    RightPane::Sprites1Col => {
-                        ctx.view.right_pane = RightPane::None;
-                        ctx.events
-                            .push(CoreEvent::StatusMessage("Sprites View Hidden".to_string()));
-                        if ctx.view.active_pane == ActivePane::Sprites {
-                            ctx.view.active_pane = ActivePane::Disassembly;
-                        }
-                    }
-                    RightPane::None => {
-                        ctx.view.right_pane = RightPane::Sprites2Col;
-                        ctx.view.last_sprites_pane = RightPane::Sprites2Col;
-                        ctx.view.active_pane = ActivePane::Sprites;
-                        sync_pane_cursor_to_disassembly(ctx);
-                        ctx.events.push(CoreEvent::StatusMessage(
-                            "Sprites View (2 columns)".to_string(),
-                        ));
-                    }
-                    _ => {
-                        let restored = ctx.view.last_sprites_pane;
-                        ctx.view.right_pane = restored;
-                        ctx.view.active_pane = ActivePane::Sprites;
-                        sync_pane_cursor_to_disassembly(ctx);
-                        let cols = if restored == RightPane::Sprites1Col {
-                            "1"
-                        } else {
-                            "2"
-                        };
-                        ctx.events.push(CoreEvent::StatusMessage(format!(
-                            "Sprites View ({cols} column{s})",
-                            s = if cols == "1" { "" } else { "s" }
-                        )));
-                    }
-                }
-                ctx.events.push(CoreEvent::ViewChanged);
+                toggle_two_column_pane(
+                    ctx,
+                    ActivePane::Sprites,
+                    RightPane::Sprites2Col,
+                    RightPane::Sprites1Col,
+                    |v| &mut v.last_sprites_pane,
+                    "Sprites View (2 columns)",
+                    "Sprites View (1 column)",
+                    "Sprites View Hidden",
+                );
                 Ok(true)
             }
             AppAction::ToggleCharsetView => {
                 use crate::view_state::RightPane;
-                match ctx.view.right_pane {
-                    RightPane::Charset8Col => {
-                        ctx.view.right_pane = RightPane::Charset4Col;
-                        ctx.view.last_charset_pane = RightPane::Charset4Col;
-                        ctx.view.active_pane = ActivePane::Charset;
-                        sync_pane_cursor_to_disassembly(ctx);
-                        ctx.events.push(CoreEvent::StatusMessage(
-                            "Charset View (4 columns)".to_string(),
-                        ));
-                    }
-                    RightPane::Charset4Col => {
-                        ctx.view.right_pane = RightPane::None;
-                        ctx.events
-                            .push(CoreEvent::StatusMessage("Charset View Hidden".to_string()));
-                        if ctx.view.active_pane == ActivePane::Charset {
-                            ctx.view.active_pane = ActivePane::Disassembly;
-                        }
-                    }
-                    RightPane::None => {
-                        ctx.view.right_pane = RightPane::Charset8Col;
-                        ctx.view.last_charset_pane = RightPane::Charset8Col;
-                        ctx.view.active_pane = ActivePane::Charset;
-                        sync_pane_cursor_to_disassembly(ctx);
-                        ctx.events.push(CoreEvent::StatusMessage(
-                            "Charset View (8 columns)".to_string(),
-                        ));
-                    }
-                    _ => {
-                        let restored = ctx.view.last_charset_pane;
-                        ctx.view.right_pane = restored;
-                        ctx.view.active_pane = ActivePane::Charset;
-                        sync_pane_cursor_to_disassembly(ctx);
-                        let cols = if restored == RightPane::Charset4Col {
-                            "4"
-                        } else {
-                            "8"
-                        };
-                        ctx.events.push(CoreEvent::StatusMessage(format!(
-                            "Charset View ({cols} columns)"
-                        )));
-                    }
-                }
-                ctx.events.push(CoreEvent::ViewChanged);
+                toggle_two_column_pane(
+                    ctx,
+                    ActivePane::Charset,
+                    RightPane::Charset8Col,
+                    RightPane::Charset4Col,
+                    |v| &mut v.last_charset_pane,
+                    "Charset View (8 columns)",
+                    "Charset View (4 columns)",
+                    "Charset View Hidden",
+                );
                 Ok(true)
             }
             AppAction::ToggleBitmapView => {
-                if ctx.view.right_pane == crate::view_state::RightPane::Bitmap {
-                    ctx.view.right_pane = crate::view_state::RightPane::None;
-                    ctx.events
-                        .push(CoreEvent::StatusMessage("Bitmap View Hidden".to_string()));
-                    if ctx.view.active_pane == ActivePane::Bitmap {
-                        ctx.view.active_pane = ActivePane::Disassembly;
-                    }
-                } else {
-                    ctx.view.right_pane = crate::view_state::RightPane::Bitmap;
-                    ctx.view.active_pane = ActivePane::Bitmap;
-                    sync_pane_cursor_to_disassembly(ctx);
-                    ctx.events
-                        .push(CoreEvent::StatusMessage("Bitmap View Shown".to_string()));
-                }
-                ctx.events.push(CoreEvent::ViewChanged);
+                toggle_single_pane(
+                    ctx,
+                    crate::view_state::RightPane::Bitmap,
+                    ActivePane::Bitmap,
+                    "Bitmap View Shown",
+                    "Bitmap View Hidden",
+                );
                 Ok(true)
             }
             AppAction::NavigateToAddress(target_addr) => {
@@ -648,9 +621,8 @@ impl DomainActionHandler for NavigationActionHandler {
             }
             AppAction::FindReferences => {
                 if let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) {
-                    // Resolve `sub_cursor_index` via `address_at_sub_index` so querying references
-                    // on a mid-instruction label row (`* + offset`) or external equate row inspects
-                    // that specific target address.
+                    // Resolve `sub_cursor_index` via `address_at_sub_index`.
+                    // Mid-instruction label rows and external equate rows inspect that target address.
                     let addr = line.address_at_sub_index(ctx.state, ctx.view.sub_cursor_index);
                     ctx.events.push(CoreEvent::DialogRequested(
                         crate::event::DialogType::FindReferences(addr),
@@ -674,38 +646,23 @@ impl DomainActionHandler for NavigationActionHandler {
                 Ok(true)
             }
             AppAction::ToggleBlocksView => {
-                if ctx.view.right_pane == crate::view_state::RightPane::Blocks {
-                    ctx.view.right_pane = crate::view_state::RightPane::None;
-                    ctx.events
-                        .push(CoreEvent::StatusMessage("Blocks View Hidden".to_string()));
-                    if ctx.view.active_pane == ActivePane::Blocks {
-                        ctx.view.active_pane = ActivePane::Disassembly;
-                    }
-                } else {
-                    ctx.view.right_pane = crate::view_state::RightPane::Blocks;
-                    ctx.view.active_pane = ActivePane::Blocks;
-                    sync_pane_cursor_to_disassembly(ctx);
-                    ctx.events
-                        .push(CoreEvent::StatusMessage("Blocks View Shown".to_string()));
-                }
-                ctx.events.push(CoreEvent::ViewChanged);
+                toggle_single_pane(
+                    ctx,
+                    crate::view_state::RightPane::Blocks,
+                    ActivePane::Blocks,
+                    "Blocks View Shown",
+                    "Blocks View Hidden",
+                );
                 Ok(true)
             }
             AppAction::ToggleDebuggerView => {
-                if ctx.view.right_pane == crate::view_state::RightPane::Debugger {
-                    ctx.view.right_pane = crate::view_state::RightPane::None;
-                    ctx.events
-                        .push(CoreEvent::StatusMessage("Debugger View Hidden".to_string()));
-                    if ctx.view.active_pane == ActivePane::Debugger {
-                        ctx.view.active_pane = ActivePane::Disassembly;
-                    }
-                } else {
-                    ctx.view.right_pane = crate::view_state::RightPane::Debugger;
-                    ctx.view.active_pane = ActivePane::Debugger;
-                    ctx.events
-                        .push(CoreEvent::StatusMessage("Debugger View Shown".to_string()));
-                }
-                ctx.events.push(CoreEvent::ViewChanged);
+                toggle_single_pane(
+                    ctx,
+                    crate::view_state::RightPane::Debugger,
+                    ActivePane::Debugger,
+                    "Debugger View Shown",
+                    "Debugger View Hidden",
+                );
                 Ok(true)
             }
             AppAction::NavigateBack => {
@@ -721,8 +678,10 @@ impl DomainActionHandler for NavigationActionHandler {
                         }
                         crate::view_state::NavigationTarget::Index(idx) => match pane {
                             ActivePane::Disassembly => {
-                                ctx.view.cursor_index = idx;
-                                ctx.view.scroll_index = idx;
+                                let max_idx = ctx.state.disassembly.len().saturating_sub(1);
+                                let clamped = idx.min(max_idx);
+                                ctx.view.cursor_index = clamped;
+                                ctx.view.scroll_index = clamped;
                                 ctx.view.scroll_sub_index = 0;
                                 ctx.view.sub_cursor_index = 0;
                             }
@@ -739,17 +698,24 @@ impl DomainActionHandler for NavigationActionHandler {
                                 ctx.view.bitmap_cursor_index = idx;
                             }
                             ActivePane::Blocks => {
-                                ctx.view.blocks_selected_index = Some(idx);
+                                let max_idx =
+                                    ctx.state.get_blocks_view_items().len().saturating_sub(1);
+                                ctx.view.blocks_selected_index = Some(idx.min(max_idx));
                             }
                             ActivePane::Debugger => {
-                                ctx.view.cursor_index = idx;
+                                let max_idx = ctx.state.disassembly.len().saturating_sub(1);
+                                ctx.view.cursor_index = idx.min(max_idx);
                             }
                         },
                     }
-                    ctx.view.status_message = Some("Navigated back".to_string());
+                    let msg = "Navigated back".to_string();
+                    ctx.view.status_message = Some(msg.clone());
+                    ctx.events.push(CoreEvent::StatusMessage(msg));
                     ctx.events.push(CoreEvent::ViewChanged);
                 } else {
-                    ctx.view.status_message = Some("No history".to_string());
+                    let msg = "No history".to_string();
+                    ctx.view.status_message = Some(msg.clone());
+                    ctx.events.push(CoreEvent::StatusMessage(msg));
                     ctx.events.push(CoreEvent::ViewChanged);
                 }
                 Ok(true)
@@ -768,10 +734,8 @@ impl DomainActionHandler for NavigationActionHandler {
                                             .and_then(|e| e.immediate_format)
                                         {
                                             match fmt {
-                                                crate::state::ImmediateFormat::LowByte(target) => {
-                                                    Some(target)
-                                                }
-                                                crate::state::ImmediateFormat::HighByte(target) => {
+                                                crate::state::ImmediateFormat::LowByte(target)
+                                                | crate::state::ImmediateFormat::HighByte(target) => {
                                                     Some(target)
                                                 }
                                                 _ => None,
@@ -782,17 +746,8 @@ impl DomainActionHandler for NavigationActionHandler {
                                     }
                                     AddressingMode::Absolute
                                     | AddressingMode::AbsoluteX
-                                    | AddressingMode::AbsoluteY => {
-                                        if line.bytes.len() >= 3 {
-                                            Some(crate::state::Addr(
-                                                u16::from(line.bytes[2]) << 8
-                                                    | u16::from(line.bytes[1]),
-                                            ))
-                                        } else {
-                                            None
-                                        }
-                                    }
-                                    AddressingMode::Indirect => {
+                                    | AddressingMode::AbsoluteY
+                                    | AddressingMode::Indirect => {
                                         if line.bytes.len() >= 3 {
                                             Some(crate::state::Addr(
                                                 u16::from(line.bytes[2]) << 8
@@ -836,11 +791,17 @@ impl DomainActionHandler for NavigationActionHandler {
                     }
                     ActivePane::HexDump => {
                         let origin = ctx.state.origin.0 as usize;
-                        let alignment_padding = origin % 16;
+                        let bytes_per_row =
+                            if ctx.view.right_pane == crate::view_state::RightPane::HexDump8 {
+                                8
+                            } else {
+                                16
+                            };
+                        let alignment_padding = origin % bytes_per_row;
                         let aligned_origin = origin - alignment_padding;
-                        Some(crate::state::Addr(
-                            (aligned_origin + ctx.view.hex_cursor_index * 16) as u16,
-                        ))
+                        let row_addr = (aligned_origin + ctx.view.hex_cursor_index * bytes_per_row)
+                            .max(origin);
+                        Some(crate::state::Addr(row_addr as u16))
                     }
                     ActivePane::Sprites => {
                         let origin = ctx.state.origin.0 as usize;
@@ -860,20 +821,15 @@ impl DomainActionHandler for NavigationActionHandler {
                     ActivePane::Blocks => {
                         let blocks = ctx.state.get_blocks_view_items();
                         let idx = ctx.view.blocks_selected_index.unwrap_or(0);
-                        if idx < blocks.len() {
-                            match blocks[idx] {
-                                crate::state::BlockItem::Block { start, .. } => Some(start),
-                                crate::state::BlockItem::Splitter(addr) => Some(addr),
-                                crate::state::BlockItem::Scope { start, .. } => Some(start),
-                            }
-                        } else {
-                            None
-                        }
+                        blocks.get(idx).map(|item| match *item {
+                            crate::state::BlockItem::Block { start, .. }
+                            | crate::state::BlockItem::Scope { start, .. } => start,
+                            crate::state::BlockItem::Splitter(addr) => addr,
+                        })
                     }
                     ActivePane::Bitmap => {
                         let origin = ctx.state.origin.0 as usize;
-                        let first_aligned_addr = ((origin / 8192) * 8192)
-                            + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+                        let first_aligned_addr = origin.div_ceil(8192) * 8192;
                         let bitmap_addr =
                             first_aligned_addr + (ctx.view.bitmap_cursor_index * 8192);
                         Some(crate::state::Addr(bitmap_addr as u16))
@@ -1437,5 +1393,82 @@ mod tests {
         assert_eq!(ctx.view.active_pane, ActivePane::HexDump);
         assert_eq!(ctx.view.hex_cursor_index, 3);
         assert_eq!(ctx.view.navigation_history.len(), 0);
+    }
+
+    #[test]
+    fn test_hexdump8_sync_and_jump_to_operand_with_unaligned_origin() {
+        let mut state = AppState::new();
+        state.load_binary(Addr(0x0801), vec![0xEA; 32]).unwrap();
+
+        let mut view = CoreViewState::new();
+        // Put cursor at $0810 (index 15 -> offset 15, plus padding 1 = 16 -> row 1 in 16-col, row 2 in 8-col)
+        view.cursor_index = state.get_line_index_for_address(Addr(0x0810)).unwrap();
+        view.sub_cursor_index = 2;
+
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = NavigationActionHandler::new();
+        // Default right_pane is HexDump16, so first ToggleHexDump switches to HexDump8 (row 2)
+        handler
+            .handle_action(&AppAction::ToggleHexDump, &mut ctx)
+            .unwrap();
+        assert_eq!(ctx.view.right_pane, crate::view_state::RightPane::HexDump8);
+        assert_eq!(ctx.view.hex_cursor_index, 2);
+        assert_eq!(ctx.view.sub_cursor_index, 2);
+
+        // JumpToOperand from HexDump8 row 2 -> $0810
+        ctx.view.cursor_index = 0;
+        handler
+            .handle_action(&AppAction::JumpToOperand, &mut ctx)
+            .unwrap();
+        assert_eq!(
+            ctx.state.disassembly[ctx.view.cursor_index].address,
+            Addr(0x0810)
+        );
+
+        // JumpToOperand from HexDump8 row 0 (padded $0800..$0807) clamps to origin $0801
+        ctx.view.active_pane = ActivePane::HexDump;
+        ctx.view.hex_cursor_index = 0;
+        handler
+            .handle_action(&AppAction::JumpToOperand, &mut ctx)
+            .unwrap();
+        assert_eq!(
+            ctx.state.disassembly[ctx.view.cursor_index].address,
+            Addr(0x0801)
+        );
+    }
+
+    #[test]
+    fn test_navigate_back_clamps_index_when_disassembly_shrinks() {
+        let mut state = AppState::new();
+        state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+
+        let mut view = CoreViewState::new();
+        view.navigation_history.push((
+            ActivePane::Disassembly,
+            crate::view_state::NavigationTarget::Index(99),
+        ));
+
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = NavigationActionHandler::new();
+        handler
+            .handle_action(&AppAction::NavigateBack, &mut ctx)
+            .unwrap();
+        assert_eq!(ctx.view.cursor_index, ctx.state.disassembly.len() - 1);
+        assert!(
+            ctx.events
+                .contains(&CoreEvent::StatusMessage("Navigated back".to_string()))
+        );
     }
 }

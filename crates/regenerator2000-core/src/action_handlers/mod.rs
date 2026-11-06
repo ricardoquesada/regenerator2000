@@ -1,4 +1,4 @@
-//! Modular domain action handlers for Regenerator 2000 core engine.
+//! Domain action handlers for the Regenerator 2000 core engine.
 
 use crate::event::CoreEvent;
 use crate::state::AppState;
@@ -17,51 +17,67 @@ pub use navigation_handler::NavigationActionHandler;
 
 pub use crate::error::CoreError;
 
-/// Execution context provided to action handlers during action processing.
+/// Execution context that domain action handlers use to process an [`AppAction`].
 pub struct ActionContext<'a> {
-    /// Mutable reference to application persistent state [`AppState`].
+    /// Mutable reference to the persistent application state [`AppState`].
     pub state: &'a mut AppState,
-    /// Mutable reference to application view state [`CoreViewState`].
+    /// Mutable reference to the transient view state [`CoreViewState`].
     pub view: &'a mut CoreViewState,
-    /// Vector of emitted core events [`CoreEvent`].
+    /// Output buffer for emitted [`CoreEvent`] notifications.
     pub events: &'a mut Vec<CoreEvent>,
 }
 
 impl<'a> ActionContext<'a> {
-    /// Helper to preserve the cursor's logical position (address) across state changes.
+    /// Preserves the logical cursor position across state mutations in `f`.
     pub fn preserve_cursor<F>(&mut self, f: F)
     where
         F: FnOnce(&mut Self),
     {
         let cursor_line = self.state.disassembly.get(self.view.cursor_index);
-        let current_addr = cursor_line.map(|l| l.address);
+        let ext_addr = cursor_line.and_then(|l| l.external_label_address);
+        let current_addr = cursor_line
+            .filter(|l| l.external_label_address.is_none() && !self.state.is_external(l.address))
+            .map(|l| l.address);
         let saved_cursor_index = self.view.cursor_index;
 
         f(self);
 
-        if let Some(addr) = current_addr {
+        let max_idx = self.state.disassembly.len().saturating_sub(1);
+        if let Some(ext) = ext_addr {
+            if let Some(idx) = self
+                .state
+                .disassembly
+                .iter()
+                .position(|l| l.external_label_address == Some(ext))
+            {
+                self.view.cursor_index = idx;
+            } else {
+                self.view.cursor_index = saved_cursor_index.min(max_idx);
+            }
+        } else if let Some(addr) = current_addr {
             if let Some(idx) = self.state.get_line_index_containing_address(addr) {
                 self.view.cursor_index = idx;
             } else if let Some(idx) = self.state.get_line_index_for_address(addr) {
                 self.view.cursor_index = idx;
             } else {
-                let max_idx = self.state.disassembly.len().saturating_sub(1);
                 self.view.cursor_index = saved_cursor_index.min(max_idx);
             }
+        } else {
+            self.view.cursor_index = saved_cursor_index.min(max_idx);
         }
     }
 }
 
-/// Trait implemented by domain-specific action handlers.
+/// Trait that each domain-specific action handler implements.
 pub trait DomainActionHandler {
-    /// Attempts to handle the given action.
+    /// Processes `action` within `ctx`.
     ///
-    /// Returns `Ok(true)` if the action was handled by this domain handler,
-    /// `Ok(false)` if it was unhandled, or `Err(CoreError)` if an error occurred.
+    /// Returns `Ok(true)` when this handler processes `action`, or `Ok(false)` when
+    /// `action` belongs to another domain handler.
     ///
     /// # Errors
     ///
-    /// Returns a [`CoreError`] if processing the action fails.
+    /// Returns a [`CoreError`] if action processing fails.
     fn handle_action(
         &self,
         action: &AppAction,
