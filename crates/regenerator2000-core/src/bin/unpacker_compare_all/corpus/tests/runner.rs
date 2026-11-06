@@ -1,10 +1,11 @@
-//! Tests for `runner`: the per-case unpack configuration (shared by the
-//! compare tool and the corpus test), fixture errors, and the equivalence of
-//! serial and parallel scheduling. All fixtures are in memory.
+//! Tests for `runner`: the per-case unpack configuration, fixture errors,
+//! and the equivalence of serial and parallel scheduling.
+//!
+//! All fixtures reside in memory.
 
 use super::*;
 
-/// A case for `file` with an optional budget and no oracle data.
+/// Builds a case for `file` with an optional budget and no oracle data.
 fn bare_case(file: &str, max_instructions: Option<u64>) -> Case {
     Case {
         file: file.to_string(),
@@ -16,9 +17,8 @@ fn bare_case(file: &str, max_instructions: Option<u64>) -> Case {
     }
 }
 
-/// The compare tool and the corpus test unpack with the case's own budget
-/// (never a tool-wide constant), and with the default budget when the case has
-/// none.
+/// Checks that `unpack_config_for` uses the case instruction budget, or the
+/// default budget when the case has none.
 #[test]
 fn bin_uses_case_max_instructions() {
     assert_eq!(
@@ -29,8 +29,7 @@ fn bin_uses_case_max_instructions() {
         unpack_config_for(&bare_case("a.prg", None)).max_instructions,
         DEFAULT_MAX_INSTRUCTIONS
     );
-    // Everything else stays at the engine defaults (same target system as a
-    // plain `unpack` call).
+    // Every other field stays at the engine default.
     let config = unpack_config_for(&bare_case("a.prg", Some(7)));
     assert_eq!(
         regenerator2000_core::unpacker::UnpackConfig {
@@ -44,8 +43,8 @@ fn bin_uses_case_max_instructions() {
     );
 }
 
-/// A missing fixture and a fixture shorter than the PRG header are errors,
-/// never a skipped case.
+/// Checks that `run_case` reports a missing fixture or a fixture shorter than
+/// the PRG header as an error.
 #[test]
 fn run_case_reports_unreadable_fixtures() {
     let fixtures = MemFixtures::default().with("short.prg", vec![0x01]);
@@ -61,12 +60,12 @@ fn run_case_reports_unreadable_fixtures() {
     ));
 }
 
-/// The load address comes from the PRG header and an unpack error is part
-/// of the result (the oracles decide whether it is expected).
+/// Checks that `run_case` reads the load address from the PRG header and
+/// keeps an unpack error in the result for the oracles to evaluate.
 #[test]
 fn run_case_keeps_unpack_errors_in_the_result() {
-    // A lone `BRK` at $C000 has no BASIC SYS line, so the engine cannot find
-    // an entry point.
+    // A lone `BRK` at $C000 has no BASIC SYS line, so the engine finds no
+    // entry point.
     let fixtures = MemFixtures::default().with("brk.prg", prg(0xC000, &[0x00]));
     let result = run_case(&bare_case("brk.prg", Some(1_000)), &fixtures).unwrap();
     assert_eq!(result.file, "brk.prg");
@@ -76,8 +75,8 @@ fn run_case_keeps_unpack_errors_in_the_result() {
     assert!(!error.variant.is_empty(), "{error:?}");
 }
 
-/// Serial and parallel runs give identical results in input order, and every
-/// fixture error is reported, sorted.
+/// Checks that serial and parallel runs return identical results in input
+/// order and report every fixture error in sorted order.
 #[test]
 fn run_cases_serial_equals_parallel_and_collects_errors() {
     let fixtures = MemFixtures::default()

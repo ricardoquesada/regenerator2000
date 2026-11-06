@@ -1,22 +1,21 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-//! Corpus integration test: runs every case of `tests/6502/unpack_corpus.toml`
-//! through Regenerator 2000, evaluates it against its strongest oracle (ground
-//! truth original binary, recorded `unp64` reference, or reviewed exception),
-//! checks ground-truth group consensus, and compares every observable output
-//! with the committed `tests/6502/unpack_baseline.toml`.
+//! Corpus integration test for `tests/6502/unpack_corpus.toml`.
 //!
-//! All failures are collected and reported together. The corpus library is
-//! shared with the `unpacker_compare_all` binary through `#[path]`.
+//! This test runs every case in `tests/6502/unpack_corpus.toml` through Regenerator 2000.
+//! It evaluates each result against its strongest oracle (ground-truth original binary,
+//! recorded `unp64` reference, or reviewed exception) and checks ground-truth group consensus.
+//! It also compares every observable output with `tests/6502/unpack_baseline.toml`.
+//!
+//! The test collects all failures and reports them together.
+//! It shares the `corpus` module with `unpacker_compare_all` via `#[path]`.
 //!
 //! Environment variables:
 //!
-//! * `CORPUS_FILTER=mule` runs a subset (cases or groups whose name contains
-//!   the text; groups are always run whole).
-//! * `UPDATE_UNPACK_BASELINE=1` rewrites `tests/6502/unpack_baseline.toml`
-//!   instead of comparing it (rejected when `CORPUS_FILTER` is active so a
-//!   partial run never drops unselected rows).
-//! * `UNPACK_CORPUS_TIME_LIMIT_SECS` overrides the wall-clock limit of the
-//!   full parallel run.
+//! * `CORPUS_FILTER=mule` runs a subset of cases or groups whose name contains the text.
+//!   The runner always executes matched groups as a whole.
+//! * `UPDATE_UNPACK_BASELINE=1` rewrites `tests/6502/unpack_baseline.toml` instead of comparing it.
+//!   The harness rejects this variable when `CORPUS_FILTER` is active so a partial run never drops unselected rows.
+//! * `UNPACK_CORPUS_TIME_LIMIT_SECS` overrides the wall-clock limit of the full parallel run.
 
 #[path = "../src/bin/unpacker_compare_all/corpus/mod.rs"]
 mod corpus;
@@ -36,23 +35,22 @@ use corpus::{
 /// Environment variable that selects a subset of cases.
 const FILTER_ENV: &str = "CORPUS_FILTER";
 
-/// Environment variable that rewrites the baseline when set to
-/// [`UPDATE_BASELINE_VALUE`].
+/// Environment variable that rewrites the baseline when set to [`UPDATE_BASELINE_VALUE`].
 const UPDATE_BASELINE_ENV: &str = "UPDATE_UNPACK_BASELINE";
 
-/// The only value of [`UPDATE_BASELINE_ENV`] that rewrites the baseline.
+/// Value of [`UPDATE_BASELINE_ENV`] that rewrites the baseline.
 const UPDATE_BASELINE_VALUE: &str = "1";
 
 /// Environment variable that overrides [`CORPUS_TIME_LIMIT`].
 const TIME_LIMIT_ENV: &str = "UNPACK_CORPUS_TIME_LIMIT_SECS";
 
-/// Wall-clock limit of a full parallel corpus run. Locally it takes ~1 second;
-/// a 30-second ceiling catches runaway infinite loops without flaking on
-/// shared 2-vCPU CI runners.
+/// Wall-clock limit for a full parallel corpus run.
+///
+/// A local run takes approximately 1 second.
+/// A 30-second limit detects infinite loops without false failures on shared 2-vCPU CI runners.
 const CORPUS_TIME_LIMIT: Duration = Duration::from_secs(30);
 
-/// Complete list of packed `.prg` fixtures registered in
-/// `tests/6502/unpack_corpus.toml`, kept in alphabetical order.
+/// Alphabetical list of packed `.prg` fixtures in `tests/6502/unpack_corpus.toml`.
 const CORPUS_CASES: [&str; 45] = [
     "c64_323_ice_psm.1001_card_cruncher.prg",
     "c64_8_bit_ball.meanteam_cruncher.prg",
@@ -130,8 +128,7 @@ const GROUND_TRUTH_GROUPS: [(&str, &str, u16, &[&str]); 2] = [
     ),
 ];
 
-/// Cases unpacked via generic 2-phase emulation (`packer = None`) that carry a
-/// range divergence against `unp64`.
+/// Generic 2-phase emulation cases (`packer = None`) with a range divergence against `unp64`.
 const UNKNOWN_PACKER_EXCEPTIONS: [&str; 4] = [
     "c64_8_bit_ball.meanteam_cruncher.prg",
     "c64_bluemarble4k_unk.prg",
@@ -139,18 +136,17 @@ const UNKNOWN_PACKER_EXCEPTIONS: [&str; 4] = [
     "c64_soul_on_fire_unk.prg",
 ];
 
-/// Multi-layer Exomizer 3 case (`c64_HBFS.exo3.prg`) whose payload difference
-/// against `unp64` (outer layer vs inner layer) is under investigation.
+/// Multi-layer Exomizer 3 case (`c64_HBFS.exo3.prg`) with an outer-vs-inner payload difference against `unp64`.
 const HBFS: &str = "c64_HBFS.exo3.prg";
 
-/// Cases marked with [`ExpectedFailReason::PayloadMismatchUnderInvestigation`].
+/// Cases with [`ExpectedFailReason::PayloadMismatchUnderInvestigation`].
 const PAYLOAD_MISMATCH_CASES: [&str; 1] = ["c64_HBFS.exo3.prg"];
 
 // =============================================================================
 // Harness
 // =============================================================================
 
-/// What the corpus test does with the baseline.
+/// Action that the corpus test performs on the baseline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BaselineMode {
     /// Compare the current run with the committed baseline.
@@ -159,10 +155,9 @@ enum BaselineMode {
     Update,
 }
 
-/// Decides the baseline mode from the value of [`UPDATE_BASELINE_ENV`].
+/// Determines the baseline mode from [`UPDATE_BASELINE_ENV`].
 ///
-/// Updating under an active filter is rejected because a filtered run would
-/// silently drop every unselected row from the baseline.
+/// This function rejects updates when `filter` is active so a filtered run never drops unselected rows.
 fn baseline_mode(update: Option<&str>, filter: &CorpusFilter) -> Result<BaselineMode, String> {
     match update {
         None | Some("") => Ok(BaselineMode::Compare),
@@ -178,7 +173,7 @@ fn baseline_mode(update: Option<&str>, filter: &CorpusFilter) -> Result<Baseline
     }
 }
 
-/// The wall-clock limit from the value of [`TIME_LIMIT_ENV`].
+/// Parses the wall-clock limit from [`TIME_LIMIT_ENV`].
 fn time_limit(value: Option<&str>) -> Result<Duration, String> {
     let Some(text) = value.map(str::trim).filter(|text| !text.is_empty()) else {
         return Ok(CORPUS_TIME_LIMIT);
@@ -191,24 +186,22 @@ fn time_limit(value: Option<&str>) -> Result<Duration, String> {
     }
 }
 
-/// The value of an environment variable, if set and valid Unicode.
+/// Returns the value of environment variable `name` when set and valid Unicode.
 fn env_value(name: &str) -> Option<String> {
     env::var(name).ok()
 }
 
-/// The case filter from [`FILTER_ENV`].
+/// Builds the case filter from [`FILTER_ENV`].
 fn env_filter() -> CorpusFilter {
     CorpusFilter::from_env_value(env_value(FILTER_ENV).as_deref())
 }
 
-/// The fixture directory.
+/// Returns the fixture directory loader.
 fn fixtures() -> DirFixtures {
     DirFixtures::new(FIXTURE_DIR)
 }
 
-/// Loads the manifest and asserts that it validates cleanly **before** any
-/// evaluation. The evaluator relies on validation for cross-references (an
-/// unknown group id would otherwise fall back to the `unp64` rule).
+/// Loads the manifest and asserts that it validates with zero errors before evaluation.
 fn load_valid_corpus() -> Corpus {
     let path = Path::new(FIXTURE_DIR).join(MANIFEST_FILE);
     let corpus = Corpus::load(&path).unwrap_or_else(|error| panic!("{error}"));
@@ -240,7 +233,7 @@ fn run(cases: &[&Case], schedule: Schedule) -> Vec<CaseResult> {
     })
 }
 
-/// The cases selected by `filter`.
+/// Returns the cases selected by `filter`.
 fn select<'c>(corpus: &'c Corpus, filter: &CorpusFilter) -> Vec<&'c Case> {
     filter
         .select(corpus)
@@ -251,8 +244,7 @@ fn select<'c>(corpus: &'c Corpus, filter: &CorpusFilter) -> Vec<&'c Case> {
 // Manifest shape & invariants
 // =============================================================================
 
-/// Verifies that `tests/6502/` resolves from `CARGO_MANIFEST_DIR` and contains
-/// both `unpack_corpus.toml` and `unpack_baseline.toml`.
+/// Verifies that `tests/6502/` resolves from `CARGO_MANIFEST_DIR` and contains both TOML files.
 #[test]
 fn corpus_fixture_dir_resolves_from_manifest_dir() {
     let dir = Path::new(FIXTURE_DIR);
@@ -266,8 +258,7 @@ fn corpus_fixture_dir_resolves_from_manifest_dir() {
     }
 }
 
-/// Verifies that `tests/6502/unpack_corpus.toml` parses, validates against
-/// on-disk fixtures, and has a recorded `[case.unp64]` reference for every case.
+/// Verifies that `tests/6502/unpack_corpus.toml` parses, validates, and has `[case.unp64]` for every case.
 #[test]
 fn corpus_manifest_loads_and_validates() {
     let corpus = load_valid_corpus();
@@ -284,8 +275,7 @@ fn corpus_manifest_loads_and_validates() {
     );
 }
 
-/// Verifies that `tests/6502/unpack_corpus.toml` contains the exact set of
-/// expected corpus fixtures in [`CORPUS_CASES`].
+/// Verifies that `tests/6502/unpack_corpus.toml` contains the exact fixtures in [`CORPUS_CASES`].
 #[test]
 fn corpus_contains_expected_cases() {
     let corpus = load_valid_corpus();
@@ -308,8 +298,7 @@ fn corpus_contains_expected_cases() {
     );
 }
 
-/// Verifies that the `moving_tubes` and `mule` ground-truth groups reference
-/// their uncompressed original `.prg` binaries and cover all 11 packed variants.
+/// Verifies that the `moving_tubes` and `mule` groups reference their original binaries and cover 11 variants.
 #[test]
 fn corpus_ground_truth_groups_cover_eleven_variants() {
     let corpus = load_valid_corpus();
@@ -329,10 +318,7 @@ fn corpus_ground_truth_groups_cover_eleven_variants() {
     assert_eq!(corpus.groups.len(), GROUND_TRUTH_GROUPS.len());
 }
 
-/// Verifies that every `accepted_divergence` in the manifest is signed (or
-/// carries the pending-review marker), that pending and expected-fail cases
-/// appear in the user action items report, and that only the known generic
-/// (`packer = None`) cases carry an exception.
+/// Verifies that every `accepted_divergence` is signed and that action items list pending and expected-fail cases.
 #[test]
 fn corpus_exceptions_are_signed_and_listed_in_action_items() {
     let corpus = load_valid_corpus();
@@ -405,10 +391,7 @@ fn corpus_exceptions_are_signed_and_listed_in_action_items() {
     );
 }
 
-/// Verifies that `c64_HBFS.exo3.prg` (which unpacks through a second inner
-/// stage in R2000 whereas `unp64` stops after the first stage) is the only
-/// case marked `payload_mismatch_under_investigation` and carries a documented
-/// `unexplained` exception for `start` and `entry`.
+/// Verifies that `c64_HBFS.exo3.prg` is the only `payload_mismatch_under_investigation` case and has an exception for `start` and `entry`.
 #[test]
 fn corpus_hbfs_payload_mismatch_is_under_investigation() {
     let corpus = load_valid_corpus();
@@ -446,11 +429,7 @@ fn corpus_hbfs_payload_mismatch_is_under_investigation() {
 // Oracles, baseline, determinism and budget
 // =============================================================================
 
-/// Runs every selected corpus case through R2000, checks its oracle (ground
-/// truth original, recorded `unp64` result, or reviewed exception) and group
-/// consensus, and compares all observable outputs against
-/// `tests/6502/unpack_baseline.toml` (or updates it when
-/// `UPDATE_UNPACK_BASELINE=1` is set).
+/// Runs every selected corpus case, checks its oracle and group consensus, and compares or updates `tests/6502/unpack_baseline.toml`.
 #[test]
 fn unpack_corpus_matches_oracles_and_baseline() {
     let corpus = load_valid_corpus();
@@ -495,8 +474,7 @@ fn unpack_corpus_matches_oracles_and_baseline() {
         }
     };
 
-    // Action items (unexplained and pending exceptions, expected failures)
-    // are listed on every run, green or not.
+    // Print action items (unexplained exceptions, pending reviews, and expected failures) on every run.
     let action_items = render_action_items(&outcome.reports);
     if !action_items.is_empty() {
         eprintln!("{action_items}");
@@ -515,8 +493,7 @@ fn unpack_corpus_matches_oracles_and_baseline() {
     );
 }
 
-/// Verifies that updating the baseline while `CORPUS_FILTER` is active is
-/// rejected, and that only `UPDATE_UNPACK_BASELINE=1` enables update mode.
+/// Verifies that `baseline_mode` rejects updates when `CORPUS_FILTER` is active and accepts only `UPDATE_UNPACK_BASELINE=1`.
 #[test]
 fn corpus_update_with_filter_is_rejected() {
     let all = CorpusFilter::All;
@@ -532,8 +509,7 @@ fn corpus_update_with_filter_is_rejected() {
     assert!(baseline_mode(Some("yes"), &all).is_err());
 }
 
-/// Verifies that serial and parallel corpus runs produce identical observable
-/// outputs for every case.
+/// Verifies that serial and parallel corpus runs produce identical observable outputs for every case.
 #[test]
 fn corpus_runs_are_deterministic_serial_vs_parallel() {
     let corpus = load_valid_corpus();
@@ -551,15 +527,14 @@ fn corpus_runs_are_deterministic_serial_vs_parallel() {
             .join("\n")
     );
     assert_eq!(serial.rows.len(), selected.len());
-    // Every case produced a row with its outcome (none silently dropped).
+    // Verify that every case produces a non-empty outcome row.
     assert!(serial.rows.iter().all(|row| match &row.outcome {
         BaselineOutcome::Unpacked(unpacked) => unpacked.len > 0,
         BaselineOutcome::Failed { error } => !error.is_empty(),
     }));
 }
 
-/// Verifies that a full parallel corpus run finishes within the wall-clock
-/// budget. Skipped when `CORPUS_FILTER` is set.
+/// Verifies that a full parallel corpus run finishes within the wall-clock limit when `CORPUS_FILTER` is unset.
 #[test]
 fn corpus_wall_clock_limit() {
     let filter = env_filter();
@@ -582,8 +557,7 @@ fn corpus_wall_clock_limit() {
     );
 }
 
-/// Verifies that `UNPACK_CORPUS_TIME_LIMIT_SECS` defaults to
-/// [`CORPUS_TIME_LIMIT`] and accepts only a positive integer number of seconds.
+/// Verifies that `UNPACK_CORPUS_TIME_LIMIT_SECS` defaults to [`CORPUS_TIME_LIMIT`] and accepts only positive integers.
 #[test]
 fn corpus_time_limit_parsing() {
     assert_eq!(time_limit(None), Ok(CORPUS_TIME_LIMIT));
@@ -594,8 +568,7 @@ fn corpus_time_limit_parsing() {
     }
 }
 
-/// Verifies that every named packer recorded in `unpack_baseline.toml` maps to
-/// a registered specification in `packers::registry::REGISTRY`.
+/// Verifies that every named packer in `unpack_baseline.toml` maps to an entry in `packers::registry::REGISTRY`.
 #[test]
 fn every_corpus_packer_name_maps_to_a_registered_spec() {
     let baseline_path = Path::new(FIXTURE_DIR).join(BASELINE_FILE);
@@ -620,9 +593,7 @@ fn every_corpus_packer_name_maps_to_a_registered_spec() {
     }
 }
 
-/// Verifies that static signature detection (`registry::detect` and
-/// `registry::detect_all`) on every corpus `.prg` matches the packer name
-/// recorded in `unpack_baseline.toml`.
+/// Verifies that `registry::detect` and `registry::detect_all` match the packer name in `unpack_baseline.toml`.
 #[test]
 fn detect_all_over_corpus_matches_baseline_packer() {
     use regenerator2000_core::packers::{LoadedImage, registry};

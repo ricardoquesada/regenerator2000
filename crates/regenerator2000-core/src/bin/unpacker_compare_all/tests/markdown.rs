@@ -4,7 +4,7 @@ use super::*;
 use crate::corpus::{Divergence, ExpectedFailReason, INITIAL_REVIEW_MARKER};
 use crate::markdown::{divergence_label, render_markdown};
 
-/// Three observations covering agreement, a pending exception and ground
+/// Builds three observations for agreement, a pending exception, and ground
 /// truth.
 fn observations() -> Vec<Observation> {
     let mut pending = bare_case("b_traveller.prg");
@@ -35,8 +35,8 @@ fn observations() -> Vec<Observation> {
     ]
 }
 
-/// One row per case, sorted by file, the same text for any input order, and a
-/// summary per divergence category.
+/// Checks that the report has one row per case in file order, produces the
+/// same text for any input order, and summarizes each divergence category.
 #[test]
 fn markdown_report_has_one_row_per_case_and_is_deterministic() {
     let forward = observations();
@@ -60,7 +60,7 @@ fn markdown_report_has_one_row_per_case_and_is_deterministic() {
     assert!(rows[1].contains("pending user review"));
     assert!(rows[2].contains("ground truth `mule`, expected_fail padding_convention"));
     assert!(rows[2].contains("error: Phase2Timeout"));
-    // A `|` inside a cell is escaped so it cannot break the table.
+    // The renderer escapes `|` inside a cell so it cannot break the table.
     assert!(rows[2].contains("Max Iterations \\| quitting"), "{report}");
 
     assert!(report.contains("unp64 v2.42"));
@@ -68,7 +68,7 @@ fn markdown_report_has_one_row_per_case_and_is_deterministic() {
     assert!(report.contains("| unp64_default_end | 1 |"));
     assert!(report.contains("| one_side_failed | 1 |"));
 
-    // Every pending exception and expected_fail marker is a user action item.
+    // Every pending exception and expected_fail marker appears as a user action item.
     let items = report
         .split("## User action items")
         .nth(1)
@@ -84,7 +84,7 @@ fn markdown_report_has_one_row_per_case_and_is_deterministic() {
     assert!(!items.contains("a_agree.prg"), "{items}");
 }
 
-/// Labels carry the details a reviewer needs.
+/// Checks that divergence labels include reviewer details.
 #[test]
 fn divergence_labels_include_details() {
     assert_eq!(
@@ -107,8 +107,8 @@ fn divergence_labels_include_details() {
     );
 }
 
-/// `render_markdown` renders the `start_source`, `end_source`, `entry_source`,
-/// and `exit_reason` provenance strings from `UnpackReport`.
+/// Checks that `render_markdown` renders the `start_source`, `end_source`,
+/// `entry_source`, and `exit_reason` provenance strings from `UnpackReport`.
 #[test]
 fn compare_all_renders_report_provenance() {
     let mut img = image(0x0801, 0x2000, 0x080D);

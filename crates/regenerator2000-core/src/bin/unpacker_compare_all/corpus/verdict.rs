@@ -1,5 +1,4 @@
-//! Evaluation outcomes: what failed and why, and what a passing case's report
-//! must show.
+//! Evaluation outcomes: failure reasons and report notes for passing cases.
 
 use std::fmt;
 
@@ -11,12 +10,12 @@ use super::{CaseResult, INITIAL_REVIEW_MARKER, R2000Error, UnpackedImage};
 // Subjects and consensus properties
 // =============================================================================
 
-/// What a failure or report row is about.
+/// Target of a failure or report row.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Subject {
     /// One case, by file name.
     Case(String),
-    /// A whole group, by id (consensus checks).
+    /// A whole group, by id (for consensus checks).
     Group(String),
 }
 
@@ -29,7 +28,7 @@ impl fmt::Display for Subject {
     }
 }
 
-/// A group-level value compared by the consensus check.
+/// A group-level property for the consensus check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ConsensusProperty {
     /// The unpacked range.
@@ -41,15 +40,15 @@ pub enum ConsensusProperty {
 }
 
 impl ConsensusProperty {
-    /// Every property, in report order.
+    /// Every property in report order.
     pub const ALL: [ConsensusProperty; 3] = [Self::Range, Self::Entry, Self::Payload];
 
-    /// The value of this property for `image`, in its display form.
+    /// Returns the formatted value of this property for `image`.
     ///
     /// # Example
     ///
-    /// For an image over `$0800-$9D19` with entry `$1100`, `Range` gives
-    /// `"$0800-$9D19"` and `Entry` gives `"$1100"`.
+    /// For an image over `$0800-$9D19` with entry `$1100`, `Range` returns
+    /// `"$0800-$9D19"` and `Entry` returns `"$1100"`.
     #[must_use]
     pub fn value_of(self, image: &UnpackedImage) -> String {
         match self {
@@ -79,12 +78,12 @@ impl fmt::Display for ConsensusProperty {
 pub enum FailureReason {
     /// The result names a file that is not in the manifest.
     UnknownCase,
-    /// R2000 returned an error and the case is not `expected_fail`.
+    /// R2000 returned an error and the case does not set `expected_fail`.
     R2000Failed {
         /// The error.
         error: R2000Error,
     },
-    /// R2000's payload length does not match its range.
+    /// The R2000 payload length does not match its range.
     InconsistentResult {
         /// Reported start.
         start: HexAddr,
@@ -93,84 +92,84 @@ pub enum FailureReason {
         /// Payload length.
         data_len: usize,
     },
-    /// The case has no usable `[case.unp64]`.
+    /// The case has no `[case.unp64]` table.
     MissingUnp64,
-    /// The `[case.unp64]` record is internally inconsistent.
+    /// The `[case.unp64]` record is inconsistent.
     InvalidUnp64Record,
-    /// unp64 failed and the case has no exception that accepts it.
+    /// `unp64` failed and the case has no exception that accepts the failure.
     Unp64FailedUnaccepted {
-        /// unp64's failure reason.
+        /// The `unp64` failure reason.
         reason: String,
     },
-    /// A field differs from unp64 and is not permitted to.
+    /// A field differs from `unp64` without an exception.
     FieldMismatch {
         /// The field.
         field: Field,
-        /// unp64's value (`$XXXX` or `RUN`).
+        /// The `unp64` value (`$XXXX` or `RUN`).
         unp64: String,
-        /// R2000's value.
+        /// The R2000 value.
         r2000: HexAddr,
     },
     /// The ranges match, but the payload hashes differ.
     PayloadHashMismatch {
-        /// unp64's hash.
+        /// The `unp64` hash.
         unp64: Fnv64,
-        /// R2000's hash.
+        /// The R2000 hash.
         r2000: Fnv64,
     },
     /// The exception has no (or a blank) `reviewed_by`.
     UnsignedDivergence,
-    /// The exception's `kind` predicate is false for the current result.
+    /// The `kind` predicate of the exception is false for the current result.
     KindNoLongerHolds {
         /// The kind.
         kind: DivergenceKind,
         /// Which part of the predicate failed.
         detail: String,
     },
-    /// Listed fields now equal unp64.
+    /// Listed fields now equal `unp64`.
     StaleDivergence {
         /// The listed fields that no longer differ.
         stale: Vec<Field>,
         /// `true` if no listed field differs any more.
         all_listed: bool,
     },
-    /// The ranges differ but no overlap window was recorded.
+    /// The ranges differ, but the manifest records no overlap window.
     MissingOverlap,
-    /// The overlap window is not inside R2000's range.
+    /// The overlap window lies outside the R2000 range.
     OverlapOutsideResult {
         /// The recorded window.
         window: AddrRange,
-        /// R2000's range.
+        /// The R2000 range.
         r2000: AddrRange,
     },
-    /// The overlap window is not the current intersection of both ranges.
+    /// The overlap window does not equal the current range intersection.
     OverlapWindowMismatch {
         /// The recorded window.
         window: AddrRange,
-        /// The intersection of R2000's and unp64's ranges.
+        /// The intersection of the R2000 and `unp64` ranges.
         intersection: Option<AddrRange>,
     },
-    /// R2000's bytes over the overlap window differ from unp64's.
+    /// The R2000 bytes over the overlap window differ from `unp64`.
     OverlapHashMismatch {
         /// The window.
         window: AddrRange,
-        /// unp64's hash.
+        /// The `unp64` hash.
         unp64: Fnv64,
-        /// R2000's hash.
+        /// The R2000 hash.
         r2000: Fnv64,
     },
-    /// A value differs from the group's original.
+    /// A value differs from the original of the group.
     GroundTruthMismatch {
         /// The group.
         group: String,
         /// The field.
         field: Field,
-        /// The original's value.
+        /// The original value.
         expected: HexAddr,
-        /// R2000's value.
+        /// The R2000 value.
         actual: HexAddr,
     },
-    /// Payload bytes differ from the group's original.
+    /// Payload bytes differ from the original of the group.
     GroundTruthPayloadMismatch {
         /// The group.
         group: String,
@@ -188,13 +187,13 @@ pub enum FailureReason {
     },
     /// An `expected_fail` case passed.
     UnexpectedPass {
-        /// The marker's reason.
+        /// The marker reason.
         reason: ExpectedFailReason,
     },
 }
 
 impl FailureReason {
-    /// Stable rank of the reason kind, used as the secondary sort key.
+    /// Returns the stable rank of the reason kind as the secondary sort key.
     fn rank(&self) -> u8 {
         match self {
             Self::UnknownCase => 0,
@@ -219,10 +218,10 @@ impl FailureReason {
         }
     }
 
-    /// Which `expected_fail` reason could ever mask this failure.
+    /// Returns which `expected_fail` class can mask this failure.
     ///
-    /// The match is exhaustive with no wildcard, so a new failure variant
-    /// must be classified explicitly; the default is [`Maskable::Never`].
+    /// The match is exhaustive with no wildcard, so every new failure variant
+    /// requires explicit classification. Most variants map to [`Maskable::Never`].
     fn maskable(&self) -> Maskable {
         match self {
             Self::GroundTruthMismatch {
@@ -258,36 +257,36 @@ impl FailureReason {
     }
 }
 
-/// The classes of failures an `expected_fail` reason may mask.
+/// The classes of failures that an `expected_fail` reason may mask.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Maskable {
-    /// A ground-truth start mismatch (Dali's padding convention, if the two
-    /// starts are the BASIC link byte pair).
+    /// A ground-truth start mismatch when the two starts form the system BASIC
+    /// link byte pair.
     GroundTruthStart {
-        /// The original's start.
+        /// The original start.
         expected: u16,
-        /// R2000's start.
+        /// The R2000 start.
         actual: u16,
     },
-    /// A payload or overlap hash mismatch against unp64.
+    /// A payload or overlap hash mismatch against `unp64`.
     PayloadHash,
-    /// Nothing may mask it.
+    /// Nothing may mask this failure.
     Never,
 }
 
 impl ExpectedFailReason {
-    /// Returns `true` if this reason masks `failure` of `result`'s case.
+    /// Returns `true` if this reason masks `failure` for `result`.
     ///
-    /// Each reason has a closed allow-list; there is no "mask everything" path:
+    /// Each reason has a closed allow-list with no wildcard path:
     ///
     /// * `padding_convention` masks only a ground-truth `start` mismatch
-    ///   whose two starts are the BASIC link byte pair, e.g. Dali's `$0801`
-    ///   against the original `$0800`.
+    ///   where the two starts form the system BASIC link byte pair
+    ///   (`ram_start` and `default_basic_start`).
     /// * `payload_mismatch_under_investigation` masks only payload and
-    ///   overlap hash mismatches against unp64.
+    ///   overlap hash mismatches against `unp64`.
     ///
-    /// Everything else (field mismatches, unsigned or stale exceptions,
-    /// structural overlap errors, R2000 errors, consensus) still fails.
+    /// Every other failure (field mismatches, unsigned or stale exceptions,
+    /// structural overlap errors, R2000 errors, and consensus) still fails.
     #[must_use]
     pub fn masks(self, failure: &FailureReason, result: &CaseResult) -> bool {
         match (self, failure.maskable()) {
@@ -439,7 +438,7 @@ pub struct CaseFailure {
 }
 
 impl CaseFailure {
-    /// A failure of the case `file`.
+    /// Builds a failure for the case `file`.
     pub(super) fn case(file: &str, reason: FailureReason) -> Self {
         Self {
             subject: Subject::Case(file.to_string()),
@@ -447,8 +446,8 @@ impl CaseFailure {
         }
     }
 
-    /// Sort key for failure lists: subject, then reason kind, then text (so
-    /// the order is total and deterministic).
+    /// Returns the sort key for failure lists: subject, reason kind, and text
+    /// for a total deterministic order.
     pub(super) fn sort_key(&self) -> (Subject, u8, String) {
         (
             self.subject.clone(),
@@ -465,54 +464,53 @@ impl CaseFailure {
 /// The oracle that decided a passing case.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Oracle {
-    /// R2000 matched the recorded unp64 result exactly.
+    /// R2000 matched the recorded `unp64` result exactly.
     Unp64Reference,
-    /// R2000 differs from unp64 only as a reviewed exception allows.
+    /// R2000 differs from `unp64` only as a reviewed exception allows.
     AcceptedDivergence {
-        /// The exception's kind.
+        /// The exception kind.
         kind: DivergenceKind,
     },
-    /// R2000 matched the group's original.
+    /// R2000 matched the original of the group.
     GroundTruth {
         /// The group.
         group: String,
     },
 }
 
-/// Information about a passing case that a report must show.
+/// Information about a passing case for the report.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReportNote {
-    /// An `unexplained` exception: green, but must be investigated.
+    /// An `unexplained` exception passes CI, but requires investigation.
     Unexplained {
-        /// The exception's note, if any.
+        /// The exception note, if any.
         note: Option<String>,
     },
-    /// An exception signed with [`INITIAL_REVIEW_MARKER`]: the user must
-    /// confirm it.
+    /// An exception with [`INITIAL_REVIEW_MARKER`] awaits user review.
     PendingReview,
     /// An `expected_fail` case failed as expected.
     ExpectedFailure {
-        /// The marker's reason.
+        /// The marker reason.
         reason: ExpectedFailReason,
         /// The failures that the marker absorbed.
         failures: Vec<FailureReason>,
     },
-    /// unp64 disagrees with a ground-truth-verified result (informational).
+    /// `unp64` disagrees with a ground-truth-checked result (informational).
     Unp64DisagreesWithGroundTruth {
-        /// Fields where unp64 differs from R2000.
+        /// Fields where `unp64` differs from R2000.
         fields: Vec<Field>,
-        /// `true` if the ranges match but the payload hashes differ.
+        /// `true` if the payload or overlap hash differs from R2000.
         payload: bool,
     },
-    /// unp64 failed on a ground-truth-verified case (informational).
+    /// `unp64` failed on a ground-truth-checked case (informational).
     Unp64FailedOnGroundTruth {
-        /// unp64's failure reason.
+        /// The `unp64` failure reason.
         reason: String,
     },
 }
 
 impl ReportNote {
-    /// Returns `true` if the note asks the user to do something.
+    /// Returns `true` if the note requires user action.
     #[must_use]
     pub fn is_action_item(&self) -> bool {
         matches!(
@@ -560,7 +558,7 @@ impl fmt::Display for ReportNote {
     }
 }
 
-/// A passing case and what the report must show about it.
+/// A passing case and its report notes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaseReport {
     /// The case.
@@ -574,14 +572,14 @@ pub struct CaseReport {
 /// The result of evaluating a set of cases.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CorpusOutcome {
-    /// Passing cases, sorted by file.
+    /// Passing cases in file order.
     pub reports: Vec<CaseReport>,
-    /// All failures, sorted by subject and then by reason kind.
+    /// All failures in subject and reason-kind order.
     pub failures: Vec<CaseFailure>,
 }
 
 impl CorpusOutcome {
-    /// Returns `true` if nothing failed.
+    /// Returns `true` if no case or group failed.
     #[must_use]
     pub fn is_green(&self) -> bool {
         self.failures.is_empty()

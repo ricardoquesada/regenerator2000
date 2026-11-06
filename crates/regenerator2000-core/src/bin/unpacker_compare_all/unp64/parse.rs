@@ -1,16 +1,16 @@
-//! Pure parsing of what unp64 produces: its console output, its usage
-//! banner, and the PRG it saves.
+//! Pure parsing for `unp64` output: console text, usage banner, and saved PRG
+//! files.
 //!
-//! unp64's exit code is not trusted (it returns `0` even when nothing was
-//! saved), so success is defined by the `saved $SSSS-$EEEE as …` line plus a
-//! consistent output file. Progress output uses bare carriage returns, so all
-//! text is split on both `\r` and `\n`. unp64 prints hex in lower case.
+//! `unp64` returns exit code `0` even when it saves no file. Therefore, a run
+//! succeeds only when `unp64` prints a `saved $SSSS-$EEEE as …` line and
+//! writes a matching output file. Progress output uses bare carriage returns,
+//! so the parser splits lines on both `\r` and `\n`.
 
 use std::fmt;
 
-use crate::corpus::{AddrRange, HexAddr, Unp64Entry, Unp64Observation};
+use crate::corpus::{AddrRange, HexAddr, PRG_HEADER_LEN, Unp64Entry, Unp64Observation};
 
-/// Prefix of the line that reports the saved range, e.g.
+/// Prefix of the line that reports the saved range, such as
 /// `saved $0801-$fffd as out.prg`.
 const SAVED_PREFIX: &str = "saved ";
 
@@ -18,32 +18,32 @@ const SAVED_PREFIX: &str = "saved ";
 const SAVED_NAME_SEPARATOR: &str = " as ";
 
 /// Marker of the line that reports the entry point after the second pass,
-/// e.g. `pass2, return to mem: $0911`.
+/// such as `pass2, return to mem: $0911`.
 const PASS2_MARKER: &str = "pass2, return to mem:";
 
-/// Arrow that chains the steps unp64 took to resolve the entry, e.g.
-/// `($a7ae)->$080d` or `($a7ae)->(new basic start $1001)->RUN`.
+/// Arrow between steps in an `unp64` entry chain, such as `($a7ae)->$080d` or
+/// `($a7ae)->(new basic start $1001)->RUN`.
 const CHAIN_ARROW: &str = "->";
 
-/// The value unp64 prints when control returned to BASIC `RUN` without a
-/// resolvable `SYS` target.
+/// Token that `unp64` prints when control returns to BASIC `RUN` without a
+/// `SYS` target.
 const BASIC_RUN_VALUE: &str = "RUN";
 
-/// Marker of a verbose-mode diagnostic such as `$a7ae -> forced RUN`.
+/// Marker for a verbose-mode diagnostic such as `$a7ae -> forced RUN`.
 const DEBUG_FORCED_MARKER: &str = "-> forced ";
 
-/// Prefix of a verbose-mode pointer-monitor diagnostic.
+/// Prefix for a verbose-mode pointer-monitor diagnostic.
 const DEBUG_MONITORED_PREFIX: &str = "Monitored ";
 
-/// Separator between the packer name and the depacker address, e.g.
+/// Separator between the packer name and the depacker address, such as
 /// `TinyCrunch v1.0/ChristopherJam, unpacker=$010e`.
 const UNPACKER_SEPARATOR: &str = ", unpacker=";
 
-/// Prefix of the usage banner line, e.g.
+/// Prefix of the usage banner line, such as
 /// `UNP64 v2.42 - Generic C64 prg unpacker - …`.
 const BANNER_PREFIX: &str = "UNP64 v";
 
-/// Diagnostics that explain why unp64 saved nothing (`unp64.c:738`,
+/// Diagnostics that explain why `unp64` saved nothing (`unp64.c:738`,
 /// `unp64.c:868`, `unp64.c:551`, `6502emu.c:1241`).
 const FAILURE_MARKERS: [&str; 3] = [
     "Max Iterations",
@@ -51,51 +51,47 @@ const FAILURE_MARKERS: [&str; 3] = [
     MISSING_OPCODE_MARKER,
 ];
 
-/// Diagnostic of an opcode that unp64's CPU core does not implement
+/// Diagnostic for an opcode that the `unp64` CPU core does not implement
 /// (`NULL_OP`, `6502emu.c:1241`).
 const MISSING_OPCODE_MARKER: &str = "unimplemented opcode";
 
-/// Failure reason recorded when unp64 printed neither a `saved` line nor a
-/// known diagnostic.
+/// Failure reason when `unp64` prints neither a `saved` line nor a known
+/// diagnostic.
 const NO_SAVED_LINE_REASON: &str = "no `saved` line in unp64 output";
-
-/// Length of the little-endian load address that starts a PRG.
-const PRG_HEADER_LEN: usize = 2;
 
 // =============================================================================
 // Errors
 // =============================================================================
 
-/// A result of unp64 that cannot be recorded faithfully.
+/// Unrecordable `unp64` result.
 ///
-/// These are tool failures, never "unp64 failed to unpack": recording them
-/// would put wrong data into the manifest.
+/// These variants represent tool errors rather than normal unpack failures.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseError {
-    /// The usage banner (`UNP64 vX.YY …`) was not found.
+    /// The output contains no `UNP64 vX.YY …` usage banner.
     MissingBanner,
-    /// unp64 printed a `saved` line but wrote no output file.
+    /// `unp64` printed a `saved` line but wrote no output file.
     MissingOutputFile,
-    /// The output file holds no payload after its PRG header.
+    /// The output file contains no payload bytes after its PRG header.
     OutputTooShort {
         /// The file length in bytes.
         len: usize,
     },
-    /// The output file's payload would extend past `$FFFF`.
+    /// The output file payload extends past `$FFFF`.
     OutputExceedsAddressSpace {
         /// The load address from the header.
         start: u16,
         /// The payload length.
         len: usize,
     },
-    /// The `saved` line and the output file disagree on the range.
+    /// The `saved` line and the output file disagree on the address range.
     SavedLineMismatch {
-        /// The range printed on the `saved` line.
+        /// The range from the `saved` line.
         printed: SavedLine,
-        /// The range derived from the output file.
+        /// The range from the output file.
         derived: AddrRange,
     },
-    /// unp64 saved a payload but printed no parsable `pass2` entry.
+    /// `unp64` saved a payload but printed no parsable `pass2` entry.
     MissingPass2Entry,
 }
 
@@ -138,43 +134,43 @@ impl std::error::Error for ParseError {}
 // Console output
 // =============================================================================
 
-/// The range on a `saved $SSSS-$EEEE as …` line. `end` is inclusive, as
-/// printed (`(EndAdr - 1) & $FFFF`, `unp64.c:1238`).
+/// Address range from a `saved $SSSS-$EEEE as …` line.
+///
+/// `end` is inclusive (`(EndAdr - 1) & $FFFF`, `unp64.c:1238`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SavedLine {
     /// First saved address.
     pub start: u16,
-    /// Last saved address, as printed.
+    /// Last saved address.
     pub end: u16,
 }
 
-/// The `<Name>, unpacker=$XXXX` line: unp64's packer identification.
+/// Packer identification from a `<Name>, unpacker=$XXXX` line.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackerLine {
-    /// The packer name, e.g. `TinyCrunch v1.0/ChristopherJam`.
+    /// The packer name, such as `TinyCrunch v1.0/ChristopherJam`.
     pub name: String,
-    /// The depacker address unp64 found.
+    /// The depacker address that `unp64` found.
     pub unpacker: u16,
 }
 
-/// Everything the compare tool reads from one unp64 run's console output.
+/// Parsed fields from the console output of one `unp64` run.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Console {
-    /// The `saved` line, if unp64 saved a payload.
+    /// The `saved` line, if `unp64` saved a payload.
     pub saved: Option<SavedLine>,
-    /// The entry reported after the second pass.
+    /// The entry point from the second pass.
     pub entry: Option<Unp64Entry>,
-    /// unp64's packer identification.
+    /// The `unp64` packer identification.
     pub packer: Option<PackerLine>,
-    /// The first diagnostic that explains a failure (e.g. `Max Iterations
-    /// 0x01000000 Reached, quitting...`).
+    /// The first failure diagnostic, such as `Max Iterations 0x01000000
+    /// Reached, quitting...`.
     pub diagnostic: Option<String>,
-    /// `true` if unp64 stopped on an opcode it does not implement.
+    /// `true` if `unp64` stopped on an unimplemented opcode.
     pub missing_opcode: bool,
 }
 
-/// Splits console text into trimmed, non-empty lines, treating `\r`, `\n`
-/// and `\r\n` alike.
+/// Splits console text into trimmed, non-empty lines on `\r`, `\n`, and `\r\n`.
 fn console_lines(text: &str) -> Vec<&str> {
     text.split(['\r', '\n'])
         .map(str::trim)
@@ -182,7 +178,7 @@ fn console_lines(text: &str) -> Vec<&str> {
         .collect()
 }
 
-/// Parses `$hhhh` (exactly four hex digits, any case).
+/// Parses `$hhhh` (four hexadecimal digits in any case).
 fn parse_dollar_hex(token: &str) -> Option<u16> {
     HexAddr::parse(token.trim()).ok().map(|addr| addr.0)
 }
@@ -191,7 +187,7 @@ fn parse_dollar_hex(token: &str) -> Option<u16> {
 ///
 /// # Example
 ///
-/// `saved $0801-$fffd as x` gives `SavedLine { start: 0x0801, end: 0xFFFD }`.
+/// `saved $0801-$fffd as x` returns `SavedLine { start: 0x0801, end: 0xFFFD }`.
 fn parse_saved_line(line: &str) -> Option<SavedLine> {
     let rest = line.strip_prefix(SAVED_PREFIX)?;
     let (range, _name) = rest.split_once(SAVED_NAME_SEPARATOR)?;
@@ -202,8 +198,8 @@ fn parse_saved_line(line: &str) -> Option<SavedLine> {
     })
 }
 
-/// Parses the last step of an entry chain: `$0911`, `($a7ae)->$080d`,
-/// `($a7ae)->RUN` or `($a7ae)->(new basic start $1001)->RUN`.
+/// Parses the final step of an entry chain: `$0911`, `($a7ae)->$080d`,
+/// `($a7ae)->RUN`, or `($a7ae)->(new basic start $1001)->RUN`.
 fn parse_entry_chain(line: &str) -> Option<Unp64Entry> {
     let last = line.rsplit(CHAIN_ARROW).next()?.trim();
     if last == BASIC_RUN_VALUE {
@@ -212,18 +208,17 @@ fn parse_entry_chain(line: &str) -> Option<Unp64Entry> {
     parse_dollar_hex(last).map(Unp64Entry::Address)
 }
 
-/// Returns `true` for verbose-mode diagnostics that unp64 may print between
-/// the `pass2` marker and the entry value.
+/// Returns `true` for verbose-mode diagnostics that `unp64` prints between the
+/// `pass2` marker and the entry value.
 fn is_debug_diagnostic(line: &str) -> bool {
     line.contains(DEBUG_FORCED_MARKER) || line.starts_with(DEBUG_MONITORED_PREFIX)
 }
 
-/// Parses the entry after `pass2, return to mem:`.
+/// Parses the entry value after `pass2, return to mem:`.
 ///
-/// The value normally follows the marker on the same line. In verbose mode
-/// unp64 may print diagnostics first, so the first line after the marker
-/// that is not such a diagnostic must be the value. Anything else (for
-/// example `Max Iterations … quitting`) means there is no entry.
+/// The value normally appears on the same line after the marker. In verbose
+/// mode, `unp64` can print debug diagnostics before the entry value, so this
+/// function skips those diagnostic lines.
 fn parse_pass2_entry(lines: &[&str]) -> Option<Unp64Entry> {
     let (index, line) = lines
         .iter()
@@ -245,7 +240,7 @@ fn parse_packer_line(line: &str) -> Option<PackerLine> {
     })
 }
 
-/// Parses one unp64 run's console output (stdout followed by stderr).
+/// Parses the console output of one `unp64` run.
 ///
 /// # Example
 ///
@@ -255,7 +250,7 @@ fn parse_packer_line(line: &str) -> Option<PackerLine> {
 /// saved $0801-$fffd as /tmp/x.prg
 /// ```
 ///
-/// gives the saved range `$0801-$FFFD`, the entry `$0911` and the packer
+/// returns the saved range `$0801-$FFFD`, the entry `$0911`, and the packer
 /// `TinyCrunch v1.0/ChristopherJam` at `$010E`.
 #[must_use]
 pub fn parse_console(text: &str) -> Console {
@@ -278,17 +273,17 @@ pub fn parse_console(text: &str) -> Console {
 // Version banner
 // =============================================================================
 
-/// Extracts the version from unp64's usage banner.
+/// Extracts the version string from the `unp64` usage banner.
 ///
 /// # Example
 ///
-/// `UNP64 v2.42 - Generic C64 prg unpacker - (C)2008-2026 iAN CooG` gives
+/// `UNP64 v2.42 - Generic C64 prg unpacker - (C)2008-2026 iAN CooG` returns
 /// `"2.42"`.
 ///
 /// # Errors
 ///
 /// Returns [`ParseError::MissingBanner`] if no line starts with `UNP64 v`
-/// followed by a version made of digits and dots.
+/// followed by digits and dots.
 pub fn parse_version_banner(text: &str) -> Result<String, ParseError> {
     console_lines(text)
         .into_iter()
@@ -308,29 +303,29 @@ pub fn parse_version_banner(text: &str) -> Result<String, ParseError> {
 // Output file and whole-run interpretation
 // =============================================================================
 
-/// unp64's saved payload, derived from its output file.
+/// Saved payload from an `unp64` output file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SavedPayload {
-    /// The covered range: header load address to the last payload byte.
+    /// Address range from the header load address to the last payload byte.
     pub range: AddrRange,
-    /// The payload (output file without its PRG header).
+    /// Payload bytes without the PRG header.
     pub payload: Vec<u8>,
 }
 
-/// Derives the saved range and payload from unp64's output file.
+/// Derives the saved range and payload from an `unp64` output file.
 ///
-/// The file is authoritative: `start` is its header, `len` is its payload
-/// length, and `end = start + len - 1`. The printed end is ambiguous at
-/// `$FFFF` (it is masked), so it is only cross-checked.
+/// The output file defines `start` from its header, `len` from its payload
+/// length, and `end = start + len - 1`.
 ///
 /// # Example
 ///
-/// A file `00 08` followed by `$F800` bytes covers `$0800-$FFFF`.
+/// A file that starts with `00 08` followed by `$F800` bytes covers
+/// `$0800-$FFFF`.
 ///
 /// # Errors
 ///
 /// Returns [`ParseError::OutputTooShort`] for a file without payload bytes,
-/// or [`ParseError::OutputExceedsAddressSpace`] if the payload passes
+/// or [`ParseError::OutputExceedsAddressSpace`] if the payload extends past
 /// `$FFFF`.
 pub fn derive_saved_payload(file: &[u8]) -> Result<SavedPayload, ParseError> {
     let Some((header, payload)) = file.split_first_chunk::<PRG_HEADER_LEN>() else {
@@ -356,7 +351,8 @@ pub fn derive_saved_payload(file: &[u8]) -> Result<SavedPayload, ParseError> {
 ///
 /// # Errors
 ///
-/// Returns [`ParseError::SavedLineMismatch`] if the start or end differ.
+/// Returns [`ParseError::SavedLineMismatch`] if the start or end addresses
+/// differ.
 pub fn cross_check(printed: SavedLine, derived: AddrRange) -> Result<(), ParseError> {
     if printed.start == derived.start() && printed.end == derived.end() {
         return Ok(());
@@ -364,29 +360,29 @@ pub fn cross_check(printed: SavedLine, derived: AddrRange) -> Result<(), ParseEr
     Err(ParseError::SavedLineMismatch { printed, derived })
 }
 
-/// What one unp64 run produced.
+/// Outcome of one `unp64` run.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Unp64Outcome {
-    /// unp64 saved a payload.
+    /// `unp64` saved a payload.
     Saved {
-        /// The saved range and bytes.
+        /// The saved range and payload bytes.
         saved: SavedPayload,
-        /// The entry reported after the second pass.
+        /// The entry point from the second pass.
         entry: Unp64Entry,
-        /// unp64's packer identification, if it printed one.
+        /// The `unp64` packer identification, if present.
         packer: Option<PackerLine>,
     },
-    /// unp64 saved nothing.
+    /// `unp64` saved nothing.
     Failed {
-        /// Why: unp64's diagnostic, or a fixed note if it printed none.
+        /// The `unp64` diagnostic, or a default reason if none appeared.
         reason: String,
-        /// `true` if unp64 stopped on an opcode it does not implement.
+        /// `true` if `unp64` stopped on an unimplemented opcode.
         missing_opcode: bool,
     },
 }
 
 impl Unp64Outcome {
-    /// The outcome in the form the corpus classifier takes.
+    /// Converts the outcome into [`Unp64Observation`] for the classifier.
     #[must_use]
     pub fn observation(&self) -> Unp64Observation {
         match self {
@@ -405,7 +401,7 @@ impl Unp64Outcome {
         }
     }
 
-    /// unp64's packer name, if it identified one.
+    /// Returns the `unp64` packer name, if present.
     #[must_use]
     pub fn packer_name(&self) -> Option<&str> {
         match self {
@@ -418,16 +414,17 @@ impl Unp64Outcome {
     }
 }
 
-/// Interprets one run from its console output and its output file (`None`
-/// if unp64 wrote none).
+/// Interprets one `unp64` run from its console output and optional output file.
 ///
-/// No `saved` line means unp64 failed, whatever its exit code. A `saved`
-/// line requires a consistent output file and a parsable entry.
+/// When the console output contains no `saved` line, the run is a failure
+/// regardless of the exit code. When a `saved` line is present, the output
+/// file and `pass2` entry must both be valid.
 ///
 /// # Errors
 ///
-/// Returns a [`ParseError`] if unp64 claims to have saved a payload that is
-/// missing, malformed, inconsistent with the `saved` line, or has no entry.
+/// Returns [`ParseError`] if `unp64` printed a `saved` line but the output
+/// file is missing, malformed, inconsistent with the `saved` line, or missing
+/// a `pass2` entry.
 pub fn interpret_run(console: &Console, output: Option<&[u8]>) -> Result<Unp64Outcome, ParseError> {
     let Some(printed) = console.saved else {
         return Ok(Unp64Outcome::Failed {

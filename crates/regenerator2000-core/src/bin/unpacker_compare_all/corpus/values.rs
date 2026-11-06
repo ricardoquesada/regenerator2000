@@ -1,8 +1,8 @@
 //! Text-form scalar values of the manifest and baseline, address ranges, and
 //! the FNV-1a-64 hash.
 //!
-//! Every scalar here has exactly one canonical text form, so writing a parsed
-//! file reproduces it byte for byte (a second `--update` run is a zero diff).
+//! Every scalar in this module has one canonical text form, so writing a
+//! parsed file reproduces it byte for byte.
 
 use std::fmt;
 use std::marker::PhantomData;
@@ -16,13 +16,13 @@ const FNV64_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
 /// FNV-1a 64-bit prime.
 const FNV64_PRIME: u64 = 0x0000_0100_0000_01b3;
 
-/// Number of hex digits in the manifest form of an [`Fnv64`].
+/// Number of hex digits in the manifest form of [`Fnv64`].
 const FNV64_HEX_DIGITS: usize = 16;
 
-/// Number of hex digits in the manifest form of a [`HexAddr`].
+/// Number of hex digits in the manifest form of [`HexAddr`].
 const HEX_ADDR_DIGITS: usize = 4;
 
-/// Manifest token for the BASIC `RUN` return that unp64 prints when it found
+/// Manifest token for the BASIC `RUN` return that `unp64` prints when it finds
 /// no `SYS` target (`pass2, return to mem: ($a7ae)->RUN`).
 const BASIC_RUN_TOKEN: &str = "RUN";
 
@@ -32,13 +32,13 @@ const BASIC_RUN_TOKEN: &str = "RUN";
 
 /// Computes the 64-bit FNV-1a hash of `bytes`.
 ///
-/// Used only for non-adversarial change detection of unpacked payloads,
-/// always together with the payload length.
+/// The corpus uses this hash with the payload length to detect changes in
+/// unpacked payloads.
 ///
 /// # Example
 ///
-/// `fnv1a64(b"")` is the offset basis `0xcbf29ce484222325`, and
-/// `fnv1a64(b"a")` is `0xaf63dc4c8601ec8c`.
+/// `fnv1a64(b"")` returns the offset basis `0xcbf29ce484222325`, and
+/// `fnv1a64(b"a")` returns `0xaf63dc4c8601ec8c`.
 #[must_use]
 pub fn fnv1a64(bytes: &[u8]) -> u64 {
     bytes.iter().fold(FNV64_OFFSET_BASIS, |hash, &byte| {
@@ -50,7 +50,7 @@ pub fn fnv1a64(bytes: &[u8]) -> u64 {
 // String-only deserialization
 // =============================================================================
 
-/// A malformed scalar value in a manifest or baseline.
+/// Malformed scalar value in a manifest or baseline.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValueFormatError {
     /// The value is not a `$`-prefixed, four-digit hex address.
@@ -84,16 +84,15 @@ impl fmt::Display for ValueFormatError {
 
 impl std::error::Error for ValueFormatError {}
 
-/// A scalar that has a single canonical string form in the manifest.
+/// Scalar type with a canonical string representation in the manifest.
 ///
-/// Implementors get `Deserialize` through [`deserialize_manifest_str`], which
-/// rejects non-string TOML values (for example a bare integer address) with a
-/// message that states the expected form.
+/// [`deserialize_manifest_str`] rejects non-string TOML values with a message
+/// that states the expected format.
 pub(super) trait ManifestStr: Sized {
-    /// Describes the expected form, used in "invalid type" errors.
+    /// Description of the expected format for serde type errors.
     const EXPECTING: &'static str;
 
-    /// Parses the canonical (or accepted) string form.
+    /// Parses the string representation.
     fn parse_manifest(text: &str) -> Result<Self, String>;
 }
 
@@ -125,26 +124,25 @@ where
 // HexAddr
 // =============================================================================
 
-/// A 6502 address with the manifest text form `"$XXXX"`.
+/// 6502 address with the canonical manifest text form `"$XXXX"`.
 ///
-/// Parsing accepts upper- and lowercase hex digits; [`fmt::Display`] and the
-/// serializer always write four uppercase digits, so a second `--update` run
-/// yields a zero diff.
+/// [`HexAddr::parse`] accepts uppercase and lowercase hex digits.
+/// [`fmt::Display`] and `Serialize` always format four uppercase hex digits.
 ///
 /// # Example
 ///
-/// `HexAddr::parse("$e7ff")` gives `HexAddr(0xE7FF)`, which is written back as
+/// `HexAddr::parse("$e7ff")` returns `HexAddr(0xE7FF)`, which formats as
 /// `"$E7FF"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct HexAddr(pub u16);
 
 impl HexAddr {
-    /// Parses `"$XXXX"` (exactly four hex digits, any case).
+    /// Parses `"$XXXX"` with four hex digits in any case.
     ///
     /// # Errors
     ///
     /// Returns [`ValueFormatError::HexAddr`] when the `$` prefix is missing,
-    /// the digit count is not four, or a digit is not hex.
+    /// the digit count is not four, or any character is not a hex digit.
     pub fn parse(text: &str) -> Result<Self, ValueFormatError> {
         let invalid = || ValueFormatError::HexAddr {
             input: text.to_string(),
@@ -195,11 +193,12 @@ impl<'de> Deserialize<'de> for HexAddr {
 // Fnv64
 // =============================================================================
 
-/// An FNV-1a-64 hash with the manifest text form of 16 lowercase hex digits.
+/// FNV-1a-64 hash with the canonical manifest text form of 16 lowercase hex
+/// digits.
 ///
 /// # Example
 ///
-/// `Fnv64::of(b"")` is written as `"cbf29ce484222325"`.
+/// `Fnv64::of(b"")` formats as `"cbf29ce484222325"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Fnv64(pub u64);
 
@@ -210,13 +209,12 @@ impl Fnv64 {
         Self(fnv1a64(bytes))
     }
 
-    /// Parses exactly 16 lowercase hex digits (no `0x` prefix).
+    /// Parses 16 lowercase hex digits without a `0x` prefix.
     ///
     /// # Errors
     ///
     /// Returns [`ValueFormatError::Fnv64`] for any other length, a prefix, or
-    /// an uppercase or non-hex digit. Only the canonical form is accepted, so
-    /// the writer is the single source of the hash text.
+    /// an uppercase or non-hex character.
     pub fn parse(text: &str) -> Result<Self, ValueFormatError> {
         let invalid = || ValueFormatError::Fnv64 {
             input: text.to_string(),
@@ -264,22 +262,21 @@ impl<'de> Deserialize<'de> for Fnv64 {
 // Unp64Entry
 // =============================================================================
 
-/// The entry point that unp64 reported after its second pass.
+/// Entry point that `unp64` reports after its second pass.
 ///
-/// unp64 prints either an address or `RUN` when control returned to the
-/// BASIC interpreter and it found no `SYS` target. The manifest form is
-/// `"$080D"` or `"RUN"`.
+/// `unp64` prints either a concrete address or `RUN` when control returns to
+/// the BASIC interpreter without a `SYS` target. The manifest representation
+/// is `"$080D"` or `"RUN"`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Unp64Entry {
-    /// unp64 resolved a concrete entry address.
+    /// `unp64` resolved a concrete entry address.
     Address(u16),
-    /// unp64 returned to BASIC `RUN` without resolving a `SYS` address.
+    /// `unp64` returned to BASIC `RUN` without a `SYS` address.
     BasicRun,
 }
 
 impl Unp64Entry {
-    /// Returns `true` if unp64 resolved exactly `addr`. A [`Self::BasicRun`]
-    /// entry never matches an address.
+    /// Returns `true` if `self` is `Address(addr)`.
     #[must_use]
     pub fn matches(self, addr: u16) -> bool {
         self == Self::Address(addr)
@@ -324,11 +321,11 @@ impl<'de> Deserialize<'de> for Unp64Entry {
 // Address ranges
 // =============================================================================
 
-/// An inclusive, non-empty 6502 address range.
+/// Inclusive, non-empty 6502 address range.
 ///
 /// # Example
 ///
-/// `AddrRange::new(0x0800, 0xFFFF)` holds 63 488 bytes and displays as
+/// `AddrRange::new(0x0800, 0xFFFF)` holds 63,488 bytes and formats as
 /// `$0800-$FFFF`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AddrRange {
@@ -343,13 +340,13 @@ impl AddrRange {
         (start <= end).then_some(Self { start, end })
     }
 
-    /// Returns the range that starts at `start` and holds `len` bytes, or
-    /// `None` if `len` is zero or the range would pass `$FFFF`.
+    /// Returns the range starting at `start` with `len` bytes, or `None` if
+    /// `len` is zero or the range extends past `$FFFF`.
     ///
     /// # Example
     ///
-    /// `from_start_len(0xFF00, 256)` is `$FF00-$FFFF`; with `257` it is
-    /// `None`.
+    /// `from_start_len(0xFF00, 256)` returns `$FF00-$FFFF`. With `257`, it
+    /// returns `None`.
     #[must_use]
     pub fn from_start_len(start: u16, len: usize) -> Option<Self> {
         let last = usize::from(start).checked_add(len)?.checked_sub(1)?;
@@ -357,19 +354,19 @@ impl AddrRange {
         Self::new(start, end)
     }
 
-    /// First address of the range.
+    /// Returns the first address of the range.
     #[must_use]
     pub fn start(self) -> u16 {
         self.start
     }
 
-    /// Last address of the range (inclusive).
+    /// Returns the inclusive last address of the range.
     #[must_use]
     pub fn end(self) -> u16 {
         self.end
     }
 
-    /// Number of bytes in the range (1 to 65 536).
+    /// Returns the number of bytes in the range (1 to 65,536).
     #[must_use]
     pub fn len(self) -> usize {
         usize::from(self.end - self.start) + 1
@@ -381,7 +378,7 @@ impl AddrRange {
         self.start <= other.start && other.end <= self.end
     }
 
-    /// Returns the overlap of both ranges, or `None` if they are disjoint.
+    /// Returns the intersection of both ranges, or `None` if they are disjoint.
     #[must_use]
     pub fn intersect(self, other: Self) -> Option<Self> {
         Self::new(self.start.max(other.start), self.end.min(other.end))
@@ -394,37 +391,32 @@ impl fmt::Display for AddrRange {
     }
 }
 
-/// A byte buffer anchored at a 6502 address (an unpacked payload, an
-/// original program, or unp64's saved bytes).
+/// Byte buffer anchored at a 6502 start address.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct Addressed<'a> {
     /// Address of `data[0]`.
     pub(super) start: u16,
-    /// The bytes.
+    /// The byte slice.
     pub(super) data: &'a [u8],
 }
 
 impl<'a> Addressed<'a> {
-    /// Returns the bytes of `window`, or `None` if the buffer does not cover
-    /// all of it. Never panics and never reads outside the buffer.
+    /// Returns the subslice covering `window`, or `None` if `self` does not
+    /// cover the entire window.
     pub(super) fn slice(self, window: AddrRange) -> Option<&'a [u8]> {
         let offset = usize::from(window.start().checked_sub(self.start)?);
         self.data.get(offset..offset.checked_add(window.len())?)
     }
 }
 
-/// Returns the FNV-1a-64 of the bytes over `window` in a payload whose first
-/// byte sits at `start`, or `None` if the payload does not cover the whole
-/// window.
-///
-/// The compare tool uses it to record (and re-check) the overlap hash of
-/// unp64's bytes; the oracle hashes R2000's bytes over the same window with
-/// the same bounds-checked slice.
+/// Computes the FNV-1a-64 hash of the bytes over `window` in a payload
+/// anchored at `start`, or returns `None` if the payload does not cover
+/// `window`.
 ///
 /// # Example
 ///
-/// For a payload `[1, 2, 3]` at `$0800`, the window `$0801-$0802` hashes the
-/// bytes `[2, 3]`, and the window `$0802-$0803` is `None`.
+/// For payload `[1, 2, 3]` at `$0800`, window `$0801-$0802` hashes `[2, 3]`,
+/// and window `$0802-$0803` returns `None`.
 #[must_use]
 pub fn hash_window(start: u16, payload: &[u8], window: AddrRange) -> Option<Fnv64> {
     Addressed {
@@ -435,13 +427,14 @@ pub fn hash_window(start: u16, payload: &[u8], window: AddrRange) -> Option<Fnv6
     .map(Fnv64::of)
 }
 
-/// Returns the address of the first differing byte and the number of
-/// differing bytes between two equally long slices that both start at `base`,
-/// or `None` if they are identical.
+/// Returns the address of the first differing byte and the total number of
+/// differing bytes between two equal-length slices starting at `base`, or
+/// `None` when the slices are identical.
 ///
 /// # Example
 ///
-/// `first_difference(0x0800, &[1, 2, 3], &[1, 9, 9])` is `Some((0x0801, 2))`.
+/// `first_difference(0x0800, &[1, 2, 3], &[1, 9, 9])` returns
+/// `Some((0x0801, 2))`.
 pub(super) fn first_difference(base: u16, left: &[u8], right: &[u8]) -> Option<(u16, usize)> {
     let mut first = None;
     let mut count = 0usize;
@@ -451,7 +444,7 @@ pub(super) fn first_difference(base: u16, left: &[u8], right: &[u8]) -> Option<(
             first.get_or_insert(offset);
         }
     }
-    // `offset` is below the window length (at most 65 536), and the address
-    // is reported modulo the address space like every other 6502 address.
+    // `offset` is below the window length (at most 65,536), and the address
+    // wraps modulo the 16-bit address space.
     first.map(|offset| (base.wrapping_add(offset as u16), count))
 }

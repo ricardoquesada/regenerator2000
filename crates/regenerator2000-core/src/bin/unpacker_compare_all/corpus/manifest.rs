@@ -1,8 +1,8 @@
-//! The corpus manifest model, its strict TOML parser and its deterministic
+//! The corpus manifest model, its strict TOML parser, and its deterministic
 //! writer.
 //!
-//! Every table uses `deny_unknown_fields`, so a typo (for example
-//! `acepted_divergence`) is a parse error instead of a silently dropped
+//! Every table sets `deny_unknown_fields`, so a typo (for example
+//! `acepted_divergence`) produces a parse error instead of dropping a
 //! reviewed exception.
 
 use std::num::NonZeroU64;
@@ -14,8 +14,8 @@ use super::kinds::{DivergenceKind, ExpectedFailReason, FieldSet};
 use super::values::{AddrRange, Fnv64, HexAddr, Unp64Entry};
 use super::{CorpusError, DEFAULT_MAX_INSTRUCTIONS, INITIAL_REVIEW_MARKER};
 
-/// Header written at the top of the manifest. Comments are not preserved by
-/// the writer, so the header tells humans where their notes belong.
+/// Header text at the top of the manifest. The writer does not preserve TOML
+/// comments, so the header tells humans where to put notes.
 const MANIFEST_HEADER: &str = "\
 # Unpacker corpus manifest. `[case.unp64]` tables are written by
 # `cargo run -p regenerator2000-core --bin unpacker_compare_all -- --update`.
@@ -28,11 +28,11 @@ const MANIFEST_HEADER: &str = "\
 // Recorded unp64 results
 // =============================================================================
 
-/// The window over which unp64's and R2000's payloads overlap, with the hash
-/// of unp64's bytes over that window.
+/// The window over which the `unp64` and R2000 payloads overlap, with the hash
+/// of the `unp64` bytes over that window.
 ///
-/// Recorded by `--update` whenever the two ranges differ, so CI can check
-/// "the payload matches over the overlapping range" without unp64.
+/// The `--update` command records this value whenever the two ranges differ,
+/// so CI can check payload agreement over the overlap without `unp64`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Overlap {
@@ -40,59 +40,59 @@ pub struct Overlap {
     pub start: HexAddr,
     /// Last address of the window (inclusive).
     pub end: HexAddr,
-    /// FNV-1a-64 of unp64's bytes over the window.
+    /// FNV-1a-64 of the `unp64` bytes over the window.
     pub fnv64: Fnv64,
 }
 
 impl Overlap {
-    /// The window as a range, or `None` if `end < start`.
+    /// Returns the window as a range, or `None` if `end < start`.
     #[must_use]
     pub fn range(&self) -> Option<AddrRange> {
         AddrRange::new(self.start.0, self.end.0)
     }
 }
 
-/// A successful unp64 run, as recorded by `--update`.
+/// A successful `unp64` run from `--update`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unp64Saved {
     /// First saved address.
     pub start: HexAddr,
     /// Last saved address (inclusive).
     pub end: HexAddr,
-    /// The entry point unp64 reported.
+    /// The entry point from `unp64`.
     pub entry: Unp64Entry,
-    /// Saved payload length. Must equal `end - start + 1`.
+    /// Saved payload length (`end - start + 1`).
     pub len: u32,
     /// FNV-1a-64 of the saved payload.
     pub payload_fnv64: Fnv64,
-    /// Overlap window, present when R2000's range differed at record time.
+    /// Overlap window when the R2000 range differed at record time.
     pub overlap: Option<Overlap>,
-    /// unp64 version that produced the record.
+    /// The `unp64` version that produced the record.
     pub version: String,
 }
 
 impl Unp64Saved {
-    /// The saved range, or `None` if the record is inconsistent.
+    /// Returns the saved range, or `None` if the record is inconsistent.
     #[must_use]
     pub fn range(&self) -> Option<AddrRange> {
         AddrRange::new(self.start.0, self.end.0)
     }
 }
 
-/// An unp64 run that saved nothing (for example "Max Iterations … quitting").
+/// An `unp64` run that saved no output (for example "Max Iterations … quitting").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unp64Failed {
-    /// Short description of why unp64 failed.
+    /// Short description of why `unp64` failed.
     pub reason: String,
-    /// unp64 version that produced the record.
+    /// The `unp64` version that produced the record.
     pub version: String,
 }
 
-/// The recorded unp64 result of one case: either saved output or a failure.
+/// The recorded `unp64` result of one case: either saved output or a failure.
 ///
-/// The manifest form is one `[case.unp64]` table. A failed run has only
-/// `failed` and `version`; combining `failed` with any result key is a parse
-/// error.
+/// The manifest form is one `[case.unp64]` table. A failed run contains only
+/// `failed` and `version`. Combining `failed` with any result key produces a
+/// parse error.
 ///
 /// # Example
 ///
@@ -104,13 +104,13 @@ pub struct Unp64Failed {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "RawUnp64Record", into = "RawUnp64Record")]
 pub enum Unp64Record {
-    /// unp64 saved a payload.
+    /// `unp64` saved a payload.
     Saved(Unp64Saved),
-    /// unp64 saved nothing.
+    /// `unp64` saved no output.
     Failed(Unp64Failed),
 }
 
-/// Flat TOML shape of [`Unp64Record`], used only for (de)serialization.
+/// Flat TOML shape of [`Unp64Record`] for serialization and deserialization.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawUnp64Record {
@@ -213,23 +213,23 @@ impl From<Unp64Record> for RawUnp64Record {
 pub enum ReviewState {
     /// `reviewed_by` is missing or blank: a proposal that does not count.
     Unsigned,
-    /// Signed with [`INITIAL_REVIEW_MARKER`]: counts, but the user must
-    /// confirm it.
+    /// `reviewed_by` equals [`INITIAL_REVIEW_MARKER`]: counts, but awaits
+    /// user approval.
     PendingUser,
-    /// Signed by a reviewer.
+    /// A reviewer signed the exception.
     Signed,
 }
 
-/// A reviewed exception: R2000 deliberately differs from unp64 in the listed
-/// fields.
+/// A reviewed exception where R2000 intentionally differs from `unp64` in the
+/// listed fields.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AcceptedDivergence {
     /// Why the tools differ.
     pub kind: DivergenceKind,
-    /// The only fields that may differ from unp64.
+    /// The only fields that may differ from `unp64`.
     pub fields: FieldSet,
-    /// Who reviewed the exception. Missing or blank means "proposed, unsigned".
+    /// Reviewer name. Missing or blank means a proposed, unsigned exception.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reviewed_by: Option<String>,
     /// Free-form human context.
@@ -242,9 +242,9 @@ impl AcceptedDivergence {
     ///
     /// # Example
     ///
-    /// `None`, `""` and `"  "` are [`ReviewState::Unsigned`];
-    /// [`INITIAL_REVIEW_MARKER`] is [`ReviewState::PendingUser`]; `"ricardoq"`
-    /// is [`ReviewState::Signed`].
+    /// `None`, `""`, and `"  "` map to [`ReviewState::Unsigned`].
+    /// [`INITIAL_REVIEW_MARKER`] maps to [`ReviewState::PendingUser`].
+    /// `"ricardoq"` maps to [`ReviewState::Signed`].
     #[must_use]
     pub fn review_state(&self) -> ReviewState {
         match self.reviewed_by.as_deref().map(str::trim) {
@@ -264,9 +264,9 @@ impl AcceptedDivergence {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Group {
-    /// Unique group identifier, referenced by [`Case::group`].
+    /// Unique group identifier for [`Case::group`].
     pub id: String,
-    /// File name (in the fixture directory) of the original, unpacked PRG.
+    /// File name (in the fixture directory) of the original unpacked PRG.
     pub original: String,
     /// Entry point of the original program.
     pub entry: HexAddr,
@@ -281,24 +281,24 @@ pub struct Case {
     /// Ground-truth group this case belongs to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
-    /// Instruction budget, shared by the corpus test, the compare tool and the
-    /// baseline. Defaults to [`DEFAULT_MAX_INSTRUCTIONS`]; zero is rejected
-    /// at parse time.
+    /// Instruction budget for the corpus test, the compare tool, and the
+    /// baseline. Defaults to [`DEFAULT_MAX_INSTRUCTIONS`]. The parser rejects
+    /// zero.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_instructions: Option<NonZeroU64>,
     /// Marks a case that must currently fail its oracle.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expected_fail: Option<ExpectedFailReason>,
-    /// The recorded unp64 result. Required (validation fails without it).
+    /// The recorded `unp64` result (`Corpus::validate` requires this field).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unp64: Option<Unp64Record>,
-    /// A reviewed exception to the unp64 reference rule.
+    /// A reviewed exception to the `unp64` reference rule.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub accepted_divergence: Option<AcceptedDivergence>,
 }
 
 impl Case {
-    /// The instruction budget for this case.
+    /// Returns the instruction budget for this case.
     #[must_use]
     pub fn effective_max_instructions(&self) -> u64 {
         self.max_instructions
@@ -319,8 +319,8 @@ pub struct Corpus {
 }
 
 impl Corpus {
-    /// Parses a manifest from TOML text. Performs only structural checks;
-    /// call [`Corpus::validate`] for cross-references and fixtures.
+    /// Parses a manifest from TOML text and runs structural checks.
+    /// Call [`Corpus::validate`] to check cross-references and fixtures.
     ///
     /// # Errors
     ///
@@ -337,7 +337,7 @@ impl Corpus {
     ///
     /// # Errors
     ///
-    /// Returns [`CorpusError::Io`] if the file cannot be read, or any error of
+    /// Returns [`CorpusError::Io`] on a file read error, or any error from
     /// [`Corpus::parse`].
     pub fn load(path: &Path) -> Result<Self, CorpusError> {
         let text = std::fs::read_to_string(path).map_err(|e| CorpusError::Io {
@@ -347,9 +347,11 @@ impl Corpus {
         Self::parse(&text)
     }
 
-    /// Writes the manifest in its canonical form: groups sorted by `id`,
-    /// cases sorted by `file`, addresses as `"$XXXX"`, hashes as 16 lowercase
-    /// hex digits. Writing a parsed canonical manifest reproduces it exactly.
+    /// Writes the manifest in its canonical form.
+    ///
+    /// The output sorts groups by `id` and cases by `file`, formats addresses
+    /// as `"$XXXX"`, and formats hashes as 16 lowercase hex digits. Writing a
+    /// parsed canonical manifest reproduces it exactly.
     ///
     /// # Errors
     ///

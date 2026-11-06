@@ -2,7 +2,7 @@
 
 use super::*;
 
-/// unp64 saved `start..=end` from the shared memory.
+/// Builds an `unp64` observation that saved `start..=end` from the shared memory.
 fn observed(start: u16, end: u16, entry: Unp64Entry) -> Unp64Observation {
     Unp64Observation::Saved {
         start,
@@ -11,7 +11,7 @@ fn observed(start: u16, end: u16, entry: Unp64Entry) -> Unp64Observation {
     }
 }
 
-/// Classifies a successful C64 result loaded at `$0801`.
+/// Classifies a successful C64 result at load address `$0801`.
 fn classify_image(image: UnpackedImage, unp64: &Unp64Observation) -> Divergence {
     classify(&ok_result("a.prg", image), unp64)
 }
@@ -25,9 +25,9 @@ fn classify_agree() {
     );
 }
 
-/// Only the BASIC link byte pair `{basic_start - 1, basic_start}` is a padding
-/// byte, in either order. `$0802` vs `$0801` is not the pair and classifies as
-/// `Unexplained`.
+/// Checks that only the BASIC link byte pair `{basic_start - 1, basic_start}`
+/// classifies as a padding byte in either order, while `$0802` vs `$0801`
+/// classifies as `Unexplained`.
 #[test]
 fn classify_padding_byte_both_directions() {
     // (label, system, load, unp64 start, R2000 start, is padding)
@@ -104,9 +104,8 @@ fn classify_padding_byte_both_directions() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// `padding_byte` keeps both anchors: the engine's BASIC start comes from the
-/// shared `unpacker::machine::get_basic_start`, and the system's default BASIC
-/// start is the other anchor.
+/// Checks that `padding_byte` keeps both anchors: the engine BASIC start from
+/// `unpacker::machine::get_basic_start` and the system default BASIC start.
 #[test]
 fn padding_byte_anchors_on_engine_and_default_basic_start() {
     use super::super::kinds::{padding_byte_holds, padding_byte_pairs};
@@ -116,7 +115,7 @@ fn padding_byte_anchors_on_engine_and_default_basic_start() {
         // Default anchor only (C64 `$0801`, C128 `$1C01`).
         (System::C64, 0x1000, 0x0800, 0x0801, true),
         (System::C128, 0x1C00, 0x1C00, 0x1C01, true),
-        // Engine anchor only (load-derived; Card Cruncher).
+        // Engine anchor only (from load address, as in Card Cruncher).
         (System::C64, 0x1000, 0x0FFF, 0x1000, true),
         (System::C64, 0x07C0, 0x07C0, 0x07C1, true),
         // Both anchors coincide.
@@ -330,8 +329,8 @@ fn classify_unp64_basic_run_entry_is_not_entry_mismatch() {
     assert_ne!(divergence, Divergence::EntryMismatch);
 }
 
-/// The classifier's benign kinds map onto the manifest's closed enum, and
-/// the suspicious ones map to nothing.
+/// Checks that benign classifier kinds map onto the manifest enum, while
+/// suspicious kinds map to `None`.
 #[test]
 fn divergence_accepted_kind_mapping() {
     let rows = [

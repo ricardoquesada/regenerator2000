@@ -1,14 +1,14 @@
-//! Fixture lookup: "does this fixture exist" and "give me its bytes".
+//! Fixture lookup and byte loading.
 //!
-//! The integration test and the compare tool use [`DirFixtures`]; unit tests
-//! use an in-memory resolver, so validation and ground-truth loading stay
-//! testable without a file system.
+//! The integration test and the compare tool use [`DirFixtures`]. Unit tests
+//! use an in-memory resolver so validation and ground-truth loading run
+//! without file I/O.
 
 use std::path::PathBuf;
 
 use super::CorpusError;
 
-/// Answers "does this fixture exist" and "give me its bytes".
+/// Resolves fixture existence and reads fixture bytes.
 pub trait FixtureResolver {
     /// Returns `true` if the fixture `file` exists.
     fn exists(&self, file: &str) -> bool;
@@ -29,7 +29,7 @@ pub struct DirFixtures {
 }
 
 impl DirFixtures {
-    /// Resolves fixtures inside `root`.
+    /// Creates a fixture resolver rooted at `root`.
     #[must_use]
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
@@ -55,13 +55,12 @@ impl FixtureResolver for DirFixtures {
     }
 }
 
-/// Returns `true` if `name` is a bare file name that cannot escape the
-/// fixture directory.
+/// Returns `true` if `name` is a bare file name without path separators.
 ///
 /// # Example
 ///
-/// `"c64_mule.dali.prg"` is plain; `""`, `".."`, `"../x.prg"` and
-/// `"dir\\x.prg"` are not.
+/// `"c64_mule.dali.prg"` returns `true`. `""`, `".."`, `"../x.prg"`, and
+/// `"dir\\x.prg"` return `false`.
 pub(super) fn is_plain_file_name(name: &str) -> bool {
     !name.is_empty() && name != "." && name != ".." && !name.contains(['/', '\\'])
 }

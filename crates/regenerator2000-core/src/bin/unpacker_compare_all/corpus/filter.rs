@@ -1,29 +1,30 @@
-//! Case selection while debugging (`CORPUS_FILTER`).
+//! Case selection for debugging (`CORPUS_FILTER`).
 //!
-//! The filter is built from the variable's *value*; reading the environment
-//! is the integration test's job, so this module stays pure.
+//! Callers pass the environment variable value into this module so the module
+//! remains pure.
 
 use std::collections::BTreeSet;
 
 use super::{Case, Corpus, CorpusError};
 
-/// Selects a subset of cases while debugging.
+/// Selects a subset of corpus cases.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CorpusFilter {
-    /// Every case.
+    /// Selects every case.
     All,
-    /// Cases whose file name, or whose group id, contains the text.
+    /// Selects cases whose file name or group ID contains the substring.
     Substring(String),
 }
 
 impl CorpusFilter {
     /// Builds a filter from the value of the filter environment variable.
-    /// A missing, empty or whitespace-only value selects everything.
+    ///
+    /// A missing, empty, or whitespace-only value selects every case.
     ///
     /// # Example
     ///
-    /// `from_env_value(Some("mule"))` gives `Substring("mule")`;
-    /// `from_env_value(Some("  "))` gives `All`.
+    /// `from_env_value(Some("mule"))` returns `Substring("mule")`.
+    /// `from_env_value(Some("  "))` returns `All`.
     #[must_use]
     pub fn from_env_value(value: Option<&str>) -> Self {
         match value.map(str::trim) {
@@ -32,21 +33,21 @@ impl CorpusFilter {
         }
     }
 
-    /// Returns `true` if the filter restricts the selection.
+    /// Returns `true` if the filter restricts the case selection.
     #[must_use]
     pub fn is_active(&self) -> bool {
         matches!(self, Self::Substring(_))
     }
 
-    /// Returns the selected cases, sorted by file.
+    /// Returns the selected cases, sorted by file name.
     ///
-    /// A group is selected as a whole when its id matches or any member's
-    /// file matches, so consensus always sees the complete group.
+    /// When a group ID or any member file name matches, this method selects
+    /// the entire group so consensus checks see all group members.
     ///
     /// # Errors
     ///
     /// Returns [`CorpusError::FilterMatchedNothing`] if an active filter
-    /// selects no case.
+    /// matches no cases.
     pub fn select<'c>(&self, corpus: &'c Corpus) -> Result<Vec<&'c Case>, CorpusError> {
         let Self::Substring(text) = self else {
             let mut all: Vec<&Case> = corpus.cases.iter().collect();

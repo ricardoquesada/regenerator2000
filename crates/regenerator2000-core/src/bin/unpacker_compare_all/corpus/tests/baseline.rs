@@ -33,7 +33,7 @@ fn baseline_row_captures_every_observable_output() {
         }
     );
 
-    // The variant name comes from the real error type, without its fields.
+    // `unpack_error_variant` extracts the variant name from the error type without fields.
     let real = UnpackError::InvalidAddressRange {
         start_addr: 1,
         end_addr: 2,
@@ -165,8 +165,8 @@ fn baseline_writer_is_deterministic_and_sorted() {
     assert_eq!(reparsed, forward);
 }
 
-/// A baseline row must be either a full result or an error, never a mix or
-/// a partial result.
+/// Checks that a baseline row is either a full result or an error, never a
+/// mix or a partial result.
 #[test]
 fn baseline_parse_rejects_mixed_or_partial_rows() {
     let mixed = "[[row]]\nfile = \"a.prg\"\nerror = \"Phase1Timeout\"\nstart = \"$0801\"\n";

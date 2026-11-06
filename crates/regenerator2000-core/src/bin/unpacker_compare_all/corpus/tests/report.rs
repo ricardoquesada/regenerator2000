@@ -52,8 +52,8 @@ fn failure_table_lists_every_failure_sorted() {
     assert_eq!(render_failure_table(&[]), "no failures");
 }
 
-/// Only action-item notes are listed, sorted by file; informational notes
-/// and note-free reports produce nothing.
+/// Checks that `render_action_items` lists only action-item notes in file
+/// order, and returns an empty string for informational or note-free reports.
 #[test]
 fn action_items_list_only_actionable_notes_sorted() {
     let reports = [

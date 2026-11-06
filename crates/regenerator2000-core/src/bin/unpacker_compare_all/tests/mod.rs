@@ -1,9 +1,10 @@
-//! Unit tests of the compare tool. Everything here is pure: captured unp64
-//! output is stored as `const` strings, and payloads come from one
-//! deterministic "memory".
+//! Unit tests of the compare tool.
 //!
-//! This file holds the shared builders; each submodule tests one module of
-//! the tool and is named after it.
+//! These tests use pure inputs: `const` strings hold `unp64` output captures,
+//! and one deterministic memory buffer supplies all payload bytes.
+//!
+//! This file provides the shared builders. Each submodule tests one module of
+//! the tool.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
@@ -12,6 +13,8 @@ mod cli;
 mod markdown;
 mod unp64;
 mod update;
+
+use std::sync::LazyLock;
 
 use regenerator2000_core::state::types::System;
 use regenerator2000_core::unpacker::{BoundSource, ExitReason, UnpackReport};
@@ -27,13 +30,13 @@ use crate::unp64::parse::SavedPayload;
 /// Size of the 6502 address space in bytes.
 const ADDRESS_SPACE: usize = 0x1_0000;
 
-/// unp64 version used by every synthetic run.
+/// The `unp64` version for every synthetic run.
 const VERSION: &str = "2.42";
 
-/// One shared 64 KB "memory" (xorshift32, as in `tests/parser_fuzz_test.rs`).
-/// Every R2000 image and unp64 payload takes its bytes from here, so two
-/// windows over the same addresses always agree.
-fn memory() -> Vec<u8> {
+/// One shared 64 KB memory buffer from xorshift32 (`tests/parser_fuzz_test.rs`).
+/// Every R2000 image and `unp64` payload reads from this buffer, so two
+/// windows over the same addresses agree.
+static MEMORY: LazyLock<Vec<u8>> = LazyLock::new(|| {
     let mut state: u32 = 0x00C0_FFEE;
     (0..ADDRESS_SPACE)
         .map(|_| {
@@ -43,19 +46,19 @@ fn memory() -> Vec<u8> {
             state as u8
         })
         .collect()
-}
+});
 
-/// The shared memory's bytes over `start..=end`.
+/// Returns the shared memory bytes over `start..=end`.
 fn mem_bytes(start: u16, end: u16) -> Vec<u8> {
-    memory()[usize::from(start)..=usize::from(end)].to_vec()
+    MEMORY[usize::from(start)..=usize::from(end)].to_vec()
 }
 
-/// The range `start..=end`.
+/// Returns the range `start..=end`.
 fn range(start: u16, end: u16) -> AddrRange {
     AddrRange::new(start, end).unwrap()
 }
 
-/// An R2000 image over `start..=end`.
+/// Builds an R2000 image over `start..=end`.
 fn image(start: u16, end: u16, entry: u16) -> UnpackedImage {
     UnpackedImage {
         start,
@@ -77,7 +80,7 @@ fn image(start: u16, end: u16, entry: u16) -> UnpackedImage {
     }
 }
 
-/// A successful C64 result loaded at `$0801`.
+/// Builds a successful C64 result at load address `$0801`.
 fn ok_result(file: &str, image: UnpackedImage) -> CaseResult {
     CaseResult {
         file: file.to_string(),
@@ -87,7 +90,7 @@ fn ok_result(file: &str, image: UnpackedImage) -> CaseResult {
     }
 }
 
-/// A failed R2000 result.
+/// Builds a failed R2000 result.
 fn err_result(file: &str, variant: &str) -> CaseResult {
     CaseResult {
         file: file.to_string(),
@@ -100,7 +103,7 @@ fn err_result(file: &str, variant: &str) -> CaseResult {
     }
 }
 
-/// unp64 saved `start..=end` from the shared memory.
+/// Builds an `unp64` outcome that saved `start..=end` from the shared memory.
 fn saved(start: u16, end: u16, entry: Unp64Entry) -> Unp64Outcome {
     Unp64Outcome::Saved {
         saved: SavedPayload {
@@ -112,7 +115,7 @@ fn saved(start: u16, end: u16, entry: Unp64Entry) -> Unp64Outcome {
     }
 }
 
-/// unp64 saved nothing.
+/// Builds an `unp64` outcome that saved no output.
 fn failed(reason: &str) -> Unp64Outcome {
     Unp64Outcome::Failed {
         reason: reason.to_string(),
@@ -120,7 +123,7 @@ fn failed(reason: &str) -> Unp64Outcome {
     }
 }
 
-/// A case without oracle data.
+/// Builds a case without oracle data.
 fn bare_case(file: &str) -> Case {
     Case {
         file: file.to_string(),
@@ -132,7 +135,7 @@ fn bare_case(file: &str) -> Case {
     }
 }
 
-/// An exception with the given signature.
+/// Builds an exception with the given reviewer signature.
 fn exception(
     kind: DivergenceKind,
     fields: &[Field],
@@ -146,7 +149,7 @@ fn exception(
     }
 }
 
-/// An observation of `case`.
+/// Builds an observation of `case`.
 fn observation(case: Case, result: CaseResult, unp64: Unp64Outcome) -> Observation {
     Observation {
         case,

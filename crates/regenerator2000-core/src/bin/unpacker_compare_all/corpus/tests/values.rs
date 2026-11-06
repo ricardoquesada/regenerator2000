@@ -1,5 +1,4 @@
-//! Tests for `values`: FNV-1a-64 and `HexAddr`, plus the address-range
-//! helpers they rely on.
+//! Tests for `values`: FNV-1a-64, `HexAddr`, and `AddrRange` helpers.
 
 use super::*;
 use serde::Serialize;
@@ -107,7 +106,7 @@ fn hex_addr_rejects_malformed() {
             failures.push(format!("{bad:?}: error does not name the field: {message}"));
         }
     }
-    // An integer is not an address string.
+    // Reject integer values when an address string is expected.
     let manifest = manifest_with_unp64("").replace("start = \"$0801\"", "start = 2049");
     let message = parse_error(&manifest);
     if !message.contains("start") || !message.contains("address") {
@@ -129,8 +128,7 @@ fn hex_addr_parse_accepts_lowercase_and_normalizes() {
     assert!(written.contains("entry = \"$080D\""), "{written}");
 }
 
-/// `AddrRange` construction, length (including the full 64 KB and wrap
-/// edges), containment and intersection.
+/// Verifies `AddrRange` construction, length, containment, and intersection.
 #[test]
 fn addr_range_arithmetic() {
     assert_eq!(AddrRange::new(0x0810, 0x0801), None);
@@ -159,8 +157,7 @@ fn addr_range_arithmetic() {
     assert_eq!(outer.to_string(), "$0800-$2000");
 }
 
-/// `hash_window` hashes exactly the window's bytes and refuses a window the
-/// payload does not fully cover (it never reads outside the payload).
+/// Verifies that `hash_window` hashes only windows covered by the payload.
 #[test]
 fn hash_window_hashes_only_covered_windows() {
     let payload = [1u8, 2, 3];

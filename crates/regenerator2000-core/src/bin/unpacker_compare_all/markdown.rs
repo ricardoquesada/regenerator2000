@@ -1,9 +1,9 @@
-//! `--markdown`: a deterministic comparison report for the
+//! `--markdown` mode: generates a deterministic comparison report for the
 //! `compare-unpacker` skill.
 //!
-//! One row per case, sorted by file, plus a summary of divergence
-//! categories. The same observations always render the same text,
-//! regardless of their order.
+//! The report prints one row per case in file order, plus a summary of
+//! divergence categories. Identical observations always render identical text,
+//! regardless of input order.
 
 use std::collections::BTreeMap;
 
@@ -14,12 +14,11 @@ use crate::unp64::Unp64Outcome;
 /// Placeholder for an empty cell.
 const EMPTY_CELL: &str = "-";
 
-/// The short, stable category name of a divergence (the `kind` names of
-/// the manifest where one exists).
+/// Returns the short category name of a divergence.
 ///
 /// # Example
 ///
-/// `Divergence::PayloadMismatch { .. }` is `"payload_mismatch"`.
+/// `Divergence::PayloadMismatch { .. }` returns `"payload_mismatch"`.
 #[must_use]
 pub fn divergence_category(divergence: &Divergence) -> &'static str {
     match divergence {
@@ -35,11 +34,11 @@ pub fn divergence_category(divergence: &Divergence) -> &'static str {
     }
 }
 
-/// The category plus its details.
+/// Returns the divergence category with details.
 ///
 /// # Example
 ///
-/// `PayloadMismatch { first: 0xD000, count: 3 }` is
+/// `PayloadMismatch { first: 0xD000, count: 3 }` returns
 /// `"payload_mismatch (3 byte(s), first at $D000)"`.
 #[must_use]
 pub fn divergence_label(divergence: &Divergence) -> String {
@@ -68,7 +67,7 @@ struct Row {
     manifest: String,
 }
 
-/// unp64's result as `$0801-$FFFD → $0911`, or `failed: <reason>`.
+/// Formats an `unp64` result as `$0801-$FFFD → $0911` or `failed: <reason>`.
 fn unp64_cell(outcome: &Unp64Outcome) -> String {
     match outcome {
         Unp64Outcome::Saved { saved, entry, .. } => format!("{} → {entry}", saved.range),
@@ -76,7 +75,7 @@ fn unp64_cell(outcome: &Unp64Outcome) -> String {
     }
 }
 
-/// R2000's result as `$0801-$7949 → $0911 (start=..., end=..., entry=..., exit=...)`,
+/// Formats an R2000 result as `$0801-$7949 → $0911 (start=..., end=..., entry=..., exit=...)`
 /// or `error: <variant>`.
 fn r2000_cell(result: &CaseResult) -> String {
     match &result.outcome {
@@ -94,8 +93,8 @@ fn r2000_cell(result: &CaseResult) -> String {
     }
 }
 
-/// How the manifest treats the case: ground truth, a reviewed exception,
-/// or the plain unp64 reference.
+/// Formats the manifest policy for the case: ground truth, a reviewed
+/// exception, or the plain `unp64` reference.
 fn manifest_cell(observation: &Observation) -> String {
     let case = &observation.case;
     let expected_fail = case
@@ -119,7 +118,7 @@ fn manifest_cell(observation: &Observation) -> String {
     )
 }
 
-/// Escapes a table cell (`|` would end the cell).
+/// Escapes `|` characters inside a markdown table cell.
 fn cell(text: &str) -> String {
     if text.is_empty() {
         return EMPTY_CELL.to_string();
@@ -127,7 +126,7 @@ fn cell(text: &str) -> String {
     text.replace('|', "\\|")
 }
 
-/// Renders the report for unp64 `version`.
+/// Renders the markdown report for `unp64` `version`.
 #[must_use]
 pub fn render_markdown(observations: &[Observation], version: &str) -> String {
     let mut rows: Vec<Row> = observations
@@ -203,9 +202,8 @@ pub fn render_markdown(observations: &[Observation], version: &str) -> String {
     lines.join("\n")
 }
 
-/// What the user must do about one case, from its manifest entry: sign or
-/// confirm its exception, investigate an `unexplained` difference, or
-/// resolve an `expected_fail` marker.
+/// Builds the user action items for one case: sign an exception, investigate
+/// an `unexplained` difference, or resolve an `expected_fail` marker.
 fn action_items(observation: &Observation) -> Vec<String> {
     let case = &observation.case;
     let mut items = Vec::new();

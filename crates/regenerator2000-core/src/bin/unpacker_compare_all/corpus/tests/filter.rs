@@ -2,8 +2,8 @@
 
 use super::*;
 
-/// Two groups (`mule` with two members, `moving_tubes` with one) and one
-/// plain case.
+/// Builds a corpus with two groups (`mule` with two members, `moving_tubes`
+/// with one) and one plain case.
 fn filter_corpus() -> Corpus {
     let mut dali = simple_case("c64_mule.dali.prg");
     dali.group = Some("mule".to_string());
@@ -29,7 +29,7 @@ fn filter_corpus() -> Corpus {
     }
 }
 
-/// The file names `filter` selects from `corpus`.
+/// Returns the file names that `filter` selects from `corpus`.
 fn selected_files(filter: &CorpusFilter, corpus: &Corpus) -> Vec<String> {
     filter
         .select(corpus)
@@ -76,7 +76,7 @@ fn corpus_filter_substring_selects_cases_and_whole_groups() {
         vec!["c64_moving_tubes_lxt.dali.prg"]
     );
 
-    // Matching one member's file pulls in its whole group.
+    // Matching one member file selects its whole group.
     let exo = CorpusFilter::from_env_value(Some("exo3"));
     assert_eq!(
         selected_files(&exo, &corpus),

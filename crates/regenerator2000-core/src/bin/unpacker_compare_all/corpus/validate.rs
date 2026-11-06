@@ -1,8 +1,8 @@
-//! Manifest validation: cross-references, fixtures and record consistency.
+//! Manifest checks: cross-references, fixtures, and record consistency.
 //!
-//! Validation never stops at the first problem. It returns **every** error,
-//! sorted by subject (file or group) and then by error kind, so one run shows
-//! the complete picture.
+//! Validation does not stop at the first problem. It returns **every** error,
+//! in subject (file or group) and error-kind order, so one run reports the
+//! full set of issues.
 
 use std::collections::BTreeSet;
 
@@ -12,11 +12,11 @@ use super::values::AddrRange;
 use super::{Case, Corpus, CorpusError, FixtureResolver, Unp64Record, Unp64Saved};
 
 impl Corpus {
-    /// Checks cross-references, fixtures and record consistency, and returns
-    /// **every** problem, sorted by subject (file or group) and then by kind.
-    /// An empty list means the manifest is valid.
+    /// Checks cross-references, fixtures, and record consistency, and returns
+    /// **every** problem in subject (file or group) and error-kind order.
+    /// An empty list means a valid manifest.
     ///
-    /// A missing fixture is always an error: cases are never skipped.
+    /// A missing fixture always produces an error.
     #[must_use]
     pub fn validate(&self, fixtures: &dyn FixtureResolver) -> Vec<CorpusError> {
         let mut errors = Vec::new();
@@ -26,7 +26,7 @@ impl Corpus {
         errors
     }
 
-    /// Group ids are unique and every original exists.
+    /// Checks that group ids are unique and that every original file exists.
     fn validate_groups(&self, fixtures: &dyn FixtureResolver, errors: &mut Vec<CorpusError>) {
         let mut seen = BTreeSet::new();
         for group in &self.groups {
@@ -48,8 +48,8 @@ impl Corpus {
         }
     }
 
-    /// Case files are unique and exist, group references resolve, and each
-    /// case's oracle data is consistent.
+    /// Checks that case files are unique and exist, group references resolve,
+    /// and each case has consistent oracle data.
     fn validate_cases(&self, fixtures: &dyn FixtureResolver, errors: &mut Vec<CorpusError>) {
         let mut seen = BTreeSet::new();
         for case in &self.cases {
@@ -83,13 +83,13 @@ impl Corpus {
     }
 }
 
-/// Validates the unp64 record and the accepted divergence of one case.
+/// Checks the `unp64` record and the accepted divergence of one case.
 fn validate_case_oracle_data(case: &Case, in_group: bool, errors: &mut Vec<CorpusError>) {
     let file = || case.file.clone();
 
     let Some(record) = &case.unp64 else {
-        // Required even inside a ground-truth group so every case has a
-        // recorded `[case.unp64]` reference.
+        // Every case requires a `[case.unp64]` reference, even inside a
+        // ground-truth group.
         errors.push(CorpusError::MissingUnp64 { file: file() });
         return;
     };
@@ -99,8 +99,8 @@ fn validate_case_oracle_data(case: &Case, in_group: bool, errors: &mut Vec<Corpu
     }
 
     if in_group {
-        // Ground truth decides for group members; unp64 disagreements are
-        // listed automatically, so a reviewed exception would be dead data.
+        // Ground truth decides for group members and reports `unp64`
+        // disagreements automatically, so a reviewed exception is unused.
         if case.accepted_divergence.is_some() {
             errors.push(CorpusError::DivergenceOnGroundTruthCase {
                 file: file(),
@@ -128,7 +128,7 @@ fn validate_case_oracle_data(case: &Case, in_group: bool, errors: &mut Vec<Corpu
         });
     }
 
-    // A failed unp64 run saved nothing, so every field differs.
+    // A failed `unp64` run saves no output, so every field differs.
     let required = if unp64_failed {
         Some(&Field::ALL[..])
     } else {
@@ -145,8 +145,8 @@ fn validate_case_oracle_data(case: &Case, in_group: bool, errors: &mut Vec<Corpu
     }
 }
 
-/// Validates the internal consistency of a saved unp64 record: `len` is
-/// derived from the range, and the overlap window lies inside unp64's range.
+/// Checks that `len` matches the range length and that the overlap window lies
+/// inside the `unp64` range.
 fn validate_saved_record(file: &str, saved: &Unp64Saved, errors: &mut Vec<CorpusError>) {
     let range = saved.range();
     let derived = range.map(AddrRange::len);

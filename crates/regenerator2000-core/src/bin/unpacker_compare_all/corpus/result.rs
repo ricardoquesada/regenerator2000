@@ -1,12 +1,11 @@
-//! R2000 unpack results reduced to plain data, so the oracles can be fed
-//! synthetic results in unit tests.
+//! Plain-data R2000 unpack results for oracle evaluation and unit tests.
 
 use regenerator2000_core::state::types::System;
 use regenerator2000_core::unpacker::{UnpackError, UnpackReport, UnpackResult};
 
 use super::values::{AddrRange, Addressed, Fnv64};
 
-/// A successful R2000 unpack, reduced to the values the oracles check.
+/// A successful R2000 unpack with the values that the oracles check.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnpackedImage {
     /// First unpacked address.
@@ -17,31 +16,31 @@ pub struct UnpackedImage {
     pub entry: u16,
     /// Depacker address.
     pub dep: u16,
-    /// Display name of the detected packer.
+    /// Name of the detected packer.
     pub packer: Option<String>,
     /// Instructions executed across both emulation stages.
     pub instructions: u64,
-    /// Payload bytes, `start..=end`.
+    /// Payload bytes (`start..=end`).
     pub data: Vec<u8>,
-    /// Structured provenance report for the unpack run.
+    /// Provenance report for the unpack run.
     pub report: UnpackReport,
 }
 
 impl UnpackedImage {
-    /// The unpacked range, or `None` if the result is inconsistent
-    /// (`end < start`, or a payload length that does not match the range).
+    /// Returns the unpacked range, or `None` if `end < start` or the payload
+    /// length does not match the range.
     #[must_use]
     pub fn range(&self) -> Option<AddrRange> {
         AddrRange::new(self.start, self.end).filter(|range| range.len() == self.data.len())
     }
 
-    /// FNV-1a-64 of the payload.
+    /// Returns the FNV-1a-64 hash of the payload.
     #[must_use]
     pub fn fnv64(&self) -> Fnv64 {
         Fnv64::of(&self.data)
     }
 
-    /// The payload anchored at its start address.
+    /// Returns the payload at its start address.
     pub(super) fn addressed(&self) -> Addressed<'_> {
         Addressed {
             start: self.start,
@@ -68,7 +67,7 @@ impl From<&UnpackResult> for UnpackedImage {
 /// A failed R2000 unpack.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct R2000Error {
-    /// The `UnpackError` variant name, e.g. `Phase2Timeout`.
+    /// The `UnpackError` variant name (for example `Phase2Timeout`).
     pub variant: String,
     /// The full error message.
     pub message: String,
@@ -86,8 +85,8 @@ impl From<&UnpackError> for R2000Error {
 /// Returns the variant name of an [`UnpackError`] (for example
 /// `InvalidAddressRange`), without its fields.
 ///
-/// `UnpackError` is `#[non_exhaustive]`, so the name is taken from the derived
-/// `Debug` form instead of an exhaustive `match` that new variants would break.
+/// `UnpackError` is `#[non_exhaustive]`, so this function extracts the name
+/// from the `Debug` output instead of an exhaustive `match`.
 #[must_use]
 pub fn unpack_error_variant(error: &UnpackError) -> String {
     format!("{error:?}")
@@ -99,11 +98,11 @@ pub fn unpack_error_variant(error: &UnpackError) -> String {
 /// The outcome of running R2000 on one corpus case.
 #[derive(Debug, Clone)]
 pub struct CaseResult {
-    /// The case's fixture file name.
+    /// The fixture file name of the case.
     pub file: String,
-    /// Load address from the fixture's PRG header.
+    /// Load address from the fixture PRG header.
     pub load_addr: u16,
-    /// The target system the unpack ran for.
+    /// Target system for the unpack run.
     pub system: System,
     /// The unpacked image, or the error.
     pub outcome: Result<UnpackedImage, R2000Error>,

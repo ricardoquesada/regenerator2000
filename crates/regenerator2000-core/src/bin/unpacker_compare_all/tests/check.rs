@@ -5,7 +5,7 @@ use crate::check::{DriftField, check_all, check_case};
 use crate::cli::ToolStatus;
 use crate::update::update_case;
 
-/// A case whose record was written by `--update` from this observation.
+/// Builds a case with a record from `--update` for this observation.
 fn recorded(file: &str, r2000: UnpackedImage, unp64: Unp64Outcome) -> Case {
     update_case(
         &observation(bare_case(file), ok_result(file, r2000), unp64),
@@ -14,8 +14,8 @@ fn recorded(file: &str, r2000: UnpackedImage, unp64: Unp64Outcome) -> Case {
     .case
 }
 
-/// Each drifting value is reported once, with both values; the overlap is
-/// re-hashed over the recorded window only.
+/// Checks that `--check` reports each drifting value once with both values,
+/// and hashes the overlap only over the recorded window.
 #[test]
 fn check_reports_drift_per_field() {
     let case = recorded(
@@ -24,7 +24,7 @@ fn check_reports_drift_per_field() {
         saved(0x0801, 0xFFFD, Unp64Entry::Address(0x0911)),
     );
 
-    // The same unp64 output reproduces the record exactly.
+    // Identical `unp64` output reproduces the record.
     assert_eq!(
         check_case(
             &case,
@@ -56,10 +56,10 @@ fn check_reports_drift_per_field() {
         (end.recorded.as_str(), end.fresh.as_str()),
         ("$FFFD", "$FFFF")
     );
-    // The overlap over the recorded window is unchanged, so it is not drift.
+    // The overlap over the recorded window does not change, so it does not drift.
     assert!(!fields.contains(&DriftField::Overlap));
 
-    // Saved versus failed is one whole-record drift.
+    // Saved versus failed produces one whole-record drift.
     let outcome = check_case(&case, &failed("Max Iterations"), VERSION);
     assert_eq!(outcome.len(), 1);
     assert_eq!(outcome[0].field, DriftField::Outcome);
@@ -69,7 +69,7 @@ fn check_reports_drift_per_field() {
         outcome[0]
     );
 
-    // A case without a record is reported as such.
+    // A case without a record produces a `Record` drift.
     let missing = check_case(
         &bare_case("n.prg"),
         &saved(0x0801, 0x0810, Unp64Entry::Address(0x080D)),
@@ -79,7 +79,7 @@ fn check_reports_drift_per_field() {
     assert_eq!(missing[0].field, DriftField::Record);
 }
 
-/// Any drift makes `--check` exit non-zero; none exits 0.
+/// Checks that any drift makes `--check` exit non-zero, and no drift exits 0.
 #[test]
 fn check_exit_code_is_nonzero_on_drift() {
     let case = recorded(

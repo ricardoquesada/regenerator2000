@@ -6,7 +6,7 @@ use regenerator2000_core::unpacker::UnpackConfig;
 use std::num::NonZeroU64;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-/// A manifest exercising every optional field.
+/// Builds a manifest that exercises every optional field.
 fn full_corpus() -> Corpus {
     let image = image(0x0801, 0x2000, 0x080D);
     let mut traveller = case(
@@ -137,7 +137,7 @@ fn parse_rejects_unknown_fields_everywhere() {
             ),
         ),
     ];
-    // Each base document must be valid without the unknown key.
+    // Each base document is valid without the unknown key.
     assert!(Corpus::parse(&manifest_with_divergence(valid_divergence)).is_ok());
 
     let accepted: Vec<&str> = rows
@@ -165,7 +165,7 @@ fn parse_rejects_disallowed_divergence_field_names() {
             failures.push(format!("{bad}: {message}"));
         }
     }
-    // `len` next to a valid field is still rejected.
+    // The parser rejects `len` even next to a valid field.
     assert!(
         Corpus::parse(&manifest_with_divergence(
             "kind = \"padding_byte\"\nfields = [\"start\", \"len\"]\nreviewed_by = \"x\""
@@ -198,8 +198,8 @@ fn parse_rejects_empty_or_duplicate_divergence_fields() {
     assert!(duplicate.contains("more than once"), "{duplicate}");
 }
 
-/// Both closed expected-fail reasons parse and round-trip; any other value is
-/// rejected with the allowed list.
+/// Checks that both closed expected-fail reasons parse and round-trip, and
+/// that any other value fails with the allowed list.
 #[test]
 fn parse_rejects_unknown_expected_fail_reason() {
     let with_reason = |reason: &str| {
@@ -253,7 +253,7 @@ fn parse_unp64_failed_shape() {
             other => failures.push(format!("{extra}: {other:?}")),
         }
     }
-    // A saved record missing a result key names the key.
+    // A saved record without a result key names the missing key.
     let missing_len = manifest_with_unp64("").replace("len = 16\n", "");
     let message = parse_error(&missing_len);
     if !message.contains("len") {
@@ -318,7 +318,8 @@ fn parse_max_instructions_per_case() {
     );
 }
 
-/// `review_state` classifies missing, blank, marker and named signatures.
+/// Checks that `review_state` classifies missing, blank, marker, and named
+/// signatures.
 #[test]
 fn review_state_classification() {
     let with = |reviewed_by: Option<&str>| {
@@ -340,13 +341,13 @@ fn manifest_writer_is_idempotent() {
     let second = parsed.to_toml_string().unwrap();
     assert_eq!(first, second);
 
-    // Parsing the written form yields the same model (up to canonical order).
+    // Parsing the written form produces the same model in canonical order.
     let mut expected = full_corpus();
     expected.groups.sort_by(|a, b| a.id.cmp(&b.id));
     expected.cases.sort_by(|a, b| a.file.cmp(&b.file));
     assert_eq!(parsed, expected);
 
-    // Non-canonical input (lowercase hex, unsorted fields) normalizes once.
+    // Non-canonical input (lowercase hex, unsorted fields) normalizes in one pass.
     let messy = manifest_with_divergence(
         "kind = \"unexplained\"\nfields = [\"entry\", \"start\"]\nreviewed_by = \"x\"",
     )
@@ -391,9 +392,8 @@ fn manifest_writer_sorts_cases_and_groups() {
 
 // ═══════════════════════ robustness ═══════════════════════
 
-/// The manifest and baseline parsers return `Ok` or a typed error for random
-/// bytes and for random single-byte corruptions of a valid manifest, and
-/// never panic.
+/// Checks that the manifest and baseline parsers return `Ok` or a typed error
+/// for random bytes and single-byte corruptions without panicking.
 #[test]
 fn corpus_parse_never_panics_on_garbage() {
     let valid = full_corpus().to_toml_string().unwrap();
@@ -423,7 +423,7 @@ fn corpus_parse_never_panics_on_garbage() {
         .enumerate()
         .filter(|(_, text)| {
             catch_unwind(AssertUnwindSafe(|| {
-                // Either outcome is fine; only a panic is a failure.
+                // Either outcome is acceptable as long as the parser does not panic.
                 (Corpus::parse(text).is_ok(), Baseline::parse(text).is_ok())
             }))
             .is_err()

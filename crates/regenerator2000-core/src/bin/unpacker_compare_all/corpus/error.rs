@@ -1,4 +1,4 @@
-//! The error type of the corpus library.
+//! Error type for the corpus module.
 
 use std::fmt;
 use std::path::PathBuf;
@@ -6,12 +6,12 @@ use std::path::PathBuf;
 use super::kinds::{DivergenceKind, Field, join_fields};
 use super::values::HexAddr;
 
-/// A problem with the corpus manifest, its fixtures, or a case selection.
+/// Error in the corpus manifest, its fixtures, or a case filter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CorpusError {
-    /// A manifest or baseline file could not be read or written.
+    /// File I/O error on a manifest, baseline, or fixture file.
     Io {
-        /// The file that failed.
+        /// The file path.
         path: PathBuf,
         /// The I/O error message.
         message: String,
@@ -21,7 +21,7 @@ pub enum CorpusError {
         /// The parser message, including line and key.
         message: String,
     },
-    /// Serialization to TOML failed.
+    /// TOML serialization failed.
     Serialize {
         /// The serializer message.
         message: String,
@@ -31,124 +31,123 @@ pub enum CorpusError {
         /// The rejected name.
         file: String,
     },
-    /// Two cases name the same file.
+    /// Two cases list the same file name.
     DuplicateCase {
-        /// The duplicated file.
+        /// The duplicate file name.
         file: String,
     },
     /// Two groups share an `id`.
     DuplicateGroup {
-        /// The duplicated id.
+        /// The duplicate group ID.
         group: String,
     },
-    /// A case's fixture does not exist.
+    /// A case fixture file is missing.
     MissingFixture {
-        /// The missing file.
+        /// The missing file name.
         file: String,
     },
-    /// A group's original does not exist.
+    /// A group original file is missing.
     MissingGroupOriginal {
-        /// The group.
+        /// The group ID.
         group: String,
-        /// The missing original.
+        /// The missing original file name.
         file: String,
     },
-    /// A group's original is not a usable PRG.
+    /// A group original file is not a valid PRG.
     InvalidGroupOriginal {
-        /// The group.
+        /// The group ID.
         group: String,
-        /// The original file.
+        /// The original file name.
         file: String,
-        /// Why it is unusable.
+        /// Reason why the file is invalid.
         reason: String,
     },
-    /// A case references a group that does not exist.
+    /// A case references an unknown group ID.
     UnknownGroup {
-        /// The case.
+        /// The case file name.
         file: String,
-        /// The unknown group id.
+        /// The unknown group ID.
         group: String,
     },
     /// A case has no `[case.unp64]` table.
     MissingUnp64 {
-        /// The case.
+        /// The case file name.
         file: String,
     },
     /// The recorded `len` does not equal `end - start + 1`.
     Unp64LenMismatch {
-        /// The case.
+        /// The case file name.
         file: String,
         /// The recorded length.
         recorded: u32,
-        /// The length derived from the range, `None` if `end < start`.
+        /// The length from the range, or `None` if `end < start`.
         derived: Option<usize>,
     },
-    /// The recorded overlap window is not inside unp64's range.
+    /// The recorded overlap window extends outside the `unp64` range.
     OverlapOutsideUnp64Range {
-        /// The case.
+        /// The case file name.
         file: String,
         /// The recorded window.
         overlap: (HexAddr, HexAddr),
-        /// unp64's range.
+        /// The `unp64` range.
         unp64: (HexAddr, HexAddr),
     },
-    /// unp64 failed but the case has no `unexplained` or
+    /// `unp64` failed, but the case has no `unexplained` or
     /// `unp64_missing_opcode` exception.
     FailedUnp64WithoutDivergence {
-        /// The case.
+        /// The case file name.
         file: String,
     },
-    /// The divergence kind requires a failed unp64 record.
+    /// The divergence kind requires a failed `unp64` record.
     DivergenceKindNeedsFailedUnp64 {
-        /// The case.
+        /// The case file name.
         file: String,
-        /// The kind.
+        /// The divergence kind.
         kind: DivergenceKind,
     },
-    /// The divergence lists other fields than its kind requires.
+    /// The divergence lists fields that do not match the required fields for
+    /// its kind.
     DivergenceFieldsMismatch {
-        /// The case.
+        /// The case file name.
         file: String,
-        /// The kind.
+        /// The divergence kind.
         kind: DivergenceKind,
-        /// The exact list required.
+        /// The required field list.
         required: &'static [Field],
     },
     /// A ground-truth case carries an `accepted_divergence`.
     DivergenceOnGroundTruthCase {
-        /// The case.
+        /// The case file name.
         file: String,
-        /// The group.
+        /// The group ID.
         group: String,
     },
-    /// A case filter selected no case.
+    /// A case filter matched no cases or groups.
     FilterMatchedNothing {
         /// The filter text.
         filter: String,
     },
-    /// A case's fixture exists but is not a usable PRG.
+    /// A case fixture file exists but is not a valid PRG.
     InvalidFixture {
-        /// The fixture.
+        /// The fixture file name.
         file: String,
-        /// Why it is unusable.
+        /// Reason why the file is invalid.
         reason: String,
     },
 }
 
 impl CorpusError {
-    /// Returns `true` if the error makes the case list itself unusable: the
-    /// manifest cannot be read, a name is invalid or duplicated, a fixture or
-    /// group original is missing or unusable, or a group reference dangles.
+    /// Returns `true` if the error makes the case list unusable.
     ///
-    /// Every other validation error concerns the recorded oracle data
-    /// (`[case.unp64]` and `accepted_divergence`), which
-    /// `unpacker_compare_all --update` rewrites. The tool therefore refuses
-    /// to run only on structural errors.
+    /// Structural errors include unreadable manifests, invalid or duplicate
+    /// names, missing or invalid fixtures, and unknown group references.
+    /// Non-structural errors concern `[case.unp64]` and `accepted_divergence`,
+    /// which `unpacker_compare_all --update` rewrites.
     ///
     /// # Example
     ///
-    /// [`CorpusError::MissingFixture`] is structural;
-    /// [`CorpusError::MissingUnp64`] is not.
+    /// [`CorpusError::MissingFixture`] is structural.
+    /// [`CorpusError::MissingUnp64`] is not structural.
     #[must_use]
     pub fn is_structural(&self) -> bool {
         match self {
@@ -174,7 +173,7 @@ impl CorpusError {
         }
     }
 
-    /// The file, group or path the error is about.
+    /// Returns the file, group, or path that the error describes.
     fn subject(&self) -> String {
         match self {
             Self::Io { path, .. } => path.display().to_string(),
@@ -198,7 +197,7 @@ impl CorpusError {
         }
     }
 
-    /// Stable rank of the error kind, used as the secondary sort key.
+    /// Returns the rank of the error variant for secondary sorting.
     fn rank(&self) -> u8 {
         match self {
             Self::Io { .. } => 0,
@@ -223,7 +222,7 @@ impl CorpusError {
         }
     }
 
-    /// Sort key for error lists: subject first, then error kind.
+    /// Returns the sort key `(subject, rank)` for error lists.
     pub(super) fn sort_key(&self) -> (String, u8) {
         (self.subject(), self.rank())
     }

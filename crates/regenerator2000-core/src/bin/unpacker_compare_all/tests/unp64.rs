@@ -1,6 +1,7 @@
-//! Tests for the unp64 parser and invocation helpers. Console captures are
-//! real unp64 v2.42 output shapes (lower-case hex, `\r` progress, `-v`
-//! diagnostics).
+//! Tests for the `unp64` parser and invocation helpers.
+//!
+//! Console captures use real `unp64` v2.42 output shapes (lower-case hex,
+//! `\r` progress, and `-v` diagnostics).
 
 use std::ffi::OsString;
 use std::io;
@@ -16,14 +17,14 @@ use crate::unp64::{
     unp64_args,
 };
 
-/// unp64 v2.42 on `c64_traveller.tiny_crunch.prg`.
+/// `unp64` v2.42 output on `c64_traveller.tiny_crunch.prg`.
 const TRAVELLER: &str = "\nTinyCrunch v1.0/ChristopherJam, unpacker=$010e\n\
                          Entry point: $080d\n\
                          pass1, find unpacker: $010e\n\
                          pass2, return to mem: $0911\n\
                          saved $0801-$fffd as /tmp/out.prg\n";
 
-/// A run that gave up: no `saved` line, although unp64 exits with 0 here.
+/// A run that stopped early: no `saved` line, even though `unp64` exits 0.
 const MAX_ITERATIONS: &str = "\nExomizer, unpacker=$0134\n\
                               Entry point: $080d\n\
                               pass1, find unpacker: $0134\n\
@@ -35,12 +36,12 @@ const BANNER: &str = "\nUNP64 v2.42 - Generic C64 prg unpacker - (C)2008-2026 iA
                       Based on Exomizer 2.0b7 sources by Magnus Lind.\n\
                       usage: UNP64 <packed.prg>{[,|@]Addr} [-parameters]\n";
 
-/// The entry of a console capture with the given `pass2` tail.
+/// Parses the entry of a console capture with the given `pass2` tail.
 fn pass2_entry(tail: &str) -> Option<Unp64Entry> {
     parse_console(&format!("Entry point: $080d\npass2, return to mem: {tail}")).entry
 }
 
-/// A PRG: load address followed by `len` payload bytes.
+/// Builds a PRG with `load_addr` followed by `len` payload bytes.
 fn prg(load_addr: u16, len: usize) -> Vec<u8> {
     let mut bytes = load_addr.to_le_bytes().to_vec();
     bytes.extend(std::iter::repeat_n(0xEA, len));
@@ -70,7 +71,7 @@ fn parse_saved_line_lowercase_hex() {
     );
 }
 
-/// `$ffff` is printed as such (`(EndAdr - 1) & $FFFF` with `EndAdr = $10000`).
+/// `unp64` prints `$ffff` via `(EndAdr - 1) & $FFFF` when `EndAdr = $10000`.
 #[test]
 fn parse_saved_line_end_ffff() {
     assert_eq!(
@@ -108,8 +109,8 @@ fn parse_crlf_line_endings() {
     assert_eq!(console.entry, Some(Unp64Entry::Address(0x0911)));
 }
 
-/// Without a `saved` line the run failed, whatever the exit code;
-/// the diagnostic becomes the reason.
+/// Without a `saved` line the run fails regardless of the exit code, and
+/// the diagnostic becomes the failure reason.
 #[test]
 fn parse_without_saved_line_is_unp64_failure() {
     let console = parse_console(MAX_ITERATIONS);
@@ -121,8 +122,8 @@ fn parse_without_saved_line_is_unp64_failure() {
             missing_opcode: false,
         })
     );
-    // A missing-opcode stop is flagged for the classifier, and a run with no
-    // diagnostic at all still fails with a fixed reason.
+    // The parser sets `missing_opcode` for the classifier, and a run with no
+    // diagnostic still fails with a fixed reason.
     let opcode = parse_console("unimplemented opcode $02 @ $0812\n");
     assert!(opcode.missing_opcode);
     assert!(matches!(
@@ -161,7 +162,7 @@ fn parse_pass2_new_basic_start_run() {
     );
 }
 
-/// In verbose mode a `forced` diagnostic sits between the marker and the value.
+/// In verbose mode a `forced` diagnostic appears between the marker and the value.
 #[test]
 fn parse_pass2_forced_run() {
     assert_eq!(
@@ -189,7 +190,7 @@ fn parse_packer_name_and_unpacker_address() {
             unpacker: 0x010E,
         })
     );
-    // A comma inside the name is kept (the separator is the last one).
+    // The parser preserves commas inside the name and splits on the last comma.
     assert_eq!(
         parse_console("Dali v0.3.3 / fast, beta, unpacker=$0003\n")
             .packer
@@ -211,7 +212,7 @@ fn parse_version_banner_gives_version() {
     );
 }
 
-/// The output file is authoritative for start, length, and bytes.
+/// The output file determines the start, length, and bytes.
 #[test]
 fn derive_from_output_file() {
     let saved = derive_saved_payload(&prg(0x0801, 16)).unwrap();
@@ -248,8 +249,8 @@ fn derive_payload_exceeding_address_space_is_error() {
     );
 }
 
-/// The `saved` line must agree with the file, and a run that claims a payload
-/// needs the file and an entry.
+/// The `saved` line must match the file, and a saved run requires both the
+/// file and an entry.
 #[test]
 fn cross_check_saved_line_against_file() {
     let printed = SavedLine {
@@ -291,8 +292,8 @@ fn cross_check_saved_line_against_file() {
     );
 }
 
-/// An explicit `UNP64` is the only candidate; otherwise `PATH` and
-/// `~/.local/bin`. No candidate names a user directory of its own.
+/// An explicit `UNP64` variable is the only candidate when present. Otherwise
+/// the tool checks `PATH` and `~/.local/bin` without hardcoded user paths.
 #[test]
 fn unp64_binary_candidates_have_no_hardcoded_user_paths() {
     assert_eq!(
@@ -338,8 +339,8 @@ fn tmp_output_path_is_unique_per_case() {
     );
 }
 
-/// The output always goes through `-o` (a positional output name makes unp64
-/// write next to the fixture).
+/// The command line passes the output path with `-o` so `unp64` does not
+/// write next to the fixture.
 #[test]
 fn unp64_command_line_uses_dash_o() {
     assert_eq!(
@@ -352,8 +353,8 @@ fn unp64_command_line_uses_dash_o() {
     );
 }
 
-/// A non-zero exit with a banner is the normal probe result; a missing banner
-/// or a spawn error is a tool failure.
+/// A non-zero exit with a banner is a normal probe result, whereas a missing
+/// banner or a spawn error is a tool failure.
 #[test]
 fn version_probe_nonzero_exit_is_not_tool_failure() {
     let program = Path::new("unp64");

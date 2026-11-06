@@ -1,9 +1,7 @@
-//! Closed enums of the manifest and the predicates that define each
-//! divergence kind.
+//! Closed manifest enums and divergence kind predicates.
 //!
-//! The predicates are shared by the oracle evaluation and the classifier, so
-//! a proposal that the compare tool makes is exactly one the corpus test
-//! accepts.
+//! Both the oracle evaluator and the classifier share these predicates so the
+//! corpus test accepts every proposal from the compare tool.
 
 use std::fmt;
 
@@ -18,26 +16,25 @@ use super::values::{HexAddr, ManifestStr, deserialize_manifest_str};
 // Field
 // =============================================================================
 
-/// An output field that an `AcceptedDivergence` may permit to differ.
+/// Output field that an `AcceptedDivergence` can allow to differ.
 ///
-/// Only `start`, `end` and `entry` exist. `len` is derived from the range,
-/// and the payload over the overlap must always match, so neither can be
-/// listed.
+/// Only `start`, `end`, and `entry` exist. `len` derives from the address
+/// range, and the overlapping payload bytes must always match.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Field {
-    /// The first unpacked address.
+    /// First unpacked address.
     Start,
-    /// The last unpacked address (inclusive).
+    /// Inclusive last unpacked address.
     End,
-    /// The entry point of the unpacked program.
+    /// Entry point of the unpacked program.
     Entry,
 }
 
 impl Field {
-    /// Every field, in canonical order.
+    /// Every field in canonical order.
     pub const ALL: [Field; 3] = [Field::Start, Field::End, Field::Entry];
 
-    /// The manifest name of the field.
+    /// Returns the manifest name of the field.
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -47,7 +44,7 @@ impl Field {
         }
     }
 
-    /// The allowed names, for error messages: `` `start`, `end`, `entry` ``.
+    /// Formats the allowed field names as `` `start`, `end`, `entry` ``.
     fn allowed_list() -> String {
         Self::ALL
             .iter()
@@ -71,8 +68,8 @@ impl ManifestStr for Field {
             return Ok(field);
         }
         let allowed = Self::allowed_list();
-        // Name the two tempting-but-forbidden values explicitly, so the error
-        // explains the rule instead of only listing the alternatives.
+        // Explain why `len`, `payload`, `payload_fnv64`, and `overlap` cannot
+        // appear in `fields`.
         Err(match text {
             "len" => format!(
                 "`len` cannot be listed in `fields`: it is derived from the address range. \
@@ -99,7 +96,7 @@ impl<'de> Deserialize<'de> for Field {
     }
 }
 
-/// Formats fields as `start, end`.
+/// Formats `fields` as `start, end`.
 pub(super) fn join_fields(fields: &[Field]) -> String {
     fields
         .iter()
@@ -112,12 +109,12 @@ pub(super) fn join_fields(fields: &[Field]) -> String {
 // FieldSet
 // =============================================================================
 
-/// A non-empty, duplicate-free set of [`Field`]s, kept in canonical order.
+/// Non-empty, duplicate-free set of [`Field`] values in canonical order.
 ///
 /// # Example
 ///
-/// `fields = ["end", "start"]` parses to `[Start, End]` and is written back
-/// as `["start", "end"]`.
+/// `fields = ["end", "start"]` parses to `[Start, End]` and serializes as
+/// `["start", "end"]`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FieldSet(Vec<Field>);
 
@@ -126,7 +123,7 @@ impl FieldSet {
     ///
     /// # Errors
     ///
-    /// Returns a message when `fields` is empty or lists a field twice.
+    /// Returns an error message when `fields` is empty or contains duplicates.
     pub fn new(fields: impl IntoIterator<Item = Field>) -> Result<Self, String> {
         let mut sorted: Vec<Field> = fields.into_iter().collect();
         if sorted.is_empty() {
@@ -142,13 +139,13 @@ impl FieldSet {
         Ok(Self(sorted))
     }
 
-    /// Returns `true` if `field` is in the set.
+    /// Returns `true` if `self` contains `field`.
     #[must_use]
     pub fn contains(&self, field: Field) -> bool {
         self.0.contains(&field)
     }
 
-    /// The fields in canonical order.
+    /// Returns the fields in canonical order.
     #[must_use]
     pub fn as_slice(&self) -> &[Field] {
         &self.0
@@ -178,27 +175,25 @@ impl<'de> Deserialize<'de> for FieldSet {
 // DivergenceKind
 // =============================================================================
 
-/// Why R2000 deliberately differs from unp64 on a case (closed enum shared
-/// with the compare tool's classifier).
+/// Reason why R2000 intentionally differs from `unp64` on a case.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DivergenceKind {
-    /// The starts are the BASIC link byte pair `{basic_start - 1,
-    /// basic_start}` (the padding byte).
+    /// The start addresses form the BASIC link byte pair `{basic_start - 1,
+    /// basic_start}`.
     PaddingByte,
-    /// unp64 had no end scanner and saved up to its top-page default.
+    /// `unp64` had no end scanner and saved up to its top-page default.
     Unp64DefaultEnd,
-    /// unp64 used its default start `min(load_addr, ram_start)`.
+    /// `unp64` selected its default start `min(load_addr, ram_start)`.
     Unp64DefaultStart,
-    /// unp64 stopped on an opcode it does not implement.
+    /// `unp64` stopped on an unimplemented opcode.
     Unp64MissingOpcode,
-    /// The difference is accepted but nobody has investigated it yet. Every
-    /// report lists these cases.
+    /// Accepted difference that awaits further investigation.
     Unexplained,
 }
 
 impl DivergenceKind {
-    /// The manifest name of the kind.
+    /// Returns the manifest name of the kind.
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -210,11 +205,8 @@ impl DivergenceKind {
         }
     }
 
-    /// The exact `fields` list that this kind requires, or `None` if any
-    /// non-empty list is allowed.
-    ///
-    /// `unp64_missing_opcode` means unp64 produced no output at all, so every
-    /// field differs and all three must be listed.
+    /// Returns the exact `fields` slice that this kind requires, or `None` if
+    /// any non-empty field set is valid.
     #[must_use]
     pub fn required_fields(self) -> Option<&'static [Field]> {
         match self {
@@ -225,13 +217,13 @@ impl DivergenceKind {
         }
     }
 
-    /// Returns `true` if this kind may describe a case on which unp64 failed.
+    /// Returns `true` if this kind can describe a case where `unp64` failed.
     #[must_use]
     pub fn allowed_for_failed_unp64(self) -> bool {
         matches!(self, Self::Unp64MissingOpcode | Self::Unexplained)
     }
 
-    /// Returns `true` if this kind only makes sense when unp64 failed.
+    /// Returns `true` if this kind requires a failed `unp64` record.
     #[must_use]
     pub fn requires_failed_unp64(self) -> bool {
         matches!(self, Self::Unp64MissingOpcode)
@@ -248,26 +240,23 @@ impl fmt::Display for DivergenceKind {
 // ExpectedFailReason
 // =============================================================================
 
-/// Why a case is expected to fail its oracle until a planned change lands.
+/// Reason why a case is expected to fail its oracle until a fix lands.
 ///
-/// Each reason masks only its own, closed set of failures
-/// (`ExpectedFailReason::masks`); every other failure of a marked case still
-/// fails the run.
+/// Each reason masks only its matching failure variants in
+/// `ExpectedFailReason::masks`. Any other failure still fails the test run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExpectedFailReason {
-    /// The start differs from the original only by the padding convention:
-    /// R2000 drops the original's first byte, one below the BASIC start
-    /// (`$0801` versus the original `$0800`).
+    /// The start differs from the original by the one-byte padding convention
+    /// (`basic_start` versus `basic_start - 1`).
     PaddingConvention,
-    /// R2000's payload differs from unp64's over the shared range, and the
-    /// cause is being investigated. Masks only payload and overlap hash
-    /// mismatches.
+    /// The R2000 payload differs from `unp64` over the shared range and is
+    /// under investigation.
     PayloadMismatchUnderInvestigation,
 }
 
 impl ExpectedFailReason {
-    /// The manifest name of the reason.
+    /// Returns the manifest name of the reason.
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
@@ -284,35 +273,26 @@ impl fmt::Display for ExpectedFailReason {
 }
 
 // =============================================================================
-// Kind predicates (shared by the oracle and the classifier)
+// Kind predicates
 // =============================================================================
 
-/// The BASIC starts that may anchor the `padding_byte` pair.
+/// Returns the candidate BASIC start addresses for `padding_byte`:
 ///
-/// 1. `system.default_basic_start()`: where a BASIC program lives on the
-///    system when its stub was relocated there (C64: `$0801`), whatever the
-///    load address. unp64 and R2000 may each report either side of that
-///    stub's link byte.
-/// 2. [`get_basic_start`]`(load_addr)`: the BASIC start the engine actually
-///    used for this load (incl. the `$07C0` Card Cruncher case). This is the
-///    engine's own function, the single source of truth, so the classifier
-///    cannot drift from the engine.
+/// 1. `system.default_basic_start()`: the default system BASIC start address.
+/// 2. [`get_basic_start`]`(load_addr)`: the BASIC start address that the
+///    unpacker engine computes from `load_addr`.
 fn basic_start_candidates(load_addr: u16, system: &System) -> [u16; 2] {
     [system.default_basic_start(), get_basic_start(load_addr)]
 }
 
-/// `padding_byte`: the two starts are exactly the BASIC link byte pair
-/// `{basic_start - 1, basic_start}`, in either order.
-///
-/// `basic_start` is either candidate of [`basic_start_candidates`]; either
-/// one may anchor the pair. Any other one-byte difference is not the padding
-/// byte.
+/// Returns `true` if `unp64_start` and `r2000_start` form the BASIC link byte
+/// pair `{basic_start - 1, basic_start}` in either order.
 ///
 /// # Example
 ///
-/// On the C64 with a load at `$0801`: `$0800` vs `$0801` holds in both
-/// orders; `$0802` vs `$0801` and `$1000` vs `$1001` do not. With a load at
-/// `$07C0`, `$07C0` vs `$07C1` holds.
+/// When `system.default_basic_start()` is `$0801` and `load_addr` is `$0801`,
+/// `$0800` and `$0801` match in either order, whereas `$0802` and `$0801` do
+/// not.
 pub(super) fn padding_byte_holds(
     unp64_start: u16,
     r2000_start: u16,
@@ -325,8 +305,8 @@ pub(super) fn padding_byte_holds(
         .any(|basic_start| high == basic_start && basic_start.checked_sub(1) == Some(low))
 }
 
-/// The BASIC link byte pairs that satisfy `padding_byte` for this load, as
-/// `$0800/$0801` (deduplicated, ascending), for messages.
+/// Formats the candidate BASIC link byte pairs for `load_addr` and `system`
+/// in ascending order.
 pub(super) fn padding_byte_pairs(load_addr: u16, system: &System) -> String {
     let mut starts = basic_start_candidates(load_addr, system).to_vec();
     starts.sort_unstable();
@@ -341,26 +321,24 @@ pub(super) fn padding_byte_pairs(load_addr: u16, system: &System) -> String {
         .join(" or ")
 }
 
-/// `unp64_default_end`: unp64's end is above R2000's and on the top page
-/// ([`UNP64_TOP_PAGE`]), i.e. unp64 fell back to its default instead of a
-/// real end.
+/// Returns `true` if `unp64_end` is above `r2000_end` and at or above
+/// [`UNP64_TOP_PAGE`].
 ///
 /// # Example
 ///
-/// Traveller's unp64 end `$FFFD` against R2000's `$7949` holds; `$FEFF` does
-/// not.
+/// `unp64_end = $FFFD` and `r2000_end = $7949` return `true`. `unp64_end =
+/// $FEFF` returns `false`.
 pub(super) fn unp64_default_end_holds(unp64_end: u16, r2000_end: u16) -> bool {
     unp64_end > r2000_end && unp64_end >= UNP64_TOP_PAGE
 }
 
-/// `unp64_default_start`: unp64's start is its default
-/// `min(load_addr, system.ram_start())` (`unp64.c:562`) and differs from
-/// R2000's.
+/// Returns `true` if `unp64_start` equals `min(load_addr, system.ram_start())`
+/// (`unp64.c:562`) and differs from `r2000_start`.
 ///
 /// # Example
 ///
-/// On the C64 (RAM start `$0800`) with a load at `$0801`, an unp64 start of
-/// `$0800` against R2000's `$0810` holds; `$0801` does not.
+/// When `system.ram_start()` is `$0800` and `load_addr` is `$0801`,
+/// `unp64_start = $0800` and `r2000_start = $0810` return `true`.
 pub(super) fn unp64_default_start_holds(
     unp64_start: u16,
     r2000_start: u16,

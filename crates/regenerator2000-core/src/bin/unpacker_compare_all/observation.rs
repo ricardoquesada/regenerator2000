@@ -1,22 +1,22 @@
-//! One corpus case as observed by the compare tool: R2000's result and
-//! unp64's outcome, side by side.
+//! One corpus case observed by the compare tool: the R2000 result and the
+//! `unp64` outcome side by side.
 
 use crate::corpus::{Case, CaseResult, Divergence, classify};
 use crate::unp64::Unp64Outcome;
 
-/// R2000's and unp64's results for one case.
+/// R2000 and `unp64` results for one case.
 #[derive(Debug, Clone)]
 pub struct Observation {
-    /// The manifest case (a copy, so it can be replaced by its updated form).
+    /// The manifest case. `--update` replaces this copy with the updated case.
     pub case: Case,
-    /// What R2000 produced (with the case's own budget).
+    /// The R2000 result with the case budget.
     pub result: CaseResult,
-    /// What unp64 produced.
+    /// The `unp64` outcome.
     pub unp64: Unp64Outcome,
 }
 
 impl Observation {
-    /// How R2000 and unp64 disagree, by the shared corpus classifier.
+    /// Classifies how R2000 and `unp64` disagree.
     #[must_use]
     pub fn divergence(&self) -> Divergence {
         classify(&self.result, &self.unp64.observation())

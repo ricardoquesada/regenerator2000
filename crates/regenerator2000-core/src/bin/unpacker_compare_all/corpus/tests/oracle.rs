@@ -1,12 +1,12 @@
-//! Tests for `oracle`: the unp64 reference rule, accepted divergences, ground
-//! truth, consensus, `expected_fail`, and stale exceptions, plus edge cases
-//! and the aggregate `evaluate_all`.
+//! Tests for `oracle`: the `unp64` reference rule, accepted divergences,
+//! ground truth, consensus, `expected_fail`, stale exceptions, edge cases,
+//! and `evaluate_all`.
 
 use super::*;
 
 // ─────────────────────────────── helpers ───────────────────────────────
 
-/// Evaluates a single-field divergence where unp64 covers
+/// Evaluates a single-field divergence where `unp64` covers
 /// `unp64_start..=unp64_end` and R2000 covers `r2000_start..=r2000_end`.
 fn eval_range_divergence(
     kind: DivergenceKind,
@@ -29,7 +29,7 @@ fn eval_range_divergence(
     eval(&corpus, &result)
 }
 
-/// `Ok(())` for a pass, or the failure messages.
+/// Returns `Ok(())` for a pass, or the failure messages.
 fn holds_or_reason(outcome: &Result<CaseReport, Vec<FailureReason>>) -> Result<(), String> {
     match outcome {
         Ok(_) => Ok(()),
@@ -37,8 +37,8 @@ fn holds_or_reason(outcome: &Result<CaseReport, Vec<FailureReason>>) -> Result<(
     }
 }
 
-/// Runs a predicate table: each row must pass (`holds`) or fail with
-/// "no longer holds". Returns one message per mismatching row.
+/// Runs a predicate table where each row must pass (`holds`) or fail with
+/// `"no longer holds"`, and returns one message per mismatching row.
 fn predicate_mismatches<'a>(
     rows: impl IntoIterator<Item = (&'a str, Result<CaseReport, Vec<FailureReason>>, bool)>,
 ) -> Vec<String> {
@@ -53,8 +53,8 @@ fn predicate_mismatches<'a>(
     mismatches
 }
 
-/// Builds a one-group corpus whose original is `$0800-$0863` with entry
-/// `$0810`, and the fixtures to load it.
+/// Builds a one-group corpus whose original covers `$0800-$0863` with entry
+/// `$0810`, and returns the corpus with its fixtures.
 fn ground_truth_setup(members: Vec<Case>) -> (Corpus, MemFixtures) {
     let group = Group {
         id: "prog".to_string(),
@@ -70,7 +70,7 @@ fn ground_truth_setup(members: Vec<Case>) -> (Corpus, MemFixtures) {
     (corpus, fixtures)
 }
 
-/// A member of the `prog` group.
+/// Builds a member of the `prog` group.
 fn member(file: &str, saved: Unp64Saved) -> Case {
     let mut case = case(file, saved, None);
     case.group = Some("prog".to_string());
@@ -103,7 +103,7 @@ fn consensus_of(members: Vec<(Case, UnpackedImage)>) -> Vec<CaseFailure> {
         .evaluate_consensus(&results)
 }
 
-/// A `prog` member whose unp64 record matches `image`.
+/// Builds a `prog` member whose `unp64` record matches `image`.
 fn grouped_member(file: &str, image: &UnpackedImage) -> (Case, UnpackedImage) {
     (member(file, matching_record(image)), image.clone())
 }
@@ -326,8 +326,9 @@ fn eval_overlap_window_outside_r2000_range_fails() {
     );
 }
 
-/// A recorded overlap that is inside R2000's range but no longer equals the
-/// current intersection is reported, so a stale window cannot hide bytes.
+/// Checks that the evaluator rejects a recorded overlap inside the R2000 range
+/// when it does not equal the current intersection, so a stale window cannot
+/// hide bytes.
 #[test]
 fn eval_overlap_window_must_equal_current_intersection() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -351,10 +352,9 @@ fn eval_overlap_window_must_equal_current_intersection() {
     );
 }
 
-/// The `padding_byte` kind holds only for the BASIC link byte pair
-/// `{basic_start - 1, basic_start}`. A signed `padding_byte` exception on
-/// `$0802` vs `$0801` (one byte apart, but not the pair) fails with "kind no
-/// longer holds".
+/// Checks that `padding_byte` holds only for the BASIC link byte pair
+/// `{basic_start - 1, basic_start}`, and fails with `"no longer holds"` on
+/// `$0802` vs `$0801`.
 #[test]
 fn eval_padding_byte_kind_predicate() {
     let run = |unp64, r2000, load_addr, system, fields: &[Field]| {
@@ -470,7 +470,7 @@ fn eval_padding_byte_kind_predicate() {
         Err(text) if text.contains("requires fields = [start]") => {}
         other => failures.push(format!("wrong fields: {other:?}")),
     }
-    // `len` is not even parseable as a field.
+    // The parser rejects `len` as a field name.
     assert!(
         Corpus::parse(&manifest_with_divergence(
             "kind = \"padding_byte\"\nfields = [\"start\", \"len\"]\nreviewed_by = \"x\""
@@ -580,10 +580,10 @@ fn eval_unexplained_kind_passes_and_is_listed() {
 #[test]
 fn eval_ground_truth_overrides_unp64() {
     let image = image(0x0800, 0x0863, 0x0810);
-    // unp64 disagrees on the start (Dali-style padding byte).
+    // `unp64` disagrees on the start (Dali-style padding byte).
     let saved = record(0x0801, 0x0863, Unp64Entry::Address(0x0810), &image);
     let (corpus, fixtures) = ground_truth_setup(vec![member("a.prg", saved)]);
-    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image)).unwrap();
+    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image.clone())).unwrap();
     assert_eq!(
         report.oracle,
         Oracle::GroundTruth {
@@ -595,6 +595,19 @@ fn eval_ground_truth_overrides_unp64() {
         vec![ReportNote::Unp64DisagreesWithGroundTruth {
             fields: vec![Field::Start],
             payload: false,
+        }]
+    );
+
+    // When `unp64` also disagrees on the overlap payload hash, the note sets `payload: true`.
+    let mut bad_overlap = record(0x0801, 0x0863, Unp64Entry::Address(0x0810), &image);
+    bad_overlap.overlap.as_mut().unwrap().fnv64.0 ^= 1;
+    let (corpus, fixtures) = ground_truth_setup(vec![member("a.prg", bad_overlap)]);
+    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image)).unwrap();
+    assert_eq!(
+        report.notes,
+        vec![ReportNote::Unp64DisagreesWithGroundTruth {
+            fields: vec![Field::Start],
+            payload: true,
         }]
     );
 }
@@ -629,8 +642,8 @@ fn eval_ground_truth_range_derived_from_original_file() {
     let (corpus, fixtures) = ground_truth_setup(vec![member("a.prg", saved)]);
     assert!(eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image)).is_ok());
 
-    // An unreadable or unusable original is reported when the evaluator is
-    // built, never silently skipped.
+    // `Evaluator::new` reports an unreadable or invalid original instead of
+    // skipping it.
     let missing = Evaluator::new(&corpus, &MemFixtures::default()).unwrap_err();
     assert_eq!(
         missing,
@@ -698,7 +711,8 @@ fn eval_ground_truth_entry_must_equal_group_entry() {
     );
 }
 
-/// A failed unp64 run on a ground-truth case is informational only.
+/// Checks that a failed `unp64` run on a ground-truth case produces an
+/// informational note.
 #[test]
 fn eval_ground_truth_with_failed_unp64_is_a_note() {
     let image = image(0x0800, 0x0863, 0x0810);
@@ -825,7 +839,7 @@ fn eval_expected_fail_that_passes_is_failure() {
 
 #[test]
 fn eval_stale_divergence_is_failure() {
-    // Every listed field now equals unp64.
+    // Every listed field now equals `unp64`.
     let image = image(0x0801, 0x2000, 0x080D);
     let corpus_all = corpus(vec![case(
         "a.prg",
@@ -867,7 +881,7 @@ fn eval_stale_divergence_is_failure() {
     assert!(found[0].to_string().contains("remove them from `fields`"));
 }
 
-/// An R2000 error fails even under an `expected_fail` marker.
+/// Checks that an R2000 error fails even under an `expected_fail` marker.
 #[test]
 fn eval_r2000_error_fails_unless_expected() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -901,8 +915,8 @@ fn eval_r2000_error_fails_unless_expected() {
     }
 }
 
-/// `padding_convention` masks only a ground-truth start mismatch on the
-/// BASIC link byte pair. Rows are collected before the assertion.
+/// Checks that `padding_convention` masks only a ground-truth start mismatch
+/// on the BASIC link byte pair.
 #[test]
 fn expected_fail_padding_convention_masks_only_the_padding_start() {
     // (label, R2000 image, masked?)
@@ -942,7 +956,7 @@ fn expected_fail_padding_convention_masks_only_the_padding_start() {
         }
     }
 
-    // Nothing left to mask: unexpected pass, which names the marker.
+    // With no failure left to mask, the case fails as an unexpected pass.
     let good = image(0x0800, 0x0863, 0x0810);
     let (mut dali, _) = grouped_member("dali.prg", &good);
     dali.expected_fail = Some(ExpectedFailReason::PaddingConvention);
@@ -959,14 +973,14 @@ fn expected_fail_padding_convention_masks_only_the_padding_start() {
 }
 
 /// One "must still fail" row: label, evaluation outcome, and the failure
-/// that must remain.
+/// predicate.
 type UnmaskedRow<'a> = (
     &'a str,
     Result<CaseReport, Vec<FailureReason>>,
     fn(&FailureReason) -> bool,
 );
 
-/// The failures masked by an `expected_fail` note, or `None` if the case
+/// Returns the failures from an `expected_fail` note, or `None` if the case
 /// did not pass with one.
 fn masked_failures(outcome: &Result<CaseReport, Vec<FailureReason>>) -> Option<Vec<FailureReason>> {
     outcome
@@ -980,10 +994,10 @@ fn masked_failures(outcome: &Result<CaseReport, Vec<FailureReason>>) -> Option<V
         })
 }
 
-/// `payload_mismatch_under_investigation` masks only payload and overlap
-/// hash mismatches. Field mismatches, structural overlap errors and
-/// unsigned exceptions still fail, and a repaired payload is an unexpected
-/// pass. Rows are collected before the assertion.
+/// Checks that `payload_mismatch_under_investigation` masks only payload and
+/// overlap hash mismatches, while field mismatches, structural overlap errors,
+/// and unsigned exceptions still fail, and a matching payload produces an
+/// unexpected pass.
 #[test]
 fn expected_fail_payload_mismatch_masks_only_payload_hashes() {
     let run = |saved: Unp64Saved, divergence: Option<AcceptedDivergence>, r2000: UnpackedImage| {
@@ -1027,7 +1041,7 @@ fn expected_fail_payload_mismatch_masks_only_payload_hashes() {
         }
     }
 
-    // Not masked: each row must still fail with the named failure.
+    // Unmasked: each row must still fail with the expected failure.
     let mut no_overlap = longer.clone();
     no_overlap.overlap = None;
     let unmasked_rows: [UnmaskedRow<'_>; 4] = [
@@ -1081,8 +1095,8 @@ fn expected_fail_payload_mismatch_masks_only_payload_hashes() {
     assert!(wrong.is_empty(), "{}", wrong.join("\n"));
 }
 
-/// Every `expected_fail` note is a user action item, so both `ExpectedFailReason`
-/// variants appear in every report.
+/// Checks that every `expected_fail` note is a user action item, so both
+/// `ExpectedFailReason` variants appear in every report.
 #[test]
 fn expected_failures_are_action_items() {
     for reason in [
@@ -1100,9 +1114,9 @@ fn expected_failures_are_action_items() {
 
 // ═══════════════════════ edge cases and aggregation ═══════════════════════
 
-/// Evaluation edge cases: an unknown file, a failed unp64 run with and
-/// without an exception, an inconsistent R2000 result, and a BASIC `RUN`
-/// entry that must be accepted explicitly.
+/// Checks evaluation edge cases: an unknown file, a failed `unp64` run with
+/// and without an exception, an inconsistent R2000 result, and a BASIC `RUN`
+/// entry that requires an explicit exception.
 #[test]
 fn eval_edge_cases() {
     let image = image(0x0801, 0x2000, 0x080D);
@@ -1153,9 +1167,9 @@ fn eval_edge_cases() {
     assert!(eval(&accepted, &ok_result("a.prg", image)).is_ok());
 }
 
-/// `evaluate_all` merges per-case failures with consensus failures, sorts
-/// reports by file and failures by subject, and is green only when nothing
-/// failed.
+/// Checks that `evaluate_all` merges per-case failures with consensus
+/// failures, sorts reports by file and failures by subject, and reports green
+/// only when no failure occurs.
 #[test]
 fn evaluate_all_aggregates_cases_and_consensus_sorted() {
     let good = image(0x0800, 0x0863, 0x0810);
@@ -1171,7 +1185,7 @@ fn evaluate_all_aggregates_cases_and_consensus_sorted() {
         .push(case("z.prg", matching_record(&plain), None));
     let evaluator = Evaluator::new(&corpus, &fixtures).unwrap();
 
-    // Deliberately unsorted input order.
+    // Unsorted input order.
     let results = [
         ok_result("z.prg", plain.clone()),
         ok_result("b.prg", good.clone()),

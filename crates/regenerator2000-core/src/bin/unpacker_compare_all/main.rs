@@ -1,19 +1,19 @@
-//! `unpacker_compare_all`: records unp64's results as the reference for the
-//! unpacker corpus, and compares them with Regenerator 2000 (R2000).
+//! `unpacker_compare_all` records `unp64` results as the reference for the
+//! unpacker corpus and compares them with Regenerator 2000 (R2000).
 //!
-//! The case list lives in `tests/6502/unpack_corpus.toml`. For every case
-//! the tool runs R2000 (with the case's own instruction budget) and unp64
-//! (`<fixture> -o <unique temporary file>`), classifies how they disagree,
-//! and then, depending on the mode:
+//! `tests/6502/unpack_corpus.toml` holds the case list. For every case, the
+//! tool runs R2000 with the case instruction budget and runs `unp64` (`<fixture>
+//! -o <unique temporary file>`). It classifies each disagreement and runs the
+//! selected mode:
 //!
 //! * `--update` rewrites the `[case.unp64]` tables and proposes unsigned
-//!   `accepted_divergence` entries for new differences;
+//!   `accepted_divergence` entries for new differences.
 //! * `--check` exits non-zero if a recorded result no longer matches the
-//!   binary;
+//!   binary.
 //! * `--markdown` prints a comparison report.
 //!
 //! The corpus test (`tests/unpack_corpus.rs`) reads the recorded results, so
-//! CI never needs unp64.
+//! CI does not need `unp64`.
 
 mod check;
 mod cli;
@@ -38,8 +38,7 @@ use corpus::{Corpus, CorpusError, CorpusFilter, DirFixtures, Schedule, run_cases
 use observation::Observation;
 use unp64::{Unp64, Unp64Error};
 
-/// Environment variable that holds the user's home directory, used for the
-/// `~/.local/bin/unp64` candidate.
+/// Environment variable that holds the home directory for `~/.local/bin/unp64`.
 const HOME_ENV: &str = "HOME";
 
 fn main() -> ExitCode {
@@ -63,14 +62,14 @@ fn main() -> ExitCode {
     }
 }
 
-/// Why a run could not complete.
+/// Reason why a run fails.
 #[derive(Debug)]
 enum ToolError {
-    /// The manifest is unreadable or its case list is broken.
+    /// The manifest is unreadable or its case list is invalid.
     Corpus(Vec<CorpusError>),
-    /// unp64 is missing or produced an unrecordable result.
+    /// `unp64` is missing or produced an unrecordable result.
     Unp64(Unp64Error),
-    /// The updated manifest could not be written.
+    /// Disk write error for the updated manifest.
     Write {
         /// The manifest path.
         path: PathBuf,
@@ -106,15 +105,15 @@ impl From<CorpusError> for ToolError {
     }
 }
 
-/// Loads the manifest, observes every case, and performs `mode`.
+/// Loads the manifest, observes every case, and runs `mode`.
 fn run(mode: Mode, markdown: Markdown) -> Result<ToolStatus, ToolError> {
     let fixture_dir = Path::new(corpus::FIXTURE_DIR);
     let manifest_path = fixture_dir.join(corpus::MANIFEST_FILE);
     let corpus = Corpus::load(&manifest_path)?;
     let fixtures = DirFixtures::new(fixture_dir);
 
-    // Missing or stale oracle data is what `--update` repairs, so only a
-    // broken case list stops the tool.
+    // `--update` fixes missing or stale oracle data, so only structural
+    // errors in the case list stop the tool.
     let structural: Vec<CorpusError> = corpus
         .validate(&fixtures)
         .into_iter()
@@ -141,7 +140,7 @@ fn run(mode: Mode, markdown: Markdown) -> Result<ToolStatus, ToolError> {
             write_manifest(&manifest_path, &updated.corpus)?;
             println!("{}", update::render_update(&updated));
             report_remaining_errors(&updated.corpus, &fixtures);
-            // The report must describe the manifest as written.
+            // Update the observations so the report matches the written manifest.
             for observation in &mut observations {
                 if let Some(case) = updated.corpus.case(&observation.case.file) {
                     observation.case = case.clone();
@@ -165,8 +164,8 @@ fn run(mode: Mode, markdown: Markdown) -> Result<ToolStatus, ToolError> {
     Ok(status)
 }
 
-/// Runs R2000 (in parallel) and unp64 (one case at a time, each with its
-/// own temporary output file) on every case, sorted by file.
+/// Runs R2000 in parallel and runs `unp64` sequentially with unique temporary
+/// output files for every case in file order.
 fn observe(
     corpus: &Corpus,
     fixtures: &DirFixtures,
@@ -193,7 +192,7 @@ fn observe(
         .collect()
 }
 
-/// Writes `corpus` to `path` in its canonical form.
+/// Writes `corpus` to `path` in canonical TOML format.
 fn write_manifest(path: &Path, corpus: &Corpus) -> Result<(), ToolError> {
     let text = corpus.to_toml_string()?;
     fs::write(path, text).map_err(|error| ToolError::Write {
@@ -202,9 +201,7 @@ fn write_manifest(path: &Path, corpus: &Corpus) -> Result<(), ToolError> {
     })
 }
 
-/// Prints the validation errors the updated manifest still has (for example
-/// a failed unp64 run without an exception), which the corpus test reports
-/// too until someone resolves them.
+/// Prints any remaining manifest errors after `--update`.
 fn report_remaining_errors(corpus: &Corpus, fixtures: &DirFixtures) {
     let errors = corpus.validate(fixtures);
     if errors.is_empty() {

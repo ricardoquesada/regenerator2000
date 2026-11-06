@@ -133,7 +133,7 @@ fn validate_unp64_failed_requires_unexplained_divergence() {
     ))));
     assert!(wrong_kind.contains(&expected_error[0]), "{wrong_kind:?}");
 
-    // Inside a ground-truth group the original decides; no exception needed.
+    // In a ground-truth group, the original file is the oracle and needs no exception.
     let mut grouped = failed_case(None);
     grouped.group = Some("mule".to_string());
     let corpus = Corpus {
@@ -145,7 +145,7 @@ fn validate_unp64_failed_requires_unexplained_divergence() {
 
 #[test]
 fn validate_unp64_len_consistent_with_range() {
-    // (start, end, recorded len, expected `derived` in the error, if any)
+    // Each row has `(start, end, recorded len, expected derived len)`.
     let rows: [(u16, u16, u32, Option<Option<usize>>); 6] = [
         (0x0801, 0x0810, 16, None),
         (0x0800, 0xFFFF, 63_488, None),
@@ -209,7 +209,7 @@ fn validate_all_errors_are_reported_together() {
     no_unp64.unp64 = None;
     let mut unknown_group = simple_case("c.prg");
     unknown_group.group = Some("nope".to_string());
-    // Deliberately unsorted input order.
+    // Pass cases in unsorted order to verify deterministic output ordering.
     let corpus = corpus(vec![unknown_group, simple_case("b.prg"), no_unp64]);
     let errors = corpus.validate(&MemFixtures::named(&["c.prg"]));
     assert_eq!(
@@ -232,8 +232,7 @@ fn validate_all_errors_are_reported_together() {
     );
 }
 
-/// Validation rules that tie a divergence `kind` to its `fields`, keep
-/// exceptions off ground-truth cases, and reject path-like names.
+/// Verifies that `validate` checks `fields` against `kind`, rejects exceptions on ground-truth cases, and rejects path-like file names.
 #[test]
 fn validate_divergence_shape_rules() {
     let fixtures = MemFixtures::named(&["a.prg", "mule_orig.prg"]);
@@ -304,8 +303,7 @@ fn validate_divergence_shape_rules() {
     }
 }
 
-/// Only errors that break the case list are structural; errors in the
-/// recorded oracle data (which `--update` rewrites) are not.
+/// Verifies that only case-list errors are structural and recorded oracle errors are non-structural.
 #[test]
 fn structural_errors_are_the_case_list_errors() {
     let file = || "a.prg".to_string();

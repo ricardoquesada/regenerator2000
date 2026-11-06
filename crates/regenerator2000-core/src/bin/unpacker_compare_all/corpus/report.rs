@@ -5,8 +5,8 @@ use super::{CaseFailure, CaseReport};
 /// Column header of the subject column in the failure table.
 const SUBJECT_HEADER: &str = "Subject";
 
-/// Renders every failure as a table, sorted by subject and then by reason
-/// kind. Returns `"no failures"` for an empty list.
+/// Renders every failure as a table in subject and reason-kind order.
+/// Returns `"no failures"` for an empty list.
 ///
 /// # Example
 ///
@@ -48,9 +48,9 @@ pub fn render_failure_table(failures: &[CaseFailure]) -> String {
     lines.join("\n")
 }
 
-/// Renders every note that asks the user to act (unexplained divergences,
-/// pending reviews, expected failures), sorted by file. Returns an empty
-/// string when there is nothing to do.
+/// Renders every user action item (unexplained divergences, pending reviews,
+/// and expected failures) in file order. Returns an empty string when no
+/// action items exist.
 #[must_use]
 pub fn render_action_items(reports: &[CaseReport]) -> String {
     let mut items: Vec<(String, String)> = reports

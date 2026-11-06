@@ -1,4 +1,4 @@
-//! Tests for `--update` plus the preservation rules for reviewed decisions,
+//! Tests for `--update` and the preservation rules for reviewed decisions,
 //! ground-truth members, and R2000 failures.
 
 use super::*;
@@ -7,7 +7,7 @@ use crate::corpus::{
 };
 use crate::update::{ExceptionChange, RecordChange, update_case, update_corpus};
 
-/// The saved record of an updated case.
+/// Returns the saved record of an updated case.
 fn saved_record(case: &Case) -> &Unp64Saved {
     match &case.unp64 {
         Some(Unp64Record::Saved(saved)) => saved,
@@ -15,7 +15,8 @@ fn saved_record(case: &Case) -> &Unp64Saved {
     }
 }
 
-/// Traveller-like observation: unp64 saved up to `$FFFD`, R2000 to `$7949`.
+/// Builds a Traveller-like observation where `unp64` saves up to `$FFFD` and
+/// R2000 saves up to `$7949`.
 fn traveller(case: Case) -> Observation {
     observation(
         case,
@@ -24,8 +25,8 @@ fn traveller(case: Case) -> Observation {
     )
 }
 
-/// The record holds unp64's results, hash, and version, and the overlap window
-/// is the intersection hashed over unp64's bytes.
+/// Checks that the record holds the `unp64` results, hash, and version, and
+/// that the overlap window is the intersection hash over the `unp64` bytes.
 #[test]
 fn update_writes_unp64_table_and_overlap() {
     let update = update_case(&traveller(bare_case("t.prg")), VERSION);
@@ -48,7 +49,7 @@ fn update_writes_unp64_table_and_overlap() {
         }
     );
 
-    // Equal ranges need no overlap; the whole-payload hash decides.
+    // Equal ranges need no overlap because the whole-payload hash decides.
     let agree = update_case(
         &observation(
             bare_case("a.prg"),
@@ -61,7 +62,7 @@ fn update_writes_unp64_table_and_overlap() {
     assert_eq!(agree.exception, ExceptionChange::NotNeeded);
     assert_eq!(agree.case.accepted_divergence, None);
 
-    // The written manifest parses back to the same corpus (canonical form).
+    // The written manifest parses back to the same canonical corpus.
     let corpus = Corpus {
         groups: Vec::new(),
         cases: vec![update.case.clone(), agree.case.clone()],
@@ -73,8 +74,8 @@ fn update_writes_unp64_table_and_overlap() {
     );
 }
 
-/// A new difference gets an unsigned proposal that lists only `start`/`end`/`entry`
-/// fields (never `len`) and carries the evidence.
+/// Checks that a new difference gets an unsigned proposal that lists only
+/// `start`, `end`, or `entry` (never `len`) and carries the evidence.
 #[test]
 fn update_proposes_unsigned_divergence_for_new_difference() {
     let update = update_case(&traveller(bare_case("t.prg")), VERSION);
@@ -92,7 +93,7 @@ fn update_proposes_unsigned_divergence_for_new_difference() {
         }
     );
 
-    // An unexplained start + end difference lists exactly those two fields.
+    // An unexplained start + end difference lists those two fields.
     let both = update_case(
         &observation(
             bare_case("d.prg"),
@@ -107,7 +108,7 @@ fn update_proposes_unsigned_divergence_for_new_difference() {
     assert_eq!(proposal.reviewed_by, None);
 }
 
-/// Payload and entry mismatches are never proposed automatically.
+/// Checks that `--update` never proposes payload or entry mismatches automatically.
 #[test]
 fn update_never_proposes_payload_or_entry_mismatch() {
     let mut corrupted = image(0x0801, 0x2000, 0x080D);
@@ -139,8 +140,8 @@ fn update_never_proposes_payload_or_entry_mismatch() {
     }
 }
 
-/// A signed exception survives a re-run with the same results, including the
-/// initial-classification marker and a different unp64 version string.
+/// Checks that a signed exception survives a re-run with the same results,
+/// including the initial marker and a different `unp64` version string.
 #[test]
 fn update_preserves_signature_when_classification_unchanged() {
     let first = update_case(&traveller(bare_case("t.prg")), VERSION);
@@ -168,8 +169,7 @@ fn update_preserves_signature_when_classification_unchanged() {
         }
     }
 
-    // A reviewer's `unexplained` decision on an entry mismatch is a human
-    // decision and survives too.
+    // A reviewer's `unexplained` decision on an entry mismatch survives too.
     let hbfs = |case: Case| {
         observation(
             case,
@@ -190,8 +190,8 @@ fn update_preserves_signature_when_classification_unchanged() {
     assert_eq!(again.case.accepted_divergence, Some(decision));
 }
 
-/// The signature is dropped when the recorded values change or the exception
-/// no longer describes the case.
+/// Checks that `--update` drops the signature when the recorded values change
+/// or the exception no longer describes the case.
 #[test]
 fn update_drops_signature_when_kind_or_values_change() {
     let mut case = update_case(&traveller(bare_case("t.prg")), VERSION).case;
@@ -199,7 +199,7 @@ fn update_drops_signature_when_kind_or_values_change() {
     signed.reviewed_by = Some("ricardoq".to_string());
     case.accepted_divergence = Some(signed.clone());
 
-    // unp64 now saves to $FFFF: same kind, new values → new unsigned proposal.
+    // `unp64` now saves to $FFFF: same kind and new values produce a new unsigned proposal.
     let values = update_case(
         &observation(
             case.clone(),
@@ -220,8 +220,8 @@ fn update_drops_signature_when_kind_or_values_change() {
         }
     );
 
-    // A recorded kind that no longer matches (and is not `unexplained`) is
-    // replaced: the same difference is now classified as unexplained.
+    // When a recorded kind no longer matches (and is not `unexplained`),
+    // `--update` replaces it with the current classification.
     let mut wrong_kind = case.clone();
     wrong_kind.accepted_divergence = Some(exception(
         DivergenceKind::PaddingByte,
@@ -234,7 +234,7 @@ fn update_drops_signature_when_kind_or_values_change() {
         DivergenceKind::Unp64DefaultEnd
     );
 
-    // The tools agree now: the stale exception is removed.
+    // When the tools agree, `--update` removes the stale exception.
     let agree = update_case(
         &observation(
             case,
@@ -250,9 +250,9 @@ fn update_drops_signature_when_kind_or_values_change() {
     );
 }
 
-/// A failed unp64 run is recorded as `failed` and proposed as an unsigned
-/// `unexplained` exception over all three fields; a missing-opcode stop is
-/// proposed as `unp64_missing_opcode`.
+/// Checks that `--update` records a failed `unp64` run as `failed`, proposes
+/// an unsigned `unexplained` exception over all three fields, and proposes
+/// `unp64_missing_opcode` for a missing-opcode stop.
 #[test]
 fn update_records_failed_unp64_as_unexplained_proposal() {
     let update = update_case(
@@ -289,9 +289,9 @@ fn update_records_failed_unp64_as_unexplained_proposal() {
     assert_eq!(proposal.fields.as_slice(), &Field::ALL);
 }
 
-/// On a case marked `payload_mismatch_under_investigation`, the reviewer's
-/// `unexplained` exception for the non-payload fields survives re-runs;
-/// without the marker a payload mismatch never keeps an exception.
+/// Checks that a case with `payload_mismatch_under_investigation` preserves
+/// its reviewed `unexplained` exception for non-payload fields across re-runs,
+/// while an unmarked payload mismatch drops its exception.
 #[test]
 fn update_keeps_reviewed_fields_of_a_payload_mismatch_under_investigation() {
     let hbfs = |case: Case| {
@@ -333,8 +333,8 @@ fn update_keeps_reviewed_fields_of_a_payload_mismatch_under_investigation() {
     );
 }
 
-/// Ground-truth members never get an exception, and an R2000 failure leaves
-/// any exception exactly as it was (there is nothing to judge it by).
+/// Checks that ground-truth members never receive an exception, and an R2000
+/// failure preserves any existing exception.
 #[test]
 fn update_leaves_ground_truth_and_r2000_failures_alone() {
     let mut member = bare_case("m.prg");
@@ -359,8 +359,8 @@ fn update_leaves_ground_truth_and_r2000_failures_alone() {
     assert_eq!(failed_run.case.accepted_divergence, Some(decision));
 }
 
-/// The corpus update replaces exactly the observed cases, keeps groups and
-/// unobserved cases, and lists changes sorted by file.
+/// Checks that `update_corpus` replaces only the observed cases, preserves
+/// groups and unobserved cases, and lists changes in file order.
 #[test]
 fn update_corpus_replaces_only_observed_cases() {
     let group = Group {

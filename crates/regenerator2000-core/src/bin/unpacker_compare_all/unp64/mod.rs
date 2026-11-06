@@ -1,10 +1,9 @@
-//! Running the unp64 binary: locating it, probing its version, and running
-//! it on one fixture with a unique temporary output file.
+//! Runs the `unp64` binary: locates the executable, probes its version, and
+//! runs it on one fixture with a unique temporary output file.
 //!
-//! The parsing of what unp64 prints and saves lives in `parse`, as pure
-//! functions. This module adds the process and file handling around it, plus
-//! the pure helpers that decide *how* unp64 is invoked (candidates, command
-//! line, temporary path), so those decisions are unit tested too.
+//! `parse` holds pure functions that parse `unp64` console output and saved
+//! files. This module adds process execution, file cleanup, and pure helpers
+//! for binary candidates, command-line arguments, and temporary paths.
 
 pub mod parse;
 
@@ -18,61 +17,61 @@ use std::process::{Command, Stdio};
 pub use self::parse::Unp64Outcome;
 use self::parse::{ParseError, interpret_run, parse_console, parse_version_banner};
 
-/// Environment variable that names the unp64 binary explicitly.
+/// Environment variable that sets the `unp64` binary path explicitly.
 pub const UNP64_ENV: &str = "UNP64";
 
-/// Program name looked up on `PATH`.
+/// Program name on `PATH`.
 const PROGRAM_NAME: &str = "unp64";
 
-/// Location of the user-local install, relative to the home directory.
+/// User-local binary directory relative to the home directory.
 const LOCAL_BIN_DIR: [&str; 2] = [".local", "bin"];
 
-/// unp64's option that forces the output file name (`-o Name`). Without it,
-/// unp64 writes `<input>.XXXX` next to the input, which once overwrote a
-/// tracked fixture.
+/// `unp64` option that sets the output file name (`-o Name`).
+///
+/// Without this option, `unp64` writes `<input>.XXXX` next to the input file.
 const OUTPUT_FLAG: &str = "-o";
 
-/// Prefix of every temporary output file.
+/// Prefix for every temporary output file.
 const TMP_PREFIX: &str = "unpacker_compare_all";
 
 // =============================================================================
 // Errors
 // =============================================================================
 
-/// Why unp64 could not be used, or produced an unrecordable result.
+/// Reason why `unp64` failed to run or produced an unrecordable result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Unp64Error {
     /// No candidate binary answered the version probe.
     NotFound {
-        /// Each candidate tried, with the reason it was rejected.
+        /// Each candidate path and its rejection reason.
         tried: Vec<(PathBuf, String)>,
     },
-    /// The binary could not be started.
+    /// The operating system failed to start the binary.
     Spawn {
-        /// The binary.
+        /// The binary path.
         program: PathBuf,
         /// The operating-system error.
         message: String,
     },
     /// The no-argument call printed no usage banner.
     NoBanner {
-        /// The binary.
+        /// The binary path.
         program: PathBuf,
-        /// Its exit code (`None` if it was killed by a signal).
+        /// Process exit code, or `None` if a signal terminated the process.
         exit_code: Option<i32>,
     },
-    /// A temporary output file could not be read or removed.
+    /// File I/O error on a temporary output file.
     Io {
-        /// The file.
+        /// The file path.
         path: PathBuf,
         /// The operating-system error.
         message: String,
     },
-    /// unp64's result for `input` cannot be recorded faithfully.
+    /// `unp64` produced an inconsistent or unrecordable result for `input`.
     Output {
-        /// The fixture unp64 ran on.
+        /// The input fixture path.
         input: PathBuf,
-        /// What is wrong with the result.
+        /// The parse error.
         source: ParseError,
     },
 }
@@ -119,16 +118,15 @@ impl std::error::Error for Unp64Error {}
 // Pure invocation helpers
 // =============================================================================
 
-/// The binaries to try, in order.
+/// Returns the candidate `unp64` binary paths in search order.
 ///
-/// An explicit, non-empty `UNP64` is the only candidate (a wrong path must
-/// fail loudly, not fall back). Otherwise `unp64` on `PATH`, then
-/// `~/.local/bin/unp64` when a home directory is known. There are no
-/// hardcoded user paths.
+/// A non-empty `UNP64` environment variable is the only candidate so an
+/// invalid explicit path fails immediately. Otherwise, this function returns
+/// `unp64` on `PATH`, followed by `~/.local/bin/unp64` when `home` is non-empty.
 ///
 /// # Example
 ///
-/// With `UNP64` unset and `HOME=/home/a`: `["unp64",
+/// With `UNP64` unset and `HOME=/home/a`, this function returns `["unp64",
 /// "/home/a/.local/bin/unp64"]`.
 #[must_use]
 pub fn binary_candidates(unp64_env: Option<OsString>, home: Option<OsString>) -> Vec<PathBuf> {
@@ -145,7 +143,7 @@ pub fn binary_candidates(unp64_env: Option<OsString>, home: Option<OsString>) ->
     candidates
 }
 
-/// The command-line arguments for one run: `<input> -o <output>`.
+/// Returns the command-line arguments for one run: `<input> -o <output>`.
 #[must_use]
 pub fn unp64_args(input: &Path, output: &Path) -> Vec<OsString> {
     vec![
@@ -155,40 +153,39 @@ pub fn unp64_args(input: &Path, output: &Path) -> Vec<OsString> {
     ]
 }
 
-/// The temporary output path for case number `index` of the process
-/// `process_id`, inside `dir` (normally `std::env::temp_dir()`).
+/// Returns the temporary output path for case `index` of `process_id` inside
+/// `dir`.
 ///
-/// The process id keeps concurrent tool runs apart; the index keeps cases
-/// apart. Nothing is ever written next to a fixture.
+/// The process ID separates concurrent tool runs, and `index` separates cases.
+/// The tool never writes files next to a fixture.
 ///
 /// # Example
 ///
-/// `tmp_output_path("/tmp", 42, 7)` is `/tmp/unpacker_compare_all-42-007.prg`.
+/// `tmp_output_path("/tmp", 42, 7)` returns
+/// `/tmp/unpacker_compare_all-42-007.prg`.
 #[must_use]
 pub fn tmp_output_path(dir: &Path, process_id: u32, index: usize) -> PathBuf {
     dir.join(format!("{TMP_PREFIX}-{process_id}-{index:03}.prg"))
 }
 
-/// What the no-argument version probe printed.
+/// Output from the no-argument version probe.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProbeOutput {
-    /// The exit code (`None` if the process was killed by a signal). Only
-    /// reported in errors: unp64 exits non-zero here by design.
+    /// Process exit code, or `None` if a signal terminated the process.
     pub exit_code: Option<i32>,
-    /// stdout followed by stderr.
+    /// Combined stdout and stderr text.
     pub text: String,
 }
 
 /// Interprets the no-argument version probe of `program`.
 ///
-/// unp64 prints its usage banner and exits non-zero when called without
-/// arguments, so a non-zero exit is **not** a tool failure: only the banner
-/// decides. A spawn error (for example, binary not found) is.
+/// `unp64` prints its usage banner and exits non-zero when called without
+/// arguments. Only a spawn error or a missing usage banner fails the probe.
 ///
 /// # Errors
 ///
-/// Returns [`Unp64Error::Spawn`] if the probe could not start, or
-/// [`Unp64Error::NoBanner`] if its output has no usage banner.
+/// Returns [`Unp64Error::Spawn`] if the probe failed to start, or
+/// [`Unp64Error::NoBanner`] if the output contains no usage banner.
 pub fn interpret_version_probe(
     program: &Path,
     probe: io::Result<ProbeOutput>,
@@ -207,7 +204,7 @@ pub fn interpret_version_probe(
 // Process
 // =============================================================================
 
-/// A located unp64 binary and its version.
+/// Located `unp64` binary and its version string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Unp64 {
     program: PathBuf,
@@ -215,12 +212,12 @@ pub struct Unp64 {
 }
 
 impl Unp64 {
-    /// Returns the first candidate that answers the version probe.
+    /// Returns the first candidate binary that answers the version probe.
     ///
     /// # Errors
     ///
-    /// Returns [`Unp64Error::NotFound`] with every candidate's rejection
-    /// reason if none answers.
+    /// Returns [`Unp64Error::NotFound`] with the rejection reason for every
+    /// candidate if none answers.
     pub fn locate(candidates: &[PathBuf]) -> Result<Self, Unp64Error> {
         let mut tried = Vec::new();
         for program in candidates {
@@ -237,28 +234,27 @@ impl Unp64 {
         Err(Unp64Error::NotFound { tried })
     }
 
-    /// The binary that answered the probe.
+    /// Returns the binary path that answered the probe.
     #[must_use]
     pub fn program(&self) -> &Path {
         &self.program
     }
 
-    /// The version from the usage banner, e.g. `"2.42"`.
+    /// Returns the version from the usage banner, such as `"2.42"`.
     #[must_use]
     pub fn version(&self) -> &str {
         &self.version
     }
 
-    /// Runs unp64 on `input`, writing to `output` (a path from
-    /// [`tmp_output_path`]), and interprets the result.
+    /// Runs `unp64` on `input`, writes to `output`, and interprets the result.
     ///
-    /// `output` is removed before the run (a stale file must not pass for a
-    /// result) and after it, on every path including errors.
+    /// This method deletes `output` before and after the run on every exit
+    /// path.
     ///
     /// # Errors
     ///
-    /// Returns [`Unp64Error::Spawn`] if unp64 cannot start,
-    /// [`Unp64Error::Io`] if the output file cannot be read or removed, or
+    /// Returns [`Unp64Error::Spawn`] if `unp64` fails to start,
+    /// [`Unp64Error::Io`] if the output file cannot be read or deleted, or
     /// [`Unp64Error::Output`] if the result is inconsistent.
     pub fn run(&self, input: &Path, output: &Path) -> Result<Unp64Outcome, Unp64Error> {
         let _cleanup = TempOutput::claim(output)?;
@@ -288,7 +284,7 @@ impl Unp64 {
     }
 }
 
-/// Runs the no-argument version probe.
+/// Runs the no-argument version probe on `program`.
 fn probe(program: &Path) -> io::Result<ProbeOutput> {
     let output = Command::new(program).stdin(Stdio::null()).output()?;
     Ok(ProbeOutput {
@@ -297,8 +293,7 @@ fn probe(program: &Path) -> io::Result<ProbeOutput> {
     })
 }
 
-/// stdout followed by stderr, as text. unp64 writes diagnostics such as
-/// "unimplemented opcode" through its logger, so both streams matter.
+/// Concatenates `stdout` and `stderr` as UTF-8 text.
 fn combined_text(stdout: &[u8], stderr: &[u8]) -> String {
     format!(
         "{}\n{}",
@@ -307,14 +302,14 @@ fn combined_text(stdout: &[u8], stderr: &[u8]) -> String {
     )
 }
 
-/// Owns a temporary output path: removes any stale file on creation and the
-/// file on drop, so no exit path leaves it behind.
+/// Guard for a temporary output path that deletes any existing file on
+/// creation and deletes the output file on drop.
 struct TempOutput<'a> {
     path: &'a Path,
 }
 
 impl<'a> TempOutput<'a> {
-    /// Removes a stale file at `path` and takes ownership of the path.
+    /// Deletes any stale file at `path` and claims the path.
     fn claim(path: &'a Path) -> Result<Self, Unp64Error> {
         remove_if_present(path).map_err(|error| Unp64Error::Io {
             path: path.to_path_buf(),
@@ -326,8 +321,7 @@ impl<'a> TempOutput<'a> {
 
 impl Drop for TempOutput<'_> {
     fn drop(&mut self) {
-        // `Drop` cannot return an error; a leftover temporary file is
-        // harmless but must not go unnoticed.
+        // Print a warning if the temporary file cannot be deleted on drop.
         if let Err(error) = remove_if_present(self.path) {
             eprintln!(
                 "warning: cannot remove temporary file {}: {error}",
@@ -337,7 +331,7 @@ impl Drop for TempOutput<'_> {
     }
 }
 
-/// Removes `path`; a file that does not exist is not an error.
+/// Deletes `path` if the file exists.
 fn remove_if_present(path: &Path) -> io::Result<()> {
     match fs::remove_file(path) {
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),

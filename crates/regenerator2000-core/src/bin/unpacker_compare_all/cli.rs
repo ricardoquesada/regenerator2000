@@ -1,10 +1,10 @@
-//! Command-line parsing and exit statuses of `unpacker_compare_all`.
+//! Command-line parsing and exit statuses for `unpacker_compare_all`.
 
 use std::ffi::OsString;
 use std::fmt;
 use std::process::ExitCode;
 
-/// Usage text, printed for `--help` and after a usage error.
+/// Usage text for `--help` and usage errors.
 pub const USAGE: &str = "\
 usage: unpacker_compare_all (--update | --check | --markdown) [--markdown]
 
@@ -19,48 +19,48 @@ Runs Regenerator 2000 and unp64 on every case of tests/6502/unpack_corpus.toml.
 unp64 is taken from $UNP64, else from PATH, else from ~/.local/bin/unp64.
 Exit codes: 0 success, 1 drift (--check), 2 usage or tool error.";
 
-/// What the tool does with the observations.
+/// Action that the tool runs on the observations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
-    /// Rewrite the manifest's `[case.unp64]` tables.
+    /// Rewrite the `[case.unp64]` tables in the manifest.
     Update,
     /// Report drift between the manifest and the binary.
     Check,
-    /// Only print the report.
+    /// Print only the report.
     Report,
 }
 
-/// Whether the markdown report is printed.
+/// Whether the tool prints the markdown report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Markdown {
-    /// Print it.
+    /// Print the report.
     Print,
-    /// Do not print it.
+    /// Do not print the report.
     Skip,
 }
 
-/// What the user asked for.
+/// Parsed command-line request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
     /// Print the usage text.
     Help,
     /// Run the comparison.
     Run {
-        /// The mode.
+        /// The execution mode.
         mode: Mode,
         /// Whether to print the markdown report.
         markdown: Markdown,
     },
 }
 
-/// A command line that cannot be run.
+/// Invalid command-line arguments.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UsageError {
-    /// An argument the tool does not know.
+    /// Unrecognized argument.
     UnknownArgument(String),
-    /// `--update` and `--check` were both given.
+    /// Both `--update` and `--check` appear in the arguments.
     ConflictingModes,
-    /// No mode was given.
+    /// No mode argument appears.
     NoMode,
 }
 
@@ -76,17 +76,17 @@ impl fmt::Display for UsageError {
 
 impl std::error::Error for UsageError {}
 
-/// Parses the arguments (without the program name).
+/// Parses the command-line arguments without the program name.
 ///
 /// # Example
 ///
-/// `["--check", "--markdown"]` gives `Run { mode: Check, markdown: Print }`;
-/// `["--markdown"]` alone gives `Run { mode: Report, markdown: Print }`.
+/// `["--check", "--markdown"]` returns `Run { mode: Check, markdown: Print }`.
+/// `["--markdown"]` alone returns `Run { mode: Report, markdown: Print }`.
 ///
 /// # Errors
 ///
-/// Returns a [`UsageError`] for unknown arguments, both `--update` and
-/// `--check`, or no mode at all.
+/// Returns [`UsageError`] for unknown arguments, conflicting modes, or missing
+/// modes.
 pub fn parse_args(args: impl IntoIterator<Item = OsString>) -> Result<Command, UsageError> {
     let mut update = false;
     let mut check = false;
@@ -119,20 +119,19 @@ pub fn parse_args(args: impl IntoIterator<Item = OsString>) -> Result<Command, U
     Ok(Command::Run { mode, markdown })
 }
 
-/// How a run ended.
+/// Final outcome of a tool run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolStatus {
-    /// Everything requested was done; no drift.
+    /// The run completed without drift.
     Success,
-    /// `--check` found recorded results that unp64 no longer reproduces.
+    /// `--check` found recorded results that `unp64` no longer reproduces.
     Drift,
-    /// A usage error, or the tool could not do its job (unp64 missing, an
-    /// unreadable manifest, an unrecordable unp64 result, ...).
+    /// A usage error or runtime error occurred.
     Failure,
 }
 
 impl ToolStatus {
-    /// The process exit code: 0, 1 or 2.
+    /// Returns the process exit code: 0, 1, or 2.
     #[must_use]
     pub fn code(self) -> u8 {
         match self {

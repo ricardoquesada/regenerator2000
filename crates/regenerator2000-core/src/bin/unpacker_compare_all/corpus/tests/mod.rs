@@ -1,13 +1,13 @@
 //! Pure unit tests for the shared corpus module.
 //!
-//! The corpus module is compiled into two crates (the compare bin and the
-//! corpus integration test), so these tests run twice. They are deliberately
-//! pure: no file system and no environment variables. Fixtures come from the
-//! in-memory [`MemFixtures`] resolver and payloads from one deterministic
-//! xorshift "memory".
+//! Two targets compile the corpus module (the compare binary and the corpus
+//! integration test), so these tests run twice. They stay pure with no file
+//! system and no environment variables. The in-memory [`MemFixtures`] resolver
+//! supplies fixtures, and one deterministic xorshift memory buffer supplies
+//! payloads.
 //!
-//! This file holds the shared builders; each submodule tests one library
-//! module and is named after it.
+//! This file provides the shared builders. Each submodule tests one library
+//! module.
 
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
@@ -24,17 +24,18 @@ mod values;
 use super::*;
 use regenerator2000_core::state::types::System;
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
 
 /// Size of the 6502 address space in bytes.
 const ADDRESS_SPACE: usize = 0x1_0000;
 
-/// unp64 version recorded by every synthetic record.
+/// The `unp64` version in every synthetic record.
 const UNP64_VERSION: &str = "2.42";
 
 // ─────────────────────────────── bytes ───────────────────────────────
 
-/// Deterministic pseudo-random byte generator (xorshift32), as in
-/// `tests/parser_fuzz_test.rs`. Seeds must be non-zero.
+/// Generates deterministic pseudo-random bytes with xorshift32
+/// (`tests/parser_fuzz_test.rs`). Seeds must be non-zero.
 fn pseudo_random_bytes(seed: u32, len: usize) -> Vec<u8> {
     let mut state = seed;
     let mut out = Vec::with_capacity(len);
@@ -47,23 +48,22 @@ fn pseudo_random_bytes(seed: u32, len: usize) -> Vec<u8> {
     out
 }
 
-/// One shared 64 KB "memory". Every image and unp64 observation takes its
-/// bytes from here, so two windows over the same addresses always agree.
-fn memory() -> Vec<u8> {
-    pseudo_random_bytes(0x00C0_FFEE, ADDRESS_SPACE)
-}
+/// One shared 64 KB memory buffer. Every image and `unp64` observation reads
+/// from this buffer, so two windows over the same addresses agree.
+static MEMORY: LazyLock<Vec<u8>> =
+    LazyLock::new(|| pseudo_random_bytes(0x00C0_FFEE, ADDRESS_SPACE));
 
-/// The shared memory's bytes over `start..=end`.
+/// Returns the shared memory bytes over `start..=end`.
 fn mem_bytes(start: u16, end: u16) -> Vec<u8> {
-    memory()[usize::from(start)..=usize::from(end)].to_vec()
+    MEMORY[usize::from(start)..=usize::from(end)].to_vec()
 }
 
-/// The range `start..=end`; panics on an inverted range (test input bug).
+/// Returns the range `start..=end` and panics on an inverted range.
 fn range(start: u16, end: u16) -> AddrRange {
     AddrRange::new(start, end).unwrap()
 }
 
-/// A PRG: little-endian load address followed by the payload.
+/// Builds a PRG with a little-endian load address and the payload.
 fn prg(load_addr: u16, payload: &[u8]) -> Vec<u8> {
     let mut bytes = load_addr.to_le_bytes().to_vec();
     bytes.extend_from_slice(payload);
@@ -77,7 +77,7 @@ fn prg(load_addr: u16, payload: &[u8]) -> Vec<u8> {
 struct MemFixtures(BTreeMap<String, Vec<u8>>);
 
 impl MemFixtures {
-    /// Fixtures with placeholder bytes for each name.
+    /// Builds fixtures with placeholder bytes for each name.
     fn named(files: &[&str]) -> Self {
         Self(
             files
@@ -87,7 +87,7 @@ impl MemFixtures {
         )
     }
 
-    /// Adds (or replaces) one fixture.
+    /// Adds or replaces one fixture.
     fn with(mut self, file: &str, bytes: Vec<u8>) -> Self {
         self.0.insert(file.to_string(), bytes);
         self
@@ -111,7 +111,7 @@ impl FixtureResolver for MemFixtures {
 
 // ─────────────────────────────── R2000 results ───────────────────────────────
 
-/// An R2000 image over `start..=end` with bytes from the shared memory.
+/// Builds an R2000 image over `start..=end` with bytes from the shared memory.
 fn image(start: u16, end: u16, entry: u16) -> UnpackedImage {
     use regenerator2000_core::unpacker::{BoundSource, ExitReason, UnpackReport};
     UnpackedImage {
@@ -134,7 +134,7 @@ fn image(start: u16, end: u16, entry: u16) -> UnpackedImage {
     }
 }
 
-/// A successful C64 result loaded at `$0801`.
+/// Builds a successful C64 result at load address `$0801`.
 fn ok_result(file: &str, image: UnpackedImage) -> CaseResult {
     CaseResult {
         file: file.to_string(),
@@ -144,7 +144,7 @@ fn ok_result(file: &str, image: UnpackedImage) -> CaseResult {
     }
 }
 
-/// A failed result with the given `UnpackError` variant name.
+/// Builds a failed result with the given `UnpackError` variant name.
 fn err_result(file: &str, variant: &str) -> CaseResult {
     CaseResult {
         file: file.to_string(),
@@ -159,9 +159,10 @@ fn err_result(file: &str, variant: &str) -> CaseResult {
 
 // ─────────────────────────────── manifest model ───────────────────────────────
 
-/// An unp64 record over `start..=end` with bytes from the shared memory.
-/// When the range differs from `r2000`'s, the overlap window is the
-/// intersection, hashed over the shared memory (unp64 agrees on the overlap).
+/// Builds an `unp64` record over `start..=end` with bytes from the shared memory.
+///
+/// When the range differs from `r2000`, the overlap window is the
+/// intersection hash over the shared memory.
 fn record(start: u16, end: u16, entry: Unp64Entry, r2000: &UnpackedImage) -> Unp64Saved {
     let unp64_range = range(start, end);
     let r2000_range = range(r2000.start, r2000.end);
@@ -184,7 +185,7 @@ fn record(start: u16, end: u16, entry: Unp64Entry, r2000: &UnpackedImage) -> Unp
     }
 }
 
-/// An unp64 record that matches `image` exactly.
+/// Builds an `unp64` record that matches `image`.
 fn matching_record(image: &UnpackedImage) -> Unp64Saved {
     record(
         image.start,
@@ -194,7 +195,7 @@ fn matching_record(image: &UnpackedImage) -> Unp64Saved {
     )
 }
 
-/// A failed unp64 record.
+/// Builds a failed `unp64` record.
 fn failed_record(reason: &str) -> Unp64Record {
     Unp64Record::Failed(Unp64Failed {
         reason: reason.to_string(),
@@ -202,7 +203,7 @@ fn failed_record(reason: &str) -> Unp64Record {
     })
 }
 
-/// A case outside any group with a saved unp64 record.
+/// Builds a case outside any group with a saved `unp64` record.
 fn case(file: &str, saved: Unp64Saved, divergence: Option<AcceptedDivergence>) -> Case {
     Case {
         file: file.to_string(),
@@ -214,7 +215,7 @@ fn case(file: &str, saved: Unp64Saved, divergence: Option<AcceptedDivergence>) -
     }
 }
 
-/// An exception with the given review signature.
+/// Builds an exception with the given review signature.
 fn divergence(
     kind: DivergenceKind,
     fields: &[Field],
@@ -228,12 +229,12 @@ fn divergence(
     }
 }
 
-/// An exception signed by a reviewer.
+/// Builds an exception with a reviewer signature.
 fn signed(kind: DivergenceKind, fields: &[Field]) -> AcceptedDivergence {
     divergence(kind, fields, Some("ricardoq"))
 }
 
-/// A corpus without groups.
+/// Builds a corpus without groups.
 fn corpus(cases: Vec<Case>) -> Corpus {
     Corpus {
         groups: Vec::new(),
@@ -241,17 +242,17 @@ fn corpus(cases: Vec<Case>) -> Corpus {
     }
 }
 
-/// A valid saved record over `$0801-$0810`.
+/// Builds a valid saved record over `$0801-$0810`.
 fn simple_record() -> Unp64Saved {
     matching_record(&image(0x0801, 0x0810, 0x080D))
 }
 
-/// A plain case with [`simple_record`].
+/// Builds a plain case with [`simple_record`].
 fn simple_case(file: &str) -> Case {
     case(file, simple_record(), None)
 }
 
-/// The `mule` group with original `mule_orig.prg`.
+/// Builds the `mule` group with original `mule_orig.prg`.
 fn mule_group() -> Group {
     Group {
         id: "mule".to_string(),
@@ -262,7 +263,7 @@ fn mule_group() -> Group {
 
 // ─────────────────────────────── evaluation ───────────────────────────────
 
-/// The reasons of a failure list, without subjects.
+/// Extracts the failure reasons from a failure list.
 fn reasons(failures: Vec<CaseFailure>) -> Vec<FailureReason> {
     failures.into_iter().map(|failure| failure.reason).collect()
 }
@@ -273,7 +274,7 @@ fn eval(corpus: &Corpus, result: &CaseResult) -> Result<CaseReport, Vec<FailureR
     evaluator.evaluate(result).map_err(reasons)
 }
 
-/// All failure messages, one per line.
+/// Joins all failure messages, one per line.
 fn failure_texts(failures: &[FailureReason]) -> String {
     failures
         .iter()
@@ -284,7 +285,7 @@ fn failure_texts(failures: &[FailureReason]) -> String {
 
 // ─────────────────────────────── manifest text ───────────────────────────────
 
-/// A minimal valid manifest; `unp64_extra` is appended inside `[case.unp64]`.
+/// Builds a minimal valid manifest with `unp64_extra` inside `[case.unp64]`.
 fn manifest_with_unp64(unp64_extra: &str) -> String {
     format!(
         "[[case]]\n\
@@ -300,7 +301,7 @@ fn manifest_with_unp64(unp64_extra: &str) -> String {
     )
 }
 
-/// A manifest whose only case has a `[case.accepted_divergence]` table.
+/// Builds a manifest whose only case has a `[case.accepted_divergence]` table.
 fn manifest_with_divergence(divergence_body: &str) -> String {
     format!(
         "{}[case.accepted_divergence]\n{divergence_body}\n",
@@ -308,7 +309,7 @@ fn manifest_with_divergence(divergence_body: &str) -> String {
     )
 }
 
-/// The parse error message of `toml_text`; panics if it parses.
+/// Returns the parse error message of `toml_text` and panics if it parses.
 fn parse_error(toml_text: &str) -> String {
     match Corpus::parse(toml_text) {
         Err(CorpusError::Parse { message }) => message,

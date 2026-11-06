@@ -1,8 +1,8 @@
-//! The oracle rules: unp64 reference, accepted divergence, ground truth,
-//! consensus and `expected_fail`.
+//! Oracle rules: `unp64` reference, accepted divergence, ground truth,
+//! consensus, and `expected_fail`.
 //!
-//! Every check collects all of its findings instead of stopping at the first
-//! one, so a single run shows the complete regression picture.
+//! Every check collects all findings instead of stopping at the first failure
+//! so a single run reports the complete regression picture.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -15,30 +15,29 @@ use super::values::{AddrRange, Addressed, Fnv64, HexAddr, first_difference};
 use super::verdict::ConsensusProperty;
 use super::{
     AcceptedDivergence, Case, CaseFailure, CaseReport, CaseResult, Corpus, CorpusError,
-    CorpusOutcome, FailureReason, FixtureResolver, Group, Oracle, ReportNote, Subject,
-    UNP64_TOP_PAGE, Unp64Record, Unp64Saved, UnpackedImage,
+    CorpusOutcome, FailureReason, FixtureResolver, Group, Oracle, PRG_HEADER_LEN, ReportNote,
+    Subject, UNP64_TOP_PAGE, Unp64Record, Unp64Saved, UnpackedImage,
 };
 
 // =============================================================================
 // Ground truth
 // =============================================================================
 
-/// The original, unpacked program of a [`Group`], loaded from its PRG.
+/// Original, unpacked program of a [`Group`], loaded from its PRG file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GroundTruth {
-    /// The group id.
+    /// The group ID.
     pub group: String,
-    /// The range the original occupies (load address to last byte).
+    /// Address range of the original program from load address to last byte.
     pub range: AddrRange,
-    /// The group's entry point.
+    /// Entry point of the group.
     pub entry: u16,
-    /// The original payload (PRG without its two-byte header).
+    /// Original payload without the two-byte PRG header.
     pub data: Vec<u8>,
 }
 
 impl GroundTruth {
-    /// Derives the ground truth from the original PRG bytes: the range is the
-    /// load address plus the payload length.
+    /// Derives the ground truth from the original PRG bytes.
     ///
     /// # Example
     ///
@@ -47,7 +46,7 @@ impl GroundTruth {
     /// # Errors
     ///
     /// Returns [`CorpusError::InvalidGroupOriginal`] if the PRG has no
-    /// payload or does not fit in the address space.
+    /// payload or extends past `$FFFF`.
     pub fn from_prg(group: &Group, prg: &[u8]) -> Result<Self, CorpusError> {
         let invalid = |reason: &str| CorpusError::InvalidGroupOriginal {
             group: group.id.clone(),
@@ -55,7 +54,7 @@ impl GroundTruth {
             reason: reason.to_string(),
         };
         let (header, payload) = prg
-            .split_first_chunk::<2>()
+            .split_first_chunk::<PRG_HEADER_LEN>()
             .ok_or_else(|| invalid("shorter than the two-byte PRG header"))?;
         let load_addr = u16::from_le_bytes(*header);
         let range = AddrRange::from_start_len(load_addr, payload.len())
@@ -68,7 +67,7 @@ impl GroundTruth {
         })
     }
 
-    /// The original payload anchored at its load address.
+    /// Returns the original payload anchored at its load address.
     fn addressed(&self) -> Addressed<'_> {
         Addressed {
             start: self.range.start(),
@@ -81,10 +80,10 @@ impl GroundTruth {
 // Evaluator
 // =============================================================================
 
-/// Evaluates R2000 results against the manifest's oracles.
+/// Evaluates R2000 results against the manifest oracles.
 ///
-/// Construction loads every group's original once, so evaluating many
-/// results does no I/O.
+/// [`Evaluator::new`] loads the original binary of every group once so
+/// evaluation performs no file I/O.
 #[derive(Debug)]
 pub struct Evaluator<'c> {
     corpus: &'c Corpus,
@@ -96,8 +95,8 @@ impl<'c> Evaluator<'c> {
     ///
     /// # Errors
     ///
-    /// Returns every [`CorpusError`] found while reading or decoding the
-    /// group originals, sorted like [`Corpus::validate`]'s output.
+    /// Returns all [`CorpusError`] values from reading or decoding the group
+    /// originals, sorted by [`CorpusError::sort_key`].
     pub fn new(
         corpus: &'c Corpus,
         fixtures: &dyn FixtureResolver,
@@ -122,15 +121,14 @@ impl<'c> Evaluator<'c> {
         Ok(Self { corpus, truths })
     }
 
-    /// Evaluates one case.
+    /// Evaluates one case result.
     ///
     /// # Errors
     ///
-    /// Returns every failure of the case (all fields are checked, not only
-    /// the first). An `expected_fail` case whose failures are all masked by
-    /// its reason is `Ok` with an [`ReportNote::ExpectedFailure`] note; one
-    /// with an unmasked failure fails with it, and one with nothing to mask
-    /// is an "unexpected pass" error.
+    /// Returns every unmasked failure of the case. An `expected_fail` case
+    /// whose failures are all masked returns `Ok` with a
+    /// [`ReportNote::ExpectedFailure`] note. An `expected_fail` case with no
+    /// masked failures fails with [`FailureReason::UnexpectedPass`].
     pub fn evaluate(&self, result: &CaseResult) -> Result<CaseReport, Vec<CaseFailure>> {
         let Some(case) = self.corpus.case(&result.file) else {
             return Err(vec![CaseFailure::case(
@@ -142,10 +140,8 @@ impl<'c> Evaluator<'c> {
         apply_expected_fail(case, result, verdict)
     }
 
-    /// Checks that all members of each group that are present in `results`
-    /// and not marked `expected_fail` agree on range, entry and payload.
-    /// Members whose unpack failed are reported by [`Evaluator::evaluate`]
-    /// and skipped here.
+    /// Checks that all unpacked, non-`expected_fail` members of each group in
+    /// `results` agree on range, entry, and payload.
     #[must_use]
     pub fn evaluate_consensus(&self, results: &[CaseResult]) -> Vec<CaseFailure> {
         let mut failures = Vec::new();
@@ -165,8 +161,8 @@ impl<'c> Evaluator<'c> {
         failures
     }
 
-    /// Evaluates every result plus consensus and returns the sorted outcome:
-    /// reports sorted by file, failures sorted by subject and reason kind.
+    /// Evaluates every result and group consensus, returning sorted reports
+    /// and failures.
     #[must_use]
     pub fn evaluate_all(&self, results: &[CaseResult]) -> CorpusOutcome {
         let mut outcome = CorpusOutcome::default();
@@ -223,7 +219,7 @@ impl<'c> Evaluator<'c> {
     }
 }
 
-/// The checks of one case before `expected_fail` is applied.
+/// Verdict of one case before [`apply_expected_fail`] runs.
 struct CaseVerdict {
     oracle: Oracle,
     failures: Vec<FailureReason>,
@@ -240,7 +236,7 @@ impl CaseVerdict {
     }
 }
 
-/// An R2000 image whose payload length is known to match its range.
+/// R2000 image whose payload length matches its address range.
 #[derive(Clone, Copy)]
 struct CheckedImage<'a> {
     image: &'a UnpackedImage,
@@ -248,7 +244,7 @@ struct CheckedImage<'a> {
 }
 
 impl CheckedImage<'_> {
-    /// R2000's value of `field`.
+    /// Returns the R2000 value of `field`.
     fn value(&self, field: Field) -> u16 {
         match field {
             Field::Start => self.image.start,
@@ -258,15 +254,15 @@ impl CheckedImage<'_> {
     }
 }
 
-/// One field on which unp64 and R2000 disagree.
+/// One field where `unp64` and R2000 disagree.
 struct FieldDifference {
     field: Field,
-    /// unp64's value in display form (`$XXXX` or `RUN`).
+    /// `unp64` value in display form (`$XXXX` or `RUN`).
     unp64: String,
 }
 
-/// Lists every field on which the saved unp64 record and R2000 differ, in
-/// canonical field order. `len` is derived from the range and never appears.
+/// Lists every field where `saved` and `image` differ, in canonical field
+/// order.
 fn unp64_differences(saved: &Unp64Saved, image: CheckedImage<'_>) -> Vec<FieldDifference> {
     Field::ALL
         .into_iter()
@@ -286,7 +282,7 @@ fn unp64_differences(saved: &Unp64Saved, image: CheckedImage<'_>) -> Vec<FieldDi
 // unp64 reference and accepted divergence
 // =============================================================================
 
-/// Applies the unp64 reference rule, with or without an accepted divergence.
+/// Checks the `unp64` reference rule, with or without an accepted divergence.
 fn check_unp64(
     case: &Case,
     result: &CaseResult,
@@ -338,9 +334,10 @@ fn check_unp64(
     check_payload(saved, unp64_range, image, verdict);
 }
 
-/// Records the review state of an exception: an unsigned exception is a
-/// failure, while the initial marker and the `unexplained` kind become report
-/// notes (user action items).
+/// Records the review state of an exception on `verdict`.
+///
+/// An unsigned exception adds a failure, while the initial review marker and
+/// `unexplained` kind add report notes.
 fn record_review_state(divergence: &AcceptedDivergence, verdict: &mut CaseVerdict) {
     match divergence.review_state() {
         ReviewState::Unsigned => verdict.failures.push(FailureReason::UnsignedDivergence),
@@ -354,7 +351,8 @@ fn record_review_state(divergence: &AcceptedDivergence, verdict: &mut CaseVerdic
     }
 }
 
-/// Checks that the exception is not stale and that its kind still holds.
+/// Checks that `divergence` has no stale fields and satisfies its kind
+/// predicate.
 fn check_divergence_kind(
     divergence: &AcceptedDivergence,
     saved: &Unp64Saved,
@@ -384,8 +382,8 @@ fn check_divergence_kind(
     }
 }
 
-/// Returns why `divergence.kind` does not hold for this result, or `None`
-/// if it holds.
+/// Returns the reason why `divergence.kind` fails for this result, or `None`
+/// when the predicate holds.
 fn kind_violation(
     divergence: &AcceptedDivergence,
     saved: &Unp64Saved,
@@ -393,8 +391,8 @@ fn kind_violation(
     result: &CaseResult,
 ) -> Option<String> {
     let kind = divergence.kind;
-    // Re-checked here (not only in validation) so that evaluating an
-    // unvalidated manifest can never accept a mis-shaped exception.
+    // Check required fields here as well so an unvalidated manifest cannot
+    // pass a mis-shaped exception.
     if let Some(required) = kind.required_fields()
         && divergence.fields.as_slice() != required
     {
@@ -445,8 +443,8 @@ fn kind_violation(
     }
 }
 
-/// Checks the payload: the whole-range hash when the ranges match, otherwise
-/// R2000's bytes over the recorded overlap window.
+/// Checks the payload hash over the full range when ranges match, or over the
+/// recorded overlap window when ranges differ.
 fn check_payload(
     saved: &Unp64Saved,
     unp64_range: AddrRange,
@@ -472,9 +470,7 @@ fn check_payload(
         verdict.failures.push(FailureReason::InvalidUnp64Record);
         return;
     };
-    // `slice` returns `None` exactly when the window is not inside R2000's
-    // payload, so the bounds check and the byte access cannot disagree and
-    // no out-of-range byte is ever hashed.
+    // `slice` returns `None` when `window` extends outside the R2000 payload.
     let Some(bytes) = image.image.addressed().slice(window) else {
         verdict.failures.push(FailureReason::OverlapOutsideResult {
             window,
@@ -503,7 +499,8 @@ fn check_payload(
 // Ground truth
 // =============================================================================
 
-/// Applies the ground-truth rule and records unp64's disagreement as a note.
+/// Checks `image` against `truth` and records any `unp64` disagreement as a
+/// report note.
 fn check_ground_truth(
     truth: &GroundTruth,
     image: CheckedImage<'_>,
@@ -527,8 +524,7 @@ fn check_ground_truth(
         }
     }
 
-    // Compare the bytes wherever both ranges overlap, so a range mismatch
-    // still reports whether the shared bytes are right.
+    // Compare the overlapping bytes even when the ranges differ.
     if let Some(window) = image.range.intersect(truth.range)
         && let (Some(r2000), Some(original)) = (
             image.image.addressed().slice(window),
@@ -545,15 +541,15 @@ fn check_ground_truth(
             });
     }
 
-    // unp64 disagreements are informational here: the original decides.
+    // `unp64` disagreements are informational because the original binary is
+    // the oracle.
     match record {
         Some(Unp64Record::Saved(saved)) => {
             let fields: Vec<Field> = unp64_differences(saved, image)
                 .into_iter()
                 .map(|difference| difference.field)
                 .collect();
-            let payload =
-                saved.range() == Some(image.range) && saved.payload_fnv64 != image.image.fnv64();
+            let payload = unp64_payload_disagrees(saved, image);
             if !fields.is_empty() || payload {
                 verdict
                     .notes
@@ -569,16 +565,31 @@ fn check_ground_truth(
     }
 }
 
+/// Returns `true` if the `unp64` full-payload hash or overlap hash disagrees
+/// with `image`.
+fn unp64_payload_disagrees(saved: &Unp64Saved, image: CheckedImage<'_>) -> bool {
+    if saved.range() == Some(image.range) {
+        return saved.payload_fnv64 != image.image.fnv64();
+    }
+    saved
+        .overlap
+        .as_ref()
+        .and_then(|overlap| {
+            let bytes = image.image.addressed().slice(overlap.range()?)?;
+            Some(Fnv64::of(bytes) != overlap.fnv64)
+        })
+        .unwrap_or(false)
+}
+
 // =============================================================================
 // expected_fail and consensus
 // =============================================================================
 
-/// Turns a verdict into the final result, applying `expected_fail`:
+/// Applies the `expected_fail` policy to `verdict`:
 ///
-/// * failures the marker's reason does not mask still fail;
-/// * a marked case with nothing left to mask is an "unexpected pass";
-/// * otherwise the case is green, with the masked failures as an action
-///   item.
+/// * Any failure that the `expected_fail` reason does not mask fails the case.
+/// * A marked case with no masked failures fails with `UnexpectedPass`.
+/// * Otherwise, the case passes with a [`ReportNote::ExpectedFailure`] note.
 fn apply_expected_fail(
     case: &Case,
     result: &CaseResult,
@@ -626,8 +637,8 @@ fn apply_expected_fail(
     })
 }
 
-/// Compares the members of one group on range, entry and payload. A group
-/// with fewer than two members has nothing to compare.
+/// Compares the members of `group` on range, entry, and payload when `members`
+/// has at least two entries.
 fn consensus_failures(group: &str, members: &[(&str, &UnpackedImage)]) -> Vec<CaseFailure> {
     if members.len() < 2 {
         return Vec::new();

@@ -1,22 +1,21 @@
-//! `--update`: record unp64's results in the manifest and propose
+//! `--update` mode: records `unp64` results in the manifest and proposes
 //! exceptions for new differences.
 //!
 //! # Rules
 //!
-//! * Every observed case gets a fresh `[case.unp64]` record (results, hash,
-//!   overlap window, unp64 version).
-//! * Ground-truth group members never get an exception: the original
-//!   decides, and validation rejects one.
-//! * An existing exception is **kept with its signature** while it still
-//!   describes the case: the recorded results are unchanged (the version may
-//!   differ), it lists exactly the differing fields, and its kind is the
-//!   classified kind, or `unexplained` for anything but a payload mismatch.
-//!   On a case marked `payload_mismatch_under_investigation` an
-//!   `unexplained` exception for the non-payload fields is kept too. This is
-//!   how a reviewer's decision survives re-runs.
-//! * Otherwise the classifier proposes an **unsigned** exception, which the
-//!   corpus test rejects until someone signs it. `PayloadMismatch` and
-//!   `EntryMismatch` are never proposed.
+//! * Every observed case receives a fresh `[case.unp64]` record (results,
+//!   hash, overlap window, and `unp64` version).
+//! * Ground-truth group members never receive an exception because the
+//!   original binary is the oracle.
+//! * The tool keeps an existing exception and its signature when the exception
+//!   still describes the case. Specifically, the recorded results must match,
+//!   the exception must list the exact differing fields, and its kind must
+//!   match the classified kind or be `unexplained` for non-payload
+//!   differences. On a case marked `payload_mismatch_under_investigation`, the
+//!   tool also keeps an `unexplained` exception for the non-payload fields.
+//! * Otherwise, the classifier proposes an **unsigned** exception that the
+//!   corpus test rejects until a reviewer signs it. The classifier never
+//!   proposes an exception for `PayloadMismatch` or `EntryMismatch`.
 
 use std::fmt;
 
@@ -28,25 +27,24 @@ use crate::markdown::divergence_label;
 use crate::observation::Observation;
 use crate::record::{build_record, same_results, update_window};
 
-/// How a case's `[case.unp64]` record changed.
+/// Change to the `[case.unp64]` record of a case.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecordChange {
-    /// The case had no record.
+    /// The case had no previous record.
     Added,
-    /// Same results as before (the version may differ).
+    /// The results match the previous record (the version may differ).
     Unchanged,
     /// The results differ from the previous record.
     Changed,
 }
 
-/// What happened to a case's `accepted_divergence`.
+/// Change to the `accepted_divergence` of a case.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExceptionChange {
-    /// A ground-truth group member: the original decides, so the tool
-    /// manages no exception for it.
+    /// Ground-truth group member: the original binary decides, so the tool
+    /// does not manage an exception.
     GroundTruth,
-    /// R2000 failed, so there is nothing to judge the exception against; it
-    /// is left exactly as it was.
+    /// R2000 failed, so the tool leaves any existing exception untouched.
     R2000Failed,
     /// The tools agree and the case has no exception.
     NotNeeded,
@@ -56,48 +54,46 @@ pub enum ExceptionChange {
         /// The kept exception.
         exception: AcceptedDivergence,
     },
-    /// A new unsigned proposal replaces whatever was there.
+    /// A new unsigned proposal replaces any previous exception.
     Proposed {
-        /// The proposal (also stored in the updated case).
+        /// The proposal stored in the updated case.
         proposal: AcceptedDivergence,
-        /// The exception it replaces, if any.
+        /// The previous exception, if any.
         previous: Option<AcceptedDivergence>,
     },
-    /// The previous exception no longer applies, and nothing can be proposed
-    /// (the tools agree now, or the divergence must be reviewed by hand).
+    /// The previous exception no longer applies and the tool cannot propose a
+    /// replacement.
     Removed {
         /// The removed exception.
         previous: AcceptedDivergence,
     },
-    /// No exception, and the divergence must never be accepted
-    /// automatically: a human must investigate.
+    /// The case has no exception, and a human must review the divergence.
     NeedsReview,
 }
 
-/// The update of one case.
+/// Update result for one case.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaseUpdate {
     /// The updated case.
     pub case: Case,
     /// How its record changed.
     pub record: RecordChange,
-    /// How R2000 and unp64 disagree.
+    /// How R2000 and `unp64` disagree.
     pub divergence: Divergence,
-    /// What happened to its exception.
+    /// How its exception changed.
     pub exception: ExceptionChange,
 }
 
-/// The updated corpus and what changed per case (sorted by file).
+/// Updated corpus and per-case changes, sorted by file.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CorpusUpdate {
-    /// The corpus with every observed case updated; groups and unobserved
-    /// cases are unchanged.
+    /// The corpus with every observed case updated.
     pub corpus: Corpus,
     /// One entry per observed case.
     pub cases: Vec<CaseUpdate>,
 }
 
-/// Updates one observed case with unp64 `version`.
+/// Updates one observed case with `unp64` `version`.
 #[must_use]
 pub fn update_case(observation: &Observation, version: &str) -> CaseUpdate {
     let Observation {
@@ -152,7 +148,7 @@ pub fn update_corpus(corpus: &Corpus, observations: &[Observation], version: &st
     }
 }
 
-/// Decides the case's exception after the update (see the module rules).
+/// Decides the exception for `case` after the update.
 fn decide_exception(
     case: &Case,
     result: &CaseResult,
@@ -193,9 +189,11 @@ fn decide_exception(
     }
 }
 
-/// The fields on which unp64's record and R2000 differ, or `None` if they
-/// agree on all of them. A failed unp64 run saved nothing, so every field
-/// differs. `len` is derived from the range and never listed.
+/// Returns the fields where the `unp64` record and R2000 differ, or `None`
+/// when all fields match.
+///
+/// A failed `unp64` run saves nothing, so every field differs. The `len` field
+/// derives from the range and never appears in the set.
 fn differing_fields(record: &Unp64Record, image: &UnpackedImage) -> Option<FieldSet> {
     let fields: Vec<Field> = match record {
         Unp64Record::Failed(_) => Field::ALL.to_vec(),
@@ -211,15 +209,14 @@ fn differing_fields(record: &Unp64Record, image: &UnpackedImage) -> Option<Field
     FieldSet::new(fields).ok()
 }
 
-/// Returns `true` if `existing` still describes the case: it lists exactly
-/// the differing fields, and its kind is the classified kind or
-/// `unexplained`.
+/// Returns `true` if `existing` still describes the case.
 ///
-/// A reviewer may always accept a range or entry difference as
-/// `unexplained`. A payload mismatch is never accepted, except on a case
-/// marked `payload_mismatch_under_investigation`: there the
-/// exception covers only the non-payload fields, and the marker masks the
-/// payload failure.
+/// The exception must list the exact differing fields, and its kind must match
+/// the classified kind or be `unexplained`. A reviewer can accept a range or
+/// entry difference as `unexplained`. The tool rejects `unexplained` for a
+/// payload mismatch unless the case carries
+/// `payload_mismatch_under_investigation`, where the exception covers the
+/// non-payload fields and the marker masks the payload failure.
 fn still_describes(
     existing: &AcceptedDivergence,
     divergence: &Divergence,
@@ -239,8 +236,8 @@ fn still_describes(
         && (!payload_mismatch || payload_under_investigation)
 }
 
-/// The unsigned exception the classifier proposes, or `None` if the
-/// divergence is agreement or must never be accepted automatically.
+/// Returns the unsigned exception that the classifier proposes, or `None` when
+/// the tools agree or when a human must review the divergence.
 fn propose(
     divergence: &Divergence,
     differing: Option<FieldSet>,
@@ -260,7 +257,7 @@ fn propose(
     })
 }
 
-/// The evidence a reviewer needs, written into the proposal's `note`.
+/// Formats the evidence note for a proposed exception.
 ///
 /// # Example
 ///
@@ -295,7 +292,7 @@ impl fmt::Display for RecordChange {
     }
 }
 
-/// Describes an exception as `kind [fields] (review)`.
+/// Formats an exception as `kind [fields] (review)`.
 fn describe_exception(exception: &AcceptedDivergence) -> String {
     let review = match exception.review_state() {
         ReviewState::Unsigned => "unsigned".to_string(),
@@ -343,8 +340,7 @@ impl fmt::Display for CaseUpdate {
     }
 }
 
-/// Renders every case update, one line each, followed by the cases that
-/// need a human decision.
+/// Renders every case update, followed by the cases that require human review.
 #[must_use]
 pub fn render_update(update: &CorpusUpdate) -> String {
     let mut lines: Vec<String> = update.cases.iter().map(ToString::to_string).collect();
@@ -367,9 +363,7 @@ pub fn render_update(update: &CorpusUpdate) -> String {
     lines.join("\n")
 }
 
-/// Returns `true` if a human must act on the case: an unsigned proposal, a
-/// removed exception, a divergence that is never accepted automatically, or
-/// an R2000 failure.
+/// Returns `true` if a human must review the case after the update.
 fn needs_attention(update: &CaseUpdate) -> bool {
     matches!(
         update.exception,

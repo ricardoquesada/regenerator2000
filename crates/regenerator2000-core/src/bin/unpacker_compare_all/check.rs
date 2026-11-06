@@ -1,8 +1,8 @@
-//! `--check`: re-run unp64 and report where the recorded `[case.unp64]`
-//! results no longer match the binary (for example after an unp64 upgrade).
+//! `--check` mode: re-runs `unp64` and reports where the recorded
+//! `[case.unp64]` results no longer match the binary.
 //!
-//! The overlap is re-hashed over the **recorded** window, so drift means
-//! "unp64 changed", never "R2000 changed" (the corpus test covers R2000).
+//! This mode re-hashes the overlap over the **recorded** window. Drift means
+//! that `unp64` changed, never that R2000 changed.
 
 use std::fmt;
 
@@ -15,10 +15,10 @@ use crate::unp64::Unp64Outcome;
 /// Placeholder for a value that is absent on one side.
 const ABSENT: &str = "-";
 
-/// A recorded value that `--check` compares.
+/// Recorded value that `--check` compares.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DriftField {
-    /// The case has no `[case.unp64]` at all.
+    /// The case has no `[case.unp64]` table.
     Record,
     /// Saved versus failed.
     Outcome,
@@ -36,7 +36,7 @@ pub enum DriftField {
     Overlap,
     /// The failure reason of a failed run.
     Reason,
-    /// The unp64 version.
+    /// The `unp64` version.
     Version,
 }
 
@@ -57,16 +57,16 @@ impl fmt::Display for DriftField {
     }
 }
 
-/// One recorded value that the fresh unp64 run no longer reproduces.
+/// One recorded value that the fresh `unp64` run no longer reproduces.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Drift {
-    /// The case.
+    /// The case file name.
     pub file: String,
-    /// The value.
+    /// The drifted field.
     pub field: DriftField,
     /// The recorded value.
     pub recorded: String,
-    /// The value of the fresh run.
+    /// The value from the fresh run.
     pub fresh: String,
 }
 
@@ -80,18 +80,18 @@ impl fmt::Display for Drift {
     }
 }
 
-/// Every drift of a `--check` run, sorted by file and field.
+/// Every drift from a `--check` run, sorted by file and field.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CheckReport {
     /// The drifts.
     pub drifts: Vec<Drift>,
-    /// Number of cases checked.
+    /// Number of cases that the run checked.
     pub checked: usize,
 }
 
 impl CheckReport {
-    /// [`ToolStatus::Drift`] if anything drifted, else
-    /// [`ToolStatus::Success`].
+    /// Returns [`ToolStatus::Drift`] if any field drifted, or
+    /// [`ToolStatus::Success`] otherwise.
     #[must_use]
     pub fn status(&self) -> ToolStatus {
         if self.drifts.is_empty() {
@@ -122,8 +122,8 @@ impl fmt::Display for CheckReport {
     }
 }
 
-/// Compares `case`'s recorded unp64 result with a fresh `outcome` produced by
-/// unp64 `version`, field by field.
+/// Compares the recorded `unp64` result of `case` with a fresh `outcome` from
+/// `unp64` `version`, field by field.
 #[must_use]
 pub fn check_case(case: &Case, outcome: &Unp64Outcome, version: &str) -> Vec<Drift> {
     let drift = |field, recorded: String, fresh: String| Drift {
@@ -169,7 +169,7 @@ pub fn check_all(observations: &[Observation], version: &str) -> CheckReport {
     }
 }
 
-/// Every value of a record with its field tag, in a fixed order per shape.
+/// Returns every value of a record with its field tag in a fixed order.
 fn tagged_values(record: &Unp64Record) -> Vec<(DriftField, String)> {
     match record {
         Unp64Record::Saved(saved) => vec![
@@ -194,7 +194,7 @@ fn tagged_values(record: &Unp64Record) -> Vec<(DriftField, String)> {
     }
 }
 
-/// A one-line summary of a record, for whole-record drifts.
+/// Formats a one-line summary of a record for whole-record drifts.
 fn summary(record: &Unp64Record) -> String {
     match record {
         Unp64Record::Saved(saved) => format!("saved {}-{}", saved.start, saved.end),
