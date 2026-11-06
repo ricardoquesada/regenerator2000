@@ -96,12 +96,12 @@ pub fn handle_menu_action(
                 }
                 DialogType::JumpToAddress => {
                     ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_jump_to_address::JumpToAddressDialog::new(),
+                        crate::ui::dialog_prompt::PromptDialog::new_jump_to_address(),
                     ));
                 }
                 DialogType::JumpToLine => {
                     ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_jump_to_line::JumpToLineDialog::new(),
+                        crate::ui::dialog_prompt::PromptDialog::new_jump_to_line(),
                     ));
                 }
                 DialogType::Search { .. } => {
@@ -199,7 +199,7 @@ pub fn handle_menu_action(
                 }
                 DialogType::BreakpointAddress(addr) => {
                     ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_breakpoint_address::BreakpointAddressDialog::new(addr),
+                        crate::ui::dialog_prompt::PromptDialog::new_breakpoint_address(addr),
                     ));
                 }
                 DialogType::WatchpointAddress(addr) => {
@@ -209,7 +209,7 @@ pub fn handle_menu_action(
                 }
                 DialogType::MemoryDumpAddress(addr) => {
                     ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_memory_dump_address::MemoryDumpAddressDialog::new(addr),
+                        crate::ui::dialog_prompt::PromptDialog::new_memory_dump_address(addr),
                     ));
                 }
                 DialogType::Settings => {
@@ -245,7 +245,7 @@ pub fn handle_menu_action(
                 }
                 DialogType::Origin => {
                     ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_origin::OriginDialog::new(core.state.origin),
+                        crate::ui::dialog_prompt::PromptDialog::new_origin(core.state.origin),
                     ));
                 }
                 DialogType::ApplyEnum { address, value } => {

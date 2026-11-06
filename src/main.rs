@@ -488,14 +488,16 @@ fn open_image_picker_dialog(
     cart_image_data: Option<CartImageData>,
 ) {
     if let Some((files, disk_data, disk_path)) = disk_image_data {
-        let dialog = regenerator2000_tui::ui::dialog_d64_picker::D64FilePickerDialog::new(
-            files, disk_data, disk_path,
-        );
+        let dialog =
+            regenerator2000_tui::ui::dialog_container_picker::ContainerPickerDialog::new_d64(
+                files, disk_data, disk_path,
+            );
         ui_state.active_dialog = Some(Box::new(dialog));
     } else if let Some((files, tape_data, tape_path)) = tape_image_data {
-        let dialog = regenerator2000_tui::ui::dialog_t64_picker::T64FilePickerDialog::new(
-            files, tape_data, tape_path,
-        );
+        let dialog =
+            regenerator2000_tui::ui::dialog_container_picker::ContainerPickerDialog::new_t64(
+                files, tape_data, tape_path,
+            );
         ui_state.active_dialog = Some(Box::new(dialog));
     } else if let Some((crt_header, path)) = cart_image_data {
         let dialog =

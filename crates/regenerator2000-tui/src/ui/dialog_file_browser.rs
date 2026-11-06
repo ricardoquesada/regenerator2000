@@ -581,7 +581,7 @@ impl FileBrowserDialog {
                         }
 
                         ui_state.push_dialog(Box::new(
-                            crate::ui::dialog_t64_picker::T64FilePickerDialog::new(
+                            crate::ui::dialog_container_picker::ContainerPickerDialog::new_t64(
                                 files,
                                 tape_data,
                                 selected_path,
@@ -624,7 +624,7 @@ impl FileBrowserDialog {
                         }
 
                         ui_state.push_dialog(Box::new(
-                            crate::ui::dialog_d64_picker::D64FilePickerDialog::new(
+                            crate::ui::dialog_container_picker::ContainerPickerDialog::new_d64(
                                 prg_files,
                                 disk_data,
                                 selected_path,
