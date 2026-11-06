@@ -44,13 +44,12 @@ pub trait Navigable {
     fn item_name(&self) -> &str;
 }
 
-/// Floor-aligned memory grid geometry shared by right-pane views (`HexDumpView`, `SpritesView`,
+/// Floor-aligned memory grid geometry for right-pane views (`HexDumpView`, `SpritesView`,
 /// `CharsetView`, and `BitmapView`).
 ///
-/// Right-pane views align their first grid slot to the floor multiple of `alignment` at or below
-/// `app_state.origin`, padding bytes before `origin` with zeros so hardware-aligned boundaries
-/// (`$2000` for bitmaps, `$0400` for charsets, `$0040` for sprites, `$0008`/`$0010` for hex rows)
-/// remain intact even when a binary loads at an unaligned address such as `$0801`.
+/// Each view aligns its first grid slot to the floor multiple of `alignment` at or below
+/// `app_state.origin`. It pads bytes before `origin` with zeros to preserve hardware boundaries
+/// (`$2000` bitmaps, `$0400` charsets, `$0040` sprites, and `$0008`/`$0010` hex rows).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AlignedGridRange {
     pub origin: usize,
@@ -124,9 +123,8 @@ impl AlignedGridRange {
     }
 
     /// Converts an inclusive `[start_addr, end_addr]` address range into a clamped
-    /// `(start_offset, end_offset)` byte-offset pair within `raw_data`, returning `None` if the
-    /// range lies entirely outside `[origin, end_address)` (e.g. inside floor-alignment padding
-    /// or trailing bitmap padding).
+    /// `(start_offset, end_offset)` byte-offset pair within `raw_data`. Returns `None` when the
+    /// range lies outside `[origin, end_address)`.
     #[must_use]
     pub fn clamped_byte_offsets(
         &self,
@@ -155,13 +153,11 @@ impl AlignedGridRange {
     }
 }
 
-/// Mirrors a right-pane cursor address and optional selection-anchor address into the
-/// disassembly view's `cursor_index`, `sub_cursor_index`, and `selection_start`.
+/// Mirrors a right-pane cursor address and optional selection anchor into the disassembly view.
 ///
-/// When `row_floor_raw_addr` is `Some(row_addr)` (used by [`crate::ui::view_hexdump::HexDumpView`]),
-/// if the instruction containing `cursor_raw_addr` starts before `row_addr` (e.g. a multi-byte
-/// instruction spanning a row boundary), this snaps forward to the first content instruction at
-/// or after `row_addr`, falling back to the containing block if none exists (e.g. a `.fill` block).
+/// When `row_floor_raw_addr` is `Some(row_addr)`, this function checks whether the containing
+/// instruction starts before `row_addr`. If so, it snaps forward to the first content instruction
+/// at or after `row_addr`, or falls back to the containing block.
 pub fn sync_pane_to_disassembly(
     app_state: &AppState,
     ui_state: &mut UIState,
@@ -446,7 +442,7 @@ pub fn handle_grid_selection_input(
             WidgetResult::Handled
         }
         // Guard `Left`/`Right`/`h`/`l` with `key.modifiers.is_empty()` so modified arrow keys
-        // (such as `Alt+Left`/`Alt+Right` or `Ctrl+Left`/`Ctrl+Right`) are not swallowed here.
+        // pass through to global shortcuts.
         KeyCode::Left | KeyCode::Char('h') if key.modifiers.is_empty() && grid_cols > 1 => {
             ui_state.input_buffer.clear();
             move_grid_cursor_up(
@@ -474,9 +470,8 @@ pub fn handle_grid_selection_input(
         }
         KeyCode::Char('b') if key.modifiers.is_empty() => {
             let end_item = selection.unwrap_or(cursor);
-            // Clear all selection state (including `selection_start` synced to Core) before
-            // dispatching `SetBytesBlockByOffset` so `handle_menu_action` syncs the cleared
-            // visual/selection flags into `core.view`.
+            // Clear selection state before dispatching `SetBytesBlockByOffset` so `handle_menu_action`
+            // syncs the cleared flags into `core.view`.
             selection = None;
             ui_state.is_visual_mode = false;
             ui_state.selection_start = None;
@@ -498,11 +493,10 @@ pub fn handle_grid_selection_input(
 }
 
 /// Processes standard navigation keys (`Up`/`Down`/`j`/`k`, `PageUp`/`PageDown`, `Ctrl+u`/`Ctrl+d`,
-/// `Home`/`End`, numeric prefix counts `0`–`9`, and `[N]G` / `Shift+G`) for any [`Navigable`] view.
+/// `Home`/`End`, numeric prefixes `0`–`9`, and `[N]G`) for any [`Navigable`] view.
 ///
-/// Unmodified `Up` and `Down` are strictly guarded by `key.modifiers.is_empty()` so that modified
-/// arrow keys (`Shift+Up`/`Down` for selection extension and `Alt+Up`/`Down` for scope boundary
-/// nudging) fall through to the view-specific handler.
+/// This function guards `Up` and `Down` with `key.modifiers.is_empty()` so `Shift` and `Alt`
+/// arrow keys pass through to the view handler.
 pub fn handle_nav_input<T: Navigable>(
     target: &T,
     key: KeyEvent,
@@ -522,18 +516,12 @@ pub fn handle_nav_input<T: Navigable>(
             }
             WidgetResult::Handled
         }
-        KeyCode::Down | KeyCode::Char('j')
-            if key.modifiers.is_empty()
-                || (key.code == KeyCode::Down && key.modifiers.is_empty()) =>
-        {
+        KeyCode::Down | KeyCode::Char('j') if key.modifiers.is_empty() => {
             ui_state.input_buffer.clear();
             target.move_down(app_state, ui_state, 1);
             WidgetResult::Handled
         }
-        KeyCode::Up | KeyCode::Char('k')
-            if key.modifiers.is_empty()
-                || (key.code == KeyCode::Up && key.modifiers.is_empty()) =>
-        {
+        KeyCode::Up | KeyCode::Char('k') if key.modifiers.is_empty() => {
             ui_state.input_buffer.clear();
             target.move_up(app_state, ui_state, 1);
             WidgetResult::Handled

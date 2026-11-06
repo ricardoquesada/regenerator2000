@@ -74,8 +74,8 @@ struct ScopeBounds {
 
 /// Shared per-instruction rendering context passed to sub-row helper functions.
 ///
-/// Bundles immutable per-row references and geometry parameters so extracted rendering helpers
-/// remain concise without exceeding Clippy's parameter threshold.
+/// Groups immutable per-row references and geometry values so rendering helpers stay below the
+/// Clippy parameter limit.
 struct RowRenderContext<'a> {
     /// Read-only application state.
     app_state: &'a AppState,

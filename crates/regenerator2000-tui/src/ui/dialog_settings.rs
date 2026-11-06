@@ -1,6 +1,5 @@
 use crate::state::AppState;
 use crate::ui_state::UIState;
-// use crate::utils::centered_rect;
 use crossterm::event::KeyCode;
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -33,6 +32,25 @@ impl SettingsDialog {
         } else {
             self.selected_index -= 1;
         }
+    }
+
+    fn cycle_theme(app_state: &mut AppState, ui_state: &mut UIState, delta: isize) {
+        let themes = crate::theme::Theme::all_names();
+        if themes.is_empty() {
+            return;
+        }
+        let current = app_state.system_config.theme.as_str();
+        let idx = themes.iter().position(|t| t == current).unwrap_or(0);
+        let len = themes.len();
+        let new_idx = if delta < 0 {
+            if idx == 0 { len - 1 } else { idx - 1 }
+        } else {
+            (idx + 1) % len
+        };
+        let new_theme = themes[new_idx].clone();
+        app_state.system_config.theme.clone_from(&new_theme);
+        ui_state.theme = crate::theme::Theme::from_name(&new_theme);
+        let _ = app_state.system_config.save();
     }
 }
 
@@ -209,15 +227,7 @@ impl Widget for SettingsDialog {
             }
             KeyCode::Up => {
                 if self.is_selecting_theme {
-                    // Cycle themes
-                    let themes = crate::theme::Theme::all_names();
-                    let current = app_state.system_config.theme.as_str();
-                    let idx = themes.iter().position(|t| t == current).unwrap_or(0);
-                    let new_idx = if idx == 0 { themes.len() - 1 } else { idx - 1 };
-                    let new_theme = themes[new_idx].clone();
-                    app_state.system_config.theme.clone_from(&new_theme);
-                    ui_state.theme = crate::theme::Theme::from_name(&new_theme);
-                    let _ = app_state.system_config.save();
+                    Self::cycle_theme(app_state, ui_state, -1);
                 } else {
                     self.previous();
                 }
@@ -225,15 +235,7 @@ impl Widget for SettingsDialog {
             }
             KeyCode::Down => {
                 if self.is_selecting_theme {
-                    // Cycle themes
-                    let themes = crate::theme::Theme::all_names();
-                    let current = app_state.system_config.theme.as_str();
-                    let idx = themes.iter().position(|t| t == current).unwrap_or(0);
-                    let new_idx = (idx + 1) % themes.len();
-                    let new_theme = themes[new_idx].clone();
-                    app_state.system_config.theme.clone_from(&new_theme);
-                    ui_state.theme = crate::theme::Theme::from_name(&new_theme);
-                    let _ = app_state.system_config.save();
+                    Self::cycle_theme(app_state, ui_state, 1);
                 } else {
                     self.next();
                 }
@@ -241,39 +243,21 @@ impl Widget for SettingsDialog {
             }
             KeyCode::Left => {
                 if !self.is_selecting_theme && self.selected_index == 8 {
-                    // Decrease entropy threshold
                     app_state.system_config.entropy_threshold =
                         (app_state.system_config.entropy_threshold - 0.1).max(0.0);
                     let _ = app_state.system_config.save();
                 } else if !self.is_selecting_theme && self.selected_index == 9 {
-                    // Previous theme
-                    let themes = crate::theme::Theme::all_names();
-                    let current = app_state.system_config.theme.as_str();
-                    let idx = themes.iter().position(|t| t == current).unwrap_or(0);
-                    let new_idx = if idx == 0 { themes.len() - 1 } else { idx - 1 };
-                    let new_theme = themes[new_idx].clone();
-                    app_state.system_config.theme.clone_from(&new_theme);
-                    ui_state.theme = crate::theme::Theme::from_name(&new_theme);
-                    let _ = app_state.system_config.save();
+                    Self::cycle_theme(app_state, ui_state, -1);
                 }
                 WidgetResult::Handled
             }
             KeyCode::Right => {
                 if !self.is_selecting_theme && self.selected_index == 8 {
-                    // Increase entropy threshold
                     app_state.system_config.entropy_threshold =
                         (app_state.system_config.entropy_threshold + 0.1).min(8.0);
                     let _ = app_state.system_config.save();
                 } else if !self.is_selecting_theme && self.selected_index == 9 {
-                    // Next theme
-                    let themes = crate::theme::Theme::all_names();
-                    let current = app_state.system_config.theme.as_str();
-                    let idx = themes.iter().position(|t| t == current).unwrap_or(0);
-                    let new_idx = (idx + 1) % themes.len();
-                    let new_theme = themes[new_idx].clone();
-                    app_state.system_config.theme.clone_from(&new_theme);
-                    ui_state.theme = crate::theme::Theme::from_name(&new_theme);
-                    let _ = app_state.system_config.save();
+                    Self::cycle_theme(app_state, ui_state, 1);
                 }
                 WidgetResult::Handled
             }
@@ -281,39 +265,57 @@ impl Widget for SettingsDialog {
                 if self.is_selecting_theme {
                     self.is_selecting_theme = false;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 0 {
-                    app_state.system_config.sync_blocks_view =
-                        !app_state.system_config.sync_blocks_view;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 1 {
-                    app_state.system_config.sync_hex_dump = !app_state.system_config.sync_hex_dump;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 2 {
-                    app_state.system_config.sync_sprites_view =
-                        !app_state.system_config.sync_sprites_view;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 3 {
-                    app_state.system_config.sync_charset_view =
-                        !app_state.system_config.sync_charset_view;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 4 {
-                    app_state.system_config.sync_bitmap_view =
-                        !app_state.system_config.sync_bitmap_view;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 5 {
-                    app_state.system_config.open_last_project =
-                        !app_state.system_config.open_last_project;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 6 {
-                    app_state.system_config.default_is_unexplored =
-                        !app_state.system_config.default_is_unexplored;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 7 {
-                    app_state.system_config.check_for_updates =
-                        !app_state.system_config.check_for_updates;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 9 {
+                    return WidgetResult::Handled;
+                }
+                if self.selected_index == 9 {
                     self.is_selecting_theme = true;
+                    return WidgetResult::Handled;
+                }
+                let toggled = match self.selected_index {
+                    0 => {
+                        app_state.system_config.sync_blocks_view =
+                            !app_state.system_config.sync_blocks_view;
+                        true
+                    }
+                    1 => {
+                        app_state.system_config.sync_hex_dump =
+                            !app_state.system_config.sync_hex_dump;
+                        true
+                    }
+                    2 => {
+                        app_state.system_config.sync_sprites_view =
+                            !app_state.system_config.sync_sprites_view;
+                        true
+                    }
+                    3 => {
+                        app_state.system_config.sync_charset_view =
+                            !app_state.system_config.sync_charset_view;
+                        true
+                    }
+                    4 => {
+                        app_state.system_config.sync_bitmap_view =
+                            !app_state.system_config.sync_bitmap_view;
+                        true
+                    }
+                    5 => {
+                        app_state.system_config.open_last_project =
+                            !app_state.system_config.open_last_project;
+                        true
+                    }
+                    6 => {
+                        app_state.system_config.default_is_unexplored =
+                            !app_state.system_config.default_is_unexplored;
+                        true
+                    }
+                    7 => {
+                        app_state.system_config.check_for_updates =
+                            !app_state.system_config.check_for_updates;
+                        true
+                    }
+                    _ => false,
+                };
+                if toggled {
+                    let _ = app_state.system_config.save();
                 }
                 WidgetResult::Handled
             }

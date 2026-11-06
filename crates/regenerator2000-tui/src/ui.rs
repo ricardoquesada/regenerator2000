@@ -68,8 +68,7 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     render_main_view(f, chunks[2], app_state, ui_state);
     statusbar::StatusBar.render(f, chunks[3], app_state, ui_state);
 
-    // Menu Popup is now handled here to ensure it's on top
-    // Menu Popup is now handled here to ensure it's on top
+    // Render the menu popup last so it stays on top.
     if ui_state.menu.active {
         menu::render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
     }

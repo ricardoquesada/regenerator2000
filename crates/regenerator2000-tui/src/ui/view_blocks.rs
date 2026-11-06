@@ -1,10 +1,10 @@
 //! Interactive Blocks View side-pane widget.
 //!
-//! This module implements [`BlocksView`], which renders the list of memory blocks, manual
-//! splitters, and lexical scopes produced by [`AppState::get_blocks_view_items`], and handles
-//! keyboard and mouse navigation to jump the disassembly view to selected blocks. Rendering
-//! is windowed to the visible viewport (`[render_start, render_end)`) with lightweight 1-line
-//! placeholder items outside the viewport to preserve [`ratatui::widgets::ListState`] scroll offsets.
+//! [`BlocksView`] renders the memory blocks, manual splitters, and lexical scopes from
+//! [`AppState::get_blocks_view_items`]. It handles keyboard and mouse navigation to jump the
+//! disassembly view to a selected block. It renders only the visible viewport window
+//! (`[render_start, render_end)`) and uses 1-line placeholders outside the viewport to preserve
+//! [`ratatui::widgets::ListState`] scroll offsets.
 
 use crate::state::{AppState, BlockType};
 use crate::ui_state::{ActivePane, AppAction, UIState};
@@ -21,9 +21,43 @@ use crate::ui::widget::{Widget, WidgetResult};
 
 use crate::ui::navigable::{Navigable, handle_nav_input};
 
-/// Side-pane widget displaying memory blocks, manual splitters, and lexical scopes,
-/// implementing [`Widget`] and [`Navigable`].
+/// Side-pane widget that displays memory blocks, manual splitters, and lexical scopes.
 pub struct BlocksView;
+
+impl BlocksView {
+    /// Selects `index` in the Blocks list and jumps the disassembly view to that block item.
+    /// Returns `true` when `index` is within bounds.
+    fn jump_to_block_index(app_state: &AppState, ui_state: &mut UIState, index: usize) -> bool {
+        let blocks = app_state.get_blocks_view_items();
+        let Some(block_item) = blocks.get(index) else {
+            return false;
+        };
+        ui_state.blocks_list_state.select(Some(index));
+        ui_state.blocks_selected_index = Some(index);
+
+        let (target_addr, line_idx) = match block_item {
+            crate::state::BlockItem::Block { start, .. } => {
+                let idx = app_state.disassembly.iter().position(|line| {
+                    line.address == *start && (!line.bytes.is_empty() || line.is_collapsed)
+                });
+                (*start, idx)
+            }
+            crate::state::BlockItem::Splitter(addr) => {
+                let idx = app_state
+                    .disassembly
+                    .iter()
+                    .position(|line| line.address == *addr && line.is_splitter());
+                (*addr, idx)
+            }
+            crate::state::BlockItem::Scope { start, .. } => {
+                (*start, app_state.get_line_index_containing_address(*start))
+            }
+        };
+
+        crate::ui::navigable::jump_to_disassembly_at_line_idx(ui_state, line_idx, target_addr);
+        true
+    }
+}
 
 impl Navigable for BlocksView {
     fn len(&self, app_state: &AppState) -> usize {
@@ -97,36 +131,7 @@ impl Widget for BlocksView {
             MouseEventKind::Down(MouseButton::Left) => {
                 let index = ui_state.blocks_list_state.offset()
                     + (mouse.row.saturating_sub(inner_area.y) as usize);
-                let blocks = app_state.get_blocks_view_items();
-                if index < blocks.len() {
-                    ui_state.blocks_list_state.select(Some(index));
-                    ui_state.blocks_selected_index = Some(index);
-
-                    let (target_addr, line_idx) = match &blocks[index] {
-                        crate::state::BlockItem::Block { start, .. } => {
-                            let idx = app_state.disassembly.iter().position(|line| {
-                                line.address == *start
-                                    && (!line.bytes.is_empty() || line.is_collapsed)
-                            });
-                            (*start, idx)
-                        }
-                        crate::state::BlockItem::Splitter(addr) => {
-                            let idx = app_state
-                                .disassembly
-                                .iter()
-                                .position(|line| line.address == *addr && line.is_splitter());
-                            (*addr, idx)
-                        }
-                        crate::state::BlockItem::Scope { start, .. } => {
-                            (*start, app_state.get_line_index_containing_address(*start))
-                        }
-                    };
-
-                    crate::ui::navigable::jump_to_disassembly_at_line_idx(
-                        ui_state,
-                        line_idx,
-                        target_addr,
-                    );
+                if Self::jump_to_block_index(app_state, ui_state, index) {
                     WidgetResult::Handled
                 } else {
                     WidgetResult::Ignored
@@ -156,8 +161,7 @@ impl Widget for BlocksView {
         let inner_area = block.inner(area);
         f.render_widget(block, area);
 
-        // Reuse the `BlockItem` list computed in `sync_views_before_render` during this frame,
-        // or fetch it from core state if `sync_blocks_view` did not precompute it.
+        // Reuse the cached `BlockItem` list from `sync_views_before_render` or fetch it from core.
         let block_items = ui_state
             .cached_blocks_items
             .take()
@@ -165,10 +169,8 @@ impl Widget for BlocksView {
         let total_items = block_items.len();
         let visible_height = inner_area.height as usize;
 
-        // Compute the effective scroll offset that `ratatui::widgets::List` will use
-        // after clamping `selected` into `[offset, offset + visible_height)`, so we only
-        // allocate formatted strings/spans for the visible viewport window while keeping
-        // 1-line placeholder items outside the viewport to preserve `ListState::offset()`.
+        // Compute the effective scroll offset after clamping `selected` into `[offset, offset + visible_height)`.
+        // Format strings only for the visible viewport and use 1-line placeholders outside it.
         let mut effective_offset = ui_state
             .blocks_list_state
             .offset()
@@ -192,10 +194,8 @@ impl Widget for BlocksView {
             .saturating_add(1)
             .min(total_items);
 
-        // Track `current_scope_end` across all items (including off-screen items before the
-        // `if !is_visible` early return) so that when a `BlockItem::Scope` header is scrolled
-        // above `render_start`, visible `Block` and `Splitter` rows inside that scope still
-        // receive their 2-space (`"  "`) scope indentation.
+        // Update `current_scope_end` across all items before the visibility check.
+        // Visible `Block` and `Splitter` rows keep 2-space indentation when their `Scope` header scrolls off screen.
         let mut current_scope_end: Option<crate::state::types::Addr> = None;
         let items: Vec<ListItem> = block_items
             .iter()
@@ -308,42 +308,11 @@ impl Widget for BlocksView {
         match key.code {
             // Enter (unmodified) jumps to the start address of the selected block in Disassembly.
             KeyCode::Enter if key.modifiers.is_empty() => {
-                let blocks = app_state.get_blocks_view_items();
                 let idx = ui_state.blocks_list_state.selected().unwrap_or(0);
-                if idx < blocks.len() {
-                    ui_state.blocks_list_state.select(Some(idx));
-                    ui_state.blocks_selected_index = Some(idx);
-
-                    let (target_addr, line_idx) = match &blocks[idx] {
-                        crate::state::BlockItem::Block { start, .. } => {
-                            let idx = app_state.disassembly.iter().position(|line| {
-                                line.address == *start
-                                    && (!line.bytes.is_empty() || line.is_collapsed)
-                            });
-                            (*start, idx)
-                        }
-                        crate::state::BlockItem::Splitter(addr) => {
-                            let idx = app_state
-                                .disassembly
-                                .iter()
-                                .position(|line| line.address == *addr && line.is_splitter());
-                            (*addr, idx)
-                        }
-                        crate::state::BlockItem::Scope { start, .. } => {
-                            (*start, app_state.get_line_index_containing_address(*start))
-                        }
-                    };
-
-                    crate::ui::navigable::jump_to_disassembly_at_line_idx(
-                        ui_state,
-                        line_idx,
-                        target_addr,
-                    );
-                }
+                Self::jump_to_block_index(app_state, ui_state, idx);
                 WidgetResult::Handled
             }
-            // Ctrl+k collapses/expands the block highlighted at `blocks_list_state.selected()`
-            // (synced to `core.view.blocks_selected_index` by `handle_menu_action`).
+            // Ctrl+k toggles collapse state on the highlighted block.
             KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(AppAction::ToggleCollapsedBlock)
             }
