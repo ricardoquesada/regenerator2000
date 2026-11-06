@@ -131,3 +131,81 @@ impl Widget for StatusBar {
         WidgetResult::Ignored
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::{Addr, BlockType};
+    use crate::theme::Theme;
+    use crossterm::event::{KeyCode, KeyModifiers};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_status_bar_render_status_and_vim_search_with_selection() {
+        let mut app_state = AppState::new();
+        app_state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        app_state.block_types = vec![BlockType::Code; 4];
+        app_state.file_path = Some(PathBuf::from("/tmp/demo.prg"));
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.status_bar.set_message("Custom status");
+        ui_state.cursor_index = 2;
+        ui_state.selection_start = Some(0);
+
+        let backend = TestBackend::new(180, 1);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let mut bar = StatusBar;
+
+        terminal
+            .draw(|f| {
+                bar.render(f, Rect::new(0, 0, 180, 1), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let row_str: String = (0..180)
+            .map(|x| {
+                terminal
+                    .backend()
+                    .buffer()
+                    .cell((x, 0))
+                    .map_or("", |c| c.symbol())
+            })
+            .collect();
+        assert!(row_str.contains("Custom status"));
+        assert!(row_str.contains("Code: $1000-$1003"));
+        assert!(row_str.contains("Cursor: $1002"));
+        assert!(row_str.contains("demo.prg"));
+        assert!(row_str.contains("Selected: 3"));
+
+        // Active vim search overrides left message with "/query".
+        ui_state.vim_search_active = true;
+        ui_state.vim_search_input = "lda".to_string();
+        terminal
+            .draw(|f| {
+                bar.render(f, Rect::new(0, 0, 180, 1), &app_state, &mut ui_state);
+            })
+            .unwrap();
+        let search_row: String = (0..180)
+            .map(|x| {
+                terminal
+                    .backend()
+                    .buffer()
+                    .cell((x, 0))
+                    .map_or("", |c| c.symbol())
+            })
+            .collect();
+        assert!(search_row.contains("/lda"));
+
+        assert_eq!(
+            bar.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Ignored
+        );
+    }
+}

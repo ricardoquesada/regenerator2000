@@ -86,3 +86,56 @@ impl Widget for ConfirmationDialog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::Theme;
+    use crossterm::event::KeyModifiers;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_confirmation_dialog_render_confirm_and_cancel() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        let mut dialog =
+            ConfirmationDialog::new("Confirm Exit", "Discard unsaved changes?", AppAction::Exit);
+
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(rendered.contains("Discard unsaved changes?"));
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Action(AppAction::Confirmed(Box::new(AppAction::Exit)))
+        );
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+        assert_eq!(ui_state.status_message.as_deref(), Some("Action cancelled"));
+    }
+}

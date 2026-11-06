@@ -197,3 +197,77 @@ impl Widget for CrtBankPickerDialog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::Theme;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_crt_bank_picker_render_navigation_and_load() {
+        let header = CrtHeader {
+            version: 0x0100,
+            hardware_type: 0,
+            exrom: 0,
+            game: 1,
+            name: "TEST CRT".to_string(),
+            chips: vec![
+                CrtChip {
+                    chip_type: 0,
+                    bank: 0,
+                    load_address: 0x8000,
+                    data: vec![0xEA; 4],
+                },
+                CrtChip {
+                    chip_type: 0,
+                    bank: 1,
+                    load_address: 0xA000,
+                    data: vec![0x60; 4],
+                },
+            ],
+        };
+        let mut dialog = CrtBankPickerDialog::new(header, PathBuf::from("game.crt"));
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+
+        let backend = TestBackend::new(100, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(rendered.contains("Bank 00"));
+        assert!(rendered.contains("Bank 01"));
+
+        // Down selects Bank 01; Enter loads Bank 01 at $A000 and closes dialog.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.selected_index, 1);
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+        assert_eq!(app_state.origin, crate::state::Addr(0xA000));
+        assert_eq!(app_state.raw_data, vec![0x60; 4]);
+    }
+}

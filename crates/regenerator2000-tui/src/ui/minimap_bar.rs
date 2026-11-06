@@ -217,4 +217,41 @@ mod tests {
         assert_eq!(ui_state.core.navigation_history.len(), 1);
         assert!(ui_state.cursor_index > 0);
     }
+
+    #[test]
+    fn test_minimap_sub_cell_tick_segments_and_empty_guards() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        // 30 bytes rendered into 10 columns -> each column covers 3 bytes (chunk_len = 3),
+        // so offsets 0, 1, 2 in column 0 map to segments 0 ('▏'), 1 ('│'), 2 ('▕').
+        app_state.raw_data = vec![0xEA; 30];
+        app_state.block_types = vec![BlockType::Code; 30];
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        let area = Rect::new(0, 0, 10, 1);
+        let backend = TestBackend::new(10, 1);
+        let mut terminal = Terminal::new(backend).unwrap();
+        let bar = MinimapBar;
+
+        for (cursor_idx, expected_tick) in [(0, "▏"), (1, "│"), (2, "▕")] {
+            ui_state.cursor_index = cursor_idx;
+            terminal
+                .draw(|f| {
+                    bar.render(f, area, &app_state, &mut ui_state);
+                })
+                .unwrap();
+            let cell = terminal.backend().buffer().cell((0, 0)).unwrap();
+            assert_eq!(cell.symbol(), expected_tick);
+        }
+
+        // Empty block_types or zero-width area does not panic and ignores mouse clicks.
+        let empty_state = AppState::new();
+        terminal
+            .draw(|f| {
+                bar.render(f, area, &empty_state, &mut ui_state);
+                bar.render(f, Rect::new(0, 0, 0, 1), &app_state, &mut ui_state);
+            })
+            .unwrap();
+    }
 }

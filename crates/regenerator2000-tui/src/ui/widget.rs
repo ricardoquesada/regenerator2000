@@ -58,3 +58,37 @@ pub fn create_dialog_block<'a>(
         .border_style(Style::default().fg(theme.dialog_border))
         .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::Theme;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_create_dialog_block_renders_title_and_close_button() {
+        let theme = Theme::default();
+        let block = create_dialog_block(" Test Dialog ", &theme);
+        let backend = TestBackend::new(40, 5);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|f| {
+                f.render_widget(block, Rect::new(0, 0, 40, 5));
+            })
+            .unwrap();
+
+        let top_row: String = (0..40)
+            .map(|x| {
+                terminal
+                    .backend()
+                    .buffer()
+                    .cell((x, 0))
+                    .map_or("", |c| c.symbol())
+            })
+            .collect();
+        assert!(top_row.contains("Test Dialog"));
+        assert!(top_row.contains("[x]"));
+    }
+}

@@ -1314,77 +1314,100 @@ mod tests {
 
     #[test]
     fn test_render_scope_gutter_prefix_parts_count_with_own_line_label_and_comment() {
+        // 1. ACME: scope starts directly on the instruction line (no separate `.proc` line),
+        // exercising `prefix_parts_count` across a mid-instruction label, a line comment,
+        // an `OwnLine` label, and the main opcode row produced by `app_state.disassemble()`.
         let mut app_state = AppState::new();
-        app_state.settings.assembler = Assembler::Ca65;
-        app_state.annotations.update(Addr(0x1000), |e| {
-            e.scope = Some(Addr(0x1003));
+        // $1000: NOP (EA), $1001..=$1003: LDA $2000 (AD 00 20), $1004: RTS (60)
+        app_state
+            .load_binary(Addr(0x1000), vec![0xEA, 0xAD, 0x00, 0x20, 0x60])
+            .unwrap();
+        app_state.block_types = vec![BlockType::Code; 5];
+        app_state.settings.assembler = Assembler::Acme;
+        app_state.annotations.update(Addr(0x1001), |e| {
+            e.scope = Some(Addr(0x1004));
+            e.user_line_comment = Some("scope entry comment".to_string());
         });
         app_state.labels.insert(
             Addr(0x1001),
+            vec![Label {
+                name: "twenty_four_char_label_x".to_string(), // OwnLine in ACME
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        app_state.labels.insert(
+            Addr(0x1002),
             vec![Label {
                 name: "mid_lbl".to_string(),
                 kind: LabelKind::User,
                 label_type: LabelType::UserDefined,
             }],
         );
-
-        let start_line = DisassemblyLine {
-            address: Addr(0x1000),
-            bytes: vec![0xAD, 0x00, 0x20],
-            mnemonic: "LDA".to_string(),
-            operand: "$2000".to_string(),
-            comment: String::new(),
-            line_comment: Some("scope entry comment".to_string()),
-            label: Some("nineteen_char_label".to_string()), // OwnLine in Ca65
-            opcode: None,
-            show_bytes: true,
-            target_address: None,
-            external_label_address: None,
-            is_collapsed: false,
-        };
-        let end_line = DisassemblyLine {
-            address: Addr(0x1003),
-            bytes: vec![0x60],
-            mnemonic: "RTS".to_string(),
-            operand: String::new(),
-            comment: String::new(),
-            line_comment: None,
-            label: None,
-            opcode: None,
-            show_bytes: true,
-            target_address: None,
-            external_label_address: None,
-            is_collapsed: false,
-        };
-        app_state.disassembly = vec![start_line, end_line];
+        app_state.disassemble();
 
         let mut ui_state = UIState::new(Theme::default());
-        let backend = TestBackend::new(100, 12);
+        let backend = TestBackend::new(100, 15);
         let mut terminal = Terminal::new(backend).unwrap();
 
         terminal
             .draw(|f| {
-                render_disassembly(f, Rect::new(0, 0, 100, 12), &app_state, &mut ui_state);
+                render_disassembly(f, Rect::new(0, 0, 100, 15), &app_state, &mut ui_state);
             })
             .unwrap();
 
         let buffer = terminal.backend().buffer();
-        let scope_gutter_at = |y: u16| -> String {
+        let scope_gutter_at = |buf: &ratatui::buffer::Buffer, y: u16| -> String {
             format!(
                 "{}{}",
-                buffer.cell((1, y)).map_or("", |c| c.symbol()),
-                buffer.cell((2, y)).map_or("", |c| c.symbol()),
+                buf.cell((1, y)).map_or("", |c| c.symbol()),
+                buf.cell((2, y)).map_or("", |c| c.symbol()),
             )
         };
 
-        // Row 1 (idx 0 < prefix_parts_count): mid-instruction label -> outside scope box ("  ")
-        assert_eq!(scope_gutter_at(1), "  ");
-        // Row 2 (idx 1 < prefix_parts_count): line comment -> outside scope box ("  ")
-        assert_eq!(scope_gutter_at(2), "  ");
-        // Row 3 (idx 2 == prefix_parts_count): OwnLine label -> opens scope box ("┌─")
-        assert_eq!(scope_gutter_at(3), "┌─");
-        // Row 4 (idx 3 > prefix_parts_count): main instruction row -> continues scope box ("│ ")
-        assert_eq!(scope_gutter_at(4), "│ ");
+        // Row 1: $1000 NOP (outside scope) -> "  "
+        assert_eq!(scope_gutter_at(buffer, 1), "  ");
+        // Row 2: $1001 virtual splitter before scope -> "  "
+        assert_eq!(scope_gutter_at(buffer, 2), "  ");
+        // Row 3 (idx 0 < prefix_parts_count): mid-instruction label -> outside scope box ("  ")
+        assert_eq!(scope_gutter_at(buffer, 3), "  ");
+        // Row 4 (idx 1 < prefix_parts_count): line comment -> outside scope box ("  ")
+        assert_eq!(scope_gutter_at(buffer, 4), "  ");
+        // Row 5 (idx 2 == prefix_parts_count): OwnLine label -> opens scope box ("┌─")
+        assert_eq!(scope_gutter_at(buffer, 5), "┌─");
+        // Row 6 (idx 3 > prefix_parts_count): main instruction row -> continues scope box ("│ ")
+        assert_eq!(scope_gutter_at(buffer, 6), "│ ");
+        // Row 7: $1004 RTS -> closes ACME scope box ("└─")
+        assert_eq!(scope_gutter_at(buffer, 7), "└─");
+
+        // 2. ca65: `app_state.disassemble()` emits a `.proc` delimiter line carrying the line
+        // comment at $1001, followed by the instruction with its mid-instruction label inside the scope.
+        app_state.settings.assembler = Assembler::Ca65;
+        app_state.disassemble();
+
+        terminal
+            .draw(|f| {
+                render_disassembly(f, Rect::new(0, 0, 100, 15), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let ca65_buf = terminal.backend().buffer();
+        // Row 1: $1000 NOP -> "  "
+        assert_eq!(scope_gutter_at(ca65_buf, 1), "  ");
+        // Row 2: $1001 virtual splitter -> "  "
+        assert_eq!(scope_gutter_at(ca65_buf, 2), "  ");
+        // Row 3: line comment on `.proc` line -> "  "
+        assert_eq!(scope_gutter_at(ca65_buf, 3), "  ");
+        // Row 4: `.proc twenty_four_char_label_x` -> opens scope ("┌─")
+        assert_eq!(scope_gutter_at(ca65_buf, 4), "┌─");
+        // Row 5: mid-instruction label `mid_lbl := * + 1` inside scope -> "│ "
+        assert_eq!(scope_gutter_at(ca65_buf, 5), "│ ");
+        // Row 6: `lda $2000` inside scope -> "│ "
+        assert_eq!(scope_gutter_at(ca65_buf, 6), "│ ");
+        // Row 7: `rts` inside scope -> "│ "
+        assert_eq!(scope_gutter_at(ca65_buf, 7), "│ ");
+        // Row 8: `.endproc` closes scope -> "└─"
+        assert_eq!(scope_gutter_at(ca65_buf, 8), "└─");
     }
 
     #[test]

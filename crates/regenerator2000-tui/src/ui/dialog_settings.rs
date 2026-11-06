@@ -321,3 +321,74 @@ impl Widget for SettingsDialog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::Theme;
+    use crossterm::event::{KeyEvent, KeyModifiers};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_settings_dialog_toggles_entropy_and_theme_popup_esc() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        let mut dialog = SettingsDialog::new();
+
+        // Toggle index 0 (sync_blocks_view) with Space.
+        let initial_sync = app_state.system_config.sync_blocks_view;
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(app_state.system_config.sync_blocks_view, !initial_sync);
+
+        // Select index 8 (Entropy threshold) and step right/left within [0.0, 8.0].
+        dialog.selected_index = 8;
+        app_state.system_config.entropy_threshold = 7.95;
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert!((app_state.system_config.entropy_threshold - 8.0).abs() < f32::EPSILON);
+
+        // Select index 9 (Theme), open popup, render, and verify Esc closes popup first.
+        dialog.selected_index = 9;
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert!(dialog.is_selecting_theme);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert!(!dialog.is_selecting_theme);
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+    }
+}

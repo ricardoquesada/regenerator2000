@@ -936,4 +936,91 @@ mod tests {
             assert_eq!(dialog.focus, FileBrowserFocus::Filename);
         }
     }
+
+    #[test]
+    fn test_execute_save_and_export_with_dotted_stem_and_overwrite_confirmation() {
+        let temp_dir =
+            std::env::temp_dir().join(format!("r2000_file_browser_test_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        let mut app_state = AppState::new();
+        app_state
+            .load_binary(crate::state::Addr(0x1000), vec![0xEA, 0x60])
+            .unwrap();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        // 1. SaveProject with dotted stem "c64_mule.dali" writes "c64_mule.dali.regen2000proj".
+        let mut save_dialog = FileBrowserDialog::new_save_project(
+            Some("c64_mule.dali".to_string()),
+            temp_dir.clone(),
+        );
+        assert_eq!(
+            save_dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+        let expected_proj = temp_dir.join("c64_mule.dali.regen2000proj");
+        assert!(expected_proj.exists());
+        assert_eq!(app_state.project_path.as_ref(), Some(&expected_proj));
+
+        // 2. Pressing Enter again when the target file already exists opens ConfirmationDialog,
+        // and confirming ('y') overwrites and closes.
+        let mut overwrite_dialog = FileBrowserDialog::new_save_project(
+            Some("c64_mule.dali".to_string()),
+            temp_dir.clone(),
+        );
+        assert_eq!(
+            overwrite_dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert!(overwrite_dialog.sub_dialog.is_some());
+        assert_eq!(
+            overwrite_dialog.handle_input(
+                KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+
+        // 3. Export ASM and Export Labels with dotted stem "c64_mule.dali".
+        let mut asm_dialog = FileBrowserDialog::new_export(
+            Some("c64_mule.dali".to_string()),
+            crate::event::ExportFormat::Asm,
+            temp_dir.clone(),
+        );
+        assert_eq!(
+            asm_dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+        assert!(temp_dir.join("c64_mule.dali.asm").exists());
+
+        let mut lbl_dialog = FileBrowserDialog::new_export_labels(
+            Some("c64_mule.dali".to_string()),
+            temp_dir.clone(),
+        );
+        assert_eq!(
+            lbl_dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+        assert!(temp_dir.join("c64_mule.dali.lbl").exists());
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
 }

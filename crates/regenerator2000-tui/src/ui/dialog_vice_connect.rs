@@ -86,3 +86,61 @@ impl Widget for ViceConnectDialog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::actions::AppAction;
+    use crate::theme::Theme;
+    use crossterm::event::KeyModifiers;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_vice_connect_dialog_default_filtering_and_submit() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        let mut dialog = ViceConnectDialog::new();
+
+        assert_eq!(dialog.textarea.lines().join(""), "localhost:6502");
+
+        // Invalid character '/' is ignored; valid character '1' is appended.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char('/'), KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char('1'), KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.textarea.lines().join(""), "localhost:65021");
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Action(AppAction::ViceConnectAddress("localhost:65021".to_string()))
+        );
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+    }
+}

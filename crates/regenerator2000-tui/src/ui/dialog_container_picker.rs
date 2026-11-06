@@ -382,8 +382,19 @@ mod tests {
 
     #[test]
     fn test_d64_picker_multibyte_filename_render_does_not_panic() {
+        let exact_37 = "♠".repeat(37);
+        assert_eq!(
+            ContainerPickerEntry::truncate_filename(&exact_37),
+            exact_37,
+            "37-char multibyte PETSCII filename must not be truncated"
+        );
+        let over_37 = "♠".repeat(40);
+        let truncated = ContainerPickerEntry::truncate_filename(&over_37);
+        assert_eq!(truncated.chars().count(), 37);
+        assert_eq!(truncated, format!("{}...", "♠".repeat(34)));
+
         let entry = D64FileEntry {
-            filename: "♠".repeat(40),
+            filename: over_37,
             file_type: FileType::PRG,
             track: 1,
             sector: 0,
@@ -403,6 +414,15 @@ mod tests {
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
             .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(rendered.contains(&truncated));
     }
 
     #[test]
@@ -442,6 +462,15 @@ mod tests {
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
             .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(rendered.contains(&format!("{}...", "█".repeat(34))));
     }
 
     #[test]
@@ -457,5 +486,69 @@ mod tests {
             &mut ui_state,
         );
         assert_eq!(result, WidgetResult::Handled);
+    }
+
+    #[test]
+    fn test_container_picker_navigation_and_unsupported_file_type_rejection() {
+        let entries = vec![
+            D64FileEntry {
+                filename: "README".to_string(),
+                file_type: FileType::SEQ,
+                track: 1,
+                sector: 0,
+                size_sectors: 2,
+                disk_type: DiskType::D64,
+            },
+            D64FileEntry {
+                filename: "GAME".to_string(),
+                file_type: FileType::PRG,
+                track: 1,
+                sector: 1,
+                size_sectors: 5,
+                disk_type: DiskType::D64,
+            },
+        ];
+        let mut dialog =
+            ContainerPickerDialog::new_d64(entries, Vec::new(), PathBuf::from("test.d64"));
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        // Enter on SEQ entry is rejected with a status message.
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert_eq!(
+            ui_state.status_message.as_deref(),
+            Some("Cannot load SEQ file: only PRG files supported")
+        );
+
+        // Up from 0 wraps to last item (1); Down from 1 wraps back to 0.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.selected_index, 1);
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.selected_index, 0);
+
+        // Esc closes the picker.
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
     }
 }

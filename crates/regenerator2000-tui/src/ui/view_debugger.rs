@@ -791,6 +791,12 @@ mod tests {
             WidgetResult::Action(crate::state::actions::AppAction::ViceMemoryDumpDialog)
         );
 
+        let key_ctrl_m = KeyEvent::new(KeyCode::Char('m'), KeyModifiers::CONTROL);
+        assert_eq!(
+            view.handle_input(key_ctrl_m, &mut app_state, &mut ui_state),
+            WidgetResult::Ignored
+        );
+
         let key2 = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
         assert_eq!(
             view.handle_input(key2, &mut app_state, &mut ui_state),
@@ -807,14 +813,14 @@ mod tests {
         let mut app_state = AppState::new();
         app_state.vice_state.connected = true;
         app_state.vice_state.live_memory = Some(vec![0xEA; 64]);
-        app_state.vice_state.dump_address = Some(crate::state::Addr(0xFFD0).into());
+        app_state.vice_state.dump_address = Some(crate::state::Addr(0xFFC8).into());
         app_state.vice_state.dump_memory = Some(vec![0x42; 64]);
 
         let mut ui_state = UIState::new(crate::theme::Theme::default());
         ui_state.active_pane = ActivePane::Debugger;
 
-        let area = Rect::new(0, 0, 80, 30);
-        let backend = TestBackend::new(80, 30);
+        let area = Rect::new(0, 0, 100, 30);
+        let backend = TestBackend::new(100, 30);
         let mut terminal = Terminal::new(backend).unwrap();
 
         terminal
@@ -822,6 +828,28 @@ mod tests {
                 view.render(f, area, &app_state, &mut ui_state);
             })
             .unwrap();
+
+        // Also verify $FFD0 wraps around $FFFF -> $0000 -> $0008 without overflow.
+        app_state.vice_state.dump_address = Some(crate::state::Addr(0xFFD0).into());
+        terminal
+            .draw(|f| {
+                view.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        for expected_row in ["$FFD0", "$FFF8", "$0000", "$0008"] {
+            assert!(
+                rendered.contains(expected_row),
+                "Expected wrapped dump row {expected_row} in rendered debugger view"
+            );
+        }
     }
 
     #[test]

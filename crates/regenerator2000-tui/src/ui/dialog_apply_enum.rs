@@ -12,7 +12,7 @@ use ratatui_textarea::TextArea;
 use regenerator2000_core::state::{Addr, AppState, EnumDefinition};
 use std::collections::BTreeMap;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum EnumListItem {
     NoneOption,
     Separator,
@@ -366,5 +366,135 @@ impl Widget for ApplyEnumDialog {
                 WidgetResult::Handled
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::Theme;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_apply_enum_precedence_separator_skipping_and_apply_action() {
+        let mut app_state = AppState::new();
+
+        // Builtin enum overridden by local enum with the same name, plus a non-matching enum.
+        let mut builtin_def = EnumDefinition {
+            name: "Colors".to_string(),
+            description: None,
+            variants: BTreeMap::new(),
+            source_file: None,
+        };
+        builtin_def.variants.insert(0x00, "OLD_BLACK".to_string());
+        app_state
+            .builtin_enums
+            .insert("Colors".to_string(), builtin_def);
+
+        let mut local_def = EnumDefinition {
+            name: "Colors".to_string(),
+            description: None,
+            variants: BTreeMap::new(),
+            source_file: None,
+        };
+        local_def.variants.insert(0x00, "BLACK".to_string());
+        app_state.enums.insert("Colors".to_string(), local_def);
+
+        let mut other_def = EnumDefinition {
+            name: "cia_ports".to_string(),
+            description: None,
+            variants: BTreeMap::new(),
+            source_file: None,
+        };
+        other_def.variants.insert(0xFF, "ALL_BITS".to_string());
+        app_state
+            .user_global_enums
+            .insert("cia_ports".to_string(), other_def);
+
+        let mut dialog = ApplyEnumDialog::new(Addr(0x1000), 0x00, &app_state);
+        let mut ui_state = UIState::new(Theme::default());
+
+        // Items: [0] NoneOption, [1] Colors (BLACK), [2] Separator, [3] cia_ports
+        assert_eq!(dialog.filtered_items.len(), 4);
+        assert_eq!(
+            dialog.filtered_items[1],
+            EnumListItem::EnumEntry {
+                name: "Colors".to_string(),
+                matching_variant: Some("BLACK".to_string()),
+                is_matching: true,
+            }
+        );
+        assert_eq!(dialog.filtered_items[2], EnumListItem::Separator);
+
+        // Down from 0 -> 1; Down from 1 skips Separator (2) -> 3; Up from 3 skips Separator (2) -> 1.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.list_state.selected(), Some(1));
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.list_state.selected(), Some(3));
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.list_state.selected(), Some(1));
+
+        // Enter on index 1 applies "Colors".
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Action(AppAction::ApplyEnumUsage {
+                address: Addr(0x1000),
+                enum_name: Some("Colors".to_string()),
+            })
+        );
+
+        // Render and Ctrl+N sub-dialog lifecycle.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char('n'), KeyModifiers::CONTROL),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert!(dialog.sub_dialog.is_some());
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        // Esc closes the sub-dialog first, then a second Esc closes ApplyEnumDialog.
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert!(dialog.sub_dialog.is_none());
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
     }
 }

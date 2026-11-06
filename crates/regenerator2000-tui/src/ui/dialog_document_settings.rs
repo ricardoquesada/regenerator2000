@@ -851,19 +851,70 @@ mod tests {
     use ratatui::backend::TestBackend;
 
     #[test]
-    fn test_document_settings_esc_cancels_fill_threshold_edit() {
+    fn test_document_settings_esc_cancels_all_submodes_before_closing() {
         let mut app_state = AppState::new();
         let mut ui_state = UIState::new(Theme::default());
         let mut dialog = DocumentSettingsDialog::new();
-        dialog.editing_number = Some((NumericSetting::FillRunThreshold, "16".to_string()));
 
-        let res = dialog.handle_input(
-            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
-            &mut app_state,
-            &mut ui_state,
+        // 1. Esc while editing number cancels only numeric editing.
+        dialog.editing_number = Some((NumericSetting::FillRunThreshold, "16".to_string()));
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
         );
-        assert_eq!(res, WidgetResult::Handled);
         assert_eq!(dialog.editing_number, None);
+
+        // 2. Esc while editing description cancels description editing and keeps dialog open.
+        dialog.is_editing_description = true;
+        dialog.description_input.insert_str("unsaved draft");
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert!(!dialog.is_editing_description);
+        assert!(dialog.description_input.lines().join("").is_empty());
+
+        // 3. Esc while selecting system or assembler closes the popup without closing the dialog.
+        dialog.is_selecting_system = true;
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert!(!dialog.is_selecting_system);
+
+        dialog.is_selecting_assembler = true;
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert!(!dialog.is_selecting_assembler);
+
+        // 4. Esc in top-level state closes the dialog and sets status to "Ready".
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+        assert_eq!(ui_state.status_message.as_deref(), Some("Ready"));
     }
 
     #[test]
@@ -946,10 +997,10 @@ mod tests {
     }
 
     #[test]
-    fn test_document_settings_render_standard_and_small_terminals() {
+    fn test_document_settings_render_standard_small_and_popup_states() {
         let app_state = AppState::new();
         let mut ui_state = UIState::new(Theme::default());
-        let dialog = DocumentSettingsDialog::new();
+        let mut dialog = DocumentSettingsDialog::new();
 
         for (w, h) in [(80, 28), (80, 24), (20, 10), (3, 3)] {
             let backend = TestBackend::new(w, h);
@@ -961,5 +1012,19 @@ mod tests {
                 })
                 .unwrap();
         }
+
+        // Render active popups (system selector, assembler selector, numeric editor, description editor).
+        dialog.is_selecting_system = true;
+        dialog.is_selecting_assembler = true;
+        dialog.editing_number = Some((NumericSetting::BytesPerLine, "16".to_string()));
+        dialog.is_editing_description = true;
+        let backend = TestBackend::new(80, 28);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
     }
 }

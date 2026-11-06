@@ -642,7 +642,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hexdump8_end_key_jumps_to_final_8_byte_row() {
+    fn test_hexdump8_end_and_g_keys_jump_to_final_8_byte_row() {
         let mut app_state = AppState::new();
         app_state
             .load_binary(regenerator2000_core::state::Addr(0x1000), vec![0xEA; 64])
@@ -659,6 +659,34 @@ mod tests {
         assert_eq!(res, WidgetResult::Handled);
         // 64 bytes in 8-column mode = 8 rows, so last row is index 7.
         assert_eq!(ui_state.hex_cursor_index, 7);
+
+        // Reset to 0 via Home, then jump to end via 'G' (with SHIFT modifier).
+        view.handle_input(
+            KeyEvent::new(KeyCode::Home, KeyModifiers::empty()),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(ui_state.hex_cursor_index, 0);
+
+        view.handle_input(
+            KeyEvent::new(KeyCode::Char('G'), KeyModifiers::SHIFT),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(ui_state.hex_cursor_index, 7);
+
+        // Numeric prefix "6G" in HexDump8 jumps to 1-based row 6 (index 5, which is > 16-col len 4).
+        view.handle_input(
+            KeyEvent::new(KeyCode::Char('6'), KeyModifiers::empty()),
+            &mut app_state,
+            &mut ui_state,
+        );
+        view.handle_input(
+            KeyEvent::new(KeyCode::Char('G'), KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(ui_state.hex_cursor_index, 5);
     }
 
     #[test]

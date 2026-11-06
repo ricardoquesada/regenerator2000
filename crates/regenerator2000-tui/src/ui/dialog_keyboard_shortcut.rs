@@ -267,3 +267,79 @@ impl Widget for ShortcutsDialog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::AppState;
+    use crate::theme::Theme;
+    use crossterm::event::{KeyEvent, KeyModifiers};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_shortcuts_dialog_scrolling_and_render() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        let mut dialog = ShortcutsDialog::new();
+        let max_offset = ShortcutsDialog::get_shortcuts().len() - 1;
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.scroll_offset, 1);
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.scroll_offset, 11);
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.scroll_offset, max_offset);
+
+        // Down at max_offset stays clamped.
+        dialog.scroll_down();
+        assert_eq!(dialog.scroll_offset, max_offset);
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.scroll_offset, 0);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(rendered.contains("Activate Main Menu"));
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+    }
+}

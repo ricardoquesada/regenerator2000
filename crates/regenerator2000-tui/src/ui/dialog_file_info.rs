@@ -156,3 +156,61 @@ impl Widget for FileInfoDialog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::Addr;
+    use crate::theme::Theme;
+    use crossterm::event::KeyModifiers;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_file_info_dialog_render_caches_info_and_closes_on_keys() {
+        let mut app_state = AppState::new();
+        app_state
+            .load_binary(Addr(0x0801), vec![0xEA; 128])
+            .unwrap();
+        let mut ui_state = UIState::new(Theme::default());
+        let mut dialog = FileInfoDialog::new();
+
+        let backend = TestBackend::new(100, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        assert!(dialog.cached_file_info.get().is_some());
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(rendered.contains("$0801 - $0880  (128 bytes)"));
+        assert!(rendered.contains("Entropy:"));
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        for key in [KeyCode::Enter, KeyCode::Esc, KeyCode::Char('q')] {
+            assert_eq!(
+                dialog.handle_input(
+                    KeyEvent::new(key, KeyModifiers::NONE),
+                    &mut app_state,
+                    &mut ui_state,
+                ),
+                WidgetResult::Close
+            );
+        }
+    }
+}

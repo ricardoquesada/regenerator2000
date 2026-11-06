@@ -141,3 +141,67 @@ impl Widget for OpenRecentDialog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::Theme;
+    use crossterm::event::KeyModifiers;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_open_recent_dialog_render_navigation_and_missing_file_prune() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        let mut dialog = OpenRecentDialog;
+
+        // 1. Empty recents renders placeholder message.
+        let backend = TestBackend::new(80, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+        let empty_rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(empty_rendered.contains("No recent projects."));
+
+        // 2. Populated recents wrap on Up/Down and prune missing files on Enter.
+        let p1 = PathBuf::from("/tmp/nonexistent_r2000_1.regen2000proj");
+        let p2 = PathBuf::from("/tmp/nonexistent_r2000_2.regen2000proj");
+        app_state.system_config.recent_projects = vec![p1.clone(), p2.clone()];
+        ui_state.recent_list_state.select(Some(0));
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(ui_state.recent_list_state.selected(), Some(1));
+
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(ui_state.recent_list_state.selected(), Some(0));
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Close
+        );
+        assert_eq!(app_state.system_config.recent_projects, vec![p2]);
+    }
+}

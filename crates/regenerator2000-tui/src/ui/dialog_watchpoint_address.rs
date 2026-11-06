@@ -167,3 +167,94 @@ impl Widget for WatchpointAddressDialog {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::Addr;
+    use crate::state::actions::AppAction;
+    use crate::theme::Theme;
+    use crate::vice::state::ViceBreakpoint;
+    use crossterm::event::KeyModifiers;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_watchpoint_dialog_cycle_kind_and_existing_watchpoint_toggle() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        let mut dialog = WatchpointAddressDialog::new(None);
+
+        // Type "d020g" -> filters 'g' and uppercases to "D020".
+        for ch in ['d', '0', '2', '0', 'g'] {
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            );
+        }
+        assert_eq!(dialog.input, "D020");
+
+        // Tab cycles Store -> Load -> LoadStore -> Store.
+        assert_eq!(dialog.kind, BreakpointKind::Store);
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.kind, BreakpointKind::Load);
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.kind, BreakpointKind::LoadStore);
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Action(AppAction::ViceSetWatchpoint {
+                address: Addr(0xD020),
+                kind: BreakpointKind::LoadStore,
+            })
+        );
+
+        // When a watchpoint already exists at $D020, Tab is ignored and Enter uses the existing kind.
+        app_state.vice_state.breakpoints.push(ViceBreakpoint {
+            id: 1,
+            address: 0xD020,
+            enabled: true,
+            kind: BreakpointKind::Load,
+        });
+        dialog.kind = BreakpointKind::Store;
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.kind, BreakpointKind::Store);
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                dialog.render(f, f.area(), &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Action(AppAction::ViceSetWatchpoint {
+                address: Addr(0xD020),
+                kind: BreakpointKind::Load,
+            })
+        );
+    }
+}
