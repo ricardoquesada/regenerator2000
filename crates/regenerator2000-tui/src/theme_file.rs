@@ -259,11 +259,7 @@ impl ThemeFile {
     /// [`Self::base`].  If `base` is not set, `"Solarized Dark"` is used.
     #[must_use]
     pub fn to_theme(&self) -> Theme {
-        let fallback = self
-            .base
-            .as_deref()
-            .map(builtin_theme_by_name)
-            .unwrap_or_else(default_fallback_theme);
+        let fallback = builtin_theme_by_name(self.base.as_deref().unwrap_or("Solarized Dark"));
 
         // Resolve the hex palette, falling back entry-by-entry.
         let hex_palette = if let Some(ref palette) = self.hex_color_palette {
@@ -482,13 +478,42 @@ pub fn builtin_theme_names() -> Vec<String> {
 
 /// Look up a built-in theme by name, without checking custom themes.
 /// Used as the fallback for the `base` field in theme files.
+///
+/// Reads [`BUILTIN_THEMES`] via [`OnceLock::get`] rather than [`OnceLock::get_or_init`] so
+/// calling this function while `load_builtin_themes` is initializing [`BUILTIN_THEMES`] never
+/// deadlocks on re-entrant `OnceLock` initialization.
 #[must_use]
 fn builtin_theme_by_name(name: &str) -> Theme {
-    find_builtin_theme(name).unwrap_or_else(default_fallback_theme)
+    if let Some(themes) = BUILTIN_THEMES.get() {
+        return themes
+            .iter()
+            .find(|t| t.name == name)
+            .cloned()
+            .unwrap_or_else(default_fallback_theme);
+    }
+    if name != "Solarized Dark" {
+        for file in THEMES_DIR.files() {
+            let Some(filename) = file.path().file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            if !filename.starts_with("theme-") || !filename.ends_with(".toml") {
+                continue;
+            }
+            let Some(content) = file.contents_utf8() else {
+                continue;
+            };
+            if let Ok(mut tf) = toml::from_str::<ThemeFile>(content)
+                && tf.name == name
+            {
+                tf.base = None;
+                return tf.to_theme();
+            }
+        }
+    }
+    default_fallback_theme()
 }
 
-/// Hardcoded last-resort fallback theme used when embedded assets cannot be
-/// loaded (should never happen in practice).
+/// Hardcoded fallback theme matching `assets/themes/theme-solarized_dark.toml`.
 #[must_use]
 pub fn default_fallback_theme() -> Theme {
     Theme {
@@ -515,7 +540,26 @@ pub fn default_fallback_theme() -> Theme {
         collapsed_block_bg: Color::Rgb(0, 43, 54),
         hex_bytes: Color::Rgb(147, 161, 161),
         hex_ascii: Color::Rgb(42, 161, 152),
-        hex_color_palette: [Color::Rgb(128, 128, 128); 18],
+        hex_color_palette: [
+            Color::Rgb(128, 128, 128),
+            Color::Rgb(230, 83, 136),
+            Color::Rgb(236, 96, 56),
+            Color::Rgb(231, 102, 0),
+            Color::Rgb(221, 120, 0),
+            Color::Rgb(209, 129, 0),
+            Color::Rgb(171, 151, 0),
+            Color::Rgb(111, 169, 3),
+            Color::Rgb(70, 176, 51),
+            Color::Rgb(17, 178, 84),
+            Color::Rgb(0, 181, 116),
+            Color::Rgb(0, 182, 162),
+            Color::Rgb(0, 180, 208),
+            Color::Rgb(0, 164, 239),
+            Color::Rgb(55, 150, 255),
+            Color::Rgb(157, 122, 247),
+            Color::Rgb(206, 103, 204),
+            Color::Rgb(255, 255, 255),
+        ],
         dialog_bg: Color::Rgb(7, 54, 66),
         dialog_fg: Color::Rgb(131, 148, 150),
         dialog_border: Color::Rgb(147, 161, 161),
@@ -555,7 +599,7 @@ pub fn default_fallback_theme() -> Theme {
         block_external_file_bg: Color::Rgb(0, 43, 54),
         block_undefined_bg: Color::Rgb(0, 43, 54),
         block_splitter_bg: Color::Rgb(0, 43, 54),
-        minimap_cursor_fg: Color::White,
+        minimap_cursor_fg: Color::Rgb(255, 255, 255),
     }
 }
 
@@ -800,6 +844,9 @@ background = "#112233"
         // Everything else inherited from Solarized Dark (default)
         let dark = find_builtin_theme("Solarized Dark").unwrap();
         assert_eq!(theme.foreground, dark.foreground);
+        assert_eq!(theme.hex_color_palette, dark.hex_color_palette);
+        assert_eq!(theme.minimap_cursor_fg, dark.minimap_cursor_fg);
+        assert_eq!(default_fallback_theme(), dark);
     }
 
     #[test]

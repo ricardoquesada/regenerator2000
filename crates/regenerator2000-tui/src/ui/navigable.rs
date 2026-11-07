@@ -96,6 +96,14 @@ impl AlignedGridRange {
         self.aligned_origin + index * self.stride
     }
 
+    /// Returns the grid item index containing `addr`, or `None` when `addr < aligned_origin`
+    /// or the resulting index is outside `0..self.item_count()`.
+    #[must_use]
+    pub fn index_for_addr(&self, addr: usize) -> Option<usize> {
+        let idx = addr.checked_sub(self.aligned_origin)? / self.stride;
+        (idx < self.item_count()).then_some(idx)
+    }
+
     /// Reads the byte at `addr` from `raw_data`, returning `0` when `addr` falls in floor-alignment
     /// padding (`< origin`) or beyond `end_address`.
     #[inline]

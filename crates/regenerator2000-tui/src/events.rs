@@ -132,10 +132,8 @@ pub fn run_app<B: Backend>(
                 if let Some(mut dialog) = ui_state.active_dialog.take() {
                     let result = dialog.handle_tick(&mut core.state, &mut ui_state);
                     if matches!(result, crate::ui::widget::WidgetResult::Close) {
-                        // Dialog requested close — leave active_dialog as None.
-                        if !ui_state.dialog_queue.is_empty() {
-                            ui_state.active_dialog = Some(ui_state.dialog_queue.remove(0));
-                        }
+                        // Dialog requested close — leave active_dialog as None and promote next queued dialog.
+                        ui_state.promote_next_dialog();
                     } else {
                         ui_state.active_dialog = Some(dialog);
                     }
@@ -175,7 +173,7 @@ pub fn run_app<B: Backend>(
                         &event_tx,
                         &mut should_render,
                     ) {
-                        EventOutcome::Quit => return Ok(()),
+                        EventOutcome::Quit => break,
                         EventOutcome::Continue | EventOutcome::Skip => {}
                     }
                 }
@@ -455,14 +453,20 @@ fn handle_vice_registers_get(
     app_state.vice_state.pc = Some(pc);
     ui_state.set_status_message(format!("VICE PC: ${pc:04X}"));
 
-    // Jump static disassembly cursor + scroll to PC.
-    // unwrap_or_else(|i| i-1) finds the containing instruction
-    // when PC is mid-instruction or in a data region.
-    if !app_state.disassembly.is_empty() {
-        let idx = app_state
-            .disassembly
-            .binary_search_by_key(&pc, |l| l.address.0)
-            .unwrap_or_else(|i| i.saturating_sub(1).min(app_state.disassembly.len() - 1));
+    // Jump static disassembly cursor + scroll to PC when PC lies inside the loaded binary.
+    let pc_addr = crate::state::Addr(pc);
+    if !app_state.is_external(pc_addr)
+        && let Some(mut idx) = app_state
+            .get_line_index_containing_address(pc_addr)
+            .or_else(|| app_state.get_line_index_for_address(pc_addr))
+    {
+        while idx + 1 < app_state.disassembly.len()
+            && app_state.disassembly[idx].address == pc_addr
+            && app_state.disassembly[idx].bytes.is_empty()
+            && app_state.disassembly[idx + 1].address == pc_addr
+        {
+            idx += 1;
+        }
         let sub_idx = crate::ui::view_disassembly::DisassemblyView::get_sub_index_for_address(
             &app_state.disassembly[idx],
             app_state,
@@ -675,34 +679,7 @@ fn handle_key_event(
     // Handle Active Dialog (Generic)
     if let Some(mut dialog) = ui_state.active_dialog.take() {
         let result = dialog.handle_input(key, &mut core.state, ui_state);
-        match result {
-            crate::ui::widget::WidgetResult::Ignored => {
-                ui_state.active_dialog = Some(dialog);
-            }
-            crate::ui::widget::WidgetResult::Handled => {
-                ui_state.active_dialog = Some(dialog);
-                *should_render = true;
-            }
-            crate::ui::widget::WidgetResult::Close => {
-                // Dialog closed.
-                *should_render = true;
-                if !ui_state.dialog_queue.is_empty() {
-                    ui_state.active_dialog = Some(ui_state.dialog_queue.remove(0));
-                }
-            }
-            crate::ui::widget::WidgetResult::Action(action) => {
-                if !action.closes_dialog() {
-                    ui_state.active_dialog = Some(dialog);
-                } else if !ui_state.dialog_queue.is_empty() {
-                    // When an action closes the active dialog (e.g. `SearchDialog` returning
-                    // `AppAction::FindNext` on `Enter`), promote the next queued dialog just
-                    // like `WidgetResult::Close`.
-                    ui_state.active_dialog = Some(ui_state.dialog_queue.remove(0));
-                }
-                *should_render = true;
-                dispatch_menu_action(action, core, ui_state, event_tx, false);
-            }
-        }
+        apply_dialog_result(dialog, result, core, ui_state, event_tx, should_render);
         if ui_state.should_quit {
             return EventOutcome::Quit;
         }
@@ -750,6 +727,39 @@ fn handle_key_event(
     }
 
     EventOutcome::Continue
+}
+
+/// Applies the [`crate::ui::widget::WidgetResult`] returned by an active modal dialog,
+/// restoring or closing the dialog and promoting any queued dialog when it closes.
+fn apply_dialog_result(
+    dialog: Box<dyn crate::ui::widget::Widget>,
+    result: crate::ui::widget::WidgetResult,
+    core: &mut Core,
+    ui_state: &mut UIState,
+    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+    should_render: &mut bool,
+) {
+    match result {
+        crate::ui::widget::WidgetResult::Ignored => {
+            ui_state.active_dialog = Some(dialog);
+        }
+        crate::ui::widget::WidgetResult::Handled => {
+            ui_state.active_dialog = Some(dialog);
+            *should_render = true;
+        }
+        crate::ui::widget::WidgetResult::Close => {
+            *should_render = true;
+            ui_state.promote_next_dialog();
+        }
+        crate::ui::widget::WidgetResult::Action(action) => {
+            if !action.closes_dialog() {
+                ui_state.active_dialog = Some(dialog);
+            }
+            *should_render = true;
+            dispatch_menu_action(action, core, ui_state, event_tx, false);
+            ui_state.promote_next_dialog();
+        }
+    }
 }
 
 /// Delegate a key event to the currently active view/pane.
@@ -849,32 +859,14 @@ fn handle_mouse_dialog(
         };
 
     if is_close_click {
-        // Dialog close requested via [x] — drop the dialog
+        // Dialog close requested via [x] — drop the dialog and promote any queued dialog.
         *should_render = true;
+        ui_state.promote_next_dialog();
         return EventOutcome::Continue;
     }
 
     let result = dialog.handle_mouse(mouse, &mut core.state, ui_state);
-    match result {
-        crate::ui::widget::WidgetResult::Ignored => {
-            ui_state.active_dialog = Some(dialog);
-        }
-        crate::ui::widget::WidgetResult::Handled => {
-            ui_state.active_dialog = Some(dialog);
-            *should_render = true;
-        }
-        crate::ui::widget::WidgetResult::Close => {
-            // Dialog closed.
-            *should_render = true;
-        }
-        crate::ui::widget::WidgetResult::Action(action) => {
-            if !action.closes_dialog() {
-                ui_state.active_dialog = Some(dialog);
-            }
-            *should_render = true;
-            dispatch_menu_action(action, core, ui_state, event_tx, false);
-        }
-    }
+    apply_dialog_result(dialog, result, core, ui_state, event_tx, should_render);
 
     EventOutcome::Continue
 }
@@ -1337,5 +1329,147 @@ mod tests {
             matches!(second, AppEvent::McpServerStopped),
             "Expected AppEvent::McpServerStopped after shutdown"
         );
+    }
+
+    #[test]
+    fn vice_registers_get_locates_pc_with_external_labels_and_ignores_external_rom_pc() {
+        use regenerator2000_core::state::{Addr, BlockType, Label, LabelKind, LabelType};
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0800);
+        // $0800: LDA #$01 (2 bytes), $0802: JSR $FFD2 (3 bytes), $0805: RTS (1 byte)
+        app_state.raw_data = vec![0xA9, 0x01, 0x20, 0xD2, 0xFF, 0x60];
+        app_state.block_types = vec![BlockType::Code; app_state.raw_data.len()];
+        app_state.labels.insert(
+            Addr(0xFFD2),
+            vec![Label {
+                name: "CHROUT".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::ExternalJump,
+            }],
+        );
+        app_state.settings.all_labels = true;
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let build_pc_msg = |pc: u16| {
+            let mut payload = Vec::new();
+            payload.extend_from_slice(&1u16.to_le_bytes());
+            payload.extend_from_slice(&[3, 0x03]);
+            payload.extend_from_slice(&pc.to_le_bytes());
+            crate::vice::ViceMessage {
+                command: crate::vice::ViceCommand::REGISTERS_GET,
+                error_code: 0,
+                request_id: 1,
+                payload,
+            }
+        };
+
+        // 1. In-range PC ($0802) must land on the JSR $FFD2 line despite prepended external labels.
+        let expected_idx = app_state
+            .get_line_index_containing_address(Addr(0x0802))
+            .expect("JSR instruction at $0802");
+        handle_vice_registers_get(&build_pc_msg(0x0802), &mut app_state, &mut ui_state);
+        assert_eq!(ui_state.cursor_index, expected_idx);
+        assert_eq!(
+            app_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0802)
+        );
+
+        // 2. External ROM PC ($EA31) must not snap the static disassembly cursor to the last line.
+        handle_vice_registers_get(&build_pc_msg(0xEA31), &mut app_state, &mut ui_state);
+        assert_eq!(ui_state.cursor_index, expected_idx);
+    }
+
+    #[test]
+    fn mouse_dialog_close_promotes_queued_dialog() {
+        use crate::ui::widget::{Widget, WidgetResult};
+        use ratatui::{Frame, layout::Rect};
+
+        struct DummyDialog {
+            mouse_result: Option<WidgetResult>,
+        }
+        impl Widget for DummyDialog {
+            fn render(&self, _f: &mut Frame, _area: Rect, _app: &AppState, _ui: &mut UIState) {}
+            fn handle_input(
+                &mut self,
+                _key: KeyEvent,
+                _app: &mut AppState,
+                _ui: &mut UIState,
+            ) -> WidgetResult {
+                WidgetResult::Ignored
+            }
+            fn handle_mouse(
+                &mut self,
+                _mouse: MouseEvent,
+                _app: &mut AppState,
+                _ui: &mut UIState,
+            ) -> WidgetResult {
+                self.mouse_result.take().unwrap_or(WidgetResult::Ignored)
+            }
+        }
+
+        let mut core = Core::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.active_dialog_area = Rect::new(10, 5, 40, 10);
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut should_render = false;
+
+        // 1. Clicking [x] on the top-right border promotes the queued dialog.
+        ui_state.push_dialog(Box::new(DummyDialog {
+            mouse_result: Some(WidgetResult::Ignored),
+        }));
+        ui_state.push_dialog(Box::new(DummyDialog {
+            mouse_result: Some(WidgetResult::Close),
+        }));
+        ui_state.push_dialog(Box::new(DummyDialog {
+            mouse_result: Some(WidgetResult::Action(
+                crate::state::actions::AppAction::FindNext,
+            )),
+        }));
+        assert_eq!(ui_state.dialog_queue.len(), 2);
+
+        let close_x_click = MouseEvent {
+            kind: event::MouseEventKind::Down(event::MouseButton::Left),
+            column: 48,
+            row: 5,
+            modifiers: event::KeyModifiers::NONE,
+        };
+        let _ = handle_mouse_event(
+            close_x_click,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert!(ui_state.active_dialog.is_some());
+        assert_eq!(ui_state.dialog_queue.len(), 1);
+
+        // 2. Dialog returning WidgetResult::Close on mouse input promotes the next queued dialog.
+        let body_click = MouseEvent {
+            kind: event::MouseEventKind::Down(event::MouseButton::Left),
+            column: 20,
+            row: 8,
+            modifiers: event::KeyModifiers::NONE,
+        };
+        let _ = handle_mouse_event(
+            body_click,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert!(ui_state.active_dialog.is_some());
+        assert_eq!(ui_state.dialog_queue.len(), 0);
+
+        // 3. Dialog returning a closing WidgetResult::Action closes cleanly when queue is empty.
+        let _ = handle_mouse_event(
+            body_click,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert!(ui_state.active_dialog.is_none());
     }
 }

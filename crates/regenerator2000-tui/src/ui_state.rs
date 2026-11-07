@@ -149,6 +149,13 @@ impl UIState {
         }
     }
 
+    /// Promotes the next queued dialog into `active_dialog` when no dialog is currently active.
+    pub fn promote_next_dialog(&mut self) {
+        if self.active_dialog.is_none() && !self.dialog_queue.is_empty() {
+            self.active_dialog = Some(self.dialog_queue.remove(0));
+        }
+    }
+
     pub fn set_status_message(&mut self, message: impl Into<String>) {
         let msg = message.into();
         self.core.status_message = Some(msg.clone());
@@ -208,8 +215,34 @@ impl UIState {
         loaded_data: &crate::state::LoadedProjectData,
         app_state: &crate::state::AppState,
     ) {
+        use crate::ui::navigable::AlignedGridRange;
+
         self.bitmap_cache.clear();
         self.bitmap_protocol = None;
+        self.cached_blocks_items = None;
+        self.navigation_history.clear();
+        self.active_pane = ActivePane::Disassembly;
+        self.is_visual_mode = false;
+        self.selection_start = None;
+        self.hex_selection_start = None;
+        self.hex_selection_start_col = 0;
+        self.sprites_selection_start = None;
+        self.charset_selection_start = None;
+
+        self.cursor_index = 0;
+        self.scroll_index = 0;
+        self.sub_cursor_index = 0;
+        self.scroll_sub_index = 0;
+        self.hex_cursor_index = 0;
+        self.hex_col_cursor = 0;
+        self.hex_scroll_index = 0;
+        self.sprites_cursor_index = 0;
+        self.sprites_scroll_index = 0;
+        self.charset_cursor_index = 0;
+        self.charset_scroll_row = 0;
+        self.bitmap_cursor_index = 0;
+        self.blocks_list_state.select(None);
+        self.blocks_selected_index = None;
 
         let loaded_cursor = loaded_data.cursor_address;
         let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
@@ -265,69 +298,50 @@ impl UIState {
                 "Charset4Col" => self.right_pane = RightPane::Charset4Col,
                 "Bitmap" => self.right_pane = RightPane::Bitmap,
                 "Blocks" => self.right_pane = RightPane::Blocks,
+                "Debugger" => self.right_pane = RightPane::Debugger,
                 _ => {}
             }
         }
 
-        // Also restore hex cursor if present
-        if let Some(hex_addr) = loaded_hex_cursor
-            && !app_state.raw_data.is_empty()
+        if let Some(idx) = loaded_data.blocks_view_cursor
+            && idx < app_state.get_blocks_view_items().len()
         {
-            let origin = app_state.origin.0 as usize;
-            let bytes_per_row: usize = match self.right_pane {
-                RightPane::HexDump8 => 8,
-                _ => 16,
-            };
-            let alignment_padding = origin % bytes_per_row;
-            let aligned_origin = origin - alignment_padding;
-            let target = hex_addr.0 as usize;
-
-            if target >= aligned_origin {
-                let offset = target - aligned_origin;
-                let row = offset / bytes_per_row;
-                // Ensure row is within bounds
-                let total_len = app_state.raw_data.len() + alignment_padding;
-                let max_rows = total_len.div_ceil(bytes_per_row);
-                if row < max_rows {
-                    self.hex_cursor_index = row;
-                }
-            }
-        }
-
-        // Restore Sprites Cursor
-        if let Some(idx) = loaded_data.blocks_view_cursor {
             self.blocks_list_state.select(Some(idx));
             self.blocks_selected_index = Some(idx);
         }
-        if let Some(sprites_addr) = loaded_sprites_cursor {
-            let origin = app_state.origin.0 as usize;
-            let aligned_origin = (origin / 64) * 64;
-            let addr = sprites_addr.0 as usize;
-            if addr >= aligned_origin {
-                let offset = addr - aligned_origin;
-                self.sprites_cursor_index = offset / 64;
-            }
-        }
-        if let Some(charset_addr) = loaded_charset_cursor {
-            let origin = app_state.origin.0 as usize;
-            let base_alignment = 0x400;
-            let aligned_start_addr = (origin / base_alignment) * base_alignment;
-            let addr = charset_addr.0 as usize;
-            if addr >= aligned_start_addr {
-                let offset = addr - aligned_start_addr;
-                self.charset_cursor_index = offset / 8;
-            }
-        }
 
-        // Restore Bitmap Cursor
-        if let Some(bitmap_addr) = loaded_data.bitmap_cursor_address {
-            let origin = app_state.origin.0 as usize;
-            // Bitmaps must be aligned to 8192-byte boundaries
-            let aligned_start_addr = (origin / 8192) * 8192;
-            let addr = bitmap_addr.0 as usize;
-            if addr >= aligned_start_addr {
-                let offset = addr - aligned_start_addr;
-                self.bitmap_cursor_index = offset / 8192;
+        if !app_state.raw_data.is_empty() {
+            if let Some(hex_addr) = loaded_hex_cursor {
+                let bytes_per_row = match self.right_pane {
+                    RightPane::HexDump8 => 8,
+                    _ => 16,
+                };
+                if let Some(row) = AlignedGridRange::uniform(app_state, bytes_per_row)
+                    .index_for_addr(hex_addr.0 as usize)
+                {
+                    self.hex_cursor_index = row;
+                }
+            }
+
+            if let Some(sprites_addr) = loaded_sprites_cursor
+                && let Some(idx) =
+                    AlignedGridRange::uniform(app_state, 64).index_for_addr(sprites_addr.0 as usize)
+            {
+                self.sprites_cursor_index = idx;
+            }
+
+            if let Some(charset_addr) = loaded_charset_cursor
+                && let Some(idx) = AlignedGridRange::new(app_state, 0x400, 8, 8)
+                    .index_for_addr(charset_addr.0 as usize)
+            {
+                self.charset_cursor_index = idx;
+            }
+
+            if let Some(bitmap_addr) = loaded_data.bitmap_cursor_address
+                && let Some(idx) = AlignedGridRange::new(app_state, 8192, 8192, 8000)
+                    .index_for_addr(bitmap_addr.0 as usize)
+            {
+                self.bitmap_cursor_index = idx;
             }
         }
 
@@ -357,5 +371,73 @@ impl UIState {
                 ),
             ));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::{Addr, AppState, BlockType, HexdumpViewMode, LoadedProjectData};
+
+    #[test]
+    fn restore_session_resets_stale_selections_active_pane_and_out_of_bounds_cursors() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0800);
+        app_state.raw_data = vec![0xEA; 128];
+        app_state.block_types = vec![BlockType::Code; 128];
+        app_state.file_path = Some(PathBuf::from("test.regen2000proj"));
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_pane = ActivePane::Sprites;
+        ui_state.is_visual_mode = true;
+        ui_state.selection_start = Some(10);
+        ui_state.hex_selection_start = Some(5);
+        ui_state.sprites_selection_start = Some(3);
+        ui_state.charset_selection_start = Some(7);
+        ui_state.sprites_cursor_index = 99;
+        ui_state.charset_cursor_index = 99;
+        ui_state.bitmap_cursor_index = 99;
+        ui_state.blocks_list_state.select(Some(99));
+        ui_state.blocks_selected_index = Some(99);
+        ui_state
+            .navigation_history
+            .push((ActivePane::Disassembly, NavigationTarget::Address(0x0800)));
+
+        let loaded = LoadedProjectData {
+            cursor_address: Some(Addr(0x0800)),
+            hex_dump_cursor_address: Some(Addr(0x0810)),
+            sprites_cursor_address: Some(Addr(0x9000)), // out of bounds for 128-byte binary at $0800
+            right_pane_visible: Some("Debugger".to_string()),
+            charset_cursor_address: Some(Addr(0x0808)),
+            bitmap_cursor_address: Some(Addr(0x6000)), // out of bounds
+            sprite_multicolor_mode: true,
+            charset_multicolor_mode: false,
+            bitmap_multicolor_mode: Some(true),
+            hexdump_view_mode: HexdumpViewMode::PETSCIIUnshifted,
+            blocks_view_cursor: Some(50), // out of bounds (only 1 block)
+            entropy_warning: None,
+            suggested_entry_point: None,
+            suggested_system: None,
+            detected_packer: None,
+        };
+
+        ui_state.restore_session(&loaded, &app_state);
+
+        assert_eq!(ui_state.active_pane, ActivePane::Disassembly);
+        assert_eq!(ui_state.right_pane, RightPane::Debugger);
+        assert!(!ui_state.is_visual_mode);
+        assert!(ui_state.selection_start.is_none());
+        assert!(ui_state.hex_selection_start.is_none());
+        assert!(ui_state.sprites_selection_start.is_none());
+        assert!(ui_state.charset_selection_start.is_none());
+        assert!(ui_state.navigation_history.is_empty());
+
+        assert_eq!(ui_state.hex_cursor_index, 1);
+        assert_eq!(ui_state.charset_cursor_index, 1);
+        assert_eq!(ui_state.sprites_cursor_index, 0);
+        assert_eq!(ui_state.bitmap_cursor_index, 0);
+        assert_eq!(ui_state.blocks_selected_index, None);
+        assert_eq!(ui_state.blocks_list_state.selected(), None);
     }
 }
