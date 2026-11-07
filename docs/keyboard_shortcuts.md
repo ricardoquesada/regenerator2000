@@ -42,13 +42,14 @@ These shortcuts work across Windows, macOS, and Linux terminals, including `tmux
 |                                    | **Convert to Screencode Text**                                                          | ++s++                                                         |
 |                                    | **Disassemble Address (flow analysis)**                                                 | ++d++                                                         |
 |                                    | **Next/Prev Immediate Mode Format** (Hex, Decimal, Binary)                              | ++i++ / ++shift+i++                                           |
+|                                    | **Apply Enum** (Immediate, Byte, Word)                                                  | ++e++                                                         |
+|                                    | **Manage Enums...**                                                                     | (menu only)                                                   |
 |                                    | **Pack Lo/Hi Address (Immediate Mode)**                                                 | ++open-bracket++                                              |
 |                                    | **Pack Hi/Lo Address (Immediate Mode)**                                                 | ++close-bracket++                                             |
 |                                    | **Set Lo/Hi Word Table**                                                                | ++comma++                                                     |
 |                                    | **Set Hi/Lo Word Table**                                                                | ++period++                                                    |
 |                                    | **Set Lo/Hi Address Table**                                                             | ++less-than++                                                 |
 |                                    | **Set Hi/Lo Address Table**                                                             | ++greater-than++                                              |
-|                                    | **Apply Enum**                                                                          | ++e++                                                         |
 |                                    | **Convert to External File**                                                            | ++shift+e++                                                   |
 |                                    | **Convert to Undefined**                                                                | ++question-mark++                                             |
 |                                    | **Set Label**                                                                           | ++l++                                                         |

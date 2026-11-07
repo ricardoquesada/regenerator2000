@@ -59,9 +59,10 @@ Regenerator 2000 manages enum references to keep `.regen2000proj` project files 
 Replace a raw numeric value with an enum variant:
 
 1. Move the cursor to a line with an immediate operand (`lda #$00`), a data byte (`.byte $02`), or a data word (`.word $0001`).
-2. Press **++e++** to open the **Apply Enum** dialog.
-3. Select an enum from the list of definitions.
-4. Select the matching variant from that enum to apply it.
+2. Press **++e++** (or select **Edit → Apply Enum...**) to open the **Apply Enum** dialog.
+3. Enums that define a variant for the current value appear in **bold** at the top of the list with the resolved variant name in parentheses (for example, `VicIIColors (BLACK)`), and the first matching enum is highlighted automatically.
+4. Type in the **Search / Filter** box to filter by enum name, use **++up++** / **++down++** to change the selection (or highlight `<None> (Clear Enum Usage)` to clear an applied enum), or press **++ctrl+n++** to create a new enum inline.
+5. Press **++enter++** to apply the selected enum.
 
 The disassembler updates the line immediately to show the enum variant name (for example, `lda #VicIIColors.BLACK`).
 

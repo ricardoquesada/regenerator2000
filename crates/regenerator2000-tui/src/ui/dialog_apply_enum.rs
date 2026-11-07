@@ -56,7 +56,42 @@ impl ApplyEnumDialog {
             sub_dialog: None,
         };
         dialog.recalculate_filtered_items(app_state);
+        dialog.list_state.select(dialog.default_selected_index());
         dialog
+    }
+
+    /// Returns the preferred default selection index for the current `filtered_items` list.
+    ///
+    /// Prioritizes the first enum that defines a variant for `self.value` (`is_matching == true`).
+    /// When the user has typed a non-empty search query and no matching-variant enum exists,
+    /// selects the first filtered `EnumEntry` so pressing `Enter` applies the filtered result
+    /// rather than clearing the enum via `<None>`. Falls back to index `0` (`<None>`) otherwise.
+    #[must_use]
+    fn default_selected_index(&self) -> Option<usize> {
+        if self.filtered_items.is_empty() {
+            return None;
+        }
+        if let Some(idx) = self.filtered_items.iter().position(|item| {
+            matches!(
+                item,
+                EnumListItem::EnumEntry {
+                    is_matching: true,
+                    ..
+                }
+            )
+        }) {
+            return Some(idx);
+        }
+        let has_query = !self.search_textarea.lines().join("").trim().is_empty();
+        if has_query
+            && let Some(idx) = self
+                .filtered_items
+                .iter()
+                .position(|item| matches!(item, EnumListItem::EnumEntry { .. }))
+        {
+            return Some(idx);
+        }
+        Some(0)
     }
 
     fn recalculate_filtered_items(&mut self, app_state: &AppState) {
@@ -115,12 +150,17 @@ impl ApplyEnumDialog {
 
         self.filtered_items = items;
 
-        // Adjust selection if it falls out of bounds
+        // Adjust selection if it falls out of bounds or lands on a separator
         let len = self.filtered_items.len();
         if let Some(selected) = self.list_state.selected() {
             if selected >= len {
                 self.list_state
                     .select(if len > 0 { Some(len - 1) } else { None });
+            } else if matches!(
+                self.filtered_items.get(selected),
+                Some(EnumListItem::Separator)
+            ) {
+                self.list_state.select(Some(selected.saturating_sub(1)));
             }
         } else if len > 0 {
             self.list_state.select(Some(0));
@@ -296,7 +336,7 @@ impl Widget for ApplyEnumDialog {
                 ui_state.set_status_message("Ready");
                 WidgetResult::Close
             }
-            KeyCode::Up | KeyCode::Char('k') if key.modifiers == KeyModifiers::empty() => {
+            KeyCode::Up if key.modifiers == KeyModifiers::empty() => {
                 if self.filtered_items.is_empty() {
                     return WidgetResult::Handled;
                 }
@@ -315,7 +355,7 @@ impl Widget for ApplyEnumDialog {
                 }
                 WidgetResult::Handled
             }
-            KeyCode::Down | KeyCode::Char('j') if key.modifiers == KeyModifiers::empty() => {
+            KeyCode::Down if key.modifiers == KeyModifiers::empty() => {
                 let len = self.filtered_items.len();
                 if len == 0 {
                     return WidgetResult::Handled;
@@ -364,8 +404,8 @@ impl Widget for ApplyEnumDialog {
                 // Send input to dynamic filter textarea
                 if self.search_textarea.input(key) {
                     self.recalculate_filtered_items(app_state);
-                    // Reset list focus on filter change
-                    self.list_state.select(Some(0));
+                    // Focus the first matching enum (or <None> when no enum matches the filter)
+                    self.list_state.select(self.default_selected_index());
                 }
                 WidgetResult::Handled
             }
@@ -406,7 +446,7 @@ mod tests {
         app_state.enums.insert("Colors".to_string(), local_def);
 
         let mut other_def = EnumDefinition {
-            name: "cia_ports".to_string(),
+            name: "joystick_ports".to_string(),
             description: None,
             variants: BTreeMap::new(),
             source_file: None,
@@ -414,12 +454,12 @@ mod tests {
         other_def.variants.insert(0xFF, "ALL_BITS".to_string());
         app_state
             .user_global_enums
-            .insert("cia_ports".to_string(), other_def);
+            .insert("joystick_ports".to_string(), other_def);
 
         let mut dialog = ApplyEnumDialog::new(Addr(0x1000), 0x00, &app_state);
         let mut ui_state = UIState::new(Theme::default());
 
-        // Items: [0] NoneOption, [1] Colors (BLACK), [2] Separator, [3] cia_ports
+        // Items: [0] NoneOption, [1] Colors (BLACK), [2] Separator, [3] joystick_ports
         assert_eq!(dialog.filtered_items.len(), 4);
         assert_eq!(
             dialog.filtered_items[1],
@@ -431,7 +471,17 @@ mod tests {
         );
         assert_eq!(dialog.filtered_items[2], EnumListItem::Separator);
 
-        // Down from 0 -> 1; Down from 1 skips Separator (2) -> 3; Up from 3 skips Separator (2) -> 1.
+        // Initial selection auto-focuses the first matching enum at index 1 ("Colors").
+        assert_eq!(dialog.list_state.selected(), Some(1));
+
+        // Up from 1 -> 0 (<None>); Down from 0 -> 1; Down from 1 skips Separator (2) -> 3; Up from 3 skips Separator (2) -> 1.
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.list_state.selected(), Some(0));
+
         dialog.handle_input(
             KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
             &mut app_state,
@@ -463,6 +513,28 @@ mod tests {
             WidgetResult::Action(AppAction::ApplyEnumUsage {
                 address: Addr(0x1000),
                 enum_name: Some("Colors".to_string()),
+            })
+        );
+
+        // Typing "joystick" (which includes 'j' and 'k') filters to joystick_ports and auto-selects index 1.
+        for ch in "joystick".chars() {
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            );
+        }
+        assert_eq!(dialog.search_textarea.lines().join(""), "joystick");
+        assert_eq!(dialog.list_state.selected(), Some(1));
+        assert_eq!(
+            dialog.handle_input(
+                KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Action(AppAction::ApplyEnumUsage {
+                address: Addr(0x1000),
+                enum_name: Some("joystick_ports".to_string()),
             })
         );
 

@@ -2384,8 +2384,9 @@ fn test_shortcut_layers_synchronization() {
         );
     }
 
-    // 4. Verify MenuState::new() completeness, External File shortcut, and parity with ShortcutsDialog & docs
+    // 4. Verify MenuState::new() completeness, External File / Apply Enum shortcuts, and parity with ShortcutsDialog & docs
     let mut found_external_file = false;
+    let mut found_apply_enum = false;
     for category in &menu.categories {
         for item in &category.items {
             if item.is_separator {
@@ -2413,6 +2414,16 @@ fn test_shortcut_layers_synchronization() {
                 assert_eq!(item.action, Some(AppAction::SetExternalFile));
             }
 
+            if item.name == "Apply Enum..." {
+                found_apply_enum = true;
+                assert_eq!(
+                    item.shortcut.as_deref(),
+                    Some("E"),
+                    "Edit -> Apply Enum... must have shortcut Some(\"E\")"
+                );
+                assert_eq!(item.action, Some(AppAction::ApplyEnumDialog));
+            }
+
             if let Some(shortcut) = &item.shortcut {
                 let norm = normalize_shortcut_token(shortcut);
                 assert!(
@@ -2437,5 +2448,9 @@ fn test_shortcut_layers_synchronization() {
     assert!(
         found_external_file,
         "MenuState::new() must contain 'External File'"
+    );
+    assert!(
+        found_apply_enum,
+        "MenuState::new() must contain 'Apply Enum...'"
     );
 }

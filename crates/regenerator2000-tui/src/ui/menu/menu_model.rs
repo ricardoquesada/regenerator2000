@@ -141,6 +141,7 @@ impl MenuState {
                             Some("Ctrl+Shift+B"),
                             Some(AppAction::ListBookmarks),
                         ),
+                        MenuItem::new("Apply Enum...", Some("E"), Some(AppAction::ApplyEnumDialog)),
                         MenuItem::new("Manage Enums...", None, Some(AppAction::ManageEnums)),
                         MenuItem::separator(),
                         MenuItem::new(
@@ -539,7 +540,8 @@ impl MenuState {
                             }
                             AppAction::SetLabel
                             | AppAction::FindReferences
-                            | AppAction::ToggleBookmark => {
+                            | AppAction::ToggleBookmark
+                            | AppAction::ApplyEnumDialog => {
                                 item.disabled = active_pane != ActivePane::Disassembly;
                             }
                             AppAction::ViceConnect => {
