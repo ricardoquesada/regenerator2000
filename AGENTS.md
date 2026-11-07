@@ -7,29 +7,31 @@ Regenerator 2000 is an interactive 6502 disassembler TUI written in Rust, target
 The project is split into two main crates to separate logic from presentation:
 
 - **`regenerator2000-core`**: Contains all UI-agnostic logic.
-  - `analyzer.rs`: Auto-analysis (walking code, generating labels).
+  - `action_handlers/`: Modular domain action handlers (`file_handler.rs`, `disassembly_handler.rs`, `debug_handler.rs`, `navigation_handler.rs`).
+  - `analyzer.rs`: Auto-analysis (walking code, generating labels, building typed cross-references).
   - `assets.rs`: System asset loading (labels, comments, exclude lists).
   - `commands.rs`: The `Command` enum and `UndoStack`. Every undoable action is a command.
   - `config.rs`: System-wide configuration management.
-  - `core.rs`: Central orchestration logic (file loading, command dispatch, integration).
-  - `cpu.rs`: 6502 opcode table and addressing mode logic.
-  - `disassembler/`: 6502 decoding and assembler formatters (64tass, ACME, KickAssembler, ca65).
-  - `event.rs`: Application event types.
-  - `exporter/`: Code for exporting disassembly to ASM or HTML, with roundtrip verification.
+  - `core.rs`: Central orchestration logic (`Core` combining `AppState` and `CoreViewState`, and `apply_action` dispatch).
+  - `cpu.rs`: 6502 opcode table, addressing mode logic, and `Opcode::xref_kind()`.
+  - `disassembler/`: 6502 decoding, shared line geometry/lowering, and assembler formatters (64tass, ACME, KickAssembler, ca65).
+  - `error.rs`: Typed `thiserror` error hierarchy (`CoreError`).
+  - `event.rs`: Application event types (`CoreEvent`, `DialogType`).
+  - `exporter/`: 3-stage Exporter IR pipeline (`ir.rs`), pure ASM/HTML backends (`asm.rs`, `html.rs`), and roundtrip verification (`verify.rs`).
   - `mcp/`: MCP server implementation (stdio and HTTP transports). Contains `handler.rs` dispatcher and `tools/` submodules (`analysis_tools`, `navigation_tools`, `modification_tools`, `session_tools`, `common`).
   - `navigation.rs`: Address navigation logic.
   - `packers/`: Declarative 6502 binary packer specifications (`PackerSpec`, `Signature`, `Hints`, `MemoryPatch`, `PackerHooks` in `spec.rs`, and the ordered `REGISTRY` in `registry.rs`).
   - `parser/`: File format parsers (.prg, .d64/.d71/.d81, .t64, .crt, .vsf snapshots, .dis65, VICE labels).
-  - `state/`: Persistent application state and project serialization.
+  - `state/`: Persistent application state (`AppState`), sparse `AnnotationManager`, domain types, and project serialization.
   - `unpacker/`: 2-phase 6502 emulation unpacker sandbox (`bus.rs`, `cia.rs`, `machine.rs`, `engine.rs`, `detector.rs`, `UnpackReport`, `BoundSource`).
   - `utils.rs`: Shared utility functions.
   - `vice/`: VICE binary monitor protocol client for live debugging.
-  - `view_state.rs`: View state management.
+  - `view_state.rs`: View state management (`CoreViewState`).
 
 - **`regenerator2000-tui`**: Contains all terminal UI-related code.
-  - `ui/`: TUI widgets, views (`view_disassembly/` submodule breakdown [`layout.rs`, `navigation.rs`, `mouse.rs`, `render.rs`, `mod.rs`], HexDump, Sprites, Charset, Bitmap, Blocks, Debugger), and dialogs.
-  - `ui_state.rs`: Transient UI state (cursor, scroll, active dialog).
-  - `events/`: Input handling and event loop.
+  - `ui/`: TUI widgets (`widget.rs`, `navigable.rs`), top menu (`menu/`), views (`view_disassembly/` submodule breakdown [`layout.rs`, `navigation.rs`, `mouse.rs`, `render.rs`, `mod.rs`], HexDump, Sprites, Charset, Bitmap, Blocks, Debugger), and modal dialogs (`dialog_*.rs`, including unified `FileBrowserDialog`, `PromptDialog`, `ContainerPickerDialog`, and table-driven `DocumentSettingsDialog`).
+  - `ui_state.rs`: Transient UI state (cursor, scroll, active dialog, wrapping `CoreViewState` via `Deref`).
+  - `events.rs` & `events/`: Event loop, background task coordination, and input handling.
   - `theme.rs`: Color scheme and styling logic.
   - `theme_file.rs`: Theme file parsing and custom theme support.
   - `utils.rs`: TUI utility functions.
@@ -39,24 +41,25 @@ The project is split into two main crates to separate logic from presentation:
 ### Key Types (`crates/regenerator2000-core/src/state/types.rs`)
 
 - **`Addr`**: A wrapper around `u16` representing a 6502 address.
-- **`System`**: Target machine (C64, C128, VIC20, PET, etc.).
-- **`Assembler`**: Target assembler syntax (Tass64, Acme, Ca65, Kick).
-- **`BlockType`**: How a range of bytes is interpreted (Code, DataByte, DataWord, Address, PetsciiText, ScreencodeText, LoHiAddress, HiLoAddress, LoHiWord, HiLoWord, ExternalFile, Undefined).
-- **`LabelType`**: Semantic meaning of a label (Subroutine, Jump, Branch, Pointer, ZeroPagePointer, Field, ZeroPageField, AbsoluteAddress, ZeroPageAbsoluteAddress, ExternalJump, Predefined, UserDefined, LocalUserDefined).
+- **`TargetSystem`** (`System` alias): Target machine (`C64`, `C128`, `Vic20`, `Pet20`, `Pet40`, `Plus4`, `C16`, `C1541`, `C1571`, `C1581`, `Custom`).
+- **`Assembler`**: Target assembler syntax (`Tass64`, `Acme`, `Ca65`, `Kick`).
+- **`BlockType`**: How a range of bytes is interpreted (`Code`, `DataByte`, `DataWord`, `Address`, `PetsciiText`, `ScreencodeText`, `LoHiAddress`, `HiLoAddress`, `LoHiWord`, `HiLoWord`, `ExternalFile`, `Undefined`).
+- **`LabelType`**: Semantic meaning of a label (`Subroutine`, `Jump`, `Branch`, `Return`, `Pointer`, `ZeroPagePointer`, `Field`, `ZeroPageField`, `AbsoluteAddress`, `ZeroPageAbsoluteAddress`, `ExternalJump`, `Predefined`, `UserDefined`, `LocalUserDefined`).
+- **`XRef` / `XRefKind`**: Typed cross-reference edge (`from: Addr`, `kind: XRefKind` — `Read`, `Write`, `ReadModifyWrite`, `Call`, `Jump`, `Offset`).
 
 ### State Management
 
-- **`AppState`** (`crates/regenerator2000-core/src/state/app_state.rs`): The single source of truth for persistent data. Includes `raw_data`, `block_types`, `labels`, `user_side_comments`, `user_line_comments`, `undo_stack`, `settings`, `cross_refs`, `bookmarks`, and `scopes`. Serialized to `.regen2000proj`.
-- **`UIState`** (`crates/regenerator2000-tui/src/ui_state.rs`): Transient state like cursor positions, scroll offsets, and active dialogs. Never serialized.
+- **`AppState`** (`crates/regenerator2000-core/src/state/app_state.rs`): The single source of truth for persistent data. Includes `raw_data`, `block_types`, `labels`, `annotations` (`AnnotationManager` consolidating comments, immediate value formats, bookmarks, scopes, and enum usages), `undo_stack`, `settings`, `cross_refs` (`BTreeMap<Addr, Vec<XRef>>`), and `splitters`. Serialized to `.regen2000proj`.
+- **`UIState`** (`crates/regenerator2000-tui/src/ui_state.rs`): Transient state like cursor positions, scroll offsets, and active dialogs (wrapping `CoreViewState`). Never serialized.
 
 ## Application Logic Flow
 
 Regenerator 2000 follows a unidirectional data flow (Redux/Elm style):
 
-1. **Input**: `crates/regenerator2000-tui/src/events/input.rs` maps key events to `MenuAction`.
-2. **Dispatch**: `MenuAction` is converted into one or more `Command` variants.
+1. **Input**: `crates/regenerator2000-tui/src/events/input.rs` and `Widget::handle_input` map key events to `AppAction` (`MenuAction`).
+2. **Dispatch**: `handle_menu_action` (`crates/regenerator2000-tui/src/ui/menu/menu_action.rs`) forwards `AppAction` to `Core::apply_action`, which delegates to `action_handlers/` and converts actions into `Command` variants and `CoreEvent` notifications.
 3. **Execution**: `Command::apply(&mut AppState)` modifies the state and pushes to `UndoStack`.
-4. **Analysis**: `AppState::analyze()` (via `analyzer.rs`) updates labels and cross-references.
+4. **Analysis**: `AppState::perform_analysis()` (via `analyzer.rs`) updates labels and typed cross-references (`XRef`).
 5. **Render**: `ui()` in `crates/regenerator2000-tui/src/ui.rs` re-renders the TUI from `AppState` + `UIState`.
 
 ### No Logic Duplication — State Logic Lives in Core

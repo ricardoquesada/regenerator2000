@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.23] - 2026-11-07
+
+### Features
+
+- **Analyzer / UI / MCP**: Add typed cross-references (`XRef` and `XRefKind`: `Read` `[R]`, `Write` `[W]`, `ReadModifyWrite` `[R/W]`, `Call` `[C]`, `Jump` `[J]`, `Offset` `[O]`) across 6502 opcodes, `FindReferencesDialog` (`Ctrl+X`), and MCP tools (`r2000_get_cross_references`, `r2000_get_address_details`).
+- **MCP**: Support comment removal in `r2000_set_comment` by omitting `comment` or passing an empty string (`#43`).
+- **Unpacker**: Add `c64_wavehero_alz64.prg` and `c64_goblin.unk.prg` fixtures to the declarative unpacker corpus.
+
+### Fixes
+
+- **Disassembler & Exporters**: Fix `64tass` (`.block`/`.bend`, `-C`) and `KickAssembler` (`.namespace`) enum definition formatting, disambiguate `PetsciiShifted` duplicate variant names (`CBM_POUND`, `ALT_CBM_POUND`), close lexical scopes ending at the final binary byte, resolve split-byte table labels via `resolve_line_label`, prevent `a`/`x`/`y` register tokens from linking as HTML operands, and validate 2-byte PRG load-address headers in roundtrip verification.
+- **Analyzer & Core**: Align analyzer with 2-byte `BRK` rule, guard multi-byte instructions and word pairs against splitters and partial blocks, stop flow analysis on disabled illegal opcodes, preserve prior auto-labels on undo, support prefixed/unspaced/wildcard (`??`) hex search and case-insensitive PETSCII/Screencode search, and strip reverse-video bits in `screencode_to_petscii`.
+- **Unpacker & Packers**: Fix `$FFFF` anchor boundary scanning, Exomizer 2.x snapshot refinement, TBC table boundary checks, trailing-cluster density trimming, post-run CPU register snapshots (`a`, `x`, `y`, `sp`), and `SHX`/`SHY` illegal opcode bus/CIA cycle stepping.
+- **Parsers**: Fix inverted range panics in `dis65` and `t64`, cyclic directory sector loops in `d64`, `$FFFF` bank truncation in `crt`, `CARTGENERIC`/`C64MEM` ordering in `vice_vsf`, and `SYS` expression parsing in `basic`.
+- **VICE & Action Handlers**: Retain VICE event channel receiver on `ViceConnectAddress`, guard zero-sized register items and `1 MiB` payload limits in VICE protocol decoding, fix `handle_vice_registers_get` disassembly PC jump resolution with external labels, convert full collapsed-block ranges, and fix `HexDump8` alignment and external equate cursor preservation.
+- **MCP**: Fix block-conversion undo snapshots, `r2000_add_scope` bounds and duplicate-label validation, `HexDump8` selection ranges, enum rename/delete annotation cleanup, and JSON-RPC 2.0 notification handling.
+- **UI**: Fix `{splitter}` and non-navigable row cursor placement, tall menu popup scrolling, multi-byte PETSCII UTF-8 string truncation, dotted-stem save/export extensions, dialog refresh on `StateChanged`/`ViewChanged`, `CommentDialog` `PageUp`/`PageDown` scrolling, `OpenRecentDialog` container/CRT picker routing, mouse dialog queue promotion and clean MCP shutdown on quit, `UIState::restore_session` cursor/pane resets, and modifier guards across dialogs.
+
+### Refactor / Internal
+
+- **Exporter & Disassembler**: Refactor ASM and HTML exporters onto a unified 3-stage `ExportDocument` IR pipeline (`exporter/ir.rs`), unify `DisassemblyLine` lowering and `VisualLineCounts` across core and TUI, and consolidate shared 6502 operand formatting across all four assembler backends.
+- **UI**: Unify file browser dialogs into `FileBrowserDialog`, single-line prompt dialogs into `PromptDialog`, and disk/tape pickers into `ContainerPickerDialog`; make `DocumentSettingsDialog` table-driven; consolidate right-pane grid navigation into `navigable.rs`; remove the obsolete `BitmapView` responsiveness warning; and eliminate per-frame scans and hot-path allocations across TUI views and dialogs.
+- **Testing**: Add comprehensive unit test suites across core modules (`analyzer`, `assets`, `commands`, `config`, `navigation`, `parser`, `vice`, `utils`) and TUI dialogs, views, and layout helpers.
+
+### Documentation
+
+- **Docs**: Convert ASCII diagrams to Mermaid v11 across `docs/architecture.md`, `docs/unpacker.md`, and `docs/enums.md`, synchronize `docs/architecture.md`, `docs/unpacker.md`, `docs/settings.md`, `docs/mcp.md`, and `AGENTS.md` with post-refactor APIs, remove MathJax dependencies, and rewrite module, item, and inline documentation across `regenerator2000-core` and `regenerator2000-tui` in ASD-STE100 Simplified Technical English.
+
 ## [0.9.22] - 2026-10-31
 
 ### Features

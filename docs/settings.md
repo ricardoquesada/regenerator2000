@@ -22,7 +22,7 @@ The Settings dialog configures global application preferences. Select `File -> S
 │  [X] Default is Unexplored (for new files)       │
 │  [X] Check for updates                           │
 │                                                  │
-│  Entropy Warning Threshold: < 7.5 >              │
+│  Entropy Warning Threshold: < 7.4 >              │
 │                                                  │
 │  Theme: < Dracula >                              │
 │                                                  │

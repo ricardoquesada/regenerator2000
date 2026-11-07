@@ -68,7 +68,6 @@ Most packed programs begin with a BASIC bootstrap stub (such as `10 SYS 2061` on
 During decompression:
 
 - Every RAM write sets the corresponding address in the `written` and `written_phase2` bitmaps.
-- If the matched `PackerSpec` declares monitored pointers (`PointerAtDepacker`, `MonitoredMax`, `MonitoredMin`), `PointerMonitor` samples the pointer whenever `PC` hits `dep_addr`.
 - Emulation stops with a typed `ExitReason`:
   - `ExitReason::WrittenCodeReached { pc }`: `PC` returned to the program region (`pc >= ret_addr`, or `pc == ret_addr` when `Hints::exact_return` is enabled) at an address written during emulation.
   - `ExitReason::KnownEntryReached { pc }`: `PC` reached the packer's known `entry_point` after the initial 10-instruction guard.
@@ -82,7 +81,7 @@ When emulation finishes, the engine computes `(start_addr, end_addr, entry_point
 
 1. **Generic write/snapshot diff (`BoundSource::WriteDiff`)**: `detect_output_range` scans the `written` bitmap and diffs final RAM against the pre-emulation snapshot to trim depacker workspace clusters. The initial entry point is recorded as `BoundSource::ExitPc`, `BoundSource::SysLineLookup`, `BoundSource::SnapshotEntry`, or `BoundSource::Forced` (when `UnpackConfig::forced_entry` or `Hints::forced_entry` was used).
 2. **Static `PackerSpec` overrides (`BoundSource::PackerSpec { id }`)**: Static `Hints` (`Const`, `BasicStart`, `OperandLe`, `AbsoluteLe`) override `start_addr`, `end_addr`, or `entry_point`.
-3. **Post-run pointer overrides (`BoundSource::PointerAfterRun { addr }`)**: Runtime pointer sources (`PointerAfterRun` with `PointerGuard::NearDetectedEnd` or `PointerGuard::McCrackenEndOfProgram`, `PointerPlusRegister`, `PointerAtDepacker`, `MonitoredMax`, `MonitoredMin`) refine `end_addr` or `start_addr`.
+3. **Post-run pointer overrides (`BoundSource::PointerAfterRun { addr }`)**: Runtime pointer sources (`PointerAfterRun` with `PointerGuard::None`, `PointerGuard::NearDetectedEnd`, or `PointerGuard::McCrackenEndOfProgram`) refine `end_addr` or `start_addr`.
 4. **Hook refinement (`BoundSource::PackerRefine { id }`)**: If the packer provides `PackerHooks::refine`, any bound whose value changes is attributed to `PackerRefine { id }` (bounds left unchanged preserve their prior `BoundSource`).
 5. **BASIC `SYS` clamp (`BoundSource::SysLineClamp` / `BoundSource::SysLineLookup`)**: If a valid BASIC `SYS` line exists at `basic_start`, `entry_point` replaces a ROM/`basic_start` exit with `SysLineLookup` and `start_addr` is clamped downward to `basic_start` with `SysLineClamp`.
 6. **Entry containment clamp (`BoundSource::EntryClamp`)**: Ensures `entry_point` (when `>= $0200`) lies within `start_addr..=end_addr`.
@@ -108,10 +107,10 @@ When emulation finishes, the engine computes `(start_addr, end_addr, entry_point
 Packer detection and lifecycle hooks live under [`crates/regenerator2000-core/src/packers/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/packers). Instead of ad-hoc imperative detection chains, every packer is declared as a static `PackerSpec` in `packers/spec.rs` and registered in ascending `priority` order in `packers/registry.rs` (`REGISTRY` / `PACKERS`):
 
 - **Declarative Signatures (`Signature`, `Anchor`, `Pat`, `sig!`)**: Match exact bytes (`Pat::Byte`), wildcards (`_` / `__` → `Pat::Any`), bitmasks (`(mask, eq)` → `Pat::Mask`), or byte sets (`[a, b]` → `Pat::OneOf`) at anchors relative to `System::default_basic_start()` (`Anchor::BasicStart { offset }`), fixed addresses (`Anchor::Absolute`), address windows (`Anchor::Window`), forward/backward load scans (`Anchor::ScanFromLoad`, `Anchor::ScanBackFromEnd`), or candidate lists (`Anchor::Candidates`).
-- **Declarative Address Sources (`Hints`, `AddrSource`, `PointerGuard`)**: Express `dep_addr`, `start_addr`, `end_addr`, `entry_point`, `forced_entry`, and `exact_return` via `AddrSource::Const`, `AddrSource::BasicStart(i16)` (signed offset from `system.default_basic_start()`, e.g., `BasicStart(-1)` resolves to `$0800` on C64 without hardcoding platform constants), `AddrSource::OperandLe`, `AddrSource::AbsoluteLe`, `AddrSource::PointerAfterRun`, `AddrSource::PointerPlusRegister`, `AddrSource::PointerAtDepacker`, `AddrSource::MonitoredMax`, and `AddrSource::MonitoredMin`.
+- **Declarative Address Sources (`Hints`, `AddrSource`, `PointerGuard`)**: Express `dep_addr`, `start_addr`, `end_addr`, `entry_point`, `forced_entry`, and `exact_return` via `AddrSource::Const`, `AddrSource::BasicStart(i16)` (signed offset from `system.default_basic_start()`, e.g., `BasicStart(-1)` resolves to `$0800` on C64 without hardcoding platform constants), `AddrSource::OperandLe`, `AddrSource::AbsoluteLe`, and `AddrSource::PointerAfterRun`.
 - **Pre-Emulation Memory Patches (`MemoryPatch`, `PatchAddr`)**: Applied to RAM before the snapshot is taken (unconditionally or guarded by `expected: Some(byte)`), supporting packers such as Antiram and ALZ64/Kabuto.
 - **Per-Position Detection Escape Hatch (`PackerSpec::resolve`)**: Optional `fn(&LoadedImage<'_>, &SignatureMatch) -> Option<ResolvedSpec>` evaluated at each candidate anchor match when a packer requires secondary scans, computed operands, or position-dependent validation (returning `None` advances to the next candidate position in the anchor window).
-- **Encapsulated Emulation Hooks (`PackerHooks`, `StepContext`, `RefineContext`)**: The 4 packers that require emulation-time logic (`exomizer`, `tscrunch`, `dali`, `byteboozer`) implement `PackerHooks` (`on_step` and `refine`). `StepContext` exposes a value copy of `Registers`, side-effect-free raw RAM reads (`peek`, `peek_u16_le`), and Phase 1 write-tracking resets (`forget_writes`) without leaking internal `CPU` or `C64Bus` state.
+- **Encapsulated Emulation Hooks (`PackerHooks`, `StepContext`, `RefineContext`)**: The 4 packers that require emulation-time logic (`exomizer`, `tscrunch`, `dali`, `byteboozer`) implement `PackerHooks` (`on_step` and `refine`). `StepContext` exposes a value copy of `Registers`, side-effect-free raw RAM reads (`peek`), and Phase 1 write-tracking resets (`forget_writes`) without leaking internal `CPU` or `C64Bus` state.
 
 ### Registered Packers (21 Specs in `REGISTRY`)
 
@@ -227,14 +226,11 @@ The unpacker emulates hardware features that complex packers require:
 
 ## Using the Unpacker
 
-### 1. Automatic Entropy Detection
+### 1. Automatic Entropy & Packer Detection
 
-When you load a binary file, Regenerator 2000 calculates its **Shannon Entropy**. Compressed or encrypted binaries have high entropy (`>= 7.4`).
+When you load a binary file, Regenerator 2000 calculates its **Shannon Entropy** and runs `packers::registry::detect`. Compressed or encrypted binaries have high entropy (`>= 7.4`, configurable via **Entropy Warning Threshold** in System Settings).
 
-If a file has high entropy or matches a registered `PackerSpec` in `registry::detect`:
-
-1. **Import Context Setup Dialog**: Displays a warning at the bottom of the dialog (for example, `[!] High Entropy (7.82). Packed with Exomizer 3.0.`). It also focuses the **`< Unpack >`** button. Press **++enter++** to unpack immediately.
-2. **High Entropy Warning Dialog**: Alerts you when you open a packed binary.
+If a file has high entropy or matches a registered `PackerSpec`, the **Import Context** dialog displays a notice at the bottom of the dialog (for example, `[!] High Entropy (7.82). Packed with Exomizer 3.0.`) and focuses the **`< Unpack >`** button so you can press **++enter++** to unpack immediately.
 
 ### 2. Unpacking in the TUI
 

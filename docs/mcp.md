@@ -336,7 +336,7 @@ Returns instruction semantics, cross-references, labels, comments, and the block
 
 ### `r2000_get_binary_info`
 
-Returns the origin address, size, target platform, filename, description, Shannon entropy (values above `7.2` indicate compression), and illegal-opcode hint.
+Returns the origin address, size, target platform, filename, description, Shannon entropy (values above `7.4` indicate compression), and illegal-opcode hint.
 
 _No arguments._
 

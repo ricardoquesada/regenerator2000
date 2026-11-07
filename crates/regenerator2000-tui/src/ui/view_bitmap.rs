@@ -191,7 +191,7 @@ impl Widget for BitmapView {
         // Calculate width based on image aspect ratio (320:200 = 8:5) and terminal cell ratio (~1:2)
         // For H rows displaying 200 logical pixels, we need W columns displaying 320 logical pixels
         // Terminal cells are roughly 1:2 (width:height), so W = H * (320/200) * 2 = H * 3.2
-        let image_height = inner_area.height.saturating_sub(6);
+        let image_height = inner_area.height.saturating_sub(5);
         let image_width = (f32::from(image_height) * 3.2) as u16;
         let image_width = image_width.min(inner_area.width);
         let image_area = Rect::new(inner_area.x, inner_area.y + 2, image_width, image_height);
@@ -214,7 +214,7 @@ impl Widget for BitmapView {
             Paragraph::new(selector_text).style(Style::default().fg(ui_state.theme.foreground)),
             Rect::new(
                 inner_area.x,
-                inner_area.bottom().saturating_sub(3),
+                inner_area.bottom().saturating_sub(2),
                 inner_area.width,
                 1,
             ),
@@ -223,17 +223,6 @@ impl Widget for BitmapView {
         f.render_widget(
             Paragraph::new("[s] next • [S] prev • [x] after bitmap")
                 .style(Style::default().fg(ui_state.theme.comment)),
-            Rect::new(
-                inner_area.x,
-                inner_area.bottom().saturating_sub(2),
-                inner_area.width,
-                1,
-            ),
-        );
-
-        f.render_widget(
-            Paragraph::new("WARNING: This view makes the application less responsive.")
-                .style(Style::default().fg(ui_state.theme.error_fg)),
             Rect::new(
                 inner_area.x,
                 inner_area.bottom().saturating_sub(1),
