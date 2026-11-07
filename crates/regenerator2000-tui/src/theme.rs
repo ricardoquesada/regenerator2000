@@ -1,6 +1,5 @@
 use ratatui::style::Color;
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Theme {
     pub name: String,
@@ -92,27 +91,17 @@ impl Default for Theme {
 }
 
 impl Theme {
-    /// Load a theme by display name.
+    /// Loads a theme by display name.
     ///
-    /// Custom themes from the user's config directory take precedence over
-    /// built-in embedded themes.  If the name is not found, falls back to
-    /// "Solarized Dark".
+    /// Custom themes in the user configuration directory override built-in
+    /// themes. Unknown names fall back to `"Solarized Dark"`.
     #[must_use]
     pub fn from_name(name: &str) -> Self {
-        // Check custom themes first (user overrides take precedence)
-        if let Some(theme) = crate::theme_file::find_custom_theme(name) {
-            return theme;
-        }
-        // Then check built-in embedded themes
-        if let Some(theme) = crate::theme_file::find_builtin_theme(name) {
-            return theme;
-        }
-        // Fallback: load "Solarized Dark" from embedded assets
-        crate::theme_file::find_builtin_theme("Solarized Dark")
-            .unwrap_or_else(crate::theme_file::default_fallback_theme)
+        crate::theme_file::find_custom_theme(name)
+            .unwrap_or_else(|| crate::theme_file::builtin_theme_by_name(name))
     }
 
-    /// Return the display names of all available themes (built-in + custom).
+    /// Returns the display names of all built-in and custom themes.
     #[must_use]
     pub fn all_names() -> Vec<String> {
         let mut names = crate::theme_file::builtin_theme_names();

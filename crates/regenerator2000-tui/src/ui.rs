@@ -130,95 +130,54 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
 
 #[cfg(test)]
 mod tests {
-    use crate::cpu::{AddressingMode, Opcode};
-    use crate::disassembler::DisassemblyLine;
-    use crate::state::AppState;
+    use super::*;
+    use crate::state::{Addr, BlockType};
+    use crate::theme::Theme;
+    use ratatui::{Terminal, backend::TestBackend};
 
-    fn make_line(
-        addr: u16,
-        mnemonic: &str,
-        operand: &str,
-        target: Option<u16>,
-        opcode: Option<Opcode>,
-    ) -> DisassemblyLine {
-        DisassemblyLine {
-            address: crate::state::Addr(addr),
-            bytes: vec![],
-            mnemonic: mnemonic.to_string(),
-            operand: operand.to_string(),
-            comment: String::new(),
-            line_comment: None,
-            label: None,
-            opcode,
-            show_bytes: false,
-            target_address: target.map(crate::state::Addr),
-            external_label_address: None,
-            is_collapsed: false,
-        }
-    }
+    #[test]
+    fn ui_populates_layout_rects_and_splits_right_pane() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0800);
+        app_state.raw_data = vec![0xEA; 32];
+        app_state.block_types = vec![BlockType::Code; 32];
+        app_state.disassemble();
 
-    fn make_jmp_indirect_opcode() -> Option<Opcode> {
-        Some(Opcode::new(
-            "JMP",
-            AddressingMode::Indirect,
-            3,
-            5,
-            "Jump Indirect",
-        ))
-    }
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.dismiss_logo = true;
+        ui_state.right_pane = RightPane::HexDump16;
 
-    fn make_jmp_abs_opcode() -> Option<Opcode> {
-        Some(Opcode::new(
-            "JMP",
-            AddressingMode::Absolute,
-            3,
-            3,
-            "Jump Absolute",
-        ))
+        let backend = TestBackend::new(140, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| ui(f, &app_state, &mut ui_state)).unwrap();
+
+        assert_eq!(ui_state.menu_area, Rect::new(0, 0, 140, 1));
+        assert_eq!(ui_state.minimap_area, Rect::new(0, 1, 140, 1));
+        assert_eq!(ui_state.main_area, Rect::new(0, 2, 140, 27));
+        assert_eq!(ui_state.status_bar_area, Rect::new(0, 29, 140, 1));
+        assert_eq!(ui_state.right_pane_area.width, 78);
+        assert_eq!(ui_state.disassembly_area.width, 140 - 78);
+
+        ui_state.right_pane = RightPane::None;
+        terminal.draw(|f| ui(f, &app_state, &mut ui_state)).unwrap();
+        assert_eq!(ui_state.right_pane_area.width, 0);
+        assert_eq!(ui_state.disassembly_area.width, 140);
     }
 
     #[test]
-    fn test_arrow_filtering_indirect_jmp() {
-        let lines = vec![
-            // 0: JMP ($1000) - Should be filtered out
-            make_line(
-                0x1000,
-                "JMP",
-                "($1000)",
-                Some(0x2000),
-                make_jmp_indirect_opcode(),
-            ),
-            // 1: NOP
-            make_line(0x1003, "NOP", "", None, None),
-            // 2: JMP $1000 - Should NOT be filtered out (though valid arrow)
-            make_line(0x1004, "JMP", "$1000", Some(0x1000), make_jmp_abs_opcode()),
-        ];
+    fn ui_renders_and_restores_active_dialog() {
+        let app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.dismiss_logo = true;
+        ui_state.push_dialog(Box::new(
+            crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
+        ));
 
-        let mut app_state = AppState::new();
-        app_state.disassembly = lines;
-        app_state.settings.max_arrow_columns = 5;
+        let backend = TestBackend::new(100, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| ui(f, &app_state, &mut ui_state)).unwrap();
 
-        // We can't easily call render_disassembly here as it requires Frame and UIState.
-        // However, we can assert that the specific logic path works by reproducing the check here
-        // or by trusting that if we verified the logic match, it works.
-        // Ideally, we'd refactor the arrow generation logic into a pure function `get_arrows(disassembly) -> Vec<Arrow>`.
-        // Given constraints, this test ensures struct compatibility and compilation of the opcode helpers.
-
-        // Manual verification of the logic block:
-        let line = &app_state.disassembly[0];
-        let should_skip = if let Some(opcode) = &line.opcode {
-            opcode.mnemonic == "JMP" && opcode.mode == AddressingMode::Indirect
-        } else {
-            false
-        };
-        assert!(should_skip, "Indirect JMP should be skipped by opcode mode");
-
-        let line2 = &app_state.disassembly[2];
-        let should_skip2 = if let Some(opcode) = &line2.opcode {
-            opcode.mnemonic == "JMP" && opcode.mode == AddressingMode::Indirect
-        } else {
-            false
-        };
-        assert!(!should_skip2, "Absolute JMP should NOT be skipped");
+        assert!(ui_state.active_dialog.is_some());
+        assert!(ui_state.active_dialog_area.width > 0);
     }
 }

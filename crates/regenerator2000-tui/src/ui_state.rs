@@ -25,9 +25,6 @@ pub struct UIState {
 
     pub menu: MenuState,
 
-    #[allow(dead_code)]
-    pub disassembly_state: ListState,
-
     pub blocks_list_state: ListState,
     pub bookmarks_list_state: ListState,
     pub recent_list_state: ListState,
@@ -56,8 +53,8 @@ pub struct UIState {
     // Version update notification
     pub new_version_available: Option<String>,
 
-    // Flash countdown for debugger status line when breakpoint/watchpoint is hit.
-    // Decremented on timer ticks; while > 0, renders with attention-grabbing style.
+    // Flash countdown for the debugger status line when a breakpoint or watchpoint hits.
+    // Each timer tick decrements this value. Non-zero values render with an alert style.
     pub debugger_flash_remaining: u8,
     /// Cached live disassembly lines for `DebuggerView` keyed by `(mem_start, live_bytes)`.
     pub debugger_disasm_cache: Option<(
@@ -109,7 +106,6 @@ impl UIState {
             file_dialog_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
 
             menu: MenuState::new(),
-            disassembly_state: ListState::default(),
             blocks_list_state: ListState::default(),
             bookmarks_list_state: ListState::default(),
             recent_list_state: ListState::default(),
@@ -162,28 +158,27 @@ impl UIState {
         self.status_bar.set_message(msg);
     }
 
-    /// Synchronize the TUI status bar with any message set in CoreViewState.
-    /// Used after calling core functions that might update status_message.
+    /// Synchronizes the TUI status bar with any message stored in `CoreViewState`.
     pub fn sync_status_message(&mut self) {
         if let Some(msg) = self.core.status_message.take() {
             self.status_bar.set_message(msg);
         }
     }
 
-    /// Sync TUI-specific state (like ListState) TO CoreViewState.
+    /// Synchronizes TUI-managed widget state into `CoreViewState`.
     pub fn sync_tui_to_core(&mut self) {
         self.core.blocks_selected_index = self.blocks_list_state.selected();
     }
 
-    /// Sync CoreViewState state TO TUI-specific state (like ListState).
+    /// Synchronizes `CoreViewState` fields into TUI-managed widget state.
     pub fn sync_core_to_tui(&mut self) {
         if let Some(idx) = self.core.blocks_selected_index {
             self.blocks_list_state.select(Some(idx));
         }
     }
 
-    /// Infers the full terminal bounds from the recorded layout rects, falling back to
-    /// `u16::MAX` height when only `menu_area` has been populated (e.g. in unit tests).
+    /// Infers the full terminal bounds from the recorded layout rectangles.
+    /// Falls back to `u16::MAX` height when only `menu_area` is set, such as in unit tests.
     #[must_use]
     pub fn terminal_area(&self) -> ratatui::layout::Rect {
         let areas = [

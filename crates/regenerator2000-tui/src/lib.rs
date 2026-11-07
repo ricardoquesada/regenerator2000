@@ -10,8 +10,8 @@
 //! - **[`theme`]** — Color themes (Dracula, Nord, Catppuccin, Gruvbox, Solarized, Monokai, and more).
 //! - **[`ui_state`]** — Transient rendering state: cursor positions, scroll offsets, active dialog.
 //!
-//! All persistent state lives in [`regenerator2000_core::state::AppState`]; this crate
-//! only manages the terminal rendering and user interaction layer.
+//! All persistent state lives in [`regenerator2000_core::state::AppState`]. This crate
+//! manages only the terminal rendering and user interaction layer.
 
 // Stability: deny panic-inducing patterns in production code.
 // Tests are exempt so they can keep using .unwrap() / .expect() ergonomically.

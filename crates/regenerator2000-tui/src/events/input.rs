@@ -1,25 +1,24 @@
 //! Global keyboard shortcut fallback handler (Layer 1 of the keyboard shortcut architecture).
 //!
-//! Invoked by `events::handle_key_event_active_view` whenever the active pane's widget returns
-//! [`crate::ui::widget::WidgetResult::Ignored`]. Handles application-wide shortcuts (`Ctrl+*`,
-//! `Alt+*`, `F1`–`F10`, `Tab`, `Esc`, and global `u` Undo) across all 7 [`crate::ui_state::ActivePane`]s.
+//! `events::handle_key_event_active_view` calls [`handle_global_input`] when the active pane
+//! returns [`crate::ui::widget::WidgetResult::Ignored`]. This module handles application-wide
+//! shortcuts (`Ctrl+*`, `Alt+*`, `F2`–`F10`, `Tab`, `Esc`, and `u`) across all 7 panes.
 
 use crate::events::AppEvent;
+use crate::state::actions::AppAction;
+use crate::ui::menu::handle_menu_action;
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use regenerator2000_core::Core;
 
-use crate::ui::menu::handle_menu_action;
-
-/// Processes application-wide keyboard shortcuts that were not consumed by a modal dialog,
-/// active menu bar, inline Vim search bar, or the focused view's [`crate::ui::widget::Widget::handle_input`].
+/// Processes application-wide keyboard shortcuts when the active pane ignores a key event.
 ///
 /// # Cross-Terminal Shifted Modifier Resilience
-/// Terminal emulators and keyboard protocols differ in how they report shifted modifier
-/// combinations (e.g. legacy ANSI `ESC G` vs. the Kitty keyboard protocol): some report
-/// `KeyCode::Char('g')` with `KeyModifiers::SHIFT`, while others report uppercase
-/// `KeyCode::Char('G')` with `KeyModifiers::SHIFT`. All `Ctrl+Shift+*` and `Alt+Shift+*` arms
-/// therefore match both lowercase and uppercase `KeyCode::Char` variants.
+///
+/// Terminal emulators report shifted modifier combinations differently. Legacy ANSI terminals
+/// send `KeyCode::Char('g')` with `KeyModifiers::SHIFT`, while the Kitty protocol sends
+/// `KeyCode::Char('G')` with `KeyModifiers::SHIFT`. Every `Ctrl+Shift+*` and `Alt+Shift+*`
+/// arm matches both lowercase and uppercase `KeyCode::Char` variants.
 pub fn handle_global_input(
     key: KeyEvent,
     core: &mut Core,
@@ -27,364 +26,92 @@ pub fn handle_global_input(
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
 ) {
     match key.code {
-        KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::Exit,
-                event_tx,
-            );
-        }
-
-        // VICE Debugger begin
-        // VICE keyboard shortcuts are global, at least the "F" keys, since they can be used from different views.
-        KeyCode::F(2) if key.modifiers.is_empty() => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ViceToggleBreakpoint,
-                event_tx,
-            );
-        }
-        KeyCode::F(2) if key.modifiers == KeyModifiers::SHIFT => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ViceBreakpointDialog,
-                event_tx,
-            );
-        }
-        KeyCode::F(6) if key.modifiers.is_empty() => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ViceToggleWatchpoint,
-                event_tx,
-            );
-        }
-        KeyCode::F(4) if key.modifiers.is_empty() => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ViceRunToCursor,
-                event_tx,
-            );
-        }
-        KeyCode::F(7) if key.modifiers.is_empty() => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ViceStep,
-                event_tx,
-            );
-        }
-        KeyCode::F(8) if key.modifiers.is_empty() => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ViceStepOver,
-                event_tx,
-            );
-        }
-        KeyCode::F(8) if key.modifiers == KeyModifiers::SHIFT => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ViceStepOut,
-                event_tx,
-            );
-        }
-        KeyCode::F(9) if key.modifiers.is_empty() => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ViceContinue,
-                event_tx,
-            );
-        }
         KeyCode::F(10) if key.modifiers.is_empty() => {
             ui_state.menu.active = true;
             ui_state.menu.select_first_enabled_item();
             ui_state.set_status_message("Menu Active");
+            return;
         }
-        // VICE Debugger end
         KeyCode::Char(c)
             if key.modifiers == KeyModifiers::ALT
                 && ui_state.menu.select_category_by_accelerator(c) =>
         {
             ui_state.menu.active = true;
             ui_state.set_status_message("Menu Active");
-        }
-        KeyCode::Char('x') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::FindReferences,
-                event_tx,
-            );
-        }
-        KeyCode::Char('p') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::GoToSymbol,
-                event_tx,
-            );
-        }
-        // Global Shortcuts
-        // Match both lowercase and uppercase characters on `Ctrl+Shift+*` / `Alt+Shift+*`
-        // so shortcuts work regardless of whether the terminal sends `'o'` or `'O'` with `SHIFT`.
-        KeyCode::Char('o') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::Open,
-                event_tx,
-            );
-        }
-        KeyCode::Char('o' | 'O')
-            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-                || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::OpenRecent,
-                event_tx,
-            );
-        }
-        KeyCode::Char('a') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::Analyze,
-                event_tx,
-            );
-        }
-        KeyCode::Char('s') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::Save,
-                event_tx,
-            );
-        }
-        KeyCode::Char('s' | 'S')
-            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-                || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::SaveAs,
-                event_tx,
-            );
-        }
-        KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ExportAsm,
-                event_tx,
-            );
-        }
-        KeyCode::Char('e' | 'E')
-            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-                || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ExportAsmAs,
-                event_tx,
-            );
-        }
-
-        KeyCode::Char(',') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::SystemSettings,
-                event_tx,
-            );
-        }
-        KeyCode::Char('p') if key.modifiers == KeyModifiers::ALT => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::SystemSettings,
-                event_tx,
-            );
-        }
-
-        KeyCode::Char('d' | 'D')
-            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-                || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::DocumentSettings,
-                event_tx,
-            );
-        }
-
-        // Bookmark shortcuts (`Ctrl+B` and `Alt+B` / `Ctrl+Shift+B`) are handled globally
-        // so that users can toggle or list bookmarks from any pane (and never accidentally
-        // trigger view-local `'b'` byte conversions in `BitmapView`, `HexDumpView`, etc.).
-        KeyCode::Char('b') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ToggleBookmark,
-                event_tx,
-            );
-        }
-        KeyCode::Char('b' | 'B')
-            if key.modifiers == KeyModifiers::ALT
-                || key.modifiers == (KeyModifiers::ALT | KeyModifiers::SHIFT)
-                || key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ListBookmarks,
-                event_tx,
-            );
-        }
-
-        KeyCode::Char('u') if key.modifiers.is_empty() => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::Undo,
-                event_tx,
-            );
-        }
-        KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::Redo,
-                event_tx,
-            );
-        }
-        KeyCode::Char('1')
-            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ToggleBlocksView,
-                event_tx,
-            );
-        }
-        KeyCode::Char('2')
-            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ToggleHexDump,
-                event_tx,
-            );
-        }
-        KeyCode::Char('3')
-            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ToggleSpritesView,
-                event_tx,
-            );
-        }
-        KeyCode::Char('4')
-            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ToggleCharsetView,
-                event_tx,
-            );
-        }
-        KeyCode::Char('5')
-            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ToggleBitmapView,
-                event_tx,
-            );
-        }
-        KeyCode::Char('6')
-            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ToggleDebuggerView,
-                event_tx,
-            );
-        }
-        KeyCode::Char('g')
-            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::JumpToAddress,
-                event_tx,
-            );
-        }
-        KeyCode::Char('g' | 'G')
-            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-                || key.modifiers == (KeyModifiers::ALT | KeyModifiers::SHIFT) =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::JumpToLine,
-                event_tx,
-            );
-        }
-        KeyCode::Char('n') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::JumpNextUnexplored,
-                event_tx,
-            );
-        }
-        KeyCode::Char('n' | 'N')
-            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) =>
-        {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::JumpPrevUnexplored,
-                event_tx,
-            );
-        }
-        KeyCode::Tab => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::CyclePane,
-                event_tx,
-            );
+            return;
         }
         KeyCode::Esc => {
             ui_state.input_buffer.clear();
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::Cancel,
-                event_tx,
-            );
+            handle_menu_action(core, ui_state, AppAction::Cancel, event_tx);
+            return;
         }
         _ => {}
+    }
+
+    if let Some(action) = global_action_for_key(key) {
+        handle_menu_action(core, ui_state, action, event_tx);
+    }
+}
+
+/// Maps a global shortcut [`KeyEvent`] to its corresponding [`AppAction`].
+#[must_use]
+fn global_action_for_key(key: KeyEvent) -> Option<AppAction> {
+    let ctrl = key.modifiers == KeyModifiers::CONTROL;
+    let alt = key.modifiers == KeyModifiers::ALT;
+    let shift = key.modifiers == KeyModifiers::SHIFT;
+    let ctrl_or_alt = ctrl || alt;
+    let ctrl_shift = key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT);
+    let alt_shift = key.modifiers == (KeyModifiers::ALT | KeyModifiers::SHIFT);
+    let no_mod = key.modifiers.is_empty();
+
+    match key.code {
+        KeyCode::Char('q') if ctrl => Some(AppAction::Exit),
+
+        // VICE debugger function keys operate globally across all panes.
+        KeyCode::F(2) if no_mod => Some(AppAction::ViceToggleBreakpoint),
+        KeyCode::F(2) if shift => Some(AppAction::ViceBreakpointDialog),
+        KeyCode::F(4) if no_mod => Some(AppAction::ViceRunToCursor),
+        KeyCode::F(6) if no_mod => Some(AppAction::ViceToggleWatchpoint),
+        KeyCode::F(7) if no_mod => Some(AppAction::ViceStep),
+        KeyCode::F(8) if no_mod => Some(AppAction::ViceStepOver),
+        KeyCode::F(8) if shift => Some(AppAction::ViceStepOut),
+        KeyCode::F(9) if no_mod => Some(AppAction::ViceContinue),
+
+        KeyCode::Char('x') if ctrl => Some(AppAction::FindReferences),
+        KeyCode::Char('p') if ctrl => Some(AppAction::GoToSymbol),
+        KeyCode::Char('o') if ctrl => Some(AppAction::Open),
+        KeyCode::Char('o' | 'O') if ctrl_shift || alt => Some(AppAction::OpenRecent),
+        KeyCode::Char('a') if ctrl => Some(AppAction::Analyze),
+        KeyCode::Char('s') if ctrl => Some(AppAction::Save),
+        KeyCode::Char('s' | 'S') if ctrl_shift || alt => Some(AppAction::SaveAs),
+        KeyCode::Char('e') if ctrl => Some(AppAction::ExportAsm),
+        KeyCode::Char('e' | 'E') if ctrl_shift || alt => Some(AppAction::ExportAsmAs),
+        KeyCode::Char(',') if ctrl => Some(AppAction::SystemSettings),
+        KeyCode::Char('p') if alt => Some(AppAction::SystemSettings),
+        KeyCode::Char('d' | 'D') if ctrl_shift || alt => Some(AppAction::DocumentSettings),
+
+        // Global bookmark shortcuts prevent view-local `'b'` bindings from intercepting them.
+        KeyCode::Char('b') if ctrl => Some(AppAction::ToggleBookmark),
+        KeyCode::Char('b' | 'B') if alt || alt_shift || ctrl_shift => {
+            Some(AppAction::ListBookmarks)
+        }
+
+        KeyCode::Char('u') if no_mod => Some(AppAction::Undo),
+        KeyCode::Char('r') if ctrl => Some(AppAction::Redo),
+
+        KeyCode::Char('1') if ctrl_or_alt => Some(AppAction::ToggleBlocksView),
+        KeyCode::Char('2') if ctrl_or_alt => Some(AppAction::ToggleHexDump),
+        KeyCode::Char('3') if ctrl_or_alt => Some(AppAction::ToggleSpritesView),
+        KeyCode::Char('4') if ctrl_or_alt => Some(AppAction::ToggleCharsetView),
+        KeyCode::Char('5') if ctrl_or_alt => Some(AppAction::ToggleBitmapView),
+        KeyCode::Char('6') if ctrl_or_alt => Some(AppAction::ToggleDebuggerView),
+
+        KeyCode::Char('g') if ctrl_or_alt => Some(AppAction::JumpToAddress),
+        KeyCode::Char('g' | 'G') if ctrl_shift || alt_shift => Some(AppAction::JumpToLine),
+        KeyCode::Char('n') if ctrl => Some(AppAction::JumpNextUnexplored),
+        KeyCode::Char('n' | 'N') if ctrl_shift => Some(AppAction::JumpPrevUnexplored),
+
+        KeyCode::Tab if no_mod => Some(AppAction::CyclePane),
+        _ => None,
     }
 }

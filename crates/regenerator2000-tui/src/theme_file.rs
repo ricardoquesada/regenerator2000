@@ -1,17 +1,17 @@
 //! TOML-based theme file loading, saving, and serialization.
 //!
-//! Provides a serializable representation of [`Theme`] that can be read from
-//! and written to `theme-*.toml` files, enabling user-created custom themes.
+//! [`ThemeFile`] serializes and deserializes [`Theme`] values in `theme-*.toml`
+//! files so users can create custom themes.
 //!
-//! Built-in themes are stored as embedded `theme-*.toml` assets in the
-//! `assets/themes/` directory and loaded at runtime via [`mod@include_dir`].
-//! User-created themes in the config directory take precedence over built-ins.
+//! [`mod@include_dir`] embeds the built-in `theme-*.toml` files from
+//! `assets/themes/` and loads them at runtime. User-created themes in the
+//! configuration directory override built-in themes with the same name.
 //!
 //! # File format
 //!
-//! Theme files are TOML documents whose keys mirror the fields of [`Theme`].
-//! Colors are specified as hex strings (`"#RRGGBB"`).  An optional `base` key
-//! names a built-in theme whose values are used for any omitted fields.
+//! Theme files are TOML documents whose keys match the fields of [`Theme`].
+//! Each color uses a 6-digit hex string (`"#RRGGBB"`). An optional `base` key
+//! names a built-in theme that supplies default values for omitted fields.
 //!
 //! ```text
 //! name = "Green Screen"
@@ -476,14 +476,13 @@ pub fn builtin_theme_names() -> Vec<String> {
     names
 }
 
-/// Look up a built-in theme by name, without checking custom themes.
-/// Used as the fallback for the `base` field in theme files.
+/// Looks up a built-in theme by name and falls back to `"Solarized Dark"`.
 ///
 /// Reads [`BUILTIN_THEMES`] via [`OnceLock::get`] rather than [`OnceLock::get_or_init`] so
 /// calling this function while `load_builtin_themes` is initializing [`BUILTIN_THEMES`] never
 /// deadlocks on re-entrant `OnceLock` initialization.
 #[must_use]
-fn builtin_theme_by_name(name: &str) -> Theme {
+pub(crate) fn builtin_theme_by_name(name: &str) -> Theme {
     if let Some(themes) = BUILTIN_THEMES.get() {
         return themes
             .iter()

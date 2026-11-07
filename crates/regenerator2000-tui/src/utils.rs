@@ -3,29 +3,8 @@
 pub use regenerator2000_core::utils::*;
 
 use image::DynamicImage;
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::layout::Rect;
 use ratatui_image::picker::Picker;
-
-#[must_use]
-pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
-}
 
 #[must_use]
 pub fn centered_rect_adaptive(
@@ -51,26 +30,14 @@ pub fn centered_rect_adaptive(
 #[must_use]
 pub fn load_logo() -> Option<DynamicImage> {
     let logo_bytes = include_bytes!("../assets/regenerator2000_logo.png");
-    if let Ok(img) = image::load_from_memory(logo_bytes) {
-        return Some(img);
-    }
-    None
+    image::load_from_memory(logo_bytes).ok()
 }
+
 #[must_use]
 pub fn create_picker() -> Option<Picker> {
     let font_size = (8, 16);
-    // Force Kitty protocol for Ghostty if autodetection fails/blurs.
-    // ratatui-image 0.9 Picker::new(font_size) might be available.
     #[allow(deprecated)]
     let picker = Picker::from_fontsize(font_size.into());
-
-    // Attempt to force Kitty for Ghostty
-    if std::env::var("TERM_PROGRAM").unwrap_or_default() == "ghostty" {
-        // This is a guess at the API since autodetection is failing.
-        // We'll see if this compiles.
-        // picker.protocol_type = ProtocolType::Kitty;
-    }
-
     Some(picker)
 }
 
@@ -86,5 +53,14 @@ mod tests {
         assert_eq!(rect.width, 800);
         assert_eq!(rect.height, (u32::from(u16::MAX) * 60 / 100) as u16);
         assert_eq!(rect.x, 100);
+
+        // Minimum dimensions clamp up when percentage is smaller, and clamp down to outer rect when smaller than min.
+        let medium = Rect::new(10, 5, 100, 40);
+        let clamped_min = centered_rect_adaptive(20, 50, 20, 16, medium);
+        assert_eq!(clamped_min, Rect::new(35, 17, 50, 16));
+
+        let tiny = Rect::new(0, 0, 30, 10);
+        let clamped_outer = centered_rect_adaptive(80, 50, 80, 20, tiny);
+        assert_eq!(clamped_outer, Rect::new(0, 0, 30, 10));
     }
 }

@@ -1,26 +1,19 @@
 //! Comprehensive 3-Pillar Keyboard Shortcut Verification Suite.
 //!
-//! This module exercises the full TUI key-routing pipeline (`events::process_key_event` ->
-//! modal dialogs -> menu bar -> inline Vim search -> active pane `Widget::handle_input` ->
-//! `navigable::handle_nav_input` -> `events::input::handle_global_input` ->
-//! `menu_action::handle_menu_action` -> `Core::apply_action`) without coupling assertions to
-//! fragile pixel/cell coordinates.
+//! This module tests the full TUI key-routing pipeline through [`process_key_event`] without
+//! coupling assertions to terminal pixel or cell coordinates.
 //!
 //! # Architecture of the 3 Pillars
 //!
 //! - **Pillar 1 (`test_global_shortcuts_across_all_panes`)**: Iterates over all 7 [`ActivePane`]
-//!   variants (`Disassembly`, `HexDump`, `Sprites`, `Charset`, `Bitmap`, `Blocks`, `Debugger`)
-//!   and verifies that every global shortcut produces its expected application-wide effect and
-//!   is never shadowed or hijacked by view-local single-character bindings (such as `'s'`, `'x'`,
-//!   `'m'`, or `'b'` in `BitmapView`).
+//!   variants. Verifies that every global shortcut produces its expected effect and view-local
+//!   bindings never hijack global shortcuts.
 //! - **Pillar 2 (`test_navigable_shortcuts_all_views`, `test_*_view_shortcuts`, `test_menu_and_dialog_navigation`)**:
-//!   Exercises every view-local, [`Navigable`](crate::ui::navigable::Navigable), visual-selection,
-//!   scope-nudging (`Alt+Up`/`Alt+Down`), and modal dialog shortcut end-to-end through
-//!   [`crate::events::process_key_event`], including shifted/unshifted modifier resilience across
-//!   terminal protocols.
-//! - **Pillar 3 (`test_shortcut_layers_synchronization`)**: Enforces 4-layer metadata parity across
-//!   Layer 1 (live input dispatch), Layer 2 ([`MenuState::new`]), Layer 3
-//!   ([`ShortcutsDialog::get_shortcuts`]), and Layer 4 (`docs/keyboard_shortcuts.md`).
+//!   Exercises view-local, [`Navigable`], selection, scope-nudging, and dialog shortcuts through
+//!   [`process_key_event`]. Tests both shifted and unshifted key modifier variants.
+//! - **Pillar 3 (`test_shortcut_layers_synchronization`)**: Verifies 4-layer metadata parity across
+//!   live input dispatch, [`MenuState::new`], [`ShortcutsDialog::get_shortcuts`], and
+//!   `docs/keyboard_shortcuts.md`.
 
 use crate::events::process_key_event;
 use crate::state::types::{BlockType, HexdumpViewMode, ImmediateFormat};

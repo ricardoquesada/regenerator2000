@@ -34,13 +34,13 @@ pub enum AppEvent {
     ),
 }
 
-/// Outcome returned by per-event-type handlers to tell the main loop what to do.
+/// Tells the main loop how to proceed after an event handler runs.
 enum EventOutcome {
-    /// Event was processed; render if `should_render` is true.
+    /// Continue the loop and render when `should_render` is true.
     Continue,
-    /// The event was a non-press key repeat/release — skip to the next event.
+    /// Skip non-press key repeat or release events.
     Skip,
-    /// The user requested to quit.
+    /// Quit the application.
     Quit,
 }
 
@@ -220,11 +220,9 @@ pub fn spawn_mcp_server_thread(
 
 /// Spawns the MCP HTTP server thread on `port` and returns a shutdown sender handle.
 ///
-/// The background thread binds `127.0.0.1:{port}` **before** emitting [`AppEvent::McpServerStarted`].
-/// If binding fails (for example, `Address already in use` because another instance already holds
-/// the port), it emits only [`AppEvent::McpError`] and exits without emitting
-/// [`AppEvent::McpServerStopped`], ensuring the error message in the TUI status bar is never
-/// overwritten by a spurious "MCP Server stopped." message.
+/// The background thread binds `127.0.0.1:{port}` before it emits [`AppEvent::McpServerStarted`].
+/// If binding fails, the thread emits [`AppEvent::McpError`] and exits without [`AppEvent::McpServerStopped`].
+/// This keeps the bind error visible in the TUI status bar.
 #[must_use]
 pub fn spawn_mcp_server_thread_on_port(
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
@@ -490,18 +488,7 @@ fn handle_vice_registers_get(
                 hit_id.is_some_and(|id| bp.id == id)
                     || (bp.kind == crate::vice::state::BreakpointKind::Exec && bp.address == pc)
             })
-            .map(|bp| {
-                if bp.kind == crate::vice::state::BreakpointKind::Exec {
-                    format!("Breakpoint #{} at ${:04X}", bp.id, bp.address)
-                } else {
-                    format!(
-                        "Watchpoint #{} at ${:04X} [{}]",
-                        bp.id,
-                        bp.address,
-                        bp.kind.label()
-                    )
-                }
-            });
+            .map(|bp| format_checkpoint_stop_reason(bp.id, bp.address, bp.kind));
     }
     app_state.vice_state.last_hit_checkpoint_id = None;
 
@@ -535,6 +522,18 @@ fn handle_vice_registers_get(
         }
 
         app_state.vice_state.live_memory_start = mem_start;
+    }
+}
+
+fn format_checkpoint_stop_reason(
+    id: u32,
+    address: u16,
+    kind: crate::vice::state::BreakpointKind,
+) -> String {
+    if kind == crate::vice::state::BreakpointKind::Exec {
+        format!("Breakpoint #{id} at ${address:04X}")
+    } else {
+        format!("Watchpoint #{id} at ${address:04X} [{}]", kind.label())
     }
 }
 
@@ -587,28 +586,16 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
 
     let kind = crate::vice::state::BreakpointKind::from_cpu_op(info.cpu_op);
 
-    // The `currently_hit` flag (byte 4) is set when this checkpoint caused the
-    // CPU to stop. Set `stop_reason` immediately — this is especially important
-    // for watchpoints where the PC differs from the watched address, so the
-    // PC-based fallback in handle_vice_registers_get won't match.
+    // Byte 4 (`currently_hit`) indicates that this checkpoint stopped the CPU.
+    // Set `stop_reason` immediately so watchpoints where PC != watched address match.
     if info.currently_hit {
         app_state.vice_state.last_hit_checkpoint_id = Some(info.id);
-        let reason = if kind == crate::vice::state::BreakpointKind::Exec {
-            format!("Breakpoint #{} at ${:04X}", info.id, info.address)
-        } else {
-            format!(
-                "Watchpoint #{} at ${:04X} [{}]",
-                info.id,
-                info.address,
-                kind.label()
-            )
-        };
-        app_state.vice_state.stop_reason = Some(reason);
+        app_state.vice_state.stop_reason =
+            Some(format_checkpoint_stop_reason(info.id, info.address, kind));
     }
 
     if info.temporary {
-        // It's a temporary breakpoint (e.g. Run To Cursor). Keep track of it
-        // so we can delete it if the emulator stops prematurely.
+        // Track temporary breakpoints (such as Run To Cursor) so we can delete them on stop.
         if !app_state
             .vice_state
             .temporary_breakpoints
@@ -617,7 +604,7 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
             app_state.vice_state.temporary_breakpoints.push(info.id);
         }
     } else {
-        // Avoid duplicates (e.g. if both 0x11 and 0x12 arrive for same checkpoint)
+        // Avoid duplicates when both 0x11 and 0x12 arrive for the same checkpoint.
         if !app_state
             .vice_state
             .breakpoints
@@ -641,14 +628,12 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
 // Keyboard event handling
 // ---------------------------------------------------------------------------
 
-/// Processes a single [`KeyEvent`] synchronously through the full TUI input-routing pipeline
-/// (modal dialogs -> menu bar -> inline Vim search -> active view -> `crate::ui::navigable::Navigable` trait -> global shortcuts -> [`Core::apply_action`])
-/// and performs the per-frame view synchronization contract (`sync_views_before_render` and
-/// `UIState::sync_tui_to_core`).
+/// Processes one [`KeyEvent`] synchronously through the full TUI input-routing pipeline.
 ///
-/// This function provides a deterministic, headless entrypoint used by the 3-pillar keyboard
-/// shortcut verification suite to exercise the exact runtime key-handling pipeline without
-/// requiring a live terminal backend.
+/// This function routes input through dialogs, the menu bar, inline Vim search, active views,
+/// [`Navigable`](crate::ui::navigable::Navigable) handlers, and global shortcuts.
+/// It then runs `sync_views_before_render` and [`UIState::sync_tui_to_core`].
+/// Integration tests call this headless entrypoint to verify keyboard shortcuts without a terminal backend.
 pub fn process_key_event(core: &mut Core, ui_state: &mut UIState, key: KeyEvent) {
     let (event_tx, _event_rx) = std::sync::mpsc::channel();
     let mut should_render = false;
@@ -762,13 +747,8 @@ fn apply_dialog_result(
     }
 }
 
-/// Delegate a key event to the currently active view/pane.
-fn handle_key_event_active_view(
-    key: KeyEvent,
-    core: &mut Core,
-    ui_state: &mut UIState,
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
-) {
+/// Returns a boxed [`crate::ui::widget::Widget`] for `pane`.
+fn active_pane_widget(pane: ActivePane) -> Box<dyn crate::ui::widget::Widget> {
     use crate::ui::view_bitmap::BitmapView;
     use crate::ui::view_blocks::BlocksView;
     use crate::ui::view_charset::CharsetView;
@@ -776,9 +756,8 @@ fn handle_key_event_active_view(
     use crate::ui::view_disassembly::DisassemblyView;
     use crate::ui::view_hexdump::HexDumpView;
     use crate::ui::view_sprites::SpritesView;
-    use crate::ui::widget::{Widget, WidgetResult};
 
-    let mut active_view: Box<dyn Widget> = match ui_state.active_pane {
+    match pane {
         ActivePane::Disassembly => Box::new(DisassemblyView),
         ActivePane::HexDump => Box::new(HexDumpView),
         ActivePane::Sprites => Box::new(SpritesView),
@@ -786,7 +765,19 @@ fn handle_key_event_active_view(
         ActivePane::Bitmap => Box::new(BitmapView),
         ActivePane::Blocks => Box::new(BlocksView),
         ActivePane::Debugger => Box::new(DebuggerView),
-    };
+    }
+}
+
+/// Delegates a key event to the active view or pane.
+fn handle_key_event_active_view(
+    key: KeyEvent,
+    core: &mut Core,
+    ui_state: &mut UIState,
+    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+) {
+    use crate::ui::widget::WidgetResult;
+
+    let mut active_view = active_pane_widget(ui_state.active_pane);
 
     match active_view.handle_input(key, &mut core.state, ui_state) {
         WidgetResult::Handled => {
@@ -838,7 +829,7 @@ fn handle_mouse_event(
     EventOutcome::Continue
 }
 
-/// Handle mouse events when a modal dialog is open.
+/// Handles mouse events when a modal dialog is open.
 fn handle_mouse_dialog(
     mouse: MouseEvent,
     mut dialog: Box<dyn crate::ui::widget::Widget>,
@@ -871,7 +862,7 @@ fn handle_mouse_dialog(
     EventOutcome::Continue
 }
 
-/// Handle mouse events against menu bar and view panes (no dialog active).
+/// Handles mouse events against the menu bar and view panes when no dialog is active.
 fn handle_mouse_views(
     mouse: MouseEvent,
     core: &mut Core,
@@ -941,23 +932,7 @@ fn handle_mouse_views(
                 _ => {}
             }
 
-            use crate::ui::view_bitmap::BitmapView;
-            use crate::ui::view_blocks::BlocksView;
-            use crate::ui::view_charset::CharsetView;
-            use crate::ui::view_debugger::DebuggerView;
-            use crate::ui::view_disassembly::DisassemblyView;
-            use crate::ui::view_hexdump::HexDumpView;
-            use crate::ui::view_sprites::SpritesView;
-
-            let mut active_view: Box<dyn Widget> = match ui_state.active_pane {
-                ActivePane::Disassembly => Box::new(DisassemblyView),
-                ActivePane::HexDump => Box::new(HexDumpView),
-                ActivePane::Sprites => Box::new(SpritesView),
-                ActivePane::Charset => Box::new(CharsetView),
-                ActivePane::Bitmap => Box::new(BitmapView),
-                ActivePane::Blocks => Box::new(BlocksView),
-                ActivePane::Debugger => Box::new(DebuggerView),
-            };
+            let mut active_view = active_pane_widget(ui_state.active_pane);
             widget_result = active_view.handle_mouse(mouse, &mut core.state, ui_state);
         }
     }
@@ -982,11 +957,10 @@ fn handle_mouse_views(
 // Shared helper: dispatch a AppAction (de-duplicates ViceConnectAddress logic)
 // ---------------------------------------------------------------------------
 
-/// Route a `AppAction` to either the VICE connect flow or the generic handler.
+/// Routes an `AppAction` to the VICE connect flow or the generic menu handler.
 ///
-/// When `send_registers_on_connect` is true (mouse-originated connections),
-/// we immediately request registers after connecting so the debugger panel
-/// populates.
+/// When `send_registers_on_connect` is true, this function requests VICE registers
+/// immediately after connection so the debugger panel populates.
 fn dispatch_menu_action(
     action: crate::state::actions::AppAction,
     core: &mut Core,
@@ -1028,9 +1002,41 @@ fn dispatch_menu_action(
 // View synchronization (runs before each render)
 // ---------------------------------------------------------------------------
 
-/// Sync right-pane views with the disassembly cursor position and update
-/// menu availability. Called once before each render.
+/// Maps an active disassembly line selection to clamped grid item indices `(start, end)`.
+fn mirror_disassembly_selection_to_grid(
+    app_state: &AppState,
+    selection_start: Option<usize>,
+    cursor_index: usize,
+    target_addr: crate::state::Addr,
+    grid: &crate::ui::navigable::AlignedGridRange,
+) -> Option<(usize, usize)> {
+    let sel_start = selection_start?;
+    let (s_idx, e_idx) = if sel_start <= cursor_index {
+        (sel_start, cursor_index)
+    } else {
+        (cursor_index, sel_start)
+    };
+    let sel_start_addr = app_state
+        .disassembly
+        .get(s_idx)
+        .map_or(target_addr.0 as usize, |l| l.address.0 as usize);
+    let sel_end_addr = app_state
+        .disassembly
+        .get(e_idx)
+        .map_or(target_addr.0 as usize, |l| {
+            l.address.0 as usize + l.bytes.len().saturating_sub(1)
+        });
+
+    let start_item = sel_start_addr.checked_sub(grid.aligned_origin)? / grid.stride;
+    let end_item = sel_end_addr.checked_sub(grid.aligned_origin)? / grid.stride;
+    let max_idx = grid.item_count().saturating_sub(1);
+    Some((start_item.min(max_idx), end_item.min(max_idx)))
+}
+
+/// Syncs right-pane views with the disassembly cursor position and updates menu availability.
 fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
+    use crate::ui::navigable::AlignedGridRange;
+
     ui_state.cached_blocks_items = None;
 
     // Update menu availability
@@ -1070,23 +1076,13 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
         crate::ui_state::RightPane::HexDump16 | crate::ui_state::RightPane::HexDump8
     ) && app_state.system_config.sync_hex_dump
     {
-        let origin = app_state.origin.0 as usize;
         let bytes_per_row: usize = match ui_state.right_pane {
             crate::ui_state::RightPane::HexDump8 => 8,
             _ => 16,
         };
-        let alignment_padding = origin % bytes_per_row;
-        let aligned_origin = origin - alignment_padding;
-        let addr = target_addr.0 as usize;
-
-        if addr >= aligned_origin {
-            let offset = addr - aligned_origin;
-            let row = offset / bytes_per_row;
-            let total_len = app_state.raw_data.len() + alignment_padding;
-            let max_rows = total_len.div_ceil(bytes_per_row);
-            if row < max_rows {
-                ui_state.hex_cursor_index = row;
-            }
+        let grid = AlignedGridRange::uniform(app_state, bytes_per_row);
+        if let Some(row) = grid.index_for_addr(target_addr.0 as usize) {
+            ui_state.hex_cursor_index = row;
         }
     }
 
@@ -1096,51 +1092,21 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
         crate::ui_state::RightPane::Charset8Col | crate::ui_state::RightPane::Charset4Col
     ) && app_state.system_config.sync_charset_view
     {
-        let origin = app_state.origin.0 as usize;
-        let base_alignment = 0x400;
-        let aligned_start_addr = (origin / base_alignment) * base_alignment;
-        let addr = target_addr.0 as usize;
-
-        if addr >= aligned_start_addr {
-            let char_offset = addr - aligned_start_addr;
-            let idx = char_offset / 8;
-
-            let end_addr = origin + app_state.raw_data.len();
-            let total_chars = (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
-
-            if idx < total_chars {
-                ui_state.charset_cursor_index = idx;
-            }
+        let grid = AlignedGridRange::new(app_state, 0x400, 8, 8);
+        if let Some(idx) = grid.index_for_addr(target_addr.0 as usize) {
+            ui_state.charset_cursor_index = idx;
         }
 
-        // Mirror disassembly selection into charset selection
-        if let Some(sel_start) = ui_state.selection_start {
-            let (s_idx, e_idx) = if sel_start <= ui_state.cursor_index {
-                (sel_start, ui_state.cursor_index)
-            } else {
-                (ui_state.cursor_index, sel_start)
-            };
-            let sel_start_addr = app_state
-                .disassembly
-                .get(s_idx)
-                .map_or(target_addr.0 as usize, |l| l.address.0 as usize);
-            let sel_end_addr = app_state
-                .disassembly
-                .get(e_idx)
-                .map_or(target_addr.0 as usize, |l| {
-                    l.address.0 as usize + l.bytes.len().saturating_sub(1)
-                });
-
-            if sel_start_addr >= aligned_start_addr && sel_end_addr >= aligned_start_addr {
-                let start_char = (sel_start_addr - aligned_start_addr) / 8;
-                let end_char = (sel_end_addr - aligned_start_addr) / 8;
-                let end_addr = origin + app_state.raw_data.len();
-                let total_chars = (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
-                let max_idx = total_chars.saturating_sub(1);
-                ui_state.charset_selection_start = Some(start_char.min(max_idx));
-                ui_state.charset_cursor_index = end_char.min(max_idx);
-            }
-        } else {
+        if let Some((start_char, end_char)) = mirror_disassembly_selection_to_grid(
+            app_state,
+            ui_state.selection_start,
+            ui_state.cursor_index,
+            target_addr,
+            &grid,
+        ) {
+            ui_state.charset_selection_start = Some(start_char);
+            ui_state.charset_cursor_index = end_char;
+        } else if ui_state.selection_start.is_none() {
             ui_state.charset_selection_start = None;
         }
     }
@@ -1151,51 +1117,21 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
         crate::ui_state::RightPane::Sprites2Col | crate::ui_state::RightPane::Sprites1Col
     ) && app_state.system_config.sync_sprites_view
     {
-        let origin = app_state.origin.0 as usize;
-        let aligned_origin = (origin / 64) * 64;
-        let addr = target_addr.0 as usize;
-
-        if addr >= aligned_origin {
-            let offset = addr - aligned_origin;
-            let idx = offset / 64;
-
-            let data_len = app_state.raw_data.len();
-            let end_addr = origin + data_len;
-            let total_sprites = (end_addr.saturating_sub(aligned_origin)).div_ceil(64);
-
-            if idx < total_sprites {
-                ui_state.sprites_cursor_index = idx;
-            }
+        let grid = AlignedGridRange::new(app_state, 64, 64, 63);
+        if let Some(idx) = grid.index_for_addr(target_addr.0 as usize) {
+            ui_state.sprites_cursor_index = idx;
         }
 
-        // Mirror disassembly selection into sprites selection
-        if let Some(sel_start) = ui_state.selection_start {
-            let (s_idx, e_idx) = if sel_start <= ui_state.cursor_index {
-                (sel_start, ui_state.cursor_index)
-            } else {
-                (ui_state.cursor_index, sel_start)
-            };
-            let sel_start_addr = app_state
-                .disassembly
-                .get(s_idx)
-                .map_or(target_addr.0 as usize, |l| l.address.0 as usize);
-            let sel_end_addr = app_state
-                .disassembly
-                .get(e_idx)
-                .map_or(target_addr.0 as usize, |l| {
-                    l.address.0 as usize + l.bytes.len().saturating_sub(1)
-                });
-
-            if sel_start_addr >= aligned_origin && sel_end_addr >= aligned_origin {
-                let start_sprite = (sel_start_addr - aligned_origin) / 64;
-                let end_sprite = (sel_end_addr - aligned_origin) / 64;
-                let end_addr = origin + app_state.raw_data.len();
-                let total_sprites = (end_addr.saturating_sub(aligned_origin)).div_ceil(64);
-                let max_idx = total_sprites.saturating_sub(1);
-                ui_state.sprites_selection_start = Some(start_sprite.min(max_idx));
-                ui_state.sprites_cursor_index = end_sprite.min(max_idx);
-            }
-        } else {
+        if let Some((start_sprite, end_sprite)) = mirror_disassembly_selection_to_grid(
+            app_state,
+            ui_state.selection_start,
+            ui_state.cursor_index,
+            target_addr,
+            &grid,
+        ) {
+            ui_state.sprites_selection_start = Some(start_sprite);
+            ui_state.sprites_cursor_index = end_sprite;
+        } else if ui_state.selection_start.is_none() {
             ui_state.sprites_selection_start = None;
         }
     }
@@ -1204,23 +1140,9 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.right_pane == crate::ui_state::RightPane::Bitmap
         && app_state.system_config.sync_bitmap_view
     {
-        let origin = app_state.origin.0 as usize;
-        let addr = target_addr.0 as usize;
-
-        // Bitmaps must be aligned to 8192-byte ($2000) boundaries
-        let first_aligned_addr = (origin / 8192) * 8192;
-
-        if addr >= first_aligned_addr {
-            let offset = addr - first_aligned_addr;
-            let idx = offset / 8192;
-
-            let data_len = app_state.raw_data.len();
-            let end_addr = origin + data_len;
-            let total_bitmaps = (end_addr.saturating_sub(first_aligned_addr)).div_ceil(8192);
-
-            if idx < total_bitmaps {
-                ui_state.bitmap_cursor_index = idx;
-            }
+        let grid = AlignedGridRange::new(app_state, 8192, 8192, 8000);
+        if let Some(idx) = grid.index_for_addr(target_addr.0 as usize) {
+            ui_state.bitmap_cursor_index = idx;
         }
     }
 }
@@ -1471,5 +1393,53 @@ mod tests {
             &mut should_render,
         );
         assert!(ui_state.active_dialog.is_none());
+    }
+
+    #[test]
+    fn sync_views_before_render_mirrors_cursor_and_selection_across_panes() {
+        use crate::ui_state::RightPane;
+        use regenerator2000_core::state::{Addr, BlockType};
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x2000);
+        app_state.raw_data = vec![0xEA; 0x2040];
+        app_state.block_types = vec![BlockType::Code; app_state.raw_data.len()];
+        app_state.system_config.sync_charset_view = true;
+        app_state.system_config.sync_sprites_view = true;
+        app_state.system_config.sync_bitmap_view = true;
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.active_pane = ActivePane::Disassembly;
+        ui_state.cursor_index = app_state
+            .get_line_index_containing_address(Addr(0x4010))
+            .expect("line at $4010");
+
+        ui_state.right_pane = RightPane::HexDump16;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.hex_cursor_index, (0x4010 - 0x2000) / 16);
+
+        ui_state.right_pane = RightPane::Bitmap;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.bitmap_cursor_index, 1);
+
+        let sel_start_idx = app_state
+            .get_line_index_containing_address(Addr(0x2008))
+            .expect("line at $2008");
+        ui_state.selection_start = Some(sel_start_idx);
+
+        ui_state.right_pane = RightPane::Charset8Col;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.charset_selection_start, Some(1));
+        assert_eq!(ui_state.charset_cursor_index, (0x4010 - 0x2000) / 8);
+
+        ui_state.right_pane = RightPane::Sprites2Col;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, Some(0));
+        assert_eq!(ui_state.sprites_cursor_index, (0x4010 - 0x2000) / 64);
+
+        ui_state.selection_start = None;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, None);
     }
 }
