@@ -1,6 +1,16 @@
 # Views
 
-Regenerator 2000 provides specialized views to analyze Commodore 8-bit binaries.
+Regenerator 2000 provides specialized views to analyze Commodore 8-bit binaries. The **Disassembly View** occupies the main left pane, while the right pane displays one of the companion views (**Blocks**, **Hexdump**, **Sprites**, **Charset**, **Bitmap**, or **Debugger**). Press ++tab++ to switch focus between the Disassembly View and the active right pane.
+
+All scrollable views (**Disassembly**, **Blocks**, **Hexdump**, **Sprites**, **Charset**, and **Bitmap**) support standard cursor navigation:
+
+| Action                          | Shortcut                                           |
+|:--------------------------------|:---------------------------------------------------|
+| **Move Cursor**                 | ++up++ / ++down++ / ++j++ / ++k++                  |
+| **Page Up / Down**              | ++page-up++ / ++page-down++ or ++ctrl+u++ / ++ctrl+d++ |
+| **Start / End**                 | ++home++ / ++end++                                 |
+| **Jump to Item / End**          | number + ++shift+g++                               |
+| **Switch Pane**                 | ++tab++                                            |
 
 ## Disassembly View
 
@@ -9,8 +19,8 @@ The Disassembly View is the primary workspace in Regenerator 2000. It displays d
 Use this view to perform the following tasks:
 
 - **Navigate Memory**: Move through the address space, jump to addresses or labels, and follow execution paths.
-- **Define Block Types**: Convert memory regions into Code, Byte, Word, Address, or Text blocks.
-- **Annotate**: Add side or line comments and rename labels.
+- **Define Block Types**: Convert memory regions into Code, Byte, Word, Address, External File, or Text blocks.
+- **Annotate**: Add side or line comments, rename labels, apply enums, and format immediate operands.
 - **Analyze Flow**: Follow jump and branch arrows in the left margin. Regenerator 2000 dims unreferenced code blocks for visual contrast.
 - **Minimap Bar**: Inspect the horizontal minimap bar below the menu bar to see block types across the entire address space. Click the minimap to jump to any location.
 
@@ -33,62 +43,75 @@ Auto-generated labels start with a prefix. The prefix shows how the code referen
 
 ### Keyboard Shortcuts
 
-| Action                         | Shortcut                      |
-|:-------------------------------|:------------------------------|
-| **Disassemble address**        | ++d++                         |
-| **Convert to Code**            | ++c++                         |
-| **Convert to Byte**            | ++b++                         |
-| **Convert to Word**            | ++w++                         |
-| **Convert to Address**         | ++a++                         |
-| **Convert to PETSCII Text**    | ++p++                         |
-| **Convert to Screencode Text** | ++s++                         |
-| **Convert to External File**   | ++e++                         |
-| **Convert to Undefined**       | ++question-mark++             |
-| **Set Lo/Hi Address Table**    | ++less-than++                 |
-| **Set Hi/Lo Address Table**    | ++greater-than++              |
-| **Set Lo/Hi Word Table**       | ++comma++                     |
-| **Set Hi/Lo Word Table**       | ++period++                    |
-| **Create Scope**               | ++r++                         |
-| **Remove Scope**               | ++delete++                    |
-| **Nudge Scope Boundary**       | ++alt+up++ / ++alt+down++     |
-| **Set Label**                  | ++l++                         |
-| **Add Side Comment**           | ++semicolon++                 |
-| **Add Line Comment**           | ++colon++                     |
-| **Next/Prev Immediate Format** | ++i++ / ++shift+i++           |
-| **Pack Lo/Hi Address**         | ++open-bracket++              |
-| **Pack Hi/Lo Address**         | ++close-bracket++             |
-| **Toggle Visual Mode**         | ++shift+v++                   |
-| **Toggle Splitter**            | ++pipe++                      |
-| **Toggle Collapsed Block**     | ++ctrl+k++                    |
-| **Toggle Bookmark**            | ++ctrl+b++                    |
-| **List Bookmarks**             | ++ctrl+shift+b++ or ++alt+b++ |
-| **Analyze**                    | ++ctrl+a++                    |
-| **Jump to Address**            | ++ctrl+g++ or ++alt+g++       |
-| **Jump to Operand**            | ++enter++                     |
-| **Jump Back (History)**        | ++backspace++                 |
-| **Search**                     | ++slash++                     |
-| **Find Next**                  | ++n++                         |
-| **Find Previous**              | ++shift+n++                   |
+| Action                                      | Shortcut                          |
+|:--------------------------------------------|:----------------------------------|
+| **Disassemble Address (flow analysis)**     | ++d++                             |
+| **Convert to Code**                         | ++c++                             |
+| **Convert to Byte**                         | ++b++                             |
+| **Convert to Word**                         | ++w++                             |
+| **Convert to Address**                      | ++a++                             |
+| **Convert to PETSCII Text**                 | ++p++                             |
+| **Convert to Screencode Text**              | ++s++                             |
+| **Convert to External File**                | ++shift+e++                       |
+| **Convert to Undefined**                    | ++question-mark++                 |
+| **Set Lo/Hi Address Table**                 | ++less-than++                     |
+| **Set Hi/Lo Address Table**                 | ++greater-than++                  |
+| **Set Lo/Hi Word Table**                    | ++comma++                         |
+| **Set Hi/Lo Word Table**                    | ++period++                        |
+| **Create Scope**                            | ++r++                             |
+| **Remove Scope / Exclude External Address** | ++delete++                        |
+| **Nudge Scope Boundary**                    | ++alt+up++ / ++alt+down++         |
+| **Set Label**                               | ++l++                             |
+| **Add Side Comment**                        | ++semicolon++                     |
+| **Add Line Comment**                        | ++colon++                         |
+| **Next/Prev Immediate Format**              | ++i++ / ++shift+i++               |
+| **Apply Enum**                              | ++e++                             |
+| **Pack Lo/Hi Address**                      | ++open-bracket++                  |
+| **Pack Hi/Lo Address**                      | ++close-bracket++                 |
+| **Toggle Visual Mode**                      | ++shift+v++                       |
+| **Select Text**                             | ++shift+up++ / ++shift+down++     |
+| **Clear Selection**                         | ++escape++                        |
+| **Toggle Splitter**                         | ++pipe++                          |
+| **Toggle Collapsed Block**                  | ++ctrl+k++                        |
+| **Toggle Bookmark**                         | ++ctrl+b++                        |
+| **List Bookmarks**                          | ++ctrl+shift+b++ or ++alt+b++     |
+| **Analyze**                                 | ++ctrl+a++                        |
+| **Jump to Address**                         | ++ctrl+g++ or ++alt+g++           |
+| **Jump to Line**                            | ++ctrl+shift+g++ or ++alt+shift+g++ |
+| **Jump to Line / End of File**              | number + ++shift+g++              |
+| **Jump to Operand**                         | ++enter++                         |
+| **Jump Back (History)**                     | ++backspace++                     |
+| **Next Unexplored Block**                   | ++ctrl+n++                        |
+| **Prev Unexplored Block**                   | ++ctrl+shift+n++                  |
+| **Vim Search**                              | ++slash++                         |
+| **Search Dialog**                           | ++ctrl+f++                        |
+| **Find Next**                               | ++n++ or ++f3++                   |
+| **Find Previous**                           | ++shift+n++ or ++shift+f3++       |
+| **Go to Symbol**                            | ++ctrl+p++                        |
+| **Find Cross References**                   | ++ctrl+x++                        |
 
 ## Blocks View
 
-The Blocks View displays the memory layout of your project as a list of contiguous blocks:
+The Blocks View displays the structural layout of your project as a list of memory blocks, lexical scopes, and manual splitters:
 
 - **Code regions** (Blue)
 - **Data regions** (Green/Yellow)
 - **Undefined/Unknown regions** (Grey)
+- **Scopes**: Displays lexical scope ranges (`Scope: $XXXX - $XXXX [name]`) and indents blocks and splitters nested inside the scope.
+- **Splitters**: Displays manual block splitters (`$XXXX -----------------`).
+- **Collapsed blocks**: Marks collapsed blocks with a leading `+` indicator.
 
-Use this view to inspect the structure of the binary and locate unanalyzed data blocks. Click any block (or press ++enter++) to jump to that address in the Disassembly View.
+Press ++alt+1++ (or ++ctrl+1++) to toggle the Blocks View. Use this view to inspect the structure of the binary and locate unanalyzed data blocks. Click any item (or press ++enter++) to jump to that address in the Disassembly View.
 
 ![Blocks View](regenerator2000_blocks_screenshot.png)
 
 ### Keyboard Shortcuts
 
-| Action                     | Shortcut   |
-|:---------------------------|:-----------|
-| **Toggle view**            | ++alt+1++  |
-| **Toggle Collapsed Block** | ++ctrl+k++ |
-| **Jump to Disassembly**    | ++enter++  |
+| Action                     | Shortcut                |
+|:---------------------------|:------------------------|
+| **Toggle view**            | ++alt+1++ or ++ctrl+1++ |
+| **Toggle Collapsed Block** | ++ctrl+k++              |
+| **Jump to Disassembly**    | ++enter++               |
 
 ## Hexdump View
 
@@ -116,13 +139,17 @@ The Hexdump View contains these columns:
 
 ### Keyboard Shortcuts
 
-| Action                                   | Shortcut    |
-|:-----------------------------------------|:------------|
-| **Cycle view** (16-byte, 8-byte, hidden) | ++alt+2++   |
-| **Convert to Byte**                      | ++b++       |
-| **Next Text Mode** (Screencode/PETSCII)  | ++m++       |
-| **Previous Text Mode**                   | ++shift+m++ |
-| **Jump to Disassembly**                  | ++enter++   |
+| Action                                   | Shortcut                                                 |
+|:-----------------------------------------|:---------------------------------------------------------|
+| **Cycle view** (16-byte, 8-byte, hidden) | ++alt+2++ or ++ctrl+2++                                  |
+| **Column Navigation**                    | ++left++ / ++right++ / ++h++ / ++l++                     |
+| **Toggle Visual Mode**                   | ++shift+v++                                              |
+| **Select Bytes**                         | ++shift+up++ / ++shift+down++ / ++shift+left++ / ++shift+right++ |
+| **Clear Selection**                      | ++escape++                                               |
+| **Convert to Byte**                      | ++b++                                                    |
+| **Next Text Mode** (Screencode/PETSCII)  | ++m++                                                    |
+| **Previous Text Mode**                   | ++shift+m++                                              |
+| **Jump to Disassembly**                  | ++enter++                                                |
 
 ## Sprites View
 
@@ -142,12 +169,16 @@ The Sprites View renders memory as hardware sprites. Press ++alt+3++ (or ++ctrl+
 
 ### Keyboard Shortcuts
 
-| Action                                       | Shortcut  |
-|:---------------------------------------------|:----------|
-| **Cycle view** (2-sprites, 1-sprite, hidden) | ++alt+3++ |
-| **Convert to Byte**                          | ++b++     |
-| **Toggle Multicolor**                        | ++m++     |
-| **Jump to Disassembly**                      | ++enter++ |
+| Action                                       | Shortcut                                                 |
+|:---------------------------------------------|:---------------------------------------------------------|
+| **Cycle view** (2-sprites, 1-sprite, hidden) | ++alt+3++ or ++ctrl+3++                                  |
+| **Column Navigation** (2-sprites mode)       | ++left++ / ++right++ / ++h++ / ++l++                     |
+| **Toggle Visual Mode**                       | ++shift+v++                                              |
+| **Select Sprites**                           | ++shift+up++ / ++shift+down++ / ++shift+left++ / ++shift+right++ |
+| **Clear Selection**                          | ++escape++                                               |
+| **Convert to Byte**                          | ++b++                                                    |
+| **Toggle Multicolor**                        | ++m++                                                    |
+| **Jump to Disassembly**                      | ++enter++                                                |
 
 ## Charset View
 
@@ -168,26 +199,30 @@ Press ++alt+4++ (or ++ctrl+4++) to cycle through three layouts: **wide (8-chars)
 
 ### Keyboard Shortcuts
 
-| Action                                    | Shortcut  |
-|:------------------------------------------|:----------|
-| **Cycle view** (8-chars, 4-chars, hidden) | ++alt+4++ |
-| **Convert to Byte**                       | ++b++     |
-| **Toggle Multicolor**                     | ++m++     |
-| **Jump to Disassembly**                   | ++enter++ |
+| Action                                    | Shortcut                                                 |
+|:------------------------------------------|:---------------------------------------------------------|
+| **Cycle view** (8-chars, 4-chars, hidden) | ++alt+4++ or ++ctrl+4++                                  |
+| **Column Navigation**                     | ++left++ / ++right++ / ++h++ / ++l++                     |
+| **Toggle Visual Mode**                    | ++shift+v++                                              |
+| **Select Characters**                     | ++shift+up++ / ++shift+down++ / ++shift+left++ / ++shift+right++ |
+| **Clear Selection**                       | ++escape++                                               |
+| **Convert to Byte**                       | ++b++                                                    |
+| **Toggle Multicolor**                     | ++m++                                                    |
+| **Jump to Disassembly**                   | ++enter++                                                |
 
 ## Bitmap View
 
-The Bitmap View renders memory as a full-screen bitmap image:
+The Bitmap View renders memory as a full-screen bitmap image. Press ++alt+5++ (or ++ctrl+5++) to toggle the Bitmap View:
 
 - **Asset Discovery**: Locate title screens, background graphics, and loading screens.
 - **Format Identification**: Identify the layout of large binary data blocks visually.
-- **Screen RAM Overlay**: Press ++s++ or ++shift+s++ to cycle through Screen RAM addresses and preview bitmap color attributes.
+- **Screen RAM Overlay**: Press ++s++ or ++shift+s++ to cycle through Screen RAM addresses and preview bitmap color attributes, or press ++x++ to place Screen RAM immediately after the bitmap (`+8000` bytes).
 
 ![Bitmap View](regenerator2000_bitmap_screenshot.png)
 
 !!! warning
 
-    The Bitmap View uses significant CPU resources. Hide the Bitmap View (++alt+5++) after you inspect the bitmaps.
+    The Bitmap View uses significant CPU resources. Hide the Bitmap View (++alt+5++ or ++ctrl+5++) after you inspect the bitmaps.
 
 The Bitmap View contains these elements:
 
@@ -200,15 +235,15 @@ The Bitmap View contains these elements:
 
 ### Keyboard Shortcuts
 
-| Action                      | Shortcut    |
-|:----------------------------|:------------|
-| **Toggle view**             | ++alt+5++   |
-| **Convert to Byte**         | ++b++       |
-| **Toggle Multicolor**       | ++m++       |
-| **Next Screen RAM**         | ++s++       |
-| **Previous Screen RAM**     | ++shift+s++ |
-| **Screen RAM after Bitmap** | ++x++       |
-| **Jump to Disassembly**     | ++enter++   |
+| Action                      | Shortcut                |
+|:----------------------------|:------------------------|
+| **Toggle view**             | ++alt+5++ or ++ctrl+5++ |
+| **Convert to Byte**         | ++b++                   |
+| **Toggle Multicolor**       | ++m++                   |
+| **Next Screen RAM**         | ++s++                   |
+| **Previous Screen RAM**     | ++shift+s++             |
+| **Screen RAM after Bitmap** | ++x++                   |
+| **Jump to Disassembly**     | ++enter++               |
 
 ## Debugger View
 
@@ -216,11 +251,15 @@ The Debugger View connects to the [VICE](https://vice-emu.sourceforge.io/) emula
 
 Press ++alt+6++ (or ++ctrl+6++) to toggle the Debugger View. When the connection to VICE is active, the panel displays:
 
-- **Connection status**: Shows the VICE connection state and whether the emulator runs or pauses.
+- **Connection status**: Shows the VICE connection state and whether the emulator runs or pauses, including the stop reason when paused.
 - **Live disassembly**: Shows disassembly around the current PC and highlights the active instruction when the emulator pauses.
+- **Memory Dump**: Displays 64 bytes (8 rows of 8 bytes) from a configurable memory address next to the live disassembly (press ++m++ to set the address).
 - **Registers**: Displays CPU registers A, X, Y, SP, and P (status).
 - **Breakpoints**: Lists active execution breakpoints in VICE.
 - **Watchpoints**: Lists active memory watchpoints in VICE.
+- **Stack**: Displays the current stack pointer (`SP`) and up to 5 entries from the top of the hardware stack (`$0100`–`$01FF`).
+- **Hardware Registers & Vectors**: Displays 6502 hardware vectors (`NMI`, `RES`, `IRQ`) and platform-specific hardware registers (6510/8502 `$00`/`$01` port, VIC-II, CIA 1, and CIA 2 on C64/C128; VIC-I on VIC-20; TED on Plus/4).
+- **Change Highlighting**: Highlights modified register values, memory bytes, stack entries, and hardware vectors after each step.
 
 ![Debugger View](regenerator2000_debugger_screenshot.png)
 
@@ -232,15 +271,15 @@ See [Debugger (VICE Integration)](debugger.md) for connection instructions and d
 
 ### Keyboard Shortcuts
 
-| Action                   | Shortcut     |
-|:-------------------------|:-------------|
-| **Toggle view**          | ++alt+6++    |
-| **Toggle Breakpoint**    | ++f2++       |
-| **Toggle Breakpoint...** | ++shift+f2++ |
-| **Run to Cursor**        | ++f4++       |
-| **Watchpoint**           | ++f6++       |
-| **Memory Dump...**       | ++m++        |
-| **Step Instruction**     | ++f7++       |
-| **Step Over**            | ++f8++       |
-| **Step Out**             | ++shift+f8++ |
-| **Run / Continue**       | ++f9++       |
+| Action                   | Shortcut                |
+|:-------------------------|:------------------------|
+| **Toggle view**          | ++alt+6++ or ++ctrl+6++ |
+| **Toggle Breakpoint**    | ++f2++                  |
+| **Toggle Breakpoint...** | ++shift+f2++            |
+| **Run to Cursor**        | ++f4++                  |
+| **Watchpoint**           | ++f6++                  |
+| **Memory Dump...**       | ++m++                   |
+| **Step Instruction**     | ++f7++                  |
+| **Step Over**            | ++f8++                  |
+| **Step Out**             | ++shift+f8++            |
+| **Run / Continue**       | ++f9++                  |

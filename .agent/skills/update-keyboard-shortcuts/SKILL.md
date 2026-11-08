@@ -1,6 +1,6 @@
 ---
 name: update-keyboard-shortcuts
-description: Audits and synchronizes keyboard shortcuts across docs/keyboard_shortcuts.md, crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs, crates/regenerator2000-tui/src/ui/menu.rs, and the view files (view_disassembly.rs, view_hexdump.rs, view_charset.rs, view_bitmap.rs, view_blocks.rs, view_sprites.rs).
+description: Audits and synchronizes keyboard shortcuts across docs/keyboard_shortcuts.md, docs/views.md, crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs, crates/regenerator2000-tui/src/ui/menu/menu_model.rs, and the view files (view_disassembly/mod.rs, view_hexdump.rs, view_charset.rs, view_bitmap.rs, view_blocks.rs, view_sprites.rs, view_debugger.rs).
 ---
 
 # Update Keyboard Shortcuts Workflow
@@ -16,17 +16,21 @@ Use this skill when the user asks to:
 
 The following files all define or document keyboard shortcuts and must be consistent with each other:
 
-| File                                 | Role                                                |
-| ------------------------------------ | --------------------------------------------------- |
-| `docs/keyboard_shortcuts.md`         | User-facing documentation (MkDocs table format)     |
-| `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs` | In-app shortcuts dialog (`get_shortcuts()` fn)      |
-| `crates/regenerator2000-tui/src/ui/menu.rs`                     | Menu items with shortcut hints (`MenuState::new()`) |
-| `crates/regenerator2000-tui/src/ui/view_disassembly.rs`         | Disassembly view `handle_input()`                   |
-| `crates/regenerator2000-tui/src/ui/view_hexdump.rs`             | Hex dump view `handle_input()`                      |
-| `crates/regenerator2000-tui/src/ui/view_charset.rs`             | Charset view `handle_input()`                       |
-| `crates/regenerator2000-tui/src/ui/view_bitmap.rs`              | Bitmap view `handle_input()`                        |
-| `crates/regenerator2000-tui/src/ui/view_blocks.rs`              | Blocks view `handle_input()`                        |
-| `crates/regenerator2000-tui/src/ui/view_sprites.rs`             | Sprites view `handle_input()`                       |
+| File                                                            | Role                                                  |
+| --------------------------------------------------------------- | ----------------------------------------------------- |
+| `docs/keyboard_shortcuts.md`                                    | User-facing documentation (MkDocs table format)       |
+| `docs/views.md`                                                 | Per-view user documentation and shortcut tables       |
+| `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs` | In-app shortcuts dialog (`get_shortcuts()` fn)        |
+| `crates/regenerator2000-tui/src/ui/menu/menu_model.rs`          | Menu items with shortcut hints (`MenuState::new()`)   |
+| `crates/regenerator2000-tui/src/events/input.rs`                | Global keyboard shortcuts (`handle_global_input()`)   |
+| `crates/regenerator2000-tui/src/ui/navigable.rs`                | Shared navigation and grid selection (`Navigable`)    |
+| `crates/regenerator2000-tui/src/ui/view_disassembly/mod.rs`     | Disassembly view `handle_input()`                     |
+| `crates/regenerator2000-tui/src/ui/view_hexdump.rs`             | Hex dump view `handle_input()`                        |
+| `crates/regenerator2000-tui/src/ui/view_charset.rs`             | Charset view `handle_input()`                         |
+| `crates/regenerator2000-tui/src/ui/view_bitmap.rs`              | Bitmap view `handle_input()`                          |
+| `crates/regenerator2000-tui/src/ui/view_blocks.rs`              | Blocks view `handle_input()`                          |
+| `crates/regenerator2000-tui/src/ui/view_sprites.rs`             | Sprites view `handle_input()`                         |
+| `crates/regenerator2000-tui/src/ui/view_debugger.rs`            | Debugger view `handle_input()`                        |
 
 ## 1. Read All Relevant Files
 
@@ -34,13 +38,13 @@ Read all files listed above to get the current state of shortcuts in each locati
 
 ## 2. Audit for Discrepancies
 
-Compare shortcuts across the three "declaration" layers:
+Compare shortcuts across the four "declaration" layers:
 
-### Layer 1: `handle_input()` in view files (ground truth)
+### Layer 1: `handle_input()` in view files & `events/input.rs` (ground truth)
 
 These are the **actual** key bindings. What the code does is what the user experiences.
 
-### Layer 2: `menu.rs` shortcut hints
+### Layer 2: `menu/menu_model.rs` shortcut hints
 
 These are displayed in the menu UI next to menu items. They should match what `handle_input()` actually handles.
 
@@ -48,7 +52,7 @@ These are displayed in the menu UI next to menu items. They should match what `h
 
 These are shown in the in-app help dialog. They should match the actual behavior.
 
-### Layer 4: `docs/keyboard_shortcuts.md`
+### Layer 4: `docs/keyboard_shortcuts.md` and `docs/views.md`
 
 User-facing documentation. Should match all of the above.
 

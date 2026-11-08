@@ -29,6 +29,7 @@ use ratatui::backend::TestBackend;
 use regenerator2000_core::Core;
 
 const KEYBOARD_SHORTCUTS_DOC: &str = include_str!("../../../docs/keyboard_shortcuts.md");
+const VIEWS_DOC: &str = include_str!("../../../docs/views.md");
 
 const ALL_PANES: [ActivePane; 7] = [
     ActivePane::Disassembly,
@@ -2452,5 +2453,32 @@ fn test_shortcut_layers_synchronization() {
     assert!(
         found_apply_enum,
         "MenuState::new() must contain 'Apply Enum...'"
+    );
+
+    // 5. Verify docs/views.md shortcut tokens and anti-drift invariants
+    let views_tokens = parse_markdown_shortcut_tokens(VIEWS_DOC);
+    let views_allowed_extra = [
+        "up",
+        "down",
+        "left",
+        "right",
+        "shift+down",
+        "shift+left",
+        "shift+right",
+        "h",
+        "l",
+        "enter",
+        "esc",
+    ];
+    for view_token in &views_tokens {
+        assert!(
+            all_dialog_tokens.contains(view_token)
+                || views_allowed_extra.contains(&view_token.as_str()),
+            "docs/views.md token '{view_token}' is missing from ShortcutsDialog::get_shortcuts()"
+        );
+    }
+    assert!(
+        VIEWS_DOC.contains("++shift+e++") && VIEWS_DOC.contains("**Apply Enum**"),
+        "docs/views.md must document ++shift+e++ for External File and ++e++ for Apply Enum"
     );
 }
