@@ -26,7 +26,7 @@ options:
 <!-- column: 0 -->
 ### Heritage & Mission
 - Inspired by Tom-Cat / Nostalgia's classic **Regenerator**
-- Built from scratch in **Rust** as a native, cross-platform TUI
+- Native, cross-platform TUI for **macOS, Linux, and Windows**
 - Full **MOS 6502** instruction set + **undocumented opcodes** (`lax`, `sax`, `dcp`, `isc`, `slo`, `rla`...)
 
 <!-- column: 1 -->
@@ -38,7 +38,7 @@ options:
 
 <!-- speaker_note:
 Welcome everyone! Today I'm excited to show you Regenerator 2000 — an interactive 6502 disassembler built specifically for the Commodore 8-bit scene.
-If you've ever used Tom-Cat's original Regenerator on Windows, you know how great interactive disassembly feels. Regenerator 2000 takes that spirit and brings it natively to Linux, macOS, and Windows terminals with modern superpowers.
+If you've ever used Tom-Cat's original Regenerator on Windows, you know how great interactive disassembly feels. Regenerator 2000 takes that spirit and brings it natively to macOS, Linux, and Windows terminals with modern superpowers.
 I'll spend just 5 minutes on slides covering the core highlights, and then we'll jump straight into a 20-minute live reverse-engineering session.
 -->
 
@@ -51,10 +51,10 @@ I'll spend just 5 minutes on slides covering the core highlights, and then we'll
 <!-- column: 0 -->
 ### ⚡ Extremely Fast
 - **Instant Startup (`< 10 ms`)**
-  - Native Rust binary (`ratatui` + `crossterm`)
-  - Zero Electron, WebView, or JVM overhead
+  - Native binary for **macOS, Linux, and Windows**
+  - Minimal memory footprint — opens binaries and project files immediately
 - **Zero-Latency Navigation**
-  - Smooth 60+ fps scrolling through full 64 KB snapshots
+  - Smooth 60+ fps scrolling through full 64 KB programs
 - **Instant Flow & X-Ref Re-Analysis**
   - Real-time typed cross-references (`Call`, `Jump`, `Read`, `Write`, `RMW`)
   - Full **Undo / Redo** history (`u` / `Ctrl+R`) for every action
@@ -63,8 +63,9 @@ I'll spend just 5 minutes on slides covering the core highlights, and then we'll
 ### ⌨️ Keyboard-First (Mouse-Friendly)
 - **Single-Key Mnemonics**
   - Designed for uninterrupted reverse-engineering flow state
-- **Vim-Style Ergonomics**
-  - `j` / `k` cursor movement, `/` search, `Shift+V` visual selection
+- **Standard & Vim-Style Navigation**
+  - Normal cursor keys (`↑`/`↓`, `PgUp`/`PgDn`) + `Shift+↑`/`↓` to select
+  - Vim-style `j`/`k` movement, `/` search, and `Shift+V` visual selection
 - **Instant Control-Flow Surfing**
   - `Enter` jumps into any target/pointer; `Backspace` pops back
 - **Pragmatic Mouse Support**
@@ -238,7 +239,7 @@ Demoscene releases are almost always crunched — Regenerator 2000 unpacks them 
 └───────────────────────────┘    └───────────────────────────┘    └───────────────────────────┘
 ```
 
-- **Inspired by iAN CooG's `unp64`**: Pure-Rust 2-phase 6502 + CIA + `$01` PLA banking sandbox
+- **Inspired by iAN CooG's `unp64`**: Built-in 2-phase 6502 + CIA + `$01` PLA banking sandbox
 - **21+ Packers Supported Out of the Box**:
   - *Exomizer, Dali, ByteBoozer, TSCrunch, PuCrunch, CruelCrunch, TimeCruncher, Action Replay, MasterCompressor, MegaByte, ABCompactor, ECA...*
 - **Provenance Tracking**: Reports exact unpacked bounds (`start_addr..=end_addr`) and real `entry_point`
