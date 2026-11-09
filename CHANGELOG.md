@@ -2,80 +2,194 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.9.24] - 2026-11-08
+
+### Features
+
+- **UI**: Add `Apply Enum...` (`e`) to the `Edit` menu when the Disassembly
+  pane is active, and auto-select the first enum entry when opening or
+  filtering the Apply Enum dialog.
+
+### Fixes
+
+- **Unpacker & TUI**: Eliminate `mos6502::cpu` per-instruction debug log I/O
+  during TUI unpacking by enabling `log` `max_level_info` and ignoring the
+  `mos6502` log target in `init_logging()`.
+- **UI**: Allow typing `j` and `k` into the `ApplyEnumDialog` search filter
+  and prevent filtered selection from landing on separator rows.
+
+### Performance
+
+- **Unpacker**: Speed up 6502 unpacker emulation and boundary detection by
+  2.7x across the 45-binary corpus via declarative `StepFilter` hook gating,
+  cached C64 4 KB banking and CIA timer bitmasks on `C64Bus`, `O(1)`
+  incremental trailing-cluster trimming in `detector.rs`, and a 1,000-step
+  progress callback cadence (`PROGRESS_CALLBACK_INTERVAL`).
+
+### Documentation
+
+- **Docs**: document `StepFilter` in `docs/unpacker.md`, and synchronize
+  keyboard shortcuts across `docs/views.md`, `docs/enums.md`, and
+  `docs/keyboard_shortcuts.md`.
 
 ## [0.9.23] - 2026-11-07
 
 ### Features
 
-- **Analyzer / UI / MCP**: Add typed cross-references (`XRef` and `XRefKind`: `Read` `[R]`, `Write` `[W]`, `ReadModifyWrite` `[R/W]`, `Call` `[C]`, `Jump` `[J]`, `Offset` `[O]`) across 6502 opcodes, `FindReferencesDialog` (`Ctrl+X`), and MCP tools (`r2000_get_cross_references`, `r2000_get_address_details`).
-- **MCP**: Support comment removal in `r2000_set_comment` by omitting `comment` or passing an empty string (`#43`).
-- **Unpacker**: Add `c64_wavehero_alz64.prg` and `c64_goblin.unk.prg` fixtures to the declarative unpacker corpus.
+- **Analyzer / UI / MCP**: Add typed cross-references (`XRef` and `XRefKind`:
+  `Read` `[R]`, `Write` `[W]`, `ReadModifyWrite` `[R/W]`, `Call` `[C]`, `Jump`
+  `[J]`, `Offset` `[O]`) across 6502 opcodes, `FindReferencesDialog`
+  (`Ctrl+X`), and MCP tools (`r2000_get_cross_references`,
+  `r2000_get_address_details`).
+- **MCP**: Support comment removal in `r2000_set_comment` by omitting
+  `comment` or passing an empty string (`#43`).
+- **Unpacker**: Add `c64_wavehero_alz64.prg` and `c64_goblin.unk.prg` fixtures
+  to the declarative unpacker corpus.
 
 ### Fixes
 
-- **Disassembler & Exporters**: Fix `64tass` (`.block`/`.bend`, `-C`) and `KickAssembler` (`.namespace`) enum definition formatting, disambiguate `PetsciiShifted` duplicate variant names (`CBM_POUND`, `ALT_CBM_POUND`), close lexical scopes ending at the final binary byte, resolve split-byte table labels via `resolve_line_label`, prevent `a`/`x`/`y` register tokens from linking as HTML operands, and validate 2-byte PRG load-address headers in roundtrip verification.
-- **Analyzer & Core**: Align analyzer with 2-byte `BRK` rule, guard multi-byte instructions and word pairs against splitters and partial blocks, stop flow analysis on disabled illegal opcodes, preserve prior auto-labels on undo, support prefixed/unspaced/wildcard (`??`) hex search and case-insensitive PETSCII/Screencode search, and strip reverse-video bits in `screencode_to_petscii`.
-- **Unpacker & Packers**: Fix `$FFFF` anchor boundary scanning, Exomizer 2.x snapshot refinement, TBC table boundary checks, trailing-cluster density trimming, post-run CPU register snapshots (`a`, `x`, `y`, `sp`), and `SHX`/`SHY` illegal opcode bus/CIA cycle stepping.
-- **Parsers**: Fix inverted range panics in `dis65` and `t64`, cyclic directory sector loops in `d64`, `$FFFF` bank truncation in `crt`, `CARTGENERIC`/`C64MEM` ordering in `vice_vsf`, and `SYS` expression parsing in `basic`.
-- **VICE & Action Handlers**: Retain VICE event channel receiver on `ViceConnectAddress`, guard zero-sized register items and `1 MiB` payload limits in VICE protocol decoding, fix `handle_vice_registers_get` disassembly PC jump resolution with external labels, convert full collapsed-block ranges, and fix `HexDump8` alignment and external equate cursor preservation.
-- **MCP**: Fix block-conversion undo snapshots, `r2000_add_scope` bounds and duplicate-label validation, `HexDump8` selection ranges, enum rename/delete annotation cleanup, and JSON-RPC 2.0 notification handling.
-- **UI**: Fix `{splitter}` and non-navigable row cursor placement, tall menu popup scrolling, multi-byte PETSCII UTF-8 string truncation, dotted-stem save/export extensions, dialog refresh on `StateChanged`/`ViewChanged`, `CommentDialog` `PageUp`/`PageDown` scrolling, `OpenRecentDialog` container/CRT picker routing, mouse dialog queue promotion and clean MCP shutdown on quit, `UIState::restore_session` cursor/pane resets, and modifier guards across dialogs.
+- **Disassembler & Exporters**: Fix `64tass` (`.block`/`.bend`, `-C`) and
+  `KickAssembler` (`.namespace`) enum definition formatting, disambiguate
+  `PetsciiShifted` duplicate variant names (`CBM_POUND`, `ALT_CBM_POUND`),
+  close lexical scopes ending at the final binary byte, resolve split-byte
+  table labels via `resolve_line_label`, prevent `a`/`x`/`y` register tokens
+  from linking as HTML operands, and validate 2-byte PRG load-address headers
+  in roundtrip verification.
+- **Analyzer & Core**: Align analyzer with 2-byte `BRK` rule, guard multi-byte
+  instructions and word pairs against splitters and partial blocks, stop flow
+  analysis on disabled illegal opcodes, preserve prior auto-labels on undo,
+  support prefixed/unspaced/wildcard (`??`) hex search and case-insensitive
+  PETSCII/Screencode search, and strip reverse-video bits in
+  `screencode_to_petscii`.
+- **Unpacker & Packers**: Fix `$FFFF` anchor boundary scanning, Exomizer 2.x
+  snapshot refinement, TBC table boundary checks, trailing-cluster density
+  trimming, post-run CPU register snapshots (`a`, `x`, `y`, `sp`), and
+  `SHX`/`SHY` illegal opcode bus/CIA cycle stepping.
+- **Parsers**: Fix inverted range panics in `dis65` and `t64`, cyclic
+  directory sector loops in `d64`, `$FFFF` bank truncation in `crt`,
+  `CARTGENERIC`/`C64MEM` ordering in `vice_vsf`, and `SYS` expression parsing
+  in `basic`.
+- **VICE & Action Handlers**: Retain VICE event channel receiver on
+  `ViceConnectAddress`, guard zero-sized register items and `1 MiB` payload
+  limits in VICE protocol decoding, fix `handle_vice_registers_get`
+  disassembly PC jump resolution with external labels, convert full
+  collapsed-block ranges, and fix `HexDump8` alignment and external equate
+  cursor preservation.
+- **MCP**: Fix block-conversion undo snapshots, `r2000_add_scope` bounds and
+  duplicate-label validation, `HexDump8` selection ranges, enum rename/delete
+  annotation cleanup, and JSON-RPC 2.0 notification handling.
+- **UI**: Fix `{splitter}` and non-navigable row cursor placement, tall menu
+  popup scrolling, multi-byte PETSCII UTF-8 string truncation, dotted-stem
+  save/export extensions, dialog refresh on `StateChanged`/`ViewChanged`,
+  `CommentDialog` `PageUp`/`PageDown` scrolling, `OpenRecentDialog`
+  container/CRT picker routing, mouse dialog queue promotion and clean MCP
+  shutdown on quit, `UIState::restore_session` cursor/pane resets, and
+  modifier guards across dialogs.
 
 ### Refactor / Internal
 
-- **Exporter & Disassembler**: Refactor ASM and HTML exporters onto a unified 3-stage `ExportDocument` IR pipeline (`exporter/ir.rs`), unify `DisassemblyLine` lowering and `VisualLineCounts` across core and TUI, and consolidate shared 6502 operand formatting across all four assembler backends.
-- **UI**: Unify file browser dialogs into `FileBrowserDialog`, single-line prompt dialogs into `PromptDialog`, and disk/tape pickers into `ContainerPickerDialog`; make `DocumentSettingsDialog` table-driven; consolidate right-pane grid navigation into `navigable.rs`; remove the obsolete `BitmapView` responsiveness warning; and eliminate per-frame scans and hot-path allocations across TUI views and dialogs.
-- **Testing**: Add comprehensive unit test suites across core modules (`analyzer`, `assets`, `commands`, `config`, `navigation`, `parser`, `vice`, `utils`) and TUI dialogs, views, and layout helpers.
+- **Exporter & Disassembler**: Refactor ASM and HTML exporters onto a unified
+  3-stage `ExportDocument` IR pipeline (`exporter/ir.rs`), unify
+  `DisassemblyLine` lowering and `VisualLineCounts` across core and TUI, and
+  consolidate shared 6502 operand formatting across all four assembler
+  backends.
+- **UI**: Unify file browser dialogs into `FileBrowserDialog`, single-line
+  prompt dialogs into `PromptDialog`, and disk/tape pickers into
+  `ContainerPickerDialog`; make `DocumentSettingsDialog` table-driven;
+  consolidate right-pane grid navigation into `navigable.rs`; remove the
+  obsolete `BitmapView` responsiveness warning; and eliminate per-frame scans
+  and hot-path allocations across TUI views and dialogs.
+- **Testing**: Add comprehensive unit test suites across core modules
+  (`analyzer`, `assets`, `commands`, `config`, `navigation`, `parser`, `vice`,
+  `utils`) and TUI dialogs, views, and layout helpers.
 
 ### Documentation
 
-- **Docs**: Convert ASCII diagrams to Mermaid v11 across `docs/architecture.md`, `docs/unpacker.md`, and `docs/enums.md`, synchronize `docs/architecture.md`, `docs/unpacker.md`, `docs/settings.md`, `docs/mcp.md`, and `AGENTS.md` with post-refactor APIs, remove MathJax dependencies, and rewrite module, item, and inline documentation across `regenerator2000-core` and `regenerator2000-tui` in ASD-STE100 Simplified Technical English.
+- **Docs**: Convert ASCII diagrams to Mermaid v11 across
+  `docs/architecture.md`, `docs/unpacker.md`, and `docs/enums.md`, synchronize
+  `docs/architecture.md`, `docs/unpacker.md`, `docs/settings.md`,
+  `docs/mcp.md`, and `AGENTS.md` with post-refactor APIs, remove MathJax
+  dependencies, and rewrite module, item, and inline documentation across
+  `regenerator2000-core` and `regenerator2000-tui` in ASD-STE100 Simplified
+  Technical English.
 
 ## [0.9.22] - 2026-10-31
 
 ### Features
 
-- **MCP**: Add support for MCP `2026-07-28` server discovery (`server/discover`) and subscription lifecycle (`subscriptions/listen`) in `rmcp` 3.8.0.
-- **MCP**: Add block type filter aliases (`PETSCII`, `Screencode`, and snake_case identifiers) to `r2000_get_blocks`.
-- **Agents & Skills**: Add `r2000-cbm-principal-swe` Commodore 8-bit / MOS 6502 reverse-engineering agent and refactor `r2000-analyze-program` into a 2-tier MapReduce coordinator.
+- **MCP**: Add support for MCP `2026-07-28` server discovery
+  (`server/discover`) and subscription lifecycle (`subscriptions/listen`) in
+  `rmcp` 3.8.0.
+- **MCP**: Add block type filter aliases (`PETSCII`, `Screencode`, and
+  snake_case identifiers) to `r2000_get_blocks`.
+- **Agents & Skills**: Add `r2000-cbm-principal-swe` Commodore 8-bit / MOS
+  6502 reverse-engineering agent and refactor `r2000-analyze-program` into a
+  2-tier MapReduce coordinator.
 
 ### Fixes
 
-- **Core**: Fix `Shift+Up` / `Shift+Down` range selection conversion and scoping, Blocks pane collapse target resolution, and search matching inside collapsed blocks.
-- **UI**: Unify TUI search dispatch through `AppAction::FindNext` / `AppAction::FindPrevious`, sync `UIState` before action execution, and fix Disassembly View shortcuts (`Alt+Up`/`Alt+Down`, `'N'`, `'V'`, `'E'`, `'I'`).
-- **UI**: Fix `Ctrl+*` / `Alt+*` modifier shadowing across views and synchronize keyboard shortcut metadata across menus, dialogs, and documentation.
-- **MCP**: Bind TCP listener before emitting `McpServerStarted` so port-bind conflicts are preserved in the TUI status bar.
-- **MCP**: Wrap analysis and modification tool responses in MCP `CallToolResult` payloads, remove duplicate `$` address prefixes, and isolate `--headless` mode from user config state.
+- **Core**: Fix `Shift+Up` / `Shift+Down` range selection conversion and
+  scoping, Blocks pane collapse target resolution, and search matching inside
+  collapsed blocks.
+- **UI**: Unify TUI search dispatch through `AppAction::FindNext` /
+  `AppAction::FindPrevious`, sync `UIState` before action execution, and fix
+  Disassembly View shortcuts (`Alt+Up`/`Alt+Down`, `'N'`, `'V'`, `'E'`,
+  `'I'`).
+- **UI**: Fix `Ctrl+*` / `Alt+*` modifier shadowing across views and
+  synchronize keyboard shortcut metadata across menus, dialogs, and
+  documentation.
+- **MCP**: Bind TCP listener before emitting `McpServerStarted` so port-bind
+  conflicts are preserved in the TUI status bar.
+- **MCP**: Wrap analysis and modification tool responses in MCP
+  `CallToolResult` payloads, remove duplicate `$` address prefixes, and
+  isolate `--headless` mode from user config state.
 
 ### Refactor / Internal
 
-- **Performance**: Index scope boundaries (`BTreeMap`/`BTreeSet`) in `AnnotationManager` for `O(log S)` lookups, optimize `compress_block_types`, and window `BlocksView` rendering to the visible viewport.
-- **Testing**: Add 3-pillar end-to-end keyboard shortcut verification suite in `regenerator2000-tui`.
-- **Dependencies**: Upgrade `rmcp` to `3.8.0`, `mos6502` to `0.10.1`, `base64` to `0.23.1`, and `opener` to `0.9.0`.
+- **Performance**: Index scope boundaries (`BTreeMap`/`BTreeSet`) in
+  `AnnotationManager` for `O(log S)` lookups, optimize `compress_block_types`,
+  and window `BlocksView` rendering to the visible viewport.
+- **Testing**: Add 3-pillar end-to-end keyboard shortcut verification suite in
+  `regenerator2000-tui`.
+- **Dependencies**: Upgrade `rmcp` to `3.8.0`, `mos6502` to `0.10.1`, `base64`
+  to `0.23.1`, and `opener` to `0.9.0`.
 
 ### Documentation
 
-- **Docs**: Add comprehensive rustdoc module overviews, item documentation, and algorithmic invariant comments across `state/`, `view_blocks.rs`, and `view_disassembly/render.rs`.
+- **Docs**: Add comprehensive rustdoc module overviews, item documentation,
+  and algorithmic invariant comments across `state/`, `view_blocks.rs`, and
+  `view_disassembly/render.rs`.
 
 ## [0.9.21] - 2026-10-29
 
 ### Features
 
-- **Unpacker**: Add Antiram Packer, TSCrunch, 1001 Card Cruncher, and MC-Cracken unpacker support.
-- **Unpacker**: Add MOS 6526 CIA 1 & CIA 2 timer emulation and C64 `$00`/`$01` processor port banking with I/O write protection.
-- **Unpacker**: Add 3-tier unpacker corpus oracle (`unpack_corpus.toml` / `unpack_baseline.toml`) and rewrite `unpacker_compare_all` with `--update`, `--check`, and `--markdown` modes.
-- **State**: Add project schema versioning (`schema_version`) to `.regen2000proj` files.
-- **Tools**: Add `c64ref` (pagetable) to Regenerator 2000 asset converter utility.
+- **Unpacker**: Add Antiram Packer, TSCrunch, 1001 Card Cruncher, and
+  MC-Cracken unpacker support.
+- **Unpacker**: Add MOS 6526 CIA 1 & CIA 2 timer emulation and C64 `$00`/`$01`
+  processor port banking with I/O write protection.
+- **Unpacker**: Add 3-tier unpacker corpus oracle (`unpack_corpus.toml` /
+  `unpack_baseline.toml`) and rewrite `unpacker_compare_all` with `--update`,
+  `--check`, and `--markdown` modes.
+- **State**: Add project schema versioning (`schema_version`) to
+  `.regen2000proj` files.
+- **Tools**: Add `c64ref` (pagetable) to Regenerator 2000 asset converter
+  utility.
 
 ### Fixes
 
-- **Unpacker**: Fix Exomizer 3.02+ entry point detection, zero-page tracking, and timeouts.
+- **Unpacker**: Fix Exomizer 3.02+ entry point detection, zero-page tracking,
+  and timeouts.
 - **Unpacker**: Fix TSCrunch depacker output end address calculation.
 - **Unpacker**: Fix entry point override for direct machine code jumps.
-- **Parser**: Fix BASIC `SYS` line expression parsing and deduplicate `SYS` evaluation into `parser::basic`.
-- **Core**: Fix address bounds checking and metadata calculation for full 64 KiB binaries.
+- **Parser**: Fix BASIC `SYS` line expression parsing and deduplicate `SYS`
+  evaluation into `parser::basic`.
+- **Core**: Fix address bounds checking and metadata calculation for full 64
+  KiB binaries.
 - **UI**: Restore Disassembly View keyboard shortcuts and Jump to Operand.
 - **UI**: Fix double history push on address jump navigation.
 - **UI**: Fix Import Context dialog right border offset caused by emoji width.
@@ -86,17 +200,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactor / Internal
 
-- **Unpacker**: Refactor 6502 unpacker to an explicit 2-phase `RunState` state machine (`Machine`, `MemoryBus` with `DirtyBitmap`/`WrittenBitmap`, and `BoundSource` boundary resolution) and declarative `PackerSpec` registry.
-- **Unpacker**: Make unpacker system-agnostic via `TargetSystem` methods and unify TUI and MCP post-unpack initialization in `AppState::apply_unpacked_prg`.
-- **Core**: Decompose `core.rs` into modular domain action handlers (`action_handlers/`) and `disassembler.rs` into a multi-module `disassembler/` subsystem.
-- **State**: Consolidate sparse per-address metadata into `AnnotationManager` and replace `System(String)` with a strongly-typed `TargetSystem` enum.
-- **Error Handling**: Standardize domain error hierarchy with `thiserror` (`CoreError`).
+- **Unpacker**: Refactor 6502 unpacker to an explicit 2-phase `RunState` state
+  machine (`Machine`, `MemoryBus` with `DirtyBitmap`/`WrittenBitmap`, and
+  `BoundSource` boundary resolution) and declarative `PackerSpec` registry.
+- **Unpacker**: Make unpacker system-agnostic via `TargetSystem` methods and
+  unify TUI and MCP post-unpack initialization in
+  `AppState::apply_unpacked_prg`.
+- **Core**: Decompose `core.rs` into modular domain action handlers
+  (`action_handlers/`) and `disassembler.rs` into a multi-module
+  `disassembler/` subsystem.
+- **State**: Consolidate sparse per-address metadata into `AnnotationManager`
+  and replace `System(String)` with a strongly-typed `TargetSystem` enum.
+- **Error Handling**: Standardize domain error hierarchy with `thiserror`
+  (`CoreError`).
 - **MCP**: Re-categorize MCP tools into modular submodules under `mcp/tools/`.
-- **Testing & CI**: Add multi-assembler roundtrip verification tests, deterministic unpacker fuzz tests, and enforce `--all-targets` in Clippy.
+- **Testing & CI**: Add multi-assembler roundtrip verification tests,
+  deterministic unpacker fuzz tests, and enforce `--all-targets` in Clippy.
 
 ### Documentation
 
-- **Docs**: Rewrite `README.md` and `docs/` in ASD-STE100 Simplified Technical English and update `docs/architecture.md` and `docs/unpacker.md` for the declarative unpacker and `unpacker_compare_all` CLI workflow.
+- **Docs**: Rewrite `README.md` and `docs/` in ASD-STE100 Simplified Technical
+  English and update `docs/architecture.md` and `docs/unpacker.md` for the
+  declarative unpacker and `unpacker_compare_all` CLI workflow.
 
 ## [0.9.20] - 2026-07-11
 
@@ -110,7 +235,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
-- **Unpacker**: Fix Exomizer 3 address boundaries and simulate raster beam sync.
+- **Unpacker**: Fix Exomizer 3 address boundaries and simulate raster beam
+  sync.
 - **Unpacker**: Remove hardcoded C64 dependencies from the unpacker.
 
 ### Refactor / Internal
@@ -125,58 +251,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- **Unpacker**: Add classic and demoscene packer signature database detection (Dali, TinyCrunch, Exomizer, ByteBoozer, etc.).
-- **UI**: Add File Info dialog to display binary information, origin address, and entropy.
+- **Unpacker**: Add classic and demoscene packer signature database detection
+  (Dali, TinyCrunch, Exomizer, ByteBoozer, etc.).
+- **UI**: Add File Info dialog to display binary information, origin address,
+  and entropy.
 - **UI**: Add overwrite confirmation dialog for save and export operations.
 - **CI**: Add crates.io release workflow pipeline.
 
 ### Fixes
 
-- **Unpacker**: Fix entry point resolution for BASIC stub and ROM landing addresses.
-- **Unpacker**: Fix MC-Cracken Compressor, ByteBoozer 2, Exomizer v3, and in-place 2-pass depackers (TinyCrunch) to match unp64 output.
-- **Unpacker**: Support dynamic entry points and end address detection in Dali depacker.
-- **Unpacker**: Fix unpacking errors on longer programs by expanding max instruction bounds.
+- **Unpacker**: Fix entry point resolution for BASIC stub and ROM landing
+  addresses.
+- **Unpacker**: Fix MC-Cracken Compressor, ByteBoozer 2, Exomizer v3, and
+  in-place 2-pass depackers (TinyCrunch) to match unp64 output.
+- **Unpacker**: Support dynamic entry points and end address detection in Dali
+  depacker.
+- **Unpacker**: Fix unpacking errors on longer programs by expanding max
+  instruction bounds.
 
 ### Refactor / Internal
 
-- **Crate Manifests**: Add homepage and documentation links to crate manifests.
+- **Crate Manifests**: Add homepage and documentation links to crate
+  manifests.
 - **Dependencies**: Upgrade cargo dependencies.
 
 ### Documentation
 
 - **Unpacker**: Document unpacker edge cases against unp64.
 - **MCP**: Update MCP documentation with Claude Code setup and CLI examples.
-- **Docs**: Fix formatting in architecture documentation, views, keyboard shortcuts, and terminology.
+- **Docs**: Fix formatting in architecture documentation, views, keyboard
+  shortcuts, and terminology.
 
 ## [0.9.18] - 2026-05-31
 
 ### Features
 
-- **MCP**: Add `r2000_disassemble` tool for disassembling a range of addresses.
-- **MCP**: Add `r2000_unpack_binary` tool to unpack compressed binaries and update cursor after unpacking.
-- **MCP**: Add `r2000_set_immediate_format` tool with low/high byte format support.
+- **MCP**: Add `r2000_disassemble` tool for disassembling a range of
+  addresses.
+- **MCP**: Add `r2000_unpack_binary` tool to unpack compressed binaries and
+  update cursor after unpacking.
+- **MCP**: Add `r2000_set_immediate_format` tool with low/high byte format
+  support.
 - **MCP**: Add binary entropy tracking to `r2000_get_binary_info`.
-- **Hexdump**: Implement `SetBytesBlockByOffset` action for byte-level block editing.
-- **CLI**: Add `--dump-enum-files` command and documentation for custom global enums.
+- **Hexdump**: Implement `SetBytesBlockByOffset` action for byte-level block
+  editing.
+- **CLI**: Add `--dump-enum-files` command and documentation for custom global
+  enums.
 - **Unpacker**: Preserve document properties and settings on binary unpack.
-- **Analysis**: Enable automatic code block labeling and analysis during binary unpacking via MCP.
+- **Analysis**: Enable automatic code block labeling and analysis during
+  binary unpacking via MCP.
 
 ### Changes
 
-- **MCP**: Update program analysis skill with pre-analysis entropy and unpacking steps.
+- **MCP**: Update program analysis skill with pre-analysis entropy and
+  unpacking steps.
 
 ### Documentation
 
-- **README**: Add quick-start guide for AI agents and links to example documentation and showcase gallery.
+- **README**: Add quick-start guide for AI agents and links to example
+  documentation and showcase gallery.
 - **Docs**: Re-organize documentation structure.
-- **Views**: Fix sprite and character view cycle descriptions in keyboard shortcut tables.
+- **Views**: Fix sprite and character view cycle descriptions in keyboard
+  shortcut tables.
 - **Hexdump**: Add link to original hexdump color source in `views.md`.
 
 ### Agent / Skills
 
-- **Skills**: Improve `r2000-analyze-blocks`, `r2000-analyze-symbol`, and `r2000-analyze-routine` skill workflows.
-- **Skills**: Update program analysis skill with rolling subagent limit and pre-analysis steps.
-- **Config**: Add `.mcp.json` configuration file for Regenerator MCP integration with Claude CLI.
+- **Skills**: Improve `r2000-analyze-blocks`, `r2000-analyze-symbol`, and
+  `r2000-analyze-routine` skill workflows.
+- **Skills**: Update program analysis skill with rolling subagent limit and
+  pre-analysis steps.
+- **Config**: Add `.mcp.json` configuration file for Regenerator MCP
+  integration with Claude CLI.
 
 ### Examples
 
@@ -189,9 +335,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - **Enums**: Implement three-tier enum management and CRUD operations.
-- **Enums**: Track enum definition source files to persist naming and location during updates.
-- **Enums**: Three pre-built enums: VIC colors, VIC-II Colors, PETSCII shifted characters.
-- **Labels**: Add labels for entity coordinate and enemy speed mask memory addresses.
+- **Enums**: Track enum definition source files to persist naming and location
+  during updates.
+- **Enums**: Three pre-built enums: VIC colors, VIC-II Colors, PETSCII shifted
+  characters.
+- **Labels**: Add labels for entity coordinate and enemy speed mask memory
+  addresses.
 
 ### Fixes
 
@@ -212,7 +361,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Examples
 
-- **VIC-20**: Better names in example and added PetsciiShifted data types to Omega Race example.
+- **VIC-20**: Better names in example and added PetsciiShifted data types to
+  Omega Race example.
 - **Examples**: Update exported games and added more labels/comments/enums.
 - **C64**: Moving tubes uses enums.
 - **C128**: Updated C128 example.
@@ -221,9 +371,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- **Unpacker**: Add 6502 emulation-based binary unpacker with live progress in status bar. The unpacker works in two phases. Phase 1 unpacks the code and data to memory using the CPU's execution. Phase 2 unpacks the code and data to memory using the CPU's execution. Based on logic from unp64.
-- **UI**: Replace String input with TextArea in search dialog for advanced text manipulation.
-- **UI**: Expand entropy warnings and adjust dialog dimensions for better multi-line readability.
+- **Unpacker**: Add 6502 emulation-based binary unpacker with live progress in
+  status bar. The unpacker works in two phases. Phase 1 unpacks the code and
+  data to memory using the CPU's execution. Phase 2 unpacks the code and data
+  to memory using the CPU's execution. Based on logic from unp64.
+- **UI**: Replace String input with TextArea in search dialog for advanced
+  text manipulation.
+- **UI**: Expand entropy warnings and adjust dialog dimensions for better
+  multi-line readability.
 
 ### Changes
 
@@ -247,11 +402,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- **Sprites/Charset Views**: Add mouse click/drag-to-select and cross-pane selection sync.
-- **Sprites/Charset Views**: Update view toggles to cycling behaviors with multiple view modes.
-- **Sprites View**: Add 2-column sprites view mode with scrolloff and grid navigation.
+- **Sprites/Charset Views**: Add mouse click/drag-to-select and cross-pane
+  selection sync.
+- **Sprites/Charset Views**: Update view toggles to cycling behaviors with
+  multiple view modes.
+- **Sprites View**: Add 2-column sprites view mode with scrolloff and grid
+  navigation.
 - **Charset View**: Add 4-column charset view mode with dynamic grid layout.
-- **Hexdump View**: Implement cycling hex dump views between 8 columns, 16 columns, and hidden.
+- **Hexdump View**: Implement cycling hex dump views between 8 columns, 16
+  columns, and hidden.
 - **Navigation**: Add keyboard shortcuts for navigating unexplored blocks.
 
 ### Fixes
@@ -265,12 +424,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - **README**: Expand supported systems list, add screenshots, and fix typo.
-- **MCP**: Update MCP analysis phases to include rolling subagent execution and refined symbol classification logic.
-- **Contributing**: Update contribution guidelines with refined coding standards and clarified CI test environments.
+- **MCP**: Update MCP analysis phases to include rolling subagent execution
+  and refined symbol classification logic.
+- **Contributing**: Update contribution guidelines with refined coding
+  standards and clarified CI test environments.
 - **Docs**: Update architecture documentation link in CONTRIBUTING.md.
-- **Docs**: Update skills link in index.md to point to the full repository URL.
-- **Docs**: Update project description to highlight automated AI analysis workflows and bundled skills.
-- **Keyboard Shortcuts**: Update minimap position, add scope nudging, remap immediate formatting keys, and add search shortcuts.
+- **Docs**: Update skills link in index.md to point to the full repository
+  URL.
+- **Docs**: Update project description to highlight automated AI analysis
+  workflows and bundled skills.
+- **Keyboard Shortcuts**: Update minimap position, add scope nudging, remap
+  immediate formatting keys, and add search shortcuts.
 
 ### CI
 
@@ -285,66 +449,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - **Search**: Add regex search support to TUI dialog and MCP server.
-- **MCP**: Add `r2000_search_disassembly` tool for searching disassembly output.
+- **MCP**: Add `r2000_search_disassembly` tool for searching disassembly
+  output.
 - **Labels**: Add `r_` (Return) label type for RTS/RTI targets.
 - **Import**: Trigger auto-analysis during context import.
 - **Import**: Label entry point as `start` during context import disassembly.
-- **UI**: Implement automatic synchronization of right pane cursors to disassembly address.
+- **UI**: Implement automatic synchronization of right pane cursors to
+  disassembly address.
 
 ### Fixes
 
-- **HTML Export**: Skip `ExternalFile` detection for external-label definition lines.
+- **HTML Export**: Skip `ExternalFile` detection for external-label definition
+  lines.
 - **HTML Export**: Fix line comment alignment and spacing.
 - **Disassembly**: Fix collapse (`Ctrl+K`) ignoring splitters in data blocks.
-- **KickAssembler**: Fix screencode roundtrip for non-letter chars `$00`/`$1B`-`$1F` for KickAsm.
+- **KickAssembler**: Fix screencode roundtrip for non-letter chars
+  `$00`/`$1B`-`$1F` for KickAsm.
 
 ### Changes
 
-- **Terminology**: Rename "Platform" back to "System" throughout codebase, labels, docs, and UI.
-- **Labels**: Update symbol naming conventions to use `zp_` prefix for Zero Page and underscored prefixes for improved searchability.
-- **Disassembly View**, **ASM/HTML Export**: Flatten external labels into single sorted list with legend.
-- **Disassembly View**, **ASM/HTML Export**: External Labels and its comments aligned with code.
+- **Terminology**: Rename "Platform" back to "System" throughout codebase,
+  labels, docs, and UI.
+- **Labels**: Update symbol naming conventions to use `zp_` prefix for Zero
+  Page and underscored prefixes for improved searchability.
+- **Disassembly View**, **ASM/HTML Export**: Flatten external labels into
+  single sorted list with legend.
+- **Disassembly View**, **ASM/HTML Export**: External Labels and its comments
+  aligned with code.
 - **HTML Export**: Reduce exported file size by ~20%.
 - **UI**: Remove origin address display from status bar to simplify UI layout.
 - **UI**: Reorganize settings dialog layout with logical groupings.
 
 ### Documentation
 
-- **Architecture**: Update documentation for label naming conventions, expanded parser support, TOML-based theme system, and event system.
-- **Systems**: Rename `docs/platforms.md` to `docs/systems.md` and update terminology.
+- **Architecture**: Update documentation for label naming conventions,
+  expanded parser support, TOML-based theme system, and event system.
+- **Systems**: Rename `docs/platforms.md` to `docs/systems.md` and update
+  terminology.
 - **FAQ**: Update disk image track counts and remove entropy section.
-- **README**: Update platform list, disk image formats, and data type definitions.
-- **Analysis**: Clarify address exclusion levels and refine MCP analysis phase descriptions.
+- **README**: Update platform list, disk image formats, and data type
+  definitions.
+- **Analysis**: Clarify address exclusion levels and refine MCP analysis phase
+  descriptions.
 
 ### Agent / Skills
 
-- **Skills**: Update `r2000-analyze-program` skill with "start" entry point identification, rolling window parallel processing, and improved routine detection for NMI/IRQ handlers.
-- **Skills**: Simplify routine detection for `p_XXXX` labels by including all code-block pointers.
+- **Skills**: Update `r2000-analyze-program` skill with "start" entry point
+  identification, rolling window parallel processing, and improved routine
+  detection for NMI/IRQ handlers.
+- **Skills**: Simplify routine detection for `p_XXXX` labels by including all
+  code-block pointers.
 
 ### Examples
 
-- **C64/C128/Plus4**: Update example projects with additional labels and documentation.
+- **C64/C128/Plus4**: Update example projects with additional labels and
+  documentation.
 
 ## [0.9.13] - 2026-05-03
 
 ### Features
 
-- **Configuration**: Migrate configuration format from JSON to TOML with automatic legacy file conversion.
-- **Themes**: Move built-in themes from Rust code to embedded TOML assets; add custom theme support via TOML files.
+- **Configuration**: Migrate configuration format from JSON to TOML with
+  automatic legacy file conversion.
+- **Themes**: Move built-in themes from Rust code to embedded TOML assets; add
+  custom theme support via TOML files.
 - **Disk Images**: Add support for D71 80-track, and D64 42-track disk images.
-- **Hexdump**: Implement byte-value color palettes and updated hex dump UI layout for improved readability.
-- **Charset**: Show cursor address in charset view title and improve cursor visibility.
-- **Labels**: Add centralized label validation and helper for setting user labels with duplicate name detection.
+- **Hexdump**: Implement byte-value color palettes and updated hex dump UI
+  layout for improved readability.
+- **Charset**: Show cursor address in charset view title and improve cursor
+  visibility.
+- **Labels**: Add centralized label validation and helper for setting user
+  labels with duplicate name detection.
 - **CLI**: Display config directory path in `--help` output.
 - **UI**: Add Delete key to exclude external addresses from analysis.
 
 ### Fixes
 
-- **Labels**: Exclude external addresses from being marked as unexplored in disassembly view.
+- **Labels**: Exclude external addresses from being marked as unexplored in
+  disassembly view.
 
 ### Changes
 
-- **Labels**: Update label naming convention to use underscored prefixes (`s_`, `j_`, `zpf_`, `p_`, `f_`, `a_`) for improved searchability.
+- **Labels**: Update label naming convention to use underscored prefixes
+  (`s_`, `j_`, `zpf_`, `p_`, `f_`, `a_`) for improved searchability.
 - **Platform**: Rename 'system' to 'platform' across the codebase.
 
 ### Refactor / Internal
@@ -354,8 +541,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - **Analysis**: Add analysis documentation and update label prefix references.
-- **Settings**: Update settings documentation with platform-specific system label and analysis options.
-- **CLI**: Add `--dump-system-config-files` CLI documentation and system config override workflow.
+- **Settings**: Update settings documentation with platform-specific system
+  label and analysis options.
+- **CLI**: Add `--dump-system-config-files` CLI documentation and system
+  config override workflow.
 - **Themes**: Move custom theme documentation from install.md to themes.md.
 
 ### Tools
@@ -364,45 +553,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Agent / Skills
 
-- **Skills**: Add `r2000-analyze-program` orchestration skill for full-program analysis.
-- **Skills**: Generalize `r2000-analyze-symbol` and `r2000-analyze-routine` instructions by removing platform-specific C64 references.
-- **Skills**: Update subroutine and data symbol naming conventions in analysis skill documentation. Also, they should not ask user for confirmation.
+- **Skills**: Add `r2000-analyze-program` orchestration skill for full-program
+  analysis.
+- **Skills**: Generalize `r2000-analyze-symbol` and `r2000-analyze-routine`
+  instructions by removing platform-specific C64 references.
+- **Skills**: Update subroutine and data symbol naming conventions in analysis
+  skill documentation. Also, they should not ask user for confirmation.
 
 ### Examples
 
-- **C64**: Updated Burnin' Rubber, Kikstart, and Moving Tubes with additional labels, comments, and project metadata.
+- **C64**: Updated Burnin' Rubber, Kikstart, and Moving Tubes with additional
+  labels, comments, and project metadata.
 
 ## [0.9.12] - 2026-04-27
 
 ### Features
 
-- **Debugger**: Added TED chip register dump view for the Commodore Plus/4 platform.
-- **CLI**: Added `--export_html` command-line option; `--mcp-server` and `--headless` are now mutually exclusive.
-- **UI**: Added `Ctrl+Enter` and `Alt+Enter` as alternative shortcut for newline in Comment dialog.
-- **UI**: Added C64 boot-screen easter egg to About dialog with blinking cursor, typing animation, and auto-close.
-- **UI**: Added `handle_tick` mechanism to UI widgets for auto-close functionality.
+- **Debugger**: Added TED chip register dump view for the Commodore Plus/4
+  platform.
+- **CLI**: Added `--export_html` command-line option; `--mcp-server` and
+  `--headless` are now mutually exclusive.
+- **UI**: Added `Ctrl+Enter` and `Alt+Enter` as alternative shortcut for
+  newline in Comment dialog.
+- **UI**: Added C64 boot-screen easter egg to About dialog with blinking
+  cursor, typing animation, and auto-close.
+- **UI**: Added `handle_tick` mechanism to UI widgets for auto-close
+  functionality.
 
 ### Fixes
 
-- **Labels**: Preserve `label_type` when renaming external labels; external labels now belong to correct group.
-- **HTML Export**: Cross-references now rendered in external label definition lines.
+- **Labels**: Preserve `label_type` when renaming external labels; external
+  labels now belong to correct group.
+- **HTML Export**: Cross-references now rendered in external label definition
+  lines.
 - **HTML Export**: External labels exported with correct grouping.
-- **Platform**: Improved system comment consistency across different platforms; better "excluded" handling for platforms.
+- **Platform**: Improved system comment consistency across different
+  platforms; better "excluded" handling for platforms.
 
 ### Changes
 
-- **Labels**: Renamed `exclude_comments_from_well_known` to `exclude_well_known_labels` with updated semantic.
+- **Labels**: Renamed `exclude_comments_from_well_known` to
+  `exclude_well_known_labels` with updated semantic.
 
 ### Refactor / Internal
 
-- **Rust**: Enforced `must_use_candidate`, `missing_errors_doc`, `missing_panics_doc` clippy lints.
-- **Rust**: Applied modern Rust best practices and documented them in `AGENTS.md`.
+- **Rust**: Enforced `must_use_candidate`, `missing_errors_doc`,
+  `missing_panics_doc` clippy lints.
+- **Rust**: Applied modern Rust best practices and documented them in
+  `AGENTS.md`.
 - **Dependencies**: Updated dependencies.
 - **HTML Export**: Updated CSS layout for code cells.
 
 ### Examples
 
-- **C64**: Annotated Burnin' Rubber with additional labels, comments, and documentation.
+- **C64**: Annotated Burnin' Rubber with additional labels, comments, and
+  documentation.
 - **VIC-20**: Extensive analysis and annotations for Omega Race.
 - **Plus/4**: Added Kikstart Plus/4 example project with labels and comments.
 - **PET**: Updated Lode Runner example with annotations.
@@ -411,74 +616,102 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- **UI**: Added mouse click-to-cursor and drag-to-select support in the line comment dialog.
+- **UI**: Added mouse click-to-cursor and drag-to-select support in the line
+  comment dialog.
 
 ## [0.9.10] - 2026-04-22
 
 ### Features
 
 - **Navigation**: Added "Jump to next/prev unexplored block" to the Jump menu.
-- **Disassembly**: Force a new line when a side comment is present on an grouped block.
-- **HTML Export**: Added support for opening external documentation and examples links via browser.
+- **Disassembly**: Force a new line when a side comment is present on an
+  grouped block.
+- **HTML Export**: Added support for opening external documentation and
+  examples links via browser.
 - **Analysis**: Fixed automatically displayed x-refs for split tables.
 
 ### Fixes
 
-- **Disassembly**: Fixed `.fill` not emitted when preceded by non-matching bytes in same block.
+- **Disassembly**: Fixed `.fill` not emitted when preceded by non-matching
+  bytes in same block.
 - **UI**: Adjusted mnemonic column width for improved side-comment alignment.
 - **File Dialog**: Correctly show parent directly.
-- **Dependencies**: Updated dependencies to fix security vulnerabilities in CI.
-- **Platform**: VIC-20 system labels/comments now correctly identified and displayed in Document Settings Dialog.
+- **Dependencies**: Updated dependencies to fix security vulnerabilities in
+  CI.
+- **Platform**: VIC-20 system labels/comments now correctly identified and
+  displayed in Document Settings Dialog.
 
 ### Refactor / Internal
 
-- **UI**: Updated search dialog to use persisted UI state for query and filters.
+- **UI**: Updated search dialog to use persisted UI state for query and
+  filters.
 - **MCP**: Added strict input validation for MCP handler parameters.
 - **Rust**: Applied Clippy fixes for Rust 1.96.0.
 
 ### Examples / Research
 
-- **VIC-20**: Extensive reverse engineering and documentation for the Omega Race cartridge.
+- **VIC-20**: Extensive reverse engineering and documentation for the Omega
+  Race cartridge.
 - **C64**: Annotated Burnin' Rubber collision system routines and tables.
 
 ## [0.9.9] - 2026-04-15
 
 ### Features
 
-- **Disassembly**: Add `.fill` directive support for contiguous identical byte runs (configurable threshold, default 8); runs are suppressed when a cross-reference, line-comment, or side-comment is present at any interior address. Assembler-specific directives: `.fill` (64tass, KickAssembler), `!fill` (ACME), `.res` (ca65).
-- **UI**: Add drag-to-select and Shift+Click mouse selection in the disassembly view.
-- **HTML Export**: Show assembler-specific build instructions in the HTML export header.
-- **HTML Export**: Add clickable hyperlinks to example disassembly files from assembler homepage links.
-- **MCP**: Rename and extend `r2000_get_symbols` and `r2000_get_comments` tools with optional address-range and type filters.
-- **Document Settings**: Add `Fill run threshold` option (0 = disabled) to the Document Settings dialog with left/right arrow and direct-edit support; max value 64.
+- **Disassembly**: Add `.fill` directive support for contiguous identical byte
+  runs (configurable threshold, default 8); runs are suppressed when a
+  cross-reference, line-comment, or side-comment is present at any interior
+  address. Assembler-specific directives: `.fill` (64tass, KickAssembler),
+  `!fill` (ACME), `.res` (ca65).
+- **UI**: Add drag-to-select and Shift+Click mouse selection in the
+  disassembly view.
+- **HTML Export**: Show assembler-specific build instructions in the HTML
+  export header.
+- **HTML Export**: Add clickable hyperlinks to example disassembly files from
+  assembler homepage links.
+- **MCP**: Rename and extend `r2000_get_symbols` and `r2000_get_comments`
+  tools with optional address-range and type filters.
+- **Document Settings**: Add `Fill run threshold` option (0 = disabled) to the
+  Document Settings dialog with left/right arrow and direct-edit support; max
+  value 64.
 
 ### Fixes
 
-- **HTML Export**: Fix x-ref relative address link alignment in disassembly output.
-- **Document Settings**: Fix navigation bounds and number input dialog in Document Settings.
+- **HTML Export**: Fix x-ref relative address link alignment in disassembly
+  output.
+- **Document Settings**: Fix navigation bounds and number input dialog in
+  Document Settings.
 
 ### Documentation
 
-- **Settings**: Document the Fill run threshold option with per-assembler directive table and 64tass example.
-- **Architecture**: Update architecture docs to reflect HTML/verification exporters and the Import Context dialog.
-- **Examples**: Add detailed comments and labels to Moving Tubes and PET Lode Runner example projects.
+- **Settings**: Document the Fill run threshold option with per-assembler
+  directive table and 64tass example.
+- **Architecture**: Update architecture docs to reflect HTML/verification
+  exporters and the Import Context dialog.
+- **Examples**: Add detailed comments and labels to Moving Tubes and PET Lode
+  Runner example projects.
 
 ### Agent / Skills
 
-- **Skills**: Refine `r2000-analyze-routine` and `r2000-analyze-basic` skill workflows.
+- **Skills**: Refine `r2000-analyze-routine` and `r2000-analyze-basic` skill
+  workflows.
 
 ## [0.9.8] - 2026-04-11
 
 ### Features
 
-- **UI**: Implement interactive cursor navigation and text editing capabilities in all dialog prompts.
-- **HTML Export**: Added assembler homepage hyperlinks to generated HTML headers.
-- **HTML Export**: Improved aesthetics to match GitHub themes and implemented clickable instruction anchors.
+- **UI**: Implement interactive cursor navigation and text editing
+  capabilities in all dialog prompts.
+- **HTML Export**: Added assembler homepage hyperlinks to generated HTML
+  headers.
+- **HTML Export**: Improved aesthetics to match GitHub themes and implemented
+  clickable instruction anchors.
 
 ### Fixes
 
 - **Core**: Split transient export paths for ASM and HTML configurations.
-- **Core**: Prevent internal side comment propagation in nested Address blocks.
+- **Core**: Prevent internal side comment propagation in nested Address
+  blocks.
 
 ### Documentation
 
@@ -488,22 +721,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- **HTML Export**: Added standalone HTML external file modules, inline hyperlink navigation, anchors, theme toggling, anchors, variable links, and dynamic layout logic.
-- **Import**: Automatically suggest entry points by parsing SYS addresses in multi-line BASIC PRGs.
-- **Navigation**: Added support for directory navigation history and parent folder rules in open dialogs.
+- **HTML Export**: Added standalone HTML external file modules, inline
+  hyperlink navigation, anchors, theme toggling, anchors, variable links, and
+  dynamic layout logic.
+- **Import**: Automatically suggest entry points by parsing SYS addresses in
+  multi-line BASIC PRGs.
+- **Navigation**: Added support for directory navigation history and parent
+  folder rules in open dialogs.
 - **Agent**: Added skill to parse BASIC tokens.
 
 ### Fixes
 
 - **UI**: Added hex prefix (`$`) to addresses across the status bar.
-- **UI**: Centered position contexts automatically for input prompts in full-range address modal windows.
+- **UI**: Centered position contexts automatically for input prompts in
+  full-range address modal windows.
 - **Core**: Fixed context-level splitter handling in raw-analysis blocks.
-- **Blocks**: Synchronized UI navigation contexts efficiently for blocks sharing duplicative base addresses.
+- **Blocks**: Synchronized UI navigation contexts efficiently for blocks
+  sharing duplicative base addresses.
 
 ### Refactor / Internal
 
-- **Exporter**: Modularized formatting rules into independent files (asm / html).
-- **Exporter**: Delegated formatting of native inclusions to formatter definitions instead of maintaining hardcoded match constraints.
+- **Exporter**: Modularized formatting rules into independent files (asm /
+  html).
+- **Exporter**: Delegated formatting of native inclusions to formatter
+  definitions instead of maintaining hardcoded match constraints.
 - **Refactor**: Replaced raw string platform formats with constants natively.
 - **Refactor**: Restrict recent project contexts to `.regen2000proj` files.
 
@@ -511,14 +752,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- **Import**: Automatically detect platform from VSF header and suggest entry point by parsing SYS address in PRG files.
-- **Import**: New Import Context dialog that asks for Platform, Origin, Entry Point when importing a new file.
+- **Import**: Automatically detect platform from VSF header and suggest entry
+  point by parsing SYS address in PRG files.
+- **Import**: New Import Context dialog that asks for Platform, Origin, Entry
+  Point when importing a new file.
 - **UI**: Added local/global scope selection to the label dialog.
-- **UI**: Implemented mouse interaction for the minimap to navigate the disassembly view.
+- **UI**: Implemented mouse interaction for the minimap to navigate the
+  disassembly view.
 
 ### Fixes
 
-- **UI**: Fixed `LocalOrGlobalAddr` label heuristic and visual equates for .dis65.
+- **UI**: Fixed `LocalOrGlobalAddr` label heuristic and visual equates for
+  .dis65.
 
 ### UI / UX
 
@@ -526,22 +771,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **User Guide**: Added documentation for local vs. global label scoping and cleaned up formatting in tutorial and FAQ.
+- **User Guide**: Added documentation for local vs. global label scoping and
+  cleaned up formatting in tutorial and FAQ.
 - **User Guide**: Updated screenshots in documentation.
 
 ### Refactor / Internal
 
 - **Refactor**: Centralized PRG parsing and refactored container formats.
 - **Refactor**: Used strongly-typed `Platform` for suggested platforms.
-- **Refactor**: Removed redundant manual session restoration logic in favor of `ui_state.restore_session`.
+- **Refactor**: Removed redundant manual session restoration logic in favor of
+  `ui_state.restore_session`.
 
 ## [0.9.5] - 2026-03-31
 
 ### Features
 
 - **Project**: Added support for 6502bench (`.dis65`) project files.
-- **Navigation**: Added support for "Disassemble address" (keyboard shortcut 'd') and flow analysis for code block detection.
-- **UI**: Added a high-precision horizontal minimap bar with sub-character precision ticks.
+- **Navigation**: Added support for "Disassemble address" (keyboard shortcut
+  'd') and flow analysis for code block detection.
+- **UI**: Added a high-precision horizontal minimap bar with sub-character
+  precision ticks.
 - **UI**: Added configurable default block type and updated TUI settings menu.
 - **UI**: Dim unexplored code blocks in disassembly view.
 
@@ -552,53 +801,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **User Guide**: Updated tutorial, settings, and roadmap to reflect new features and keyboard shortcuts.
-- **Roadmap**: Expanded phase 5 scope and added platform-specific v1.x releases.
+- **User Guide**: Updated tutorial, settings, and roadmap to reflect new
+  features and keyboard shortcuts.
+- **Roadmap**: Expanded phase 5 scope and added platform-specific v1.x
+  releases.
 
 ## [0.9.4] - 2026-03-26
 
 ### Features
 
-- **Debugger**: Highlight changed register, memory, and vector values in the debugger view by comparing with previous state.
-- **Exporter**: Place long labels on their own row in exported `.asm` files for better readability.
+- **Debugger**: Highlight changed register, memory, and vector values in the
+  debugger view by comparing with previous state.
+- **Exporter**: Place long labels on their own row in exported `.asm` files
+  for better readability.
 
 ### Fixes
 
-- **UI**: Show the offending address and valid range in the status bar when jump-to-address or jump-to-line targets are out of range (e.g. `Address $FE00 out of range ($0801-$2800)`).
-- **Exporter**: Fix screencode and PETSCII roundtrip for ca65 and KickAssembler by emitting problematic characters as raw hex bytes.
+- **UI**: Show the offending address and valid range in the status bar when
+  jump-to-address or jump-to-line targets are out of range (e.g. `Address
+  $FE00 out of range ($0801-$2800)`).
+- **Exporter**: Fix screencode and PETSCII roundtrip for ca65 and
+  KickAssembler by emitting problematic characters as raw hex bytes.
 
 ### Documentation
 
-- **User Guide**: Updated keyboard shortcuts, documented memory dump and scope features, and fixed settings shortcut mapping.
+- **User Guide**: Updated keyboard shortcuts, documented memory dump and scope
+  features, and fixed settings shortcut mapping.
 - **User Guide**: Added ca65 warning about one-pass assembler limitations.
 
 ### Refactor / Internal
 
-- **Assembler**: Moved scope resolution separator to assembler-specific formatters instead of hardcoding.
+- **Assembler**: Moved scope resolution separator to assembler-specific
+  formatters instead of hardcoding.
 
 ## [0.9.3] - 2026-03-23
 
 ### Features
 
 - **Debugger**: Added memory dump viewer to the debugger UI.
-- **Scopes**: Added comprehensive support across 64tass, ca65, and KickAssembler. Scope is like a namespace, think of ".proc" / ".endproc" in ca65.
-- **Scopes**: Added TUI support for adding, renaming, and deleting scopes with proper indentation, splitters, gutters, boundaries, and default `scope_{ADDRESS}` auto-generated labels.
+- **Scopes**: Added comprehensive support across 64tass, ca65, and
+  KickAssembler. Scope is like a namespace, think of ".proc" / ".endproc" in
+  ca65.
+- **Scopes**: Added TUI support for adding, renaming, and deleting scopes with
+  proper indentation, splitters, gutters, boundaries, and default
+  `scope_{ADDRESS}` auto-generated labels.
 - **MCP Server**: Added `r2000_add_scope` MCP tool.
-- **UI**: Improved text input widgets with full cursor movement and editing capabilities for document settings and labels.
+- **UI**: Improved text input widgets with full cursor movement and editing
+  capabilities for document settings and labels.
 - **UI**: Simplified splitter rendering in disassembly view.
 
 ### Fixes
 
 - **UI**: Fix disassembly view arrow display bugs.
-- **Navigation**: Store correct external label addresses in navigation history instead of default addresses.
+- **Navigation**: Store correct external label addresses in navigation history
+  instead of default addresses.
 - **Stability**: Fix dependency vulnerabilities in `rustls-webpki`.
-- **Undo/Redo**: Fix redundant undo actions by grouping state and analysis commands.
+- **Undo/Redo**: Fix redundant undo actions by grouping state and analysis
+  commands.
 
 ### Documentation
 
-- **API**: Added comprehensive module-level documentation and enforced clippy lints for core and TUI crates.
-- **User Guide**: Documented the new Scope feature and updated keyboard shortcuts.
-- **Examples**: Updated example projects to demonstrate scopes, local labels, and new features.
+- **API**: Added comprehensive module-level documentation and enforced clippy
+  lints for core and TUI crates.
+- **User Guide**: Documented the new Scope feature and updated keyboard
+  shortcuts.
+- **Examples**: Updated example projects to demonstrate scopes, local labels,
+  and new features.
 
 ### Refactor / Internal
 
@@ -608,12 +876,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- **UI**: Added a check to avoid drawing bookmark tags on wrapped label lines to reduce visual noise.
+- **UI**: Added a check to avoid drawing bookmark tags on wrapped label lines
+  to reduce visual noise.
 
 ### Refactor / Internal
 
-- **Crate Renaming**: Renamed internal crates `regenerator-core` and `regenerator-tui` to `regenerator2000-core` and `regenerator2000-tui` for consistency with the project name.
-- **Documentation**: Updated all documentation and agent instructions to reflect the new crate names and structure.
+- **Crate Renaming**: Renamed internal crates `regenerator-core` and
+  `regenerator-tui` to `regenerator2000-core` and `regenerator2000-tui` for
+  consistency with the project name.
+- **Documentation**: Updated all documentation and agent instructions to
+  reflect the new crate names and structure.
 
 ## [0.9.1] - 2026-03-15
 
@@ -623,67 +895,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactor / Internal
 
-- **System Assets**: Relocated system definition assets to `regenerator2000-core` for better separation of concerns and added new system configurations.
+- **System Assets**: Relocated system definition assets to
+  `regenerator2000-core` for better separation of concerns and added new
+  system configurations.
 
 ## [0.9.0] - 2026-03-15
 
 ### Major Architectural Refactor
 
-- **Core/TUI Separation**: The project has been restructured into a multi-crate workspace:
-  - `regenerator2000-core`: Contains all UI-agnostic logic, including state management, disassembler, analyzer, commands, and the MCP server.
-  - `regenerator2000-tui`: Contains the terminal user interface logic, widgets, and event loop.
+- **Core/TUI Separation**: The project has been restructured into a
+  multi-crate workspace:
+  - `regenerator2000-core`: Contains all UI-agnostic logic, including state
+    management, disassembler, analyzer, commands, and the MCP server.
+  - `regenerator2000-tui`: Contains the terminal user interface logic,
+    widgets, and event loop.
   - `regenerator2000`: The main binary crate that ties everything together.
-- **Improved Data Flow**: Transitions to a cleaner unidirectional data flow where the UI dispatches semantic `AppAction`s, which are then applied to the `AppState` via a command system with full undo/redo support.
-- **Type Safety**: Introduced `Addr` and `Platform` newtypes to improve type safety and ensure consistent memory address handling throughout the codebase.
-- **MCP Migration**: Relocated the MCP server to the core crate, making it available for programmatic access without requiring the TUI.
+- **Improved Data Flow**: Transitions to a cleaner unidirectional data flow
+  where the UI dispatches semantic `AppAction`s, which are then applied to the
+  `AppState` via a command system with full undo/redo support.
+- **Type Safety**: Introduced `Addr` and `Platform` newtypes to improve type
+  safety and ensure consistent memory address handling throughout the
+  codebase.
+- **MCP Migration**: Relocated the MCP server to the core crate, making it
+  available for programmatic access without requiring the TUI.
 
 ### Features
 
 - **UI Enhancements**:
-  - Implemented "smart jump" logic in the disassembly view to minimize unnecessary scrolling when the target address is already visible.
-- **Analysis**: Refactored disassembler arrow computation for improved efficiency and accuracy.
-- **Theme Previews**: Added screenshots of available themes to the documentation.
+  - Implemented "smart jump" logic in the disassembly view to minimize
+    unnecessary scrolling when the target address is already visible.
+- **Analysis**: Refactored disassembler arrow computation for improved
+  efficiency and accuracy.
+- **Theme Previews**: Added screenshots of available themes to the
+  documentation.
 
 ### Fixes
 
-- **UX**: Fixed dialog confirmation and closing logic to ensure consistent behavior across all modal windows.
+- **UX**: Fixed dialog confirmation and closing logic to ensure consistent
+  behavior across all modal windows.
 - **MCP**: Fixed bounds checking for the `set_data_type` MCP tool.
-- **Stability**: Refined Clippy rules and fixed several minor stability issues discovered during the architectural refactoring.
+- **Stability**: Refined Clippy rules and fixed several minor stability issues
+  discovered during the architectural refactoring.
 
 ### Documentation
 
-- **Architecture**: Comprehensive update of the architecture documentation, including new Mermaid diagrams and descriptions of the crate structure.
-- **Project Documentation**: Added `AGENTS.md` and updated `CONTRIBUTING.md` with new project instructions and best practices.
+- **Architecture**: Comprehensive update of the architecture documentation,
+  including new Mermaid diagrams and descriptions of the crate structure.
+- **Project Documentation**: Added `AGENTS.md` and updated `CONTRIBUTING.md`
+  with new project instructions and best practices.
 
 ## [0.8.8] - 2026-03-09
 
 ### Features
 
-- Feature: **Settings**: Control automatic analysis via `auto_analyze` setting; removed file-type-based auto-analysis on file open.
+- Feature: **Settings**: Control automatic analysis via `auto_analyze` setting;
+  removed file-type-based auto-analysis on file open.
 - Feature: **VICE Debugger**: Display watchpoint stop reason in debugger view.
-- Feature: **Events**: Introduce `EventOutcome` enum to control event loop flow with dedicated `KeyEvent` and `MouseEvent` handling.
+- Feature: **Events**: Introduce `EventOutcome` enum to control event loop flow
+  with dedicated `KeyEvent` and `MouseEvent` handling.
 
 ### Fixes
 
-- Fix: **Testing**: Use default `SystemConfig` in `AppState::new()` to fix test flakiness from environment bleed.
+- Fix: **Testing**: Use default `SystemConfig` in `AppState::new()` to fix test
+  flakiness from environment bleed.
 - Fix: **Security**: Update `quinn-proto` to 0.11.14 to fix RUSTSEC-2026-0037.
 
 ### Refactor / Internal
 
-- Refactor: **Events**: Centralize dialog closing logic by adding `closes_dialog` to `MenuAction`.
-- Refactor: **VICE**: Extract VICE message parsing logic into dedicated typed functions and structs in `vice/protocol.rs`.
-- Refactor: **Disassembler**: Simplify handler function signatures with new `HandleArgs` struct.
-- Refactor: **Main**: Add utility functions for file classification, CLI validation, image loading, batch operations, and roundtrip verification.
-- Refactor: Apply widespread code quality improvements and address Clippy warnings.
+- Refactor: **Events**: Centralize dialog closing logic by adding
+  `closes_dialog` to `MenuAction`.
+- Refactor: **VICE**: Extract VICE message parsing logic into dedicated typed
+  functions and structs in `vice/protocol.rs`.
+- Refactor: **Disassembler**: Simplify handler function signatures with new
+  `HandleArgs` struct.
+- Refactor: **Main**: Add utility functions for file classification, CLI
+  validation, image loading, batch operations, and roundtrip verification.
+- Refactor: Apply widespread code quality improvements and address Clippy
+  warnings.
 - Chore: Exclude docs/tests/agent files not needed for crates.io packaging.
 
 ## [0.8.7] - 2026-03-07
 
 ### Features
 
-- Feature: **UI**: Long labels are now rendered on their own line above the instruction to preserve indentation.
-- Feature: **VICE Debugger**: Visual indicators for breakpoints and watchpoints (flashing status line, terminal bell).
-- Feature: **CLI**: Added `--vice` flag to auto-connect to VICE binary monitor on startup.
+- Feature: **UI**: Long labels are now rendered on their own line above the
+  instruction to preserve indentation.
+- Feature: **VICE Debugger**: Visual indicators for breakpoints and watchpoints
+  (flashing status line, terminal bell).
+- Feature: **CLI**: Added `--vice` flag to auto-connect to VICE binary monitor
+  on startup.
 
 ### Fixes
 
@@ -696,20 +996,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactor / Internal
 
-- Test: Added comprehensive test coverage for parsers, formatters, VICE protocol, themes, and config.
+- Test: Added comprehensive test coverage for parsers, formatters, VICE
+  protocol, themes, and config.
 
 ## [0.8.6] - 2026-03-06
 
 ### Features
 
-- Feature: **Themes**: Added Nord, Catppuccin Mocha, and Catppuccin Latte themes.
-- Feature: **Themes**: Default theme changed to Dracula; added left/right arrow cycling in theme selector.
+- Feature: **Themes**: Added Nord, Catppuccin Mocha, and Catppuccin Latte
+  themes.
+- Feature: **Themes**: Default theme changed to Dracula; added left/right arrow
+  cycling in theme selector.
 - Feature: **UI**: Added blinking cursor to all input dialogs.
-- Feature: **Project**: Added version field and migration logic to `.regen2000proj` file format.
+- Feature: **Project**: Added version field and migration logic to
+  `.regen2000proj` file format.
 
 ### Fixes
 
-- Fix: **UI**: Improved dialog UX consistency (theming, centering, dead code cleanup).
+- Fix: **UI**: Improved dialog UX consistency (theming, centering, dead code
+  cleanup).
 - Fix: **UI**: Added `$` prefix to Jump To Address dialog for hex clarity.
 
 ### Changes
@@ -718,25 +1023,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- Docs: Updated themes and settings documentation for 9 themes, Dracula default, and new UX features.
+- Docs: Updated themes and settings documentation for 9 themes, Dracula
+  default, and new UX features.
 - Docs: Updated CLI section in README.
 
 ## [0.8.5] - 2026-03-05
 
 ### Features
 
-- Feature: **Export**: Support for undocumented (illegal) opcodes in export and verify.
-- Feature: **CLI**: Added `--assembler` flag to override assembler format in headless mode.
-- Feature: **CLI**: Integrated `clap` crate for robust command-line argument parsing with `--help` and shell completions.
-- Feature: **MCP**: `get_binary_info` tool now hints whether the binary uses undocumented opcodes.
+- Feature: **Export**: Support for undocumented (illegal) opcodes in export and
+  verify.
+- Feature: **CLI**: Added `--assembler` flag to override assembler format in
+  headless mode.
+- Feature: **CLI**: Integrated `clap` crate for robust command-line argument
+  parsing with `--help` and shell completions.
+- Feature: **MCP**: `get_binary_info` tool now hints whether the binary uses
+  undocumented opcodes.
 - Feature: **UI**: Added Gruvbox Light theme.
 - Feature: **Release**: Added Linux ARM64 (aarch64) binary builds.
 
 ### Fixes
 
-- Fix: **ACME Exporter**: Fixed zero-page address handling that caused byte mismatches during roundtrip verification.
-- Fix: **ACME Exporter**: Fixed illegal opcode mnemonics for ACME assembler compatibility.
-- Fix: **Stability**: Replaced `println!`/`eprintln!` with logging macros to prevent TUI corruption.
+- Fix: **ACME Exporter**: Fixed zero-page address handling that caused byte
+  mismatches during roundtrip verification.
+- Fix: **ACME Exporter**: Fixed illegal opcode mnemonics for ACME assembler
+  compatibility.
+- Fix: **Stability**: Replaced `println!`/`eprintln!` with logging macros to
+  prevent TUI corruption.
 
 ### Documentation
 
@@ -752,14 +1065,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Feature: **Search**: Added filter checkboxes to the search dialog for granular control.
-- Feature: **Analyzer**: Added analysis hints with cross-instruction pattern detection.
-- Feature: **Export**: Added roundtrip export verification (export → assemble → diff).
-- Feature: **UI**: Check for new version and display it in the top-right corner.
+- Feature: **Search**: Added filter checkboxes to the search dialog for
+  granular control.
+- Feature: **Analyzer**: Added analysis hints with cross-instruction pattern
+  detection.
+- Feature: **Export**: Added roundtrip export verification (export → assemble
+  → diff).
+- Feature: **UI**: Check for new version and display it in the top-right
+  corner.
 
 ### Fixes
 
-- Fix: **Stability**: Eliminated all `unwrap`/`panic` from production code, added parser fuzz tests.
+- Fix: **Stability**: Eliminated all `unwrap`/`panic` from production code,
+  added parser fuzz tests.
 
 ### Refactor / Internal
 
@@ -774,10 +1092,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Feature: **VICE Debugger**: Shift+F2 shortcut opens dialog to toggle breakpoints.
+- Feature: **VICE Debugger**: Shift+F2 shortcut opens dialog to toggle
+  breakpoints.
 - Feature: **VICE Debugger**: Show 6502 hw vectors info for all platforms.
 - Feature: **VICE Debugger**: Show 6510 registers when platform is C64 / C128.
-- Feature: **VICE Debugger**: Show VIC/CIA registers when platform is C64 / C128.
+- Feature: **VICE Debugger**: Show VIC/CIA registers when platform is C64 /
+  C128.
 - Feature: **UI**: Hexdump view supports selecting columns, not just rows.
 
 ### Fixes
@@ -787,8 +1107,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- Docs: Added VICE note that both VICE and Regenerator must run the same binary.
-- Docs: View documentation fixes, reordered content, and added more keyboard shortcuts.
+- Docs: Added VICE note that both VICE and Regenerator must run the same
+  binary.
+- Docs: View documentation fixes, reordered content, and added more keyboard
+  shortcuts.
 - Examples: Updated example projects.
 
 ### Refactor / Internal
@@ -799,32 +1121,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- Docs: Updated `index.md` and `tutorial.md` with comprehensive VICE debugger workflow and documentation.
+- Docs: Updated `index.md` and `tutorial.md` with comprehensive VICE debugger
+  workflow and documentation.
 - Examples: Added more detailed comments and descriptions to example projects.
 
 ### Refactor / Internal
 
-- MCP: Simplified MCP server tools by consolidating and renaming them to reduce context and improve agent reliability.
-- Agent: Updated `r2000-analyze-blocks`, `r2000-analyze-symbol`, and `r2000-analyze-routine` skills to follow best practices and provide better analysis context.
+- MCP: Simplified MCP server tools by consolidating and renaming them to reduce
+  context and improve agent reliability.
+- Agent: Updated `r2000-analyze-blocks`, `r2000-analyze-symbol`, and
+  `r2000-analyze-routine` skills to follow best practices and provide better
+  analysis context.
 
 ## [0.8.1] - 2026-02-25
 
 ### Features
 
-- Feature: **Line Comment**: `Ctrl+Enter` / `Ctrl+J` creates a new line within the comment dialog (multi-line support).
-- Feature: **Line Comment**: Keyboard shortcuts for inserting separator comments (dashes, equals, mixed) from within the dialog.
-- Feature: **Dialogs**: Save As, Export As, and Export VICE Labels dialogs now pre-fill the filename with the current project name.
-- Feature: **UI**: Application handles terminal resize events and repaints correctly.
+- Feature: **Line Comment**: `Ctrl+Enter` / `Ctrl+J` creates a new line within
+  the comment dialog (multi-line support).
+- Feature: **Line Comment**: Keyboard shortcuts for inserting separator
+  comments (dashes, equals, mixed) from within the dialog.
+- Feature: **Dialogs**: Save As, Export As, and Export VICE Labels dialogs now
+  pre-fill the filename with the current project name.
+- Feature: **UI**: Application handles terminal resize events and repaints
+  correctly.
 
 ### Fixes
 
-- Fix: **LoHi/HiLo Words**: Words no longer resolve to addresses even when a word value matches an existing label address.
-- Fix: **Cross-references**: Cross-references now work correctly on relative address sub-indices.
-- Fix: **T64 Picker**: File picker handles "noisy" (non-printable) characters in T64 filenames gracefully.
+- Fix: **LoHi/HiLo Words**: Words no longer resolve to addresses even when a
+  word value matches an existing label address.
+- Fix: **Cross-references**: Cross-references now work correctly on relative
+  address sub-indices.
+- Fix: **T64 Picker**: File picker handles "noisy" (non-printable) characters
+  in T64 filenames gracefully.
 
 ### Documentation
 
-- Docs: Updated settings and views documentation (indentation, Blocks View ordering, Debug View added).
+- Docs: Updated settings and views documentation (indentation, Blocks View
+  ordering, Debug View added).
 - Examples: Added more detailed comments and descriptions to example projects.
 
 ## [0.8.0] - 2026-02-23
@@ -834,12 +1168,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: **VICE Debugger**: Comprehensive support for VICE remote debugging.
   - Debugger view with CPU status, stack, and registers information.
   - Breakpoints and Watchpoints support.
-  - Execution controls: Continue, Step Into, Step Over, Step Out, Run to Cursor.
+  - Execution controls: Continue, Step Into, Step Over, Step Out, Run to
+    Cursor.
   - Live Disassembly View
-- Feature: **Open Recents**: Added "Open Recent" support for quickly accessing recent files.
-- Feature: **UI**: Mouse click on blocks in Blocks View now updates the Disassembly View cursor.
+- Feature: **Open Recents**: Added "Open Recent" support for quickly accessing
+  recent files.
+- Feature: **UI**: Mouse click on blocks in Blocks View now updates the
+  Disassembly View cursor.
 - Feature: **Settings**: Added description field to Document Settings.
-- Feature: **MCP**: `get_binary_info` tool now includes the filename, description and platform to aid agent tasks.
+- Feature: **MCP**: `get_binary_info` tool now includes the filename,
+  description and platform to aid agent tasks.
 
 ### Changes
 
@@ -849,7 +1187,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixes
 
-- Fix: Keyboard shortcuts handling simplified and corrected for the Debugger integrations (F6, F7, etc).
+- Fix: Keyboard shortcuts handling simplified and corrected for the Debugger
+  integrations (F6, F7, etc).
 - Fix: Addressed duplicate issues with initial breakpoint on connection.
 
 ### Documentation
@@ -862,11 +1201,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Feature: **Disassembly View**: Improved arrow visualization for jump instructions (restored full arrows).
+- Feature: **Disassembly View**: Improved arrow visualization for jump
+  instructions (restored full arrows).
 
 ### Documentation
 
-- Docs: Improved documentation structure and readability (MkDocs, Homepage, and Tutorials).
+- Docs: Improved documentation structure and readability (MkDocs, Homepage, and
+  Tutorials).
 
 ### Refactor / Internal
 
@@ -883,30 +1224,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Feature: **Bookmarks**: Added bookmark support.
   - `Ctrl+B`: Toggle bookmark at current address
-  - `Shift+Ctrl+B` / `Alt+B`: Open Bookmark dialog to navigate between bookmarks
-- Feature: **MCP Server – Address Details**: Added `r2000_get_address_details` tool to retrieve detailed information about a specific memory address.
-- Feature: **MCP Server – Batch Execute**: Added batch execute support, allowing multiple MCP tool calls to be dispatched in a single request.
-- Feature: **MCP Server – Cursor Navigation**: MCP clients can now drive the UI by jumping to an address (`r2000_set_disassembly_cursor`), with history preserved for undo/redo.
+  - `Shift+Ctrl+B` / `Alt+B`: Open Bookmark dialog to navigate between
+    bookmarks
+- Feature: **MCP Server – Address Details**: Added `r2000_get_address_details`
+  tool to retrieve detailed information about a specific memory address.
+- Feature: **MCP Server – Batch Execute**: Added batch execute support,
+  allowing multiple MCP tool calls to be dispatched in a single request.
+- Feature: **MCP Server – Cursor Navigation**: MCP clients can now drive the
+  UI by jumping to an address (`r2000_set_disassembly_cursor`), with history
+  preserved for undo/redo.
 
 ### Fixes
 
-- Fix: **Menu**: Added missing "Pack Hi/Lo / Lo/Hi address" entries (`[` / `]`) to the Edit menu, enabled when an LDA/LDX/LDY immediate-mode opcode is selected.
+- Fix: **Menu**: Added missing "Pack Hi/Lo / Lo/Hi address" entries (`[` / `]`)
+  to the Edit menu, enabled when an LDA/LDX/LDY immediate-mode opcode is
+  selected.
 
 ### Documentation
 
-- Docs: MCP documentation fixes and embedded YouTube video. Updated supported tools.
+- Docs: MCP documentation fixes and embedded YouTube video. Updated supported
+  tools.
 
 ### Refactor / Internal
 
-- Agent Skills: Added `verify-mcp`, `add-mcp-tool`, `update-mcp-docs` and `analyze-routine` agent skills.
+- Agent Skills: Added `verify-mcp`, `add-mcp-tool`, `update-mcp-docs` and
+  `analyze-routine` agent skills.
 
 ## [0.7.0] - 2026-02-16
 
 ### Features
 
-- Feature: **MCP Server Support**: Added comprehensive Model Context Protocol (MCP) server support for programmatic access.
+- Feature: **MCP Server Support**: Added comprehensive Model Context Protocol
+  (MCP) server support for programmatic access.
   - HTTP and stdio transport modes
-  - Tools for disassembly manipulation, memory search, block operations, and project management
+  - Tools for disassembly manipulation, memory search, block operations, and
+    project management
   - Resources for accessing binary data, disassembly, and hexdump views
   - Support for undo/redo operations via MCP
   - Hexadecimal address support
@@ -917,21 +1269,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: **D64 Enhancements**: Improved D64 file picker dialog.
   - Added entropy column
   - Display start and end addresses for files
-- Feature: **Navigation**: Allow navigating on top of comments, relative addresses, and other "sub_index" addresses.
+- Feature: **Navigation**: Allow navigating on top of comments, relative
+  addresses, and other "sub_index" addresses.
 
 ### Changes
 
-- TAP support was temporarily added and then removed. Proper TAP support requires handling different loaders. Users should convert TAP files to .prg format first.
+- TAP support was temporarily added and then removed. Proper TAP support
+  requires handling different loaders. Users should convert TAP files to .prg
+  format first.
 
 ### Fixes
 
-- Fix: **Pack Hi/Lo**: Corrected reversed hi/lo and lo/hi packing in single line.
+- Fix: **Pack Hi/Lo**: Corrected reversed hi/lo and lo/hi packing in single
+  line.
 - Fix: **Navigation**: Multiple disassembly navigation fixes.
   - Mouse click now sets cursor correctly
   - Landing on an address with subindex updates highlight correctly
   - Page Up/Down have consistent increment/decrement behavior
-- Fix: **File Loading**: Only load supported file extensions, fail with error otherwise. Also prevents crash when cursor is >= new loaded file size.
-- Fix: **UI**: Honor "right pane none" setting with minor fixes to address representation.
+- Fix: **File Loading**: Only load supported file extensions, fail with error
+  otherwise. Also prevents crash when cursor is >= new loaded file size.
+- Fix: **UI**: Honor "right pane none" setting with minor fixes to address
+  representation.
 
 ### Examples
 
@@ -955,20 +1313,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Feature: **Line Comments**: Line comments now also function as splitters, breaking code blocks.
+- Feature: **Line Comments**: Line comments now also function as splitters,
+  breaking code blocks.
 - Feature: **Navigation**: Added Page Up/Down support in Open File dialog.
-- Feature: **Charset View**: Page Up/Down now advances 10 lines instead of 10 characters for faster navigation.
+- Feature: **Charset View**: Page Up/Down now advances 10 lines instead of 10
+  characters for faster navigation.
 
 ### Changes
 
-- UI: **Disassembly View**: Adjusted label and opcode spacing to provide more room for labels.
+- UI: **Disassembly View**: Adjusted label and opcode spacing to provide more
+  room for labels.
 - UI: **Dialogs**: Improved sizing for single-row input dialogs.
-- Shortcuts: **LoHi/HiLo**: Changed keyboard shortcuts for LoHi/HiLo word tables to `,` and `.` (was `t` and `T`).
+- Shortcuts: **LoHi/HiLo**: Changed keyboard shortcuts for LoHi/HiLo word
+  tables to `,` and `.` (was `t` and `T`).
 
 ### Fixes
 
-- Fix: **State**: Clearing all state when opening a new file from an existing session.
-- Fix: **Disassembly**: Correct cursor behavior when converting blocks involving addresses.
+- Fix: **State**: Clearing all state when opening a new file from an existing
+  session.
+- Fix: **Disassembly**: Correct cursor behavior when converting blocks
+  involving addresses.
 
 ### Examples
 
@@ -978,26 +1342,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Feature: **D71 Support**: Added support for D71 disk images (70 tracks, double-sided).
-- Feature: **D81 Support**: Added support for D81 disk images (80 tracks, 40 sectors per track).
+- Feature: **D71 Support**: Added support for D71 disk images (70 tracks,
+  double-sided).
+- Feature: **D81 Support**: Added support for D81 disk images (80 tracks, 40
+  sectors per track).
 - Feature: **40-Track D64**: Added support for 40-track D64 disk images.
 
 ### Changes
 
-- UI: **Document Settings Dialog**: Reorganized settings dialog with dynamic options at the bottom.
+- UI: **Document Settings Dialog**: Reorganized settings dialog with dynamic
+  options at the bottom.
 
 ### Fixes
 
-- Fix: Settings: **Default Platform**: Default platform is "Commodore 64", was broken in previous version.
+- Fix: Settings: **Default Platform**: Default platform is "Commodore 64", was
+  broken in previous version.
 
 ### Performance
 
-- Performance: **Event Handling**: Further optimizations to event handling and rendering pipeline.
+- Performance: **Event Handling**: Further optimizations to event handling and
+  rendering pipeline.
 
 ### Refactor / Internal
 
-- Refactor: **Embedded Config Files**: System configuration files are now embedded in the binary for easier distribution.
-- Refactor: **Disk Parser**: Unified D64/D71/D81 parsing logic with `DiskType` enum.
+- Refactor: **Embedded Config Files**: System configuration files are now
+  embedded in the binary for easier distribution.
+- Refactor: **Disk Parser**: Unified D64/D71/D81 parsing logic with `DiskType`
+  enum.
 
 ### Examples
 
@@ -1007,11 +1378,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Feature: **Complete Address Dialog**: Added dialog to complete missing Hi/Lo or Lo/Hi byte when only one line is selected (Edit menu).
+- Feature: **Complete Address Dialog**: Added dialog to complete missing Hi/Lo
+  or Lo/Hi byte when only one line is selected (Edit menu).
 
 ### Performance
 
-- Performance: **Rendering Loop**: Optimized screen rendering to occur only once per event, eliminating unnecessary redraws.
+- Performance: **Rendering Loop**: Optimized screen rendering to occur only
+  once per event, eliminating unnecessary redraws.
 
 ### Fixes
 
@@ -1025,18 +1398,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactor / Internal
 
-- Refactor: Consolidated system configuration files - merged separate `.txt` files (comments, excludes, labels) into unified `.json` files for each platform.
-- Refactor: Updated asset loading to support consolidated `.json` configuration files.
+- Refactor: Consolidated system configuration files - merged separate `.txt`
+  files (comments, excludes, labels) into unified `.json` files for each
+  platform.
+- Refactor: Updated asset loading to support consolidated `.json` configuration
+  files.
 
 ## [0.6.2] - 2026-02-05
 
 ### Features
 
-- Feature: **Entropy View**: Added entropy visualization column in HexDump view to help identify compressed/encrypted data.
-- Feature: **Labels**: Added standard C64 labels for KERNAL, BASIC, and Zero Page (including NMI, RESET, IRQ vectors).
+- Feature: **Entropy View**: Added entropy visualization column in HexDump view
+  to help identify compressed/encrypted data.
+- Feature: **Labels**: Added standard C64 labels for KERNAL, BASIC, and Zero
+  Page (including NMI, RESET, IRQ vectors).
 - Feature: **Config**: Automatic configuration backup if loading fails.
 - Feature: **UI**: Circular navigation in D64 file picker.
-- Feature: **Analysis**: If the file has high entropy, displays a warning that it might be compressed.
+- Feature: **Analysis**: If the file has high entropy, displays a warning that
+  it might be compressed.
 
 ### Fixes
 
@@ -1054,7 +1433,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Feature: Support for .d64 disk images. Supports picking a .prg file from within the disk image.
+- Feature: Support for .d64 disk images. Supports picking a .prg file from
+  within the disk image.
 - Feature: CLI: Added `--export_asm` and `--export_lbl` command line options.
 - Feature: Bitmap view: Screen RAM address is now configurable.
 
@@ -1076,7 +1456,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactor / Internal
 
-- Refactor: `state.rs` split into multiple submodules (types, settings, project, app_state).
+- Refactor: `state.rs` split into multiple submodules (types, settings,
+  project, app_state).
 - Refactor: Large methods in `disassembler.rs` moved to separate modules.
 - Refactor: Graphics code moved to its own file.
 - Testing: Added comprehensive CPU module tests.
@@ -1085,14 +1466,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- Feature: Support for LoHi and HiLo word block type. Keyboard shortcuts 'T' and 'Shift+T'.
-- Feature: Export VICE labels to `.lbl` format (File -> Export -> Export VICE Labels)
-- Feature: Import VICE labels from `.lbl` files (--import_lbl command line option)
+- Feature: Support for LoHi and HiLo word block type. Keyboard shortcuts 'T'
+  and 'Shift+T'.
+- Feature: Export VICE labels to `.lbl` format (File -> Export -> Export VICE
+  Labels)
+- Feature: Import VICE labels from `.lbl` files (--import_lbl command line
+  option)
 - Feature: Go to Symbol dialog (Ctrl+P) - navigate to labels by name
 - Feature: File dialogs remember last used paths
   - Export As remembers last used filename
   - Save/Export/Import remember last used folders
-- Feature: Status bar shows filename for Save, Export, Import, and Open operations
+- Feature: Status bar shows filename for Save, Export, Import, and Open
+  operations
 - Feature: File dialogs include file extensions in the dialog
 - Feature: Alt+F keyboard shortcut to open File menu
 - Feature: Alt+H keyboard shortcut to open Help menu
@@ -1105,7 +1490,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixes
 
 - Fix: Splitter and collapsed blocks work correctly together
-- Fix: Arrow visualization improvements - fixed passthrough arrows, eliminated "ghost" arrows
+- Fix: Arrow visualization improvements - fixed passthrough arrows, eliminated
+  "ghost" arrows
 - Fix: Keyboard shortcuts requiring Shift key now work correctly on Windows
 - Fix: Find References dialog only enabled when focus is on Disassembly view
 
@@ -1116,7 +1502,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docs: Architecture diagram converted to Mermaid format
 - Docs: Improved ca65 assembler documentation
 - Docs: Added Settings dialog documentation
-- Docs: Keyboard shortcuts now use pymdownx.keys extensions for better formatting
+- Docs: Keyboard shortcuts now use pymdownx.keys extensions for better
+  formatting
 - Docs: Added FAQ and Views documentation
 - Docs: Added logo and favicon for documentation site
 
@@ -1147,11 +1534,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Rename labels from external addresses
   - Navigate in external label references
 - Feature: Menu -> Edit -> Set Label added
-- Feature: Better navigation in Keyboard Shortcut dialog (Page Up, Page Down, Ctrl+D, Ctrl+U)
+- Feature: Better navigation in Keyboard Shortcut dialog (Page Up, Page Down,
+  Ctrl+D, Ctrl+U)
 
 ### Fixes
 
-- Fix: Jump to address works correctly when address has associated lines and subindex
+- Fix: Jump to address works correctly when address has associated lines and
+  subindex
 - Fix: Search lands in correct subline
 - Fix: Crash when setting block type on empty range
 - Fix: Don't allow setting labels in external labels that start with comment
@@ -1160,7 +1549,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Refactor
 
 - Refactor: Renamed `comment_address` to `external_label_address`
-- Refactor: Reduced duplicate code between disassembler.rs and view_disassembly.rs
+- Refactor: Reduced duplicate code between disassembler.rs and
+  view_disassembly.rs
 - Refactor: Move logic whether opcode should have arrows to cpu.rs
 - Refactor: Cross-reference function factored out
 - UI: X-ref with more than supported displayed as "..."
@@ -1170,21 +1560,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Find Reference dialog (Ctrl+x)
 - Feature: Bitmap Viewer with High-Res and Multicolor support.
 - Feature: Settings: Auto-analyze on file open (enabled by default)
-- Feature: Settings: Sync between Disassembly and Hexdump, Sprites, Charset, Bitmap and Blocks views (enabled by default)
+- Feature: Settings: Sync between Disassembly and Hexdump, Sprites, Charset,
+  Bitmap and Blocks views (enabled by default)
 - Feature: Partial bitmap and sprites rendering support
 - Feature: Visual selection mode in HexDump, Sprites, and Charset views
 - Feature: Search:
   - Hex byte pattern search with wildcards
   - Omni search now includes PETSCII and screencodes
 - Feature: Press 'b' in side panels to convert to bytes
-- Feature: pressing Enter in right-side pane, updates cursor in Disassembly view.
+- Feature: pressing Enter in right-side pane, updates cursor in Disassembly
+  view.
 - UI: Updated Keyboard Shortcut dialog
 - UI: Reordered options in Settings dialog
 - UI: Don't show addresses if there are no bytes
 - Performance: Image caching for faster rendering (Bitmap view)
 - Navigation: Move up/down skip lines without "real bytes"
 - Settings: Config: "Patch BRK" enabled by default
-- Docs: Updated User Guide with illegal opcodes, patch brk, and command line options explanations
+- Docs: Updated User Guide with illegal opcodes, patch brk, and command line
+  options explanations
 - Docs: README fixes and Discord channel correction
 - Fix: Jump to collapsed line works correctly
 
@@ -1202,7 +1595,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor: created Widget concept where views and dialog inherits from it.
 - Refactor: each view and each dialog has its own file
 - Fix: Improve selection and cursor movement in disassembly view
-- Fix: Improve input handling code: each view handles their own keyboard shortcuts.
+- Fix: Improve input handling code: each view handles their own keyboard
+  shortcuts.
 
 ## [0.3.0] - 2026-01-09
 
@@ -1211,7 +1605,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added support for collapsed blocks
 - Added support for searching within comments
 - Added 'm' keyboard shortcut to toggle shifted/unshifted charset modes
-- Improved arrow visualization in disassembly (removed "ghost" arrows, better styling)
+- Improved arrow visualization in disassembly (removed "ghost" arrows, better
+  styling)
 - Improved keyboard shortcuts reliability
 - Fixed valid tests altering global configuration (`last_project_path`)
 - Fixed search cursor positioning logic
