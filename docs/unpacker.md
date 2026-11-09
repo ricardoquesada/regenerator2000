@@ -110,7 +110,7 @@ Packer detection and lifecycle hooks live under [`crates/regenerator2000-core/sr
 - **Declarative Address Sources (`Hints`, `AddrSource`, `PointerGuard`)**: Express `dep_addr`, `start_addr`, `end_addr`, `entry_point`, `forced_entry`, and `exact_return` via `AddrSource::Const`, `AddrSource::BasicStart(i16)` (signed offset from `system.default_basic_start()`, e.g., `BasicStart(-1)` resolves to `$0800` on C64 without hardcoding platform constants), `AddrSource::OperandLe`, `AddrSource::AbsoluteLe`, and `AddrSource::PointerAfterRun`.
 - **Pre-Emulation Memory Patches (`MemoryPatch`, `PatchAddr`)**: Applied to RAM before the snapshot is taken (unconditionally or guarded by `expected: Some(byte)`), supporting packers such as Antiram and ALZ64/Kabuto.
 - **Per-Position Detection Escape Hatch (`PackerSpec::resolve`)**: Optional `fn(&LoadedImage<'_>, &SignatureMatch) -> Option<ResolvedSpec>` evaluated at each candidate anchor match when a packer requires secondary scans, computed operands, or position-dependent validation (returning `None` advances to the next candidate position in the anchor window).
-- **Encapsulated Emulation Hooks (`PackerHooks`, `StepContext`, `RefineContext`)**: The 4 packers that require emulation-time logic (`exomizer`, `tscrunch`, `dali`, `byteboozer`) implement `PackerHooks` (`on_step` and `refine`). `StepContext` exposes a value copy of `Registers`, side-effect-free raw RAM reads (`peek`), and Phase 1 write-tracking resets (`forget_writes`) without leaking internal `CPU` or `C64Bus` state.
+- **Encapsulated Emulation Hooks (`PackerHooks`, `StepFilter`, `StepContext`, `RefineContext`)**: The 4 packers that require emulation-time logic (`exomizer`, `tscrunch`, `dali`, `byteboozer`) implement `PackerHooks` (`step_filter`, `on_step`, and `refine`). `StepFilter` (`Never`, `OpcodePair`, `Always`) pre-filters per-instruction hook invocations by phase and opcode, and `StepContext` exposes a value copy of `Registers`, side-effect-free raw RAM reads (`peek`), and Phase 1 write-tracking resets (`forget_writes`) without leaking internal `CPU` or `C64Bus` state.
 
 ### Registered Packers (21 Specs in `REGISTRY`)
 
@@ -126,12 +126,12 @@ Packer detection and lifecycle hooks live under [`crates/regenerator2000-core/sr
 | 80 | `tbc` | `TBC Multicompactor` | `Absolute` (`Pat::Mask`) + `resolve` |
 | 90 | `byteboozer` | `ByteBoozer` | `Absolute` + `resolve` + `PointerAfterRun` + `PackerHooks::refine` |
 | 100 | `alz64` | `ALZ64/Quiss` / `ALZ64/Kabuto` | `Absolute` + `resolve` + `MemoryPatch` + `forced_entry` / `exact_return` |
-| 110 | `tscrunch` | `TSCrunch v1.3+` / `TSCrunch v1.3+-X2` | `Absolute` + `resolve` + `PackerHooks` (`on_step`, `refine`) |
+| 110 | `tscrunch` | `TSCrunch v1.3+` / `TSCrunch v1.3+-X2` | `Absolute` + `resolve` + `PackerHooks` (`step_filter`, `on_step`, `refine`) |
 | 120 | `dali` | `Dali` | `Absolute` + `resolve` + `PointerAfterRun` + `PackerHooks::refine` |
 | 130 | `tiny_crunch` | `TinyCrunch` | Static `PackerSpec` (`OperandLe`) |
 | 140 | `super_cruncher` | `Super Cruncher` | Static `PackerSpec` |
 | 150 | `final_cartridge` | `Final Cartridge III` | Static `PackerSpec` |
-| 160 | `exomizer` | `Exomizer 3.0` / `Exomizer v3.02+` / `Exomizer 2.x` | `ScanBackFromEnd` + `resolve` + `PackerHooks` (`on_step`, `refine`) |
+| 160 | `exomizer` | `Exomizer 3.0` / `Exomizer v3.02+` / `Exomizer 2.x` | `ScanBackFromEnd` + `resolve` + `PackerHooks` (`step_filter`, `on_step`, `refine`) |
 | 170 | `ccs` | `Commodore Cruncher System` | `resolve` (bug-compatible multi-variant scan) |
 | 180 | `triad` | `Triad Cruncher` | Static `PackerSpec` |
 | 190 | `eagle` | `Eagle Cruncher` | Static `PackerSpec` |
@@ -188,7 +188,7 @@ pub static SPEC: PackerSpec = PackerSpec {
 
 - **Pre-emulation patches**: Populate `patches: &[MemoryPatch { addr: PatchAddr::Absolute(...) /* or FromMatch(...) */, expected: Some(...), bytes: &[...] }]`.
 - **Computed detection**: Set `resolve: Some(resolve_fn)` where `fn resolve_fn(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Option<ResolvedSpec>` inspects `image` and returns `Some(ResolvedSpec::from_hints(...))` (or `None` to continue scanning the anchor window).
-- **Emulation hooks**: Set `hooks: Some(hooks_fn)` returning `Box<dyn PackerHooks>` if the packer needs `on_step(&mut self, ctx: &mut StepContext<'_>)` (using `ctx.peek(addr)` or `ctx.forget_writes(range)`) or post-emulation `refine(&self, ctx: &RefineContext<'_>, bounds: &mut Bounds)`.
+- **Emulation hooks**: Set `hooks: Some(hooks_fn)` returning `Box<dyn PackerHooks>` if the packer needs `step_filter(&self, phase: Phase) -> StepFilter` and `on_step(&mut self, ctx: &mut StepContext<'_>)` (using `ctx.peek(addr)` or `ctx.forget_writes(range)`) or post-emulation `refine(&self, ctx: &RefineContext<'_>, bounds: &mut Bounds)`.
 
 ### 2. Register in `src/packers/mod.rs` and `src/packers/registry.rs`
 

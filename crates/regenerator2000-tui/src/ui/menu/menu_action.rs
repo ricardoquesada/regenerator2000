@@ -271,12 +271,13 @@ pub fn handle_menu_action(
                 let tx = event_tx.clone();
                 std::thread::spawn(move || {
                     let progress_tx = tx.clone();
-                    let last_update = std::sync::Mutex::new(std::time::Instant::now());
+                    let last_update = std::cell::Cell::new(std::time::Instant::now());
                     let progress_cb = move |count: u64| {
-                        if let Ok(mut last) = last_update.lock()
-                            && last.elapsed() >= std::time::Duration::from_millis(50)
+                        let now = std::time::Instant::now();
+                        if now.duration_since(last_update.get())
+                            >= std::time::Duration::from_millis(50)
                         {
-                            *last = std::time::Instant::now();
+                            last_update.set(now);
                             let _ =
                                 progress_tx.send(crate::events::AppEvent::UnpackProgress(count));
                         }

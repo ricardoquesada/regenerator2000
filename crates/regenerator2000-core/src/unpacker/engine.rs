@@ -47,7 +47,7 @@ const INITIAL_STACK_POINTER: u8 = 0xF6;
 const MIN_INSTRUCTIONS_BEFORE_KNOWN_ENTRY: u64 = 10;
 
 /// Instruction interval between invocations of the optional progress callback.
-const PROGRESS_CALLBACK_INTERVAL: u64 = 30_000;
+const PROGRESS_CALLBACK_INTERVAL: u64 = 1_000;
 
 /// Maximum forward slack (in bytes) past the current `end_addr` within which a
 /// packer's `end_addr_ptr` hint is accepted.
@@ -1469,7 +1469,7 @@ mod tests {
     }
 
     /// Verifies that the progress callback fires after a CPU step whenever the
-    /// global count is a multiple of 30 000.
+    /// global count is a multiple of [`PROGRESS_CALLBACK_INTERVAL`] (`1_000`).
     #[test]
     fn engine_progress_callback_cadence() {
         // LDX #0; LDY #0; inner: DEX; BNE inner; DEY; BNE inner
@@ -1484,11 +1484,12 @@ mod tests {
             .run(&unpacker_program(&DELAY_LOOP), PRG_LOAD)
             .unwrap();
 
-        assert_eq!(
-            result.instructions_executed,
-            DELAY_INSTRUCTIONS + BASE_INSTRUCTIONS
-        );
-        assert_eq!(*calls.borrow(), vec![30_000, 60_000, 90_000, 120_000]);
+        let total = DELAY_INSTRUCTIONS + BASE_INSTRUCTIONS;
+        assert_eq!(result.instructions_executed, total);
+        let expected: Vec<u64> = (1..=(total / PROGRESS_CALLBACK_INTERVAL))
+            .map(|i| i * PROGRESS_CALLBACK_INTERVAL)
+            .collect();
+        assert_eq!(*calls.borrow(), expected);
     }
 
     /// Verifies that a program that never leaves stage 1 times out in phase 1.
@@ -2439,7 +2440,7 @@ mod tests {
         assert_eq!(res_nops.instructions_executed, BASE_INSTRUCTIONS + 11);
 
         // Part B: Direct step verification in both phases at `PROGRESS_CALLBACK_INTERVAL - 1`.
-        // The trapped step increments `total_instructions` to `30_000` without invoking `cb`.
+        // The trapped step increments `total_instructions` to `PROGRESS_CALLBACK_INTERVAL` without invoking `cb`.
         for phase in [Phase::FindDepacker, Phase::Decompress] {
             let calls = RefCell::new(Vec::new());
             let record = |count: u64| calls.borrow_mut().push(count);
