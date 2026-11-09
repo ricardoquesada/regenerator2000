@@ -10,7 +10,7 @@ use super::machine::{KernalTrap, Phase, RomTrapTable, SCREEN_CODE_SPACE, get_bas
 use super::{UnpackConfig, UnpackError, UnpackResult, find_sys_address};
 use crate::packers::{
     AddrSource, Bounds, Hints, LoadedImage, PackerHooks, PackerId, PackerInfo, PackerSpec,
-    PointerGuard, RefineContext, Registers, StepContext, registry,
+    PointerGuard, RefineContext, Registers, StepContext, StepFilter, registry,
 };
 use crate::state::types::System;
 use std::fmt;
@@ -411,6 +411,8 @@ impl<'a> EmulationState<'a> {
                 for patch in sig_match.resolved.patches {
                     patch.apply(&mut memory.mem, sig_match.anchor_addr);
                 }
+                // Pre-emulation patches write directly to `memory.mem` and may modify `$00`/`$01`.
+                memory.sync_c64_banking();
                 (
                     Some(sig_match.spec_id),
                     Some(info),
@@ -523,6 +525,7 @@ impl<'a> EmulationState<'a> {
     }
 
     /// Executes one iteration of [`Phase::FindDepacker`].
+    #[inline(always)]
     fn step_find_depacker(&mut self) -> Step {
         // Global instruction budget: checked at the top of each step
         // against the single `total_instructions` counter.
@@ -537,8 +540,20 @@ impl<'a> EmulationState<'a> {
         self.cpu.memory.current_pc = pc;
 
         if let Some(ref mut hooks) = self.hooks {
-            let mut ctx = StepContext::from_cpu(&mut self.cpu, Phase::FindDepacker);
-            hooks.on_step(&mut ctx);
+            match hooks.step_filter(Phase::FindDepacker) {
+                StepFilter::Never => {}
+                StepFilter::OpcodePair(a, b) => {
+                    let op = self.cpu.memory.mem[usize::from(pc)];
+                    if op == a || op == b {
+                        let mut ctx = StepContext::from_cpu(&mut self.cpu, Phase::FindDepacker);
+                        hooks.on_step(&mut ctx);
+                    }
+                }
+                StepFilter::Always => {
+                    let mut ctx = StepContext::from_cpu(&mut self.cpu, Phase::FindDepacker);
+                    hooks.on_step(&mut ctx);
+                }
+            }
         }
 
         // Bus phase flag: `C64Bus::set_byte` sets `in_phase2 = true` when
@@ -560,25 +575,27 @@ impl<'a> EmulationState<'a> {
             return Step::ToPhase2 { dep_addr };
         }
 
-        // ROM interception
-        match handle_rom_entry(
-            &mut self.cpu,
-            self.traps,
-            &mut self.getin_index,
-            Phase::FindDepacker,
-        ) {
-            RomAction::Continue => {}
-            RomAction::Handled => {
-                // ROM `Handled` steps increment `total_instructions` by 1
-                // and skip `single_step` (and the progress callback).
-                self.record_executed_instruction(pc);
-                return Step::Continue;
-            }
-            RomAction::Exit => {
-                return Step::Done(ExitReason::RomExitVector { pc });
-            }
-            RomAction::BasicRun => {
-                return Step::Done(ExitReason::BasicRun);
+        // ROM interception (guarded by 4 KB nibble bitmask `rom_exec_mask`)
+        if self.cpu.memory.is_rom_exec_candidate(pc) {
+            match handle_rom_entry(
+                &mut self.cpu,
+                self.traps,
+                &mut self.getin_index,
+                Phase::FindDepacker,
+            ) {
+                RomAction::Continue => {}
+                RomAction::Handled => {
+                    // ROM `Handled` steps increment `total_instructions` by 1
+                    // and skip `single_step` (and the progress callback).
+                    self.record_executed_instruction(pc);
+                    return Step::Continue;
+                }
+                RomAction::Exit => {
+                    return Step::Done(ExitReason::RomExitVector { pc });
+                }
+                RomAction::BasicRun => {
+                    return Step::Done(ExitReason::BasicRun);
+                }
             }
         }
 
@@ -586,6 +603,7 @@ impl<'a> EmulationState<'a> {
     }
 
     /// Executes one iteration of [`Phase::Decompress`].
+    #[inline(always)]
     fn step_decompress(&mut self) -> Step {
         // Global instruction budget: uses the same `total_instructions`
         // counter as `Phase::FindDepacker`, without resetting at the phase transition.
@@ -594,25 +612,30 @@ impl<'a> EmulationState<'a> {
         }
 
         // Hook order: in `Phase::Decompress`, invoke `hooks.on_step`
-        // BEFORE reading `pc = cpu.registers.program_counter`. This is deliberately reversed
-        // relative to `Phase::FindDepacker`: `TSCrunch` clears `written[reloc..]` inside
-        // `on_step` when PC enters `$0021..=$0090` or `$0121..=$0190`, which must happen
-        // before the exit checks below inspect `written`.
+        // BEFORE reading `pc = cpu.registers.program_counter` into `current_pc`. This is
+        // deliberately reversed relative to `Phase::FindDepacker`: `TSCrunch` clears
+        // `written[reloc..]` inside `on_step` when PC enters `$0021..=$0090` or `$0121..=$0190`,
+        // which must happen before the exit checks below inspect `written`.
         if let Some(ref mut hooks) = self.hooks {
-            let mut ctx = StepContext::from_cpu(&mut self.cpu, Phase::Decompress);
-            hooks.on_step(&mut ctx);
+            match hooks.step_filter(Phase::Decompress) {
+                StepFilter::Never => {}
+                StepFilter::OpcodePair(a, b) => {
+                    let hook_pc = self.cpu.registers.program_counter;
+                    let op = self.cpu.memory.mem[usize::from(hook_pc)];
+                    if op == a || op == b {
+                        let mut ctx = StepContext::from_cpu(&mut self.cpu, Phase::Decompress);
+                        hooks.on_step(&mut ctx);
+                    }
+                }
+                StepFilter::Always => {
+                    let mut ctx = StepContext::from_cpu(&mut self.cpu, Phase::Decompress);
+                    hooks.on_step(&mut ctx);
+                }
+            }
         }
 
         let pc = self.cpu.registers.program_counter;
         self.cpu.memory.current_pc = pc;
-
-        let basic_mapped = is_basic_rom_mapped(&self.cpu.memory.mem, &self.system);
-        let kernal_mapped = is_kernal_rom_mapped(&self.cpu.memory.mem, &self.system);
-        let io_mapped = is_io_mapped(&self.cpu.memory.mem, &self.system);
-
-        let in_rom_or_io = (self.system.is_in_basic_rom(pc) && basic_mapped)
-            || (self.system.is_in_io(pc) && io_mapped)
-            || (self.system.is_in_kernal_rom(pc) && kernal_mapped);
 
         // Known-entry 10-instruction guard and `exact_return` (unp64 `RtAFrc`):
         // - A packer's `known_entry` triggers a `Decompress` exit only when the global
@@ -627,22 +650,34 @@ impl<'a> EmulationState<'a> {
         let known_entry = self.hints.as_ref().and_then(|h| h.entry_point);
         let exact_return = self.raw_hints.is_some_and(|h| h.exact_return);
         let exact_target = known_entry.unwrap_or(self.ret_addr);
-        let is_written_code = (if exact_return {
-            pc == exact_target
-        } else {
-            pc >= self.ret_addr
-        }) && usize::from(pc) < self.system.memory_boundaries()[0]
-            && !in_rom_or_io
-            && (self.cpu.memory.written[usize::from(pc)]
-                || self.cpu.memory.written_phase2[usize::from(pc)]);
 
         if (known_entry == Some(pc) || (exact_return && pc == exact_target))
             && self.total_instructions > MIN_INSTRUCTIONS_BEFORE_KNOWN_ENTRY
         {
             return Step::Done(ExitReason::KnownEntryReached { pc });
         }
-        if is_written_code {
-            return Step::Done(ExitReason::WrittenCodeReached { pc });
+
+        let pc_idx = usize::from(pc);
+        let target_ok = if exact_return {
+            pc == exact_target
+        } else {
+            pc >= self.ret_addr
+        };
+        // Defer ROM/I/O banking checks until `pc` is confirmed to be a written candidate
+        // below the lower memory ceiling, avoiding per-instruction banking queries.
+        if target_ok
+            && (self.cpu.memory.written[pc_idx] || self.cpu.memory.written_phase2[pc_idx])
+            && pc_idx < self.system.memory_boundaries()[0]
+        {
+            let basic_mapped = is_basic_rom_mapped(&self.cpu.memory.mem, &self.system);
+            let kernal_mapped = is_kernal_rom_mapped(&self.cpu.memory.mem, &self.system);
+            let io_mapped = is_io_mapped(&self.cpu.memory.mem, &self.system);
+            let in_rom_or_io = (self.system.is_in_basic_rom(pc) && basic_mapped)
+                || (self.system.is_in_io(pc) && io_mapped)
+                || (self.system.is_in_kernal_rom(pc) && kernal_mapped);
+            if !in_rom_or_io {
+                return Step::Done(ExitReason::WrittenCodeReached { pc });
+            }
         }
 
         // If the packer doesn't have a known entry point (and does not require an exact
@@ -651,38 +686,34 @@ impl<'a> EmulationState<'a> {
         // Note: checks `written` only (not `written_phase2`), preserving TSCrunch relocation clearing.
         if known_entry.is_none()
             && !exact_return
-            && pc >= self.system.ram_start()
+            && pc >= self.cpu.memory.ram_start
             && (pc < self.load_addr || pc >= self.load_end)
-            && self
-                .cpu
-                .memory
-                .written
-                .get(usize::from(pc))
-                .copied()
-                .unwrap_or(false)
+            && self.cpu.memory.written[pc_idx]
         {
             return Step::Done(ExitReason::LeftLoadedRegion { pc });
         }
 
-        // ROM interception
-        match handle_rom_entry(
-            &mut self.cpu,
-            self.traps,
-            &mut self.getin_index,
-            Phase::Decompress,
-        ) {
-            RomAction::Continue => {}
-            RomAction::Handled => {
-                // ROM `Handled` steps increment `total_instructions` by 1
-                // and skip `single_step` (and the progress callback).
-                self.record_executed_instruction(pc);
-                return Step::Continue;
-            }
-            RomAction::Exit => {
-                return Step::Done(ExitReason::RomExitVector { pc });
-            }
-            RomAction::BasicRun => {
-                return Step::Done(ExitReason::BasicRun);
+        // ROM interception (guarded by 4 KB nibble bitmask `rom_exec_mask`)
+        if self.cpu.memory.is_rom_exec_candidate(pc) {
+            match handle_rom_entry(
+                &mut self.cpu,
+                self.traps,
+                &mut self.getin_index,
+                Phase::Decompress,
+            ) {
+                RomAction::Continue => {}
+                RomAction::Handled => {
+                    // ROM `Handled` steps increment `total_instructions` by 1
+                    // and skip `single_step` (and the progress callback).
+                    self.record_executed_instruction(pc);
+                    return Step::Continue;
+                }
+                RomAction::Exit => {
+                    return Step::Done(ExitReason::RomExitVector { pc });
+                }
+                RomAction::BasicRun => {
+                    return Step::Done(ExitReason::BasicRun);
+                }
             }
         }
 
@@ -691,21 +722,24 @@ impl<'a> EmulationState<'a> {
 
     /// Executes an illegal opcode or a standard CPU step, updating `total_instructions`
     /// and firing the progress callback at multiples of [`PROGRESS_CALLBACK_INTERVAL`].
+    #[inline(always)]
     fn execute_instruction(&mut self) -> Step {
         let pc = self.cpu.registers.program_counter;
-        // Emulated illegal opcodes count as 1 instruction and skip
-        // `single_step` (and the progress callback).
-        if emulate_illegal_opcode(&mut self.cpu) {
+        // Emulated illegal opcodes (`LAX #imm` $AB, `SHX abs,Y` $9E, `SHY abs,X` $9C)
+        // count as 1 instruction and skip `single_step` (and the progress callback).
+        if matches!(self.cpu.memory.mem[pc as usize], 0xAB | 0x9E | 0x9C)
+            && emulate_illegal_opcode(&mut self.cpu)
+        {
             self.record_executed_instruction(pc);
             return Step::Continue;
         }
 
         self.cpu.single_step();
         self.record_executed_instruction(pc);
-        if self
-            .total_instructions
-            .is_multiple_of(PROGRESS_CALLBACK_INTERVAL)
-            && let Some(cb) = self.progress_callback
+        if let Some(cb) = self.progress_callback
+            && self
+                .total_instructions
+                .is_multiple_of(PROGRESS_CALLBACK_INTERVAL)
         {
             cb(self.total_instructions);
         }
@@ -861,6 +895,9 @@ fn init_zero_page(mem: &mut C64Bus, load_addr: u16, data_len: u16, basic_start: 
             mem.mem[addr as usize] = SCREEN_CODE_SPACE;
         }
     }
+
+    // Synchronize cached banking bitmasks after writing `$0000`/`$0001` directly to `mem.mem`.
+    mem.sync_c64_banking();
 }
 
 // ---------------------------------------------------------------------------
@@ -1706,6 +1743,7 @@ mod tests {
         let mut bus = C64Bus::new(system, None, None, None);
         bus.mem[0x00] = PORT_DDR;
         bus.mem[0x01] = port;
+        bus.sync_c64_banking();
         let [lo, hi] = (RTS_TARGET - 1).to_le_bytes();
         bus.mem[0x0100 | usize::from(START_SP + 1)] = lo;
         bus.mem[0x0100 | usize::from(START_SP + 2)] = hi;
@@ -2025,6 +2063,14 @@ mod tests {
     }
 
     impl PackerHooks for MockHooks {
+        fn step_filter(&self, _phase: Phase) -> StepFilter {
+            if self.step_hook.is_some() {
+                StepFilter::Always
+            } else {
+                StepFilter::Never
+            }
+        }
+
         fn on_step(&mut self, ctx: &mut StepContext<'_>) {
             if let Some(ref mut hook) = self.step_hook {
                 hook(ctx);
@@ -2105,6 +2151,7 @@ mod tests {
         state.cpu.memory.cia1.write_reg(0x04, 100);
         state.cpu.memory.cia1.write_reg(0x05, 0);
         state.cpu.memory.cia1.write_reg(0x0E, 0x11);
+        state.cpu.memory.sync_cia_timers_active();
         state.cpu.memory.total_cycles = 0;
 
         // 1. `$AB $55` (`LAX #$55`): 2 cycles total.

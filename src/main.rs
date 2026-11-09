@@ -18,7 +18,7 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 use std::path::{Path, PathBuf};
 
-use simplelog::{Config, LevelFilter, WriteLogger};
+use simplelog::{Config, ConfigBuilder, LevelFilter, WriteLogger};
 use std::fs::File;
 use std::panic;
 
@@ -121,12 +121,25 @@ fn classify_input_file(file_str: &str) -> InputFileType {
 // Logging
 // ---------------------------------------------------------------------------
 
+/// Builds the global logger configuration, explicitly ignoring `mos6502`
+/// per-instruction debug logging so 6502 emulation never performs disk I/O.
+#[must_use]
+fn build_logger_config() -> Config {
+    ConfigBuilder::new()
+        .add_filter_ignore_str("mos6502")
+        .build()
+}
+
 /// Initialize the global logger, writing to a temp-dir log file.
+///
+/// Uses [`LevelFilter::Info`] so third-party crates (in particular `mos6502::cpu`,
+/// which emits a `log::debug!` on every executed 6502 instruction) short-circuit at
+/// the inline `log::max_level()` check without formatting strings or locking the log file.
 fn init_logging() -> Result<()> {
     let log_path = std::env::temp_dir().join("regenerator2000.log");
     let _ = WriteLogger::init(
-        LevelFilter::Debug,
-        Config::default(),
+        LevelFilter::Info,
+        build_logger_config(),
         File::create(&log_path).or_else(|_| File::create("regenerator2000.log"))?,
     );
     log::info!("Regenerator 2000 started");
@@ -875,4 +888,70 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use log::Log;
+    use std::sync::{Arc, Mutex};
+
+    struct SharedBuf(Arc<Mutex<Vec<u8>>>);
+
+    impl io::Write for SharedBuf {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn logger_config_blocks_mos6502_and_caps_static_max_level_at_info() {
+        assert_eq!(log::STATIC_MAX_LEVEL, LevelFilter::Info);
+
+        let sink = Arc::new(Mutex::new(Vec::new()));
+        let logger = WriteLogger::new(
+            LevelFilter::Info,
+            build_logger_config(),
+            SharedBuf(Arc::clone(&sink)),
+        );
+
+        let mos_debug = log::Metadata::builder()
+            .level(log::Level::Debug)
+            .target("mos6502::cpu")
+            .build();
+        assert!(!logger.enabled(&mos_debug));
+
+        // Even at Info level, records from `mos6502::*` are filtered out by `build_logger_config()`.
+        logger.log(
+            &log::Record::builder()
+                .metadata(
+                    log::Metadata::builder()
+                        .level(log::Level::Info)
+                        .target("mos6502::cpu")
+                        .build(),
+                )
+                .args(format_args!("load A immediate: 32"))
+                .build(),
+        );
+        assert!(sink.lock().unwrap().is_empty());
+
+        // Application Info records are written as expected.
+        logger.log(
+            &log::Record::builder()
+                .metadata(
+                    log::Metadata::builder()
+                        .level(log::Level::Info)
+                        .target("regenerator2000")
+                        .build(),
+                )
+                .args(format_args!("Regenerator 2000 started"))
+                .build(),
+        );
+        assert!(!sink.lock().unwrap().is_empty());
+    }
 }

@@ -117,6 +117,8 @@ pub fn detect_output_range(
             let near_ceiling = (trimmed_end as usize) + CEILING_PROXIMITY >= boundary;
 
             // Also escalate when written or diffed bytes exist above the current boundary.
+            // Short-circuit after `MIN_HIGH_REGION_BYTES` (4) matches to avoid scanning
+            // the entire upper range when output clearly continues into high memory.
             let io_mapped = is_io_mapped(mem, system);
             let next_upper = if !is_last {
                 boundaries[i + 1]
@@ -133,6 +135,7 @@ pub fn detect_output_range(
                                 != snapshot.get(addr).copied().unwrap_or(0);
                         !is_io && diff
                     })
+                    .take(MIN_HIGH_REGION_BYTES)
                     .count()
                     >= MIN_HIGH_REGION_BYTES;
 
@@ -209,16 +212,10 @@ pub fn scan_hybrid_range(
         }
     }
 
-    // Find all diff bytes and identify the end of the main diff block
-    // by trimming small trailing clusters separated by non-diff gaps.
-    let mut last_diff = None;
-    for addr in start..=upper {
-        if written.get(addr).copied().unwrap_or(false) || mem[addr] != snapshot[addr] {
-            last_diff = Some(addr);
-        }
-    }
-
-    let diff_end = last_diff?;
+    // Scan backward from `upper` to find the highest written or diffed byte (`diff_end`).
+    let diff_end = (first..=upper)
+        .rev()
+        .find(|&addr| written.get(addr).copied().unwrap_or(false) || mem[addr] != snapshot[addr])?;
 
     // Walk backward from diff_end to detect and trim small trailing clusters,
     // unless `skip_trim` is true.
@@ -299,6 +296,9 @@ pub fn find_entry_in_snapshot(
 ///    `gap_len` lies in `WORKSPACE_CLUSTER_MIN_GAP..WORKSPACE_CLUSTER_MAX_GAP` (`128..4096`),
 ///    and the trailing cluster has at most `WORKSPACE_CLUSTER_MAX_SIZE` (`512`) diff bytes,
 ///    records `pos` as the trim boundary and continues backward.
+///
+/// Tracks `cluster_diffs` incrementally in `O(1)` per gap and returns early once
+/// `cluster_diffs > WORKSPACE_CLUSTER_MAX_SIZE` (`512`).
 #[must_use]
 pub fn trim_trailing_clusters(
     mem: &[u8],
@@ -313,12 +313,22 @@ pub fn trim_trailing_clusters(
 
     let scan_floor = start;
     let mut pos = end;
-    let mut curr_cluster_end = end;
     let mut best_trim_pos: Option<usize> = None;
+    // Incrementally tracks the count of addresses `a` in `(gap_end + 1)..=curr_cluster_end`
+    // where `written[a] || mem[a] != snapshot[a]`. Reset to 0 whenever Check 2 advances
+    // `curr_cluster_end` to `pos`.
+    let mut cluster_diffs: usize = 0;
 
     while pos > scan_floor {
-        // Walk backward through diff bytes
+        // Walk backward through diff bytes (`mem[pos] != snapshot[pos]`), which by
+        // definition satisfy `written[pos] || mem[pos] != snapshot[pos]`.
+        // Once `cluster_diffs > WORKSPACE_CLUSTER_MAX_SIZE` (512), neither Check 1 (< 16)
+        // nor Check 2 (<= 512) can ever match for the current cluster or any earlier gap.
         while pos > scan_floor && mem.get(pos) != snapshot.get(pos) {
+            cluster_diffs += 1;
+            if cluster_diffs > WORKSPACE_CLUSTER_MAX_SIZE {
+                return best_trim_pos.unwrap_or(end);
+            }
             pos -= 1;
         }
 
@@ -326,16 +336,17 @@ pub fn trim_trailing_clusters(
             break;
         }
 
-        // Found a matching byte — walk backward through the gap
+        // Found a matching byte — walk backward through the gap (`mem[pos] == snapshot[pos]`).
+        // Track written-but-matching bytes so `cluster_diffs` includes any gap bytes that
+        // become part of `(next_gap_end + 1)..=curr_cluster_end` on subsequent iterations.
         let gap_end = pos;
+        let mut gap_written: usize = 0;
         while pos > start && mem.get(pos) == snapshot.get(pos) {
+            if written.get(pos).copied().unwrap_or(false) {
+                gap_written += 1;
+            }
             pos -= 1;
         }
-
-        // Count written or changed bytes in the cluster after the gap
-        let cluster_diffs: usize = ((gap_end + 1)..=curr_cluster_end)
-            .filter(|&a| written.get(a).copied().unwrap_or(false) || mem.get(a) != snapshot.get(a))
-            .count();
 
         let gap_len = gap_end - (pos + 1) + 1;
 
@@ -352,7 +363,14 @@ pub fn trim_trailing_clusters(
             && (cluster_diffs == 0 || cluster_diffs <= WORKSPACE_CLUSTER_MAX_SIZE)
         {
             best_trim_pos = Some(pos);
-            curr_cluster_end = pos;
+            cluster_diffs = 0;
+        } else {
+            // Fold written gap bytes into `cluster_diffs` for the next iteration since
+            // `(next_gap_end + 1)..=curr_cluster_end` now spans this gap.
+            cluster_diffs += gap_written;
+            if cluster_diffs > WORKSPACE_CLUSTER_MAX_SIZE {
+                break;
+            }
         }
     }
 
@@ -686,6 +704,89 @@ mod tests {
         assert_eq!(
             trim_trailing_clusters(&mem, &snapshot, &written, 0x1000, 0x1000),
             0x1000
+        );
+    }
+
+    /// Verifies incremental `cluster_diffs` accumulation, monotonic early exit (`> 512`),
+    /// `gap_written` deferral/folding across non-trimmed sub-gaps, and `cluster_diffs` reset
+    /// on chained workspace clusters.
+    #[test]
+    fn detector_trim_trailing_clusters_incremental_early_exit_and_written_gaps() {
+        // Case 1: Early exit during diff-byte walk preserves prior `best_trim_pos`.
+        // Main payload at $0801..=$2000 has > 512 contiguous diff bytes ($1DF0..=$2000 = 529 bytes),
+        // followed by a 200-byte untouched gap ($2001..=$20C8) and a 32-byte workspace cluster
+        // ($20C9..=$20E8). Check 2 records `best_trim_pos = Some(0x2000)` and resets
+        // `cluster_diffs = 0`; walking backward through the main payload then hits
+        // `cluster_diffs == 513 > 512` and returns `best_trim_pos.unwrap_or(end)` == 0x2000.
+        let (mut mem, snapshot, mut written) = blank_state();
+        mark_diff_range(&mut mem, &snapshot, &mut written, 0x0801..=0x2000);
+        mark_diff_range(&mut mem, &snapshot, &mut written, 0x20C9..=0x20E8);
+        assert_eq!(
+            trim_trailing_clusters(&mem, &snapshot, &written, 0x0801, 0x20E8),
+            0x2000
+        );
+
+        // Case 2a: Written-but-matching bytes inside the gap currently being evaluated (`gap_written`)
+        // must NOT be added to `cluster_diffs` before evaluating Check 2 for that gap.
+        let (mut mem_2a, snapshot_2a, mut written_2a) = blank_state();
+        mark_diff_range(&mut mem_2a, &snapshot_2a, &mut written_2a, 0x0801..=0x1000);
+        // 200-byte gap at $1001..=$10C8 where 20 bytes have `written == true` and `mem == snapshot`.
+        written_2a[0x1001..=0x1014].fill(true);
+        // 512-byte workspace cluster at $10C9..=$12C8 (`== WORKSPACE_CLUSTER_MAX_SIZE`).
+        mark_diff_range(&mut mem_2a, &snapshot_2a, &mut written_2a, 0x10C9..=0x12C8);
+        assert_eq!(
+            trim_trailing_clusters(&mem_2a, &snapshot_2a, &written_2a, 0x0801, 0x12C8),
+            0x1000
+        );
+
+        // Case 2b: When an inner sub-gap is NOT trimmed (e.g., `gap_len == 3 < TRAILING_CLUSTER_GAP`),
+        // its `gap_written` bytes MUST be folded into `cluster_diffs` for subsequent outer gaps.
+        let run_subgap_written = |subgap_written_count: usize| -> usize {
+            let (mut mem_2b, snapshot_2b, mut written_2b) = blank_state();
+            mark_diff_range(&mut mem_2b, &snapshot_2b, &mut written_2b, 0x0801..=0x1000);
+            // Outer gap: $1001..=$10C8 (200 untouched bytes).
+            // Cluster 1: $10C9..=$12BE (502 diff bytes).
+            mark_diff_range(&mut mem_2b, &snapshot_2b, &mut written_2b, 0x10C9..=0x12BE);
+            // Inner 3-byte sub-gap: $12BF..=$12C1 (`mem == snapshot == 0x00`), with `subgap_written_count`
+            // bytes marked `written = true`.
+            for w in &mut written_2b[0x12BF..(0x12BF + subgap_written_count)] {
+                *w = true;
+            }
+            // Cluster 2: $12C2..=$12C9 (8 diff bytes).
+            mark_diff_range(&mut mem_2b, &snapshot_2b, &mut written_2b, 0x12C2..=0x12C9);
+            trim_trailing_clusters(&mem_2b, &snapshot_2b, &written_2b, 0x0801, 0x12C9)
+        };
+        // 502 + 3 + 8 = 513 > 512 -> exceeds WORKSPACE_CLUSTER_MAX_SIZE, not trimmed (0x12C9).
+        assert_eq!(run_subgap_written(3), 0x12C9);
+        // 502 + 2 + 8 = 512 <= 512 -> within WORKSPACE_CLUSTER_MAX_SIZE, trimmed to 0x1000.
+        assert_eq!(run_subgap_written(2), 0x1000);
+
+        // Case 3: Chained workspace clusters each <= 512 bytes (416 + 416 = 832 total) reset
+        // `cluster_diffs = 0` at each Check 2 trim and trim all the way down to main payload ($1000).
+        let (mut mem_3, snapshot_3, mut written_3) = blank_state();
+        mark_diff_range(&mut mem_3, &snapshot_3, &mut written_3, 0x0801..=0x1000);
+        // Gap 1: $1001..=$10C8 (200 bytes), Workspace Cluster 1: $10C9..=$1268 (416 diff bytes).
+        mark_diff_range(&mut mem_3, &snapshot_3, &mut written_3, 0x10C9..=0x1268);
+        // Gap 2: $1269..=$1330 (200 bytes), Workspace Cluster 2: $1331..=$14D0 (416 diff bytes).
+        mark_diff_range(&mut mem_3, &snapshot_3, &mut written_3, 0x1331..=0x14D0);
+        assert_eq!(
+            trim_trailing_clusters(&mem_3, &snapshot_3, &written_3, 0x0801, 0x14D0),
+            0x1000
+        );
+
+        // Case 4: Dense zero-byte-interleaved payload ($0801..=$CE00, 50,688 bytes) with
+        // alternating diff bytes and 1-byte written zero gaps early-exits at `cluster_diffs > 512`
+        // and returns `0xCE00`.
+        let (mut mem_4, snapshot_4, mut written_4) = blank_state();
+        for addr in 0x0801..=0xCE00 {
+            written_4[addr] = true;
+            if addr % 2 == 0 {
+                mem_4[addr] = 0x01;
+            }
+        }
+        assert_eq!(
+            trim_trailing_clusters(&mem_4, &snapshot_4, &written_4, 0x0801, 0xCE00),
+            0xCE00
         );
     }
 

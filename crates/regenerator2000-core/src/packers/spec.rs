@@ -12,7 +12,7 @@
 //! - [`PatchAddr`] and [`MemoryPatch`] define pre-emulation RAM patches.
 //! - [`PackerSpec`] combines signatures, hints, patches, an optional `resolve` function,
 //!   an optional `hooks` factory, and a self-test `fixture`.
-//! - [`PackerHooks`], [`StepContext`], [`RefineContext`], and [`Bounds`] provide an
+//! - [`PackerHooks`], [`StepFilter`], [`StepContext`], [`RefineContext`], and [`Bounds`] provide an
 //!   emulation-time hook interface that hides CPU and bus internals.
 
 use std::fmt::Debug;
@@ -987,12 +987,38 @@ pub struct Bounds {
     pub entry_point: u16,
 }
 
+/// Fast-path filter indicating when [`PackerHooks::on_step`] must be invoked during `phase`.
+///
+/// Returning [`StepFilter::Never`] or [`StepFilter::OpcodePair`] lets the hot emulation loop
+/// skip [`StepContext`] construction and dynamic dispatch on non-matching instructions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StepFilter {
+    /// Never invoke [`PackerHooks::on_step`] in this phase.
+    #[default]
+    Never,
+    /// Only invoke [`PackerHooks::on_step`] when the opcode byte at `pc` matches either value.
+    OpcodePair(u8, u8),
+    /// Invoke [`PackerHooks::on_step`] on every instruction in this phase.
+    Always,
+}
+
 /// Optional emulation-time lifecycle hooks for a [`PackerSpec`].
 ///
 /// Requires `Debug + Send` and does not require `Sync` so hook state can live in a
 /// plain struct owned per unpack run.
 pub trait PackerHooks: Debug + Send {
-    /// Runs once per instruction step during emulation.
+    /// Returns a [`StepFilter`] indicating whether [`Self::on_step`] should be called in `phase`.
+    ///
+    /// Defaults to [`StepFilter::Never`] so hooks that only implement [`Self::refine`]
+    /// incur zero per-instruction overhead. Any implementation that overrides
+    /// [`Self::on_step`] must also override `step_filter`.
+    #[must_use]
+    fn step_filter(&self, _phase: Phase) -> StepFilter {
+        StepFilter::Never
+    }
+
+    /// Runs once per matching instruction step during emulation when [`Self::step_filter`]
+    /// matches the current phase and opcode.
     fn on_step(&mut self, _ctx: &mut StepContext<'_>) {}
 
     /// Runs after emulation finishes to refine the output bounds or entry point.

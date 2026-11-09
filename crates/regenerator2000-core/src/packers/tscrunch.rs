@@ -5,7 +5,7 @@ use crate::unpacker::machine::Phase;
 
 use super::spec::{
     AddrSource, Anchor, Bounds, Hints, LoadedImage, PackerHooks, PackerSpec, RefineContext,
-    ResolvedSpec, Signature, SignatureMatch, StepContext, sig,
+    ResolvedSpec, Signature, SignatureMatch, StepContext, StepFilter, sig,
 };
 
 /// Variant 1 (`TSCrunch v1.3+`, zero-page depacker at `$0002`) 14-byte signature at `$080D`.
@@ -159,6 +159,16 @@ impl TScrunchHooks {
 }
 
 impl PackerHooks for TScrunchHooks {
+    fn step_filter(&self, phase: Phase) -> StepFilter {
+        // Run `on_step` during decompression only until the relocated bitstream write flags
+        // (`reloc_start..=0xFFFF`) are cleared once, then disable per-step hooks (`Never`).
+        if phase == Phase::Decompress && !self.reloc_cleared {
+            StepFilter::Always
+        } else {
+            StepFilter::Never
+        }
+    }
+
     fn on_step(&mut self, ctx: &mut StepContext<'_>) {
         if ctx.phase != Phase::Decompress || self.reloc_cleared {
             return;
@@ -231,3 +241,38 @@ pub static SPEC: PackerSpec = PackerSpec {
     fixture: &TSCRUNCH_FIXTURE,
     fixture_load_addr: 0x0801,
 };
+
+#[cfg(test)]
+mod tests {
+    use mos6502::cpu::CPU;
+    use mos6502::instruction::Nmos6502;
+
+    use crate::unpacker::UnpackerMemory;
+
+    use super::*;
+
+    #[test]
+    fn tscrunch_hooks_step_filter_stops_after_reloc_cleared() {
+        let mut hooks = TScrunchHooks::new(Some(0xC000));
+        let bus = UnpackerMemory::new(TargetSystem::C64, None, None, None);
+        let mut cpu = CPU::new(bus, Nmos6502);
+        cpu.memory.written[0xBFFF..=0xFFFF].fill(true);
+
+        assert_eq!(hooks.step_filter(Phase::FindDepacker), StepFilter::Never);
+        assert_eq!(hooks.step_filter(Phase::Decompress), StepFilter::Always);
+
+        cpu.registers.program_counter = 0x080D;
+        hooks.on_step(&mut StepContext::from_cpu(&mut cpu, Phase::Decompress));
+        assert!(!hooks.reloc_cleared);
+        assert!(cpu.memory.written[0xC000]);
+        assert_eq!(hooks.step_filter(Phase::Decompress), StepFilter::Always);
+
+        cpu.registers.program_counter = 0x0021;
+        hooks.on_step(&mut StepContext::from_cpu(&mut cpu, Phase::Decompress));
+        assert!(hooks.reloc_cleared);
+        assert!(cpu.memory.written[0xBFFF]);
+        assert!(cpu.memory.written[0xC000..=0xFFFF].iter().all(|&w| !w));
+        assert_eq!(hooks.step_filter(Phase::Decompress), StepFilter::Never);
+        assert_eq!(hooks.step_filter(Phase::FindDepacker), StepFilter::Never);
+    }
+}

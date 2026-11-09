@@ -31,7 +31,8 @@ pub use registry::{
 pub use spec::{
     AddrSource, Anchor, Bounds, Hints, HooksFactory, LoadedImage, MemoryPatch, PackerHooks,
     PackerId, PackerSpec, Pat, PatchAddr, PointerGuard, RefineContext, Registers, ResolveFn,
-    ResolvedSpec, Signature, SignatureMatch, StepContext, is_valid_packer_id, sig, system_matches,
+    ResolvedSpec, Signature, SignatureMatch, StepContext, StepFilter, is_valid_packer_id, sig,
+    system_matches,
 };
 
 /// Information about a detected packer.

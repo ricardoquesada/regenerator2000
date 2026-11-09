@@ -18,7 +18,7 @@ base64 = "0.23.1"
 flate2 = "1.1"
 directories = "6.0.0"
 regex = "1.12"
-log = "0.4.29"
+log = { version = "0.4.29", features = ["max_level_info"] }
 include_dir = "0.7"
 mos6502 = "0.10.1"
 

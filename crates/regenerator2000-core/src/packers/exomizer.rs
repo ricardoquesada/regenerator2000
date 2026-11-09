@@ -5,7 +5,7 @@ use crate::unpacker::machine::Phase;
 
 use super::spec::{
     AddrSource, Anchor, Bounds, Hints, LoadedImage, PackerHooks, PackerSpec, RefineContext,
-    ResolvedSpec, Signature, SignatureMatch, StepContext, sig,
+    ResolvedSpec, Signature, SignatureMatch, StepContext, StepFilter, sig,
 };
 
 /// Exomizer 3.x core decruncher 8-byte signature (`ADC #$80`, `ASL A`, `BPL +15`, `ASL $FD`, `BNE`),
@@ -149,6 +149,16 @@ impl ExomizerHooks {
 }
 
 impl PackerHooks for ExomizerHooks {
+    fn step_filter(&self, phase: Phase) -> StepFilter {
+        // Exomizer 3.x inspects only indirect-indexed `LDA (zp),Y` ($B1) and `STA (zp),Y` ($91)
+        // instructions during decompression to track the lowest output address (`min_start`).
+        if phase == Phase::Decompress && self.version == 3 {
+            StepFilter::OpcodePair(0xB1, 0x91)
+        } else {
+            StepFilter::Never
+        }
+    }
+
     fn on_step(&mut self, ctx: &mut StepContext<'_>) {
         if ctx.phase != Phase::Decompress || self.version != 3 {
             return;
@@ -293,3 +303,29 @@ pub static SPEC: PackerSpec = PackerSpec {
     fixture: &EXOMIZER_FIXTURE,
     fixture_load_addr: 0x0801,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exomizer_hooks_step_filter_matches_phase_and_version() {
+        let exo2 = ExomizerHooks::new(2, 0, 0x34);
+        assert_eq!(exo2.step_filter(Phase::FindDepacker), StepFilter::Never);
+        assert_eq!(exo2.step_filter(Phase::Decompress), StepFilter::Never);
+
+        let exo30 = ExomizerHooks::new(3, 0x30, 0x34);
+        assert_eq!(exo30.step_filter(Phase::FindDepacker), StepFilter::Never);
+        assert_eq!(
+            exo30.step_filter(Phase::Decompress),
+            StepFilter::OpcodePair(0xB1, 0x91)
+        );
+
+        let exo32 = ExomizerHooks::new(3, 0x32, 0xFE);
+        assert_eq!(exo32.step_filter(Phase::FindDepacker), StepFilter::Never);
+        assert_eq!(
+            exo32.step_filter(Phase::Decompress),
+            StepFilter::OpcodePair(0xB1, 0x91)
+        );
+    }
+}

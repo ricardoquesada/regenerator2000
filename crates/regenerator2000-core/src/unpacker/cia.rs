@@ -54,6 +54,15 @@ impl CiaState {
         (self.tb_control & 0x01) != 0
     }
 
+    /// Returns `true` if either Timer A or Timer B is currently running.
+    ///
+    /// Used by `C64Bus` to maintain its cached `cia_timers_active` fast-path flag.
+    #[must_use]
+    #[inline(always)]
+    pub fn has_active_timer(&self) -> bool {
+        self.is_ta_running() || self.is_tb_running()
+    }
+
     /// Steps active CIA timers by `cycles` CPU clock cycles.
     ///
     /// Decrements active counters and reloads latches on underflow. Sets ICR bits 0 and 1
@@ -90,6 +99,7 @@ impl CiaState {
         }
     }
 
+    /// Decrements Timer B by one count, or reloads its latch and sets ICR bit 1 on underflow.
     fn step_tb_underflow(&mut self) {
         if self.tb_counter == 0 {
             self.tb_counter = self.tb_latch;

@@ -180,6 +180,9 @@ impl KernalRoutine {
             }
             Self::Ioinit => {
                 cpu.memory.mem[PROCESSOR_PORT] = IOINIT_PROCESSOR_PORT;
+                // Direct mutation of `$01` bypasses `C64Bus::set_byte`; resynchronize
+                // the cached banking bitmasks immediately.
+                cpu.memory.sync_c64_banking();
                 registers.accumulator = IOINIT_A;
                 registers.index_x = IOINIT_X;
             }
