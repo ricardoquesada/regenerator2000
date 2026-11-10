@@ -4,7 +4,9 @@
 use crate::disassembler::DisassemblyLine;
 use crate::disassembler::context::{DisassemblyContext, HandleArgs};
 use crate::disassembler::formatter::{Formatter, TextFragment};
-use crate::disassembler::symbols::resolve_label_name;
+use crate::disassembler::symbols::{
+    resolve_effective_symbolic_offset, resolve_symbolic_label_name,
+};
 use crate::state::{Addr, BlockType};
 
 /// Counts how many contiguous `DataByte` bytes starting at `pc` share the same byte value
@@ -252,7 +254,11 @@ pub fn disassemble_words(
     }
 }
 
-/// Disassembles 16-bit address pointers (`BlockType::Address`).
+/// Disassembles 16-bit address pointers ([`BlockType::Address`], `.word` / `!word`).
+///
+/// Resolves each 2-byte word through [`resolve_symbolic_label_name`] without outer parentheses
+/// (such as `.word sub_C100 - 1, sub_C200`). Falls back to `sym.base` for target side comments.
+/// Keeps [`DisassemblyLine::target_address`] as `None` so data tables omit control-flow jump arrows.
 #[must_use]
 pub fn disassemble_addresses(
     ctx: &DisassemblyContext<'_>,
@@ -296,8 +302,18 @@ pub fn disassemble_addresses(
             ctx.data.get(current_pc_start + 1),
         ) {
             let val = u16::from(high) << 8 | u16::from(low);
+            let target_addr = Addr(val);
+            let sym = resolve_effective_symbolic_offset(
+                current_address,
+                target_addr,
+                ctx.labels,
+                ctx.annotations,
+            );
 
-            if let Some(target_comment) = ctx.get_target_comment(Addr(val)) {
+            if let Some(target_comment) = ctx
+                .get_target_comment(target_addr)
+                .or_else(|| sym.and_then(|s| ctx.get_target_comment(s.base)))
+            {
                 if !side_comment.is_empty() {
                     side_comment.push_str("; ");
                 }
@@ -307,17 +323,21 @@ pub fn disassemble_addresses(
             bytes.push(low);
             bytes.push(high);
 
-            let operand = resolve_label_name(
-                Addr(val),
+            let operand = resolve_symbolic_label_name(
+                current_address,
+                target_addr,
                 ctx.labels,
                 ctx.settings,
+                ctx.annotations,
                 local_label_names,
                 label_scope_names,
                 current_scope_name.as_deref(),
                 formatter.scope_resolution_separator(),
                 formatter.local_label_prefix(),
+                crate::state::OffsetParentheses::Bare,
+                |base| formatter.format_address(base),
             )
-            .unwrap_or_else(|| formatter.format_address(Addr(val)));
+            .unwrap_or_else(|| formatter.format_address(target_addr));
             operands.push(operand);
 
             count += 1;
@@ -339,6 +359,8 @@ pub fn disassemble_addresses(
                 label: label_name,
                 opcode: None,
                 show_bytes: false,
+                // Preserve `None` on `.word` lines (`target_address` is reserved for control-flow
+                // branch/jump arrows and single-target instructions).
                 target_address: None,
                 external_label_address: None,
                 is_collapsed: false,

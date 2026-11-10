@@ -83,7 +83,7 @@ impl ShortcutTestHarness {
         data[4] = 0x20;
         data[5] = 0x10;
         data[6] = 0x08;
-        // $0807: JSR $0820 (jump target for Enter JumpToOperand and Backspace NavigateBack; allows flow analysis to reach $080A)
+        // $0807: JSR $0820 (jump target for Enter and Backspace, and lets flow analysis reach $080A)
         data[7] = 0x20;
         data[8] = 0x20;
         data[9] = 0x08;
@@ -243,8 +243,7 @@ impl ShortcutTestHarness {
     }
 }
 
-/// Verifies that non-press key events (`KeyEventKind::Release` and `KeyEventKind::Repeat`)
-/// are ignored at the top of `handle_key_event`.
+/// Checks that `handle_key_event` ignores `KeyEventKind::Release` and `KeyEventKind::Repeat`.
 #[test]
 fn test_key_release_and_repeat_ignored() {
     let mut h = ShortcutTestHarness::new();
@@ -273,11 +272,9 @@ fn test_key_release_and_repeat_ignored() {
 // PILLAR 1: Global Shortcut Non-Shadowing Matrix Across All 7 ActivePanes
 // =============================================================================
 
-/// Pillar 1 Matrix Test: Iterates over all 7 [`ActivePane`] variants and verifies that every
-/// application-wide shortcut (`F10`, `Alt+*` menu hotkeys, `Ctrl+*`/`Alt+*` file/bookmark/jump
-/// actions, `u`/`Ctrl+r` undo/redo, `F2`/`F4`/`F6`/`F7`/`F8`/`F9` debugger keys, and
-/// `Alt+1..6`/`Ctrl+1..6`/`Tab` pane switching) executes its global action without being
-/// swallowed or hijacked by view-local handlers.
+/// Pillar 1 Matrix Test: Iterates over all 7 [`ActivePane`] variants and checks every global
+/// shortcut. Ensures view-local handlers never hijack menu, file, undo/redo, debugger, or pane
+/// switching shortcuts.
 #[test]
 fn test_global_shortcuts_across_all_panes() {
     let mut h = ShortcutTestHarness::new();
@@ -819,6 +816,37 @@ fn test_global_shortcuts_across_all_panes() {
                 "{f_key:?} ({mods:?}) should not open a modal dialog in {pane:?}"
             );
         }
+
+        // 18b. Menu availability for Symbolic Offset items across all 7 panes
+        h.ui_state.menu.update_availability(
+            &h.core.state,
+            h.ui_state.cursor_index,
+            h.ui_state.last_search_query.is_empty(),
+            pane,
+        );
+        let edit_cat = h
+            .ui_state
+            .menu
+            .categories
+            .iter()
+            .find(|c| c.name == "Edit")
+            .expect("Edit category must exist");
+        for item_name in [
+            "Symbolic Offset...",
+            "Increment Symbolic Offset",
+            "Decrement Symbolic Offset",
+        ] {
+            let item = edit_cat
+                .items
+                .iter()
+                .find(|i| i.name == item_name)
+                .unwrap_or_else(|| panic!("Edit -> {item_name} must exist"));
+            let expected_disabled = pane != ActivePane::Disassembly;
+            assert_eq!(
+                item.disabled, expected_disabled,
+                "Menu item 'Edit -> {item_name}' disabled state mismatch in pane {pane:?}"
+            );
+        }
     }
 
     // 19. Right-Pane Toggling & Cycling (Alt+1..6, Ctrl+1..6) and Tab Cycling
@@ -896,9 +924,8 @@ fn test_global_shortcuts_across_all_panes() {
 // PILLAR 2: Exhaustive View-Specific, Navigable & Modal Functional Suite
 // =============================================================================
 
-/// Pillar 2 (`Navigable`): Exercises `Down`/`j`, `Up`/`k`, `PageDown`/`Ctrl+d`, `PageUp`/`Ctrl+u`,
-/// `Home`, `End`, `G` (`NONE` and `SHIFT`), and `[count]G` across all 6 [`Navigable`] views
-/// (`Disassembly`, `HexDump`, `Sprites`, `Charset`, `Bitmap`, and `Blocks`).
+/// Pillar 2 (`Navigable`): Checks vertical movement, paging, `Home`, `End`, and `[count]G` across
+/// all 6 [`Navigable`] views.
 #[test]
 fn test_navigable_shortcuts_all_views() {
     let mut h = ShortcutTestHarness::new();
@@ -1110,13 +1137,9 @@ fn test_navigable_shortcuts_all_views() {
     );
 }
 
-/// Pillar 2 (`DisassemblyView`): Exhaustively verifies block-type conversions (`c`, `b`, `w`, `a`,
-/// `p`, `s`, `<`, `>`, `,`, `.`, `?`, `E`, `d`), `Shift+V` visual mode and `Shift+Arrow` range
-/// selections, immediate format cycling (`i`/`I`) and Lo/Hi packing (`[`/`]`), scope creation (`r`),
-/// `Alt+Down`/`Alt+Up` scope boundary nudging (`NudgeScopeBoundary`), `Delete` on scopes and
-/// external labels, splitters (`|`), collapsed blocks (`Ctrl+k`), labels/comments/enums (`l`, `;`,
-/// `:`, `e`), `Enter`/`Backspace` operand navigation, and unified search (`/`, `Ctrl+f`, `n`, `N`,
-/// `F3`, `Shift+F3`, including collapsed-block matches).
+/// Pillar 2 (`DisassemblyView`): Checks block conversions, visual selections, immediate formats,
+/// Lo/Hi packing, scopes, splitters, and collapsed blocks. Also checks labels, comments, enums,
+/// operand jumps, and search.
 #[test]
 fn test_disassembly_view_shortcuts() {
     let mut h = ShortcutTestHarness::new();
@@ -1372,7 +1395,7 @@ fn test_disassembly_view_shortcuts() {
         "'r' at $0810 must create a scope ending at RTS ($0813)"
     );
 
-    // Regression test for Bug 1: Alt+Down expands scope end to $0814; Alt+Up shrinks back to $0813
+    // Regression test for Bug 1: Alt+Down expands scope end to $0814, and Alt+Up shrinks to $0813.
     h.ui_state.cursor_index = h.line_index_for_addr(Addr(0x0810));
     h.press(KeyCode::Down, KeyModifiers::ALT);
     assert_eq!(
@@ -1462,7 +1485,7 @@ fn test_disassembly_view_shortcuts() {
         "Second Ctrl+k must expand current block"
     );
 
-    // 7. Labels ('l'), Side Comments (';'), Line Comments (':'), Apply Enum ('e')
+    // 7. Labels (`l`), Side Comments (`;`), Line Comments (`:`), Apply Enum (`e`)
     h.ui_state.cursor_index = h.line_index_for_addr(Addr(0x0810));
     h.press(KeyCode::Char('l'), KeyModifiers::NONE);
     let title = h.active_dialog_title().expect("'l' must open LabelDialog");
@@ -1480,7 +1503,7 @@ fn test_disassembly_view_shortcuts() {
             .is_some_and(|v| v.iter().any(|l| l.name == "sub_0810"))
     );
 
-    // ';' Side Comment
+    // `;` Side Comment
     h.ui_state.cursor_index = h.line_index_for_addr(Addr(0x0810));
     h.press(KeyCode::Char(';'), KeyModifiers::NONE);
     let title = h
@@ -1667,10 +1690,243 @@ fn test_disassembly_view_shortcuts() {
     );
 }
 
-/// Pillar 2 (`HexDumpView`): Verifies byte-column navigation (`Left`/`Right`/`h`/`l` with row
-/// wrapping), text mode cycling (`m`/`M`), `Shift+V` and `Shift+Arrows` selection, `'b'` byte
-/// conversion (including the `UIState -> Core` visual-mode clearing regression check), and
-/// `Enter` jump to `DisassemblyView`.
+/// Pillar 2 (`DisassemblyView` — Symbolic Offsets): Checks `-`, `+`, `=`, and undo/redo (`u`,
+/// `Ctrl+r`). Also checks `o` (`SymbolicOffsetDialog` validation and queue promotion), `l`
+/// (`LabelDialog` expressions), and Visual Mode `LoHiAddress` nudging.
+#[test]
+fn test_symbolic_offset_workflow_end_to_end() {
+    let mut h = ShortcutTestHarness::new();
+    h.set_pane(ActivePane::Disassembly);
+
+    // Prepare $0800..$080B:
+    // $0800: STA $FC (85 FC)
+    // $0802: LDA $081F,X (BD 1F 08)
+    // $0805: RTS (60)
+    // $0806..=$0809: 2-entry LoHiAddress RTS dispatch table ($080F, $081F -> 0F 1F 08 08)
+    h.core.state.raw_data[0..10]
+        .copy_from_slice(&[0x85, 0xFC, 0xBD, 0x1F, 0x08, 0x60, 0x0F, 0x1F, 0x08, 0x08]);
+    h.core.state.block_types[0..6].fill(BlockType::Code);
+    h.core.state.block_types[6..10].fill(BlockType::LoHiAddress);
+    h.core.state.labels.insert(
+        Addr(0x00FB),
+        vec![crate::state::Label {
+            name: "zp_ptr".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::UserDefined,
+        }],
+    );
+    h.core.state.labels.insert(
+        Addr(0x0820),
+        vec![crate::state::Label {
+            name: "table_0820".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::UserDefined,
+        }],
+    );
+    h.core.state.settings.all_labels = true;
+    h.core.state.perform_analysis();
+
+    // 1. '-', '+' (SHIFT & NONE), '=' (NONE), and Undo ('u') / Redo ('Ctrl+r') on $0802 (LDA $081F,X)
+    h.ui_state.cursor_index = h.line_index_for_addr(Addr(0x0802));
+    h.press(KeyCode::Char('-'), KeyModifiers::NONE);
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x0802))
+            .and_then(|e| e.operand_offset)
+            .map(|s| (s.base, s.offset)),
+        Some((Addr(0x0820), -1))
+    );
+
+    // '+' with SHIFT brings offset back to 0 (None)
+    h.ui_state.cursor_index = h.line_index_for_addr(Addr(0x0802));
+    h.press(KeyCode::Char('+'), KeyModifiers::SHIFT);
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x0802))
+            .and_then(|e| e.operand_offset),
+        None
+    );
+
+    // '+' with NONE -> +1 ($081E + 1), '=' with NONE -> +2 ($081D + 2)
+    h.ui_state.cursor_index = h.line_index_for_addr(Addr(0x0802));
+    h.press(KeyCode::Char('+'), KeyModifiers::NONE);
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x0802))
+            .and_then(|e| e.operand_offset)
+            .map(|s| (s.base, s.offset)),
+        Some((Addr(0x081E), 1))
+    );
+    h.ui_state.cursor_index = h.line_index_for_addr(Addr(0x0802));
+    h.press(KeyCode::Char('='), KeyModifiers::NONE);
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x0802))
+            .and_then(|e| e.operand_offset)
+            .map(|s| (s.base, s.offset)),
+        Some((Addr(0x081D), 2))
+    );
+
+    // Undo ('u') and Redo ('Ctrl+r')
+    h.press(KeyCode::Char('u'), KeyModifiers::NONE);
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x0802))
+            .and_then(|e| e.operand_offset)
+            .map(|s| (s.base, s.offset)),
+        Some((Addr(0x081E), 1))
+    );
+    h.press(KeyCode::Char('r'), KeyModifiers::CONTROL);
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x0802))
+            .and_then(|e| e.operand_offset)
+            .map(|s| (s.base, s.offset)),
+        Some((Addr(0x081D), 2))
+    );
+
+    // 2. `o` opens SymbolicOffsetDialog: invalid Enter stays open, and valid Enter promotes dialog_queue.
+    h.ui_state.cursor_index = h.line_index_for_addr(Addr(0x0802));
+    h.press(KeyCode::Char('o'), KeyModifiers::NONE);
+    let sym_title = h
+        .active_dialog_title()
+        .expect("'o' must open SymbolicOffsetDialog");
+    assert!(sym_title.contains("Symbolic Offset for $081F"));
+
+    // Queue ShortcutsDialog behind SymbolicOffsetDialog
+    h.ui_state
+        .dialog_queue
+        .push(Box::new(ShortcutsDialog::new()));
+
+    // Type invalid "+ 99" onto the pre-filled expression and press Enter -> MUST stay open!
+    for ch in " + 99".chars() {
+        h.press(KeyCode::Char(ch), KeyModifiers::NONE);
+    }
+    h.press(KeyCode::Enter, KeyModifiers::NONE);
+    assert_eq!(
+        h.ui_state.dialog_queue.len(),
+        1,
+        "Invalid Enter in SymbolicOffsetDialog must NOT close dialog or drain dialog_queue"
+    );
+    assert!(
+        h.active_dialog_title()
+            .is_some_and(|t| t.contains("Symbolic Offset for $081F"))
+    );
+
+    // Clear input and enter valid `"table_0820 - $1"`, then press Enter -> closes & promotes ShortcutsDialog!
+    for _ in 0..32 {
+        h.press(KeyCode::Backspace, KeyModifiers::NONE);
+    }
+    for ch in "table_0820 - $1".chars() {
+        h.press(KeyCode::Char(ch), KeyModifiers::NONE);
+    }
+    h.press(KeyCode::Enter, KeyModifiers::NONE);
+    assert!(
+        h.ui_state.dialog_queue.is_empty(),
+        "Valid Enter in SymbolicOffsetDialog must promote queued dialog via closes_dialog()"
+    );
+    assert!(
+        h.active_dialog_title()
+            .is_some_and(|t| t.contains("Keyboard Shortcuts")),
+        "Queued ShortcutsDialog must be promoted after SymbolicOffsetDialog submits"
+    );
+    h.dismiss_dialog();
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x0802))
+            .and_then(|e| e.operand_offset),
+        Some(crate::state::SymbolicOffset {
+            base: Addr(0x0820),
+            offset: -1,
+            radix: crate::state::OffsetRadix::Hex,
+        })
+    );
+
+    // 3. 'l' on external equate `$00FC`, typing `"zp_ptr + 1"` + Enter -> applies Tier 2 address_offset!
+    let ext_fc_idx = h
+        .core
+        .state
+        .disassembly
+        .iter()
+        .position(|l| l.external_label_address == Some(Addr(0x00FC)))
+        .expect("zpa_FC equate must exist in preamble");
+    h.ui_state.cursor_index = ext_fc_idx;
+    h.press(KeyCode::Char('l'), KeyModifiers::NONE);
+    for _ in 0..16 {
+        h.press(KeyCode::Backspace, KeyModifiers::NONE);
+    }
+    for ch in "zp_ptr + 1".chars() {
+        h.press(KeyCode::Char(ch), KeyModifiers::NONE);
+    }
+    h.press(KeyCode::Enter, KeyModifiers::NONE);
+    assert!(h.ui_state.active_dialog.is_none());
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x00FC))
+            .and_then(|e| e.address_offset),
+        Some(crate::state::SymbolicOffset {
+            base: Addr(0x00FB),
+            offset: 1,
+            radix: crate::state::OffsetRadix::Decimal,
+        })
+    );
+
+    // 4. Visual Mode (`Shift+V`) across both halves of `LoHiAddress` table ($0806..=$0809) + `-` twice!
+    h.ui_state.cursor_index = h.line_index_for_addr(Addr(0x0806));
+    h.press(KeyCode::Char('V'), KeyModifiers::SHIFT);
+    h.press(KeyCode::Down, KeyModifiers::NONE);
+    h.press(KeyCode::Char('-'), KeyModifiers::NONE);
+    assert!(h.ui_state.is_visual_mode);
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x0806))
+            .and_then(|e| e.operand_offset)
+            .map(|s| (s.base, s.offset)),
+        Some((Addr(0x0810), -1))
+    );
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x0807))
+            .and_then(|e| e.operand_offset)
+            .map(|s| (s.base, s.offset)),
+        Some((Addr(0x0820), -1))
+    );
+    // Second `-` press without re-selecting advances to `-2`!
+    h.press(KeyCode::Char('-'), KeyModifiers::NONE);
+    assert_eq!(
+        h.core
+            .state
+            .annotations
+            .get(Addr(0x0806))
+            .and_then(|e| e.operand_offset)
+            .map(|s| s.offset),
+        Some(-2)
+    );
+}
+
+/// Pillar 2 (`HexDumpView`): Checks byte-column navigation, row wrapping, text mode cycling
+/// (`m`/`M`), and visual selection. Also checks `'b'` byte conversion and `Enter` jump to
+/// `DisassemblyView`.
 #[test]
 fn test_hexdump_view_shortcuts() {
     let mut h = ShortcutTestHarness::new();
@@ -1780,9 +2036,8 @@ fn test_hexdump_view_shortcuts() {
     );
 }
 
-/// Pillar 2 (`SpritesView`): Verifies 2-column and 1-column sprite grid navigation, `Shift+Arrows`
-/// and `Shift+V` selection, `'m'` multicolor toggle, `'b'` 64-byte sprite block conversion and
-/// selection clearing, and `Enter` jump to `DisassemblyView`.
+/// Pillar 2 (`SpritesView`): Checks 2-column and 1-column sprite navigation, visual selection,
+/// `'m'` multicolor toggle, `'b'` 64-byte conversion, and `Enter` jump to `DisassemblyView`.
 #[test]
 fn test_sprites_view_shortcuts() {
     let mut h = ShortcutTestHarness::new();
@@ -1877,10 +2132,8 @@ fn test_sprites_view_shortcuts() {
     );
 }
 
-/// Pillar 2 (`CharsetView`): Verifies 8-column and 4-column character grid navigation,
-/// non-shadowing of `Alt+Left`/`Alt+Right`/`Ctrl+Left`, `Shift+Arrows` and `Shift+V` selection,
-/// `'m'` multicolor toggle, `'b'` 8-byte character conversion and selection clearing, and `Enter`
-/// jump to `DisassemblyView`.
+/// Pillar 2 (`CharsetView`): Checks 8-column and 4-column grid navigation without shadowing `Alt`
+/// or `Ctrl` arrows. Also checks selection, `'m'` multicolor, `'b'` conversion, and `Enter` jump.
 #[test]
 fn test_charset_view_shortcuts() {
     let mut h = ShortcutTestHarness::new();
@@ -1984,9 +2237,8 @@ fn test_charset_view_shortcuts() {
     );
 }
 
-/// Pillar 2 (`BitmapView`): Verifies Screen RAM bank cycling (`'s'` forward, `'S'` backward with
-/// `SHIFT` and `NONE`), `'x'` (`ScreenRamMode::AfterBitmap`), `'m'` multicolor toggle, `'b'`
-/// 8,000-byte bitmap conversion, `Esc` input buffer clear, and `Enter` jump to `DisassemblyView`.
+/// Pillar 2 (`BitmapView`): Checks Screen RAM bank cycling (`'s'`, `'S'`, `'x'`), `'m'` multicolor
+/// toggle, `'b'` bitmap conversion, `Esc` buffer clear, and `Enter` jump to `DisassemblyView`.
 #[test]
 fn test_bitmap_view_shortcuts() {
     let mut h = ShortcutTestHarness::new();
@@ -2054,10 +2306,9 @@ fn test_bitmap_view_shortcuts() {
     );
 }
 
-/// Pillar 2 (`BlocksView` & `DebuggerView`): Verifies `Ctrl+k` collapsing/expanding the block
-/// selected in `BlocksView` (independent of `cursor_index`), `Enter` jumping to the selected
-/// block in `DisassemblyView`, and `'m'` opening `MemoryDumpAddressDialog` in `DebuggerView`
-/// without intercepting `Ctrl+m` or `Alt+m`.
+/// Pillar 2 (`BlocksView` and `DebuggerView`): Checks `Ctrl+k` block collapse and `Enter` jump in
+/// `BlocksView`. Also checks `'m'` memory dump dialog in `DebuggerView` without hijacking `Ctrl+m`
+/// or `Alt+m`.
 #[test]
 fn test_blocks_and_debugger_view_shortcuts() {
     let mut h = ShortcutTestHarness::new();
@@ -2105,7 +2356,7 @@ fn test_blocks_and_debugger_view_shortcuts() {
         start
     );
 
-    // 2. DebuggerView: 'm' opens MemoryDumpAddressDialog; Ctrl+m / Alt+m / Ctrl+s / Alt+Enter are NOT hijacked
+    // 2. DebuggerView: `m` opens MemoryDumpAddressDialog, while Ctrl+m, Alt+m, and Alt+Enter do not.
     h.set_pane(ActivePane::Debugger);
     h.press(KeyCode::Char('m'), KeyModifiers::CONTROL);
     assert!(
@@ -2131,10 +2382,9 @@ fn test_blocks_and_debugger_view_shortcuts() {
     h.dismiss_dialog();
 }
 
-/// Pillar 2 (`Menu` & Modal Dialogs): Verifies menu bar keyboard navigation (`F10`, `Left`/`Right`
-/// category wrapping, `Down`/`Up` separator skipping, `Enter` action dispatch, `Esc` dismissal),
-/// `ShortcutsDialog` scrolling, and `UIState::dialog_queue` promotion when `SearchDialog` closes
-/// via `AppAction::FindNext`.
+/// Pillar 2 (`Menu` and Modal Dialogs): Checks menu bar navigation (`F10`, arrows, `Enter`, `Esc`)
+/// and `ShortcutsDialog` scrolling. Also checks `UIState::dialog_queue` promotion when
+/// `SearchDialog` closes via `AppAction::FindNext`.
 #[test]
 fn test_menu_and_dialog_navigation() {
     let mut h = ShortcutTestHarness::new();
@@ -2246,11 +2496,21 @@ fn test_menu_and_dialog_navigation() {
 // PILLAR 3: 4-Layer Canonical Shortcut Synchronization Contract
 // =============================================================================
 
-/// Normalizes a shortcut token (e.g. `"Ctrl+Shift+O"`, `"++ctrl+shift+o++"`, `"++open-bracket++"`)
-/// into a canonical lowercase representation for cross-layer comparison.
+/// Normalizes a shortcut token into a lowercase form for cross-layer comparison.
 fn normalize_shortcut_token(raw: &str) -> String {
-    let trimmed = raw.trim().trim_matches('+').to_lowercase();
+    let outer_trimmed = raw.trim();
+    // Guard literal `"+"` before stripping `++...++` delimiters so bare `"+"` stays intact.
+    if outer_trimmed == "+" {
+        return "+".to_string();
+    }
+    let unwrapped = outer_trimmed
+        .strip_prefix("++")
+        .and_then(|s| s.strip_suffix("++"))
+        .unwrap_or(outer_trimmed);
+    let trimmed = unwrapped.trim().to_lowercase();
     match trimmed.as_str() {
+        "plus" => "+".to_string(),
+        "minus" => "-".to_string(),
         "comma" => ",".to_string(),
         "period" => ".".to_string(),
         "less-than" => "<".to_string(),
@@ -2327,9 +2587,22 @@ fn expand_dialog_shortcut_keys(key_label: &str) -> Vec<String> {
         .collect()
 }
 
-/// Pillar 3 Contract Test: Enforces bidirectional synchronization across [`MenuState::new`]
-/// (Layer 2), [`ShortcutsDialog::get_shortcuts`] (Layer 3), and `docs/keyboard_shortcuts.md`
-/// (Layer 4) so user-facing shortcut declarations never drift from live key handlers.
+/// Checks that MkDocs `++...++` stripping preserves literal `"+"` and maps `"++plus++"` and
+/// `"++minus++"` cleanly.
+#[test]
+fn test_normalize_and_expand_plus_minus_shortcut_tokens() {
+    assert_eq!(normalize_shortcut_token("+"), "+");
+    assert_eq!(normalize_shortcut_token("++plus++"), "+");
+    assert_eq!(normalize_shortcut_token("++minus++"), "-");
+    assert_eq!(
+        expand_dialog_shortcut_keys("+ / -"),
+        vec!["+".to_string(), "-".to_string()]
+    );
+}
+
+/// Pillar 3 Contract Test: Checks bidirectional parity across [`MenuState::new`] (Layer 2),
+/// [`ShortcutsDialog::get_shortcuts`] (Layer 3), and `docs/keyboard_shortcuts.md` (Layer 4).
+/// Prevents drift between user-facing shortcut tables and live key handlers.
 #[test]
 fn test_shortcut_layers_synchronization() {
     let menu = MenuState::new();
@@ -2350,13 +2623,21 @@ fn test_shortcut_layers_synchronization() {
         "ShortcutsDialog::get_shortcuts() must contain ('Alt+Up / Alt+Down', 'Nudge Scope Boundary')"
     );
     assert!(
+        dialog_shortcuts.contains(&("o", "Set Symbolic Offset")),
+        "ShortcutsDialog::get_shortcuts() must contain ('o', 'Set Symbolic Offset')"
+    );
+    assert!(
+        dialog_shortcuts.contains(&("+ / -", "Increment/Decrement Symbolic Offset")),
+        "ShortcutsDialog::get_shortcuts() must contain ('+ / -', 'Increment/Decrement Symbolic Offset')"
+    );
+    assert!(
         !dialog_shortcuts.contains(&("e", "External File")),
         "ShortcutsDialog::get_shortcuts() must NOT list 'e' as 'External File'"
     );
 
-    // 2. Verify all ShortcutsDialog entries are documented in docs/keyboard_shortcuts.md
+    // 2. Check that docs/keyboard_shortcuts.md documents every ShortcutsDialog entry.
     let mut all_dialog_tokens = Vec::new();
-    for (key_label, desc) in &dialog_shortcuts {
+    for &(key_label, desc) in dialog_shortcuts {
         if desc.is_empty() {
             // Section header or spacer row
             continue;
@@ -2385,9 +2666,12 @@ fn test_shortcut_layers_synchronization() {
         );
     }
 
-    // 4. Verify MenuState::new() completeness, External File / Apply Enum shortcuts, and parity with ShortcutsDialog & docs
+    // 4. Verify MenuState::new() completeness, External File / Apply Enum / Symbolic Offset shortcuts, and parity with ShortcutsDialog & docs
     let mut found_external_file = false;
     let mut found_apply_enum = false;
+    let mut found_symbolic_offset_dialog = false;
+    let mut found_inc_symbolic_offset = false;
+    let mut found_dec_symbolic_offset = false;
     for category in &menu.categories {
         for item in &category.items {
             if item.is_separator {
@@ -2425,6 +2709,42 @@ fn test_shortcut_layers_synchronization() {
                 assert_eq!(item.action, Some(AppAction::ApplyEnumDialog));
             }
 
+            if item.name == "Symbolic Offset..." {
+                found_symbolic_offset_dialog = true;
+                assert_eq!(
+                    item.shortcut.as_deref(),
+                    Some("O"),
+                    "Edit -> Symbolic Offset... must have shortcut Some(\"O\")"
+                );
+                assert_eq!(item.action, Some(AppAction::SymbolicOffsetDialog));
+            }
+
+            if item.name == "Increment Symbolic Offset" {
+                found_inc_symbolic_offset = true;
+                assert_eq!(
+                    item.shortcut.as_deref(),
+                    Some("+"),
+                    "Edit -> Increment Symbolic Offset must have shortcut Some(\"+\")"
+                );
+                assert_eq!(
+                    item.action,
+                    Some(AppAction::NudgeSymbolicOffset { delta: 1 })
+                );
+            }
+
+            if item.name == "Decrement Symbolic Offset" {
+                found_dec_symbolic_offset = true;
+                assert_eq!(
+                    item.shortcut.as_deref(),
+                    Some("-"),
+                    "Edit -> Decrement Symbolic Offset must have shortcut Some(\"-\")"
+                );
+                assert_eq!(
+                    item.action,
+                    Some(AppAction::NudgeSymbolicOffset { delta: -1 })
+                );
+            }
+
             if let Some(shortcut) = &item.shortcut {
                 let norm = normalize_shortcut_token(shortcut);
                 assert!(
@@ -2454,6 +2774,18 @@ fn test_shortcut_layers_synchronization() {
         found_apply_enum,
         "MenuState::new() must contain 'Apply Enum...'"
     );
+    assert!(
+        found_symbolic_offset_dialog,
+        "MenuState::new() must contain 'Symbolic Offset...'"
+    );
+    assert!(
+        found_inc_symbolic_offset,
+        "MenuState::new() must contain 'Increment Symbolic Offset'"
+    );
+    assert!(
+        found_dec_symbolic_offset,
+        "MenuState::new() must contain 'Decrement Symbolic Offset'"
+    );
 
     // 5. Verify docs/views.md shortcut tokens and anti-drift invariants
     let views_tokens = parse_markdown_shortcut_tokens(VIEWS_DOC);
@@ -2480,5 +2812,11 @@ fn test_shortcut_layers_synchronization() {
     assert!(
         VIEWS_DOC.contains("++shift+e++") && VIEWS_DOC.contains("**Apply Enum**"),
         "docs/views.md must document ++shift+e++ for External File and ++e++ for Apply Enum"
+    );
+    assert!(
+        VIEWS_DOC.contains("++o++")
+            && VIEWS_DOC.contains("++plus++")
+            && VIEWS_DOC.contains("++minus++"),
+        "docs/views.md must document ++o++ and ++plus++ / ++minus++ for Symbolic Offsets"
     );
 }

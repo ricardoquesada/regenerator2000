@@ -631,7 +631,7 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
 /// Processes one [`KeyEvent`] synchronously through the full TUI input-routing pipeline.
 ///
 /// This function routes input through dialogs, the menu bar, inline Vim search, active views,
-/// [`Navigable`](crate::ui::navigable::Navigable) handlers, and global shortcuts.
+/// `Navigable` handlers, and global shortcuts.
 /// It then runs `sync_views_before_render` and [`UIState::sync_tui_to_core`].
 /// Integration tests call this headless entrypoint to verify keyboard shortcuts without a terminal backend.
 pub fn process_key_event(core: &mut Core, ui_state: &mut UIState, key: KeyEvent) {

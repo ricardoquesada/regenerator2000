@@ -23,7 +23,8 @@ pub struct DisassemblyContext<'a> {
     pub origin: Addr,
     /// Document-level disassembly and formatting settings.
     pub settings: &'a DocumentSettings,
-    /// Sparse per-address annotations (comments, immediate formats, bookmarks, scopes, enums).
+    /// Sparse per-address annotations (comments, immediate formats, bookmarks, scopes, enums,
+    /// and Tier 1/Tier 2 symbolic offsets).
     pub annotations: &'a AnnotationManager,
     /// Inverted cross-reference index that maps target [`Addr`]s to typed [`XRef`]s.
     pub cross_refs: &'a BTreeMap<Addr, Vec<XRef>>,
@@ -59,7 +60,7 @@ pub struct HandleArgs<'a> {
     /// Optional local label names within the current lexical scope.
     pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
     /// Optional map from scoped addresses to their enclosing scope names.
-    pub label_scope_names: Option<&'a BTreeMap<Addr, String>>,
+    pub label_scope_names: Option<&'a super::symbols::ScopeNameMap>,
     /// Name of the lexical scope that encloses `address`, if any.
     pub current_scope_name: Option<String>,
 }
@@ -105,24 +106,29 @@ impl DisassemblyContext<'_> {
     /// Returns `true` if `addr` is a manual splitter, scope start, or scope end.
     #[must_use]
     pub fn is_virtual_splitter(&self, addr: Addr) -> bool {
-        if self.splitters.contains(&addr) {
-            return true;
-        }
-        if self.annotations.get(addr).and_then(|e| e.scope).is_some() {
-            return true;
-        }
-        self.scope_ends.contains(&addr)
+        self.splitters.contains(&addr)
+            || self.annotations.is_scope_start(addr)
+            || self.scope_ends.contains(&addr)
+    }
+
+    /// Returns `true` when `addr` starts a new sub-block inside a split byte table.
+    #[must_use]
+    pub fn is_split_table_subblock_boundary(&self, addr: Addr) -> bool {
+        self.is_virtual_splitter(addr)
+            || self
+                .annotations
+                .get(addr)
+                .is_some_and(|e| e.user_line_comment.is_some() || e.user_side_comment.is_some())
     }
 
     /// Returns `true` if `addr` forces a new line inside a multi-byte data block.
     #[must_use]
     pub fn breaks_data_group(&self, addr: Addr) -> bool {
-        if self.is_virtual_splitter(addr) || self.labels.contains_key(&addr) {
-            return true;
-        }
-        self.annotations
-            .get(addr)
-            .is_some_and(|e| e.user_line_comment.is_some() || e.user_side_comment.is_some())
+        // Ignore labels suppressed by an active Tier 2 `address_offset` so internal struct
+        // fields (`struct_base + 1..N`) stay grouped cleanly unless split or commented.
+        let has_unsuppressed_label = self.labels.contains_key(&addr)
+            && !super::symbols::has_active_address_offset(addr, self.labels, self.annotations);
+        has_unsuppressed_label || self.is_split_table_subblock_boundary(addr)
     }
 
     /// Builds the inline side comment for `address` from annotations and cross-references.

@@ -2,7 +2,8 @@
 //!
 //! This module defines [`Formatter`], [`FormatContext`], [`TextFragment`], and [`FileDirective`].
 //! It provides the default 6502 operand formatting logic shared across `64tass`, `ACME`, `ca65`,
-//! and `KickAssembler`.
+//! and `KickAssembler`, enforcing context-sensitive [`SymbolicOffset`](crate::state::SymbolicOffset)
+//! parenthesization and zero-page vs. 16-bit width preservation.
 
 use crate::cpu::{AddressingMode, Opcode};
 use crate::state::{Addr, ImmediateFormat, Label};
@@ -44,7 +45,7 @@ pub struct FormatContext<'a> {
     /// Optional local label names within the active lexical scope.
     pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
     /// Optional map from scoped addresses to their enclosing scope names.
-    pub label_scope_names: Option<&'a BTreeMap<Addr, String>>,
+    pub label_scope_names: Option<&'a crate::disassembler::symbols::ScopeNameMap>,
     /// Name of the lexical scope that encloses [`Self::address`], if any.
     pub current_scope_name: Option<&'a str>,
     /// Scope resolution separator for the target assembler (for example, `"."` or `"::"`).
@@ -61,19 +62,72 @@ pub struct FormatContext<'a> {
 }
 
 impl FormatContext<'_> {
-    /// Resolves the formatted symbol name for `address` within the current scope context.
+    /// Resolves the formatted symbol or unparenthesized [`SymbolicOffset`](crate::state::SymbolicOffset)
+    /// expression for `address` within the current scope context (for example, `"zp_ptr + 1"`).
+    ///
+    /// Direct and indexed memory operands must remain **unparenthesized**. Outer parentheses
+    /// (such as `lda (zp_ptr + 1)`) turn `ZeroPage` or `Absolute` modes into `Indirect` in `64tass` and `ca65`.
     #[must_use]
     pub fn resolve_label(&self, address: Addr) -> Option<String> {
-        crate::disassembler::resolve_label_name(
+        let is_zp_mode = self.opcode.mode.is_zero_page();
+        crate::disassembler::symbols::resolve_symbolic_label_name_for_mode(
+            self.address,
             address,
+            is_zp_mode,
             self.labels,
             self.settings,
+            self.annotations,
             self.local_label_names,
             self.label_scope_names,
             self.current_scope_name,
             self.scope_separator,
             self.local_prefix,
+            crate::state::OffsetParentheses::Bare,
+            |base| {
+                // ACME treats any 4-digit hex literal for a zero-page value (`$00fb + 1`) as an
+                // explicit force-absolute override, expanding a 2-byte `ZeroPage` opcode (`A5 FC`)
+                // into a 3-byte `Absolute` opcode (`AD FC 00`). Format unlabelled zero-page bases
+                // as 2-digit `$fb + 1` in 2-byte zero-page modes, and 4-digit `$00fb + 1` in 16-bit modes.
+                if is_zp_mode && base.0 <= 0xFF {
+                    format!("${base:02x}")
+                } else {
+                    format!("${base:04x}")
+                }
+            },
         )
+    }
+
+    /// Resolves the operand expression for `#<` and `#>` unary byte-extractor immediates,
+    /// parenthesizing any non-zero [`SymbolicOffset`](crate::state::SymbolicOffset) displacement
+    /// (for example, `"#<(sub_C100 - 1)"` and `"#>(sub_C100 - 1)"`).
+    ///
+    /// In `64tass`, `ca65`, and `KickAssembler`, unary `<` and `>` bind tighter than binary `+`
+    /// and `-`. Without parentheses, `#>sub_C105 - 1` evaluates `(>$C105) - 1 = $C0` instead of
+    /// `>($C104) = $C1`.
+    #[must_use]
+    pub fn resolve_byte_operator_label(&self, target: Addr) -> String {
+        let format_hex = |addr: Addr| {
+            if addr.0 <= 0xFF {
+                format!("${addr:02x}")
+            } else {
+                format!("${addr:04x}")
+            }
+        };
+        crate::disassembler::resolve_symbolic_label_name(
+            self.address,
+            target,
+            self.labels,
+            self.settings,
+            self.annotations,
+            self.local_label_names,
+            self.label_scope_names,
+            self.current_scope_name,
+            self.scope_separator,
+            self.local_prefix,
+            crate::state::OffsetParentheses::Parenthesized,
+            format_hex,
+        )
+        .unwrap_or_else(|| format_hex(target))
     }
 
     /// Resolves `value` against the enum annotation at [`Self::address`], if any.
@@ -148,16 +202,6 @@ pub trait Formatter {
             .get(ctx.address)
             .and_then(|e| e.immediate_format);
 
-        let resolve_or_hex = |target: Addr| -> String {
-            ctx.resolve_label(target).unwrap_or_else(|| {
-                if target.0 <= 0xFF {
-                    format!("${target:02x}")
-                } else {
-                    format!("${target:04x}")
-                }
-            })
-        };
-
         match ctx.opcode.mode {
             AddressingMode::Implied => String::new(),
             AddressingMode::Accumulator => self.accumulator_operand().to_string(),
@@ -173,10 +217,10 @@ pub trait Formatter {
                     Some(ImmediateFormat::Binary) => format!("#%{val:08b}"),
                     Some(ImmediateFormat::InvertedBinary) => format!("#~%{:08b}", !val),
                     Some(ImmediateFormat::LowByte(target)) => {
-                        format!("#<{}", resolve_or_hex(target))
+                        format!("#<{}", ctx.resolve_byte_operator_label(target))
                     }
                     Some(ImmediateFormat::HighByte(target)) => {
-                        format!("#>{}", resolve_or_hex(target))
+                        format!("#>{}", ctx.resolve_byte_operator_label(target))
                     }
                     _ => format!("#${val:02x}"),
                 }

@@ -188,7 +188,15 @@ pub(crate) fn handle_tool_call_internal(
         }));
     }
 
-    if let Some(res) = analysis_tools::handle_call(name, args, app_state, view_state) {
+    if name == "r2000_add_scope" {
+        let anchor = crate::action_handlers::DisassemblyViewAnchor::capture(app_state, view_state);
+        if let Some(res) = analysis_tools::handle_call(name, args, app_state, view_state) {
+            if res.is_ok() {
+                anchor.restore(app_state, view_state);
+            }
+            return res;
+        }
+    } else if let Some(res) = analysis_tools::handle_call(name, args, app_state, view_state) {
         return res;
     }
 
@@ -196,11 +204,25 @@ pub(crate) fn handle_tool_call_internal(
         return res;
     }
 
-    if let Some(res) = modification_tools::handle_call(name, args, app_state) {
-        return res;
+    {
+        let anchor = crate::action_handlers::DisassemblyViewAnchor::capture(app_state, view_state);
+        if let Some(res) = modification_tools::handle_call(name, args, app_state) {
+            if res.is_ok() {
+                anchor.restore(app_state, view_state);
+            }
+            return res;
+        }
     }
 
-    if let Some(res) = session_tools::handle_call(name, args, app_state, view_state) {
+    if matches!(name, "r2000_undo" | "r2000_redo") {
+        let anchor = crate::action_handlers::DisassemblyViewAnchor::capture(app_state, view_state);
+        if let Some(res) = session_tools::handle_call(name, args, app_state, view_state) {
+            if res.is_ok() {
+                anchor.restore(app_state, view_state);
+            }
+            return res;
+        }
+    } else if let Some(res) = session_tools::handle_call(name, args, app_state, view_state) {
         return res;
     }
 
@@ -511,5 +533,93 @@ mod tests {
             .to_string();
         assert!(text2.contains("$0000:"));
         assert!(text2.contains("$FFF0:"));
+    }
+
+    #[test]
+    fn test_mcp_mutating_calls_reanchor_cursor_and_selection_when_preamble_shrinks() {
+        let mut app_state = make_app_state(0x1000, 5);
+        app_state.settings.all_labels = true;
+        // $1000: LDA ($FB),Y (B1 FB), $1002: STA $FC (85 FC), $1004: RTS (60)
+        app_state.raw_data = vec![0xB1, 0xFB, 0x85, 0xFC, 0x60];
+        app_state.block_types = vec![crate::state::BlockType::Code; 5];
+        app_state.labels.insert(
+            Addr(0x00FB),
+            vec![crate::state::Label {
+                name: "zp_ptr".to_string(),
+                kind: crate::state::LabelKind::User,
+                label_type: crate::state::LabelType::ZeroPagePointer,
+            }],
+        );
+        let _ = app_state.perform_analysis();
+
+        let mut view_state = make_view_state();
+
+        // Jump to the final body instruction `$1004` (`RTS`).
+        handle_tool_call_internal(
+            "r2000_jump_to_address",
+            &json!({ "address": 0x1004 }),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("jump to $1004 should succeed");
+        let len_before = app_state.disassembly.len();
+        assert_eq!(view_state.cursor_index, len_before - 1);
+
+        // Suppress preamble equate `zpa_FC = $fc`, shrinking `app_state.disassembly`.
+        handle_tool_call_internal(
+            "r2000_set_symbolic_offset",
+            &json!({ "address": 0x00FC, "base": "zp_ptr" }),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("setting Tier 2 offset should succeed");
+        assert!(app_state.disassembly.len() < len_before);
+
+        // Follow-up `r2000_get_disassembly_cursor` and `r2000_read_selected` stay on `$1004`.
+        let cur_val = handle_tool_call_internal(
+            "r2000_get_disassembly_cursor",
+            &json!({}),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("cursor query after preamble shrink must succeed");
+        assert_eq!(cur_val["content"][0]["text"], "$1004");
+
+        let sel_val = handle_tool_call_internal(
+            "r2000_read_selected",
+            &json!({}),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("read_selected after preamble shrink must succeed");
+        assert!(
+            sel_val["content"][0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("$1004")
+        );
+
+        // `r2000_undo` and `r2000_redo` also keep the cursor anchored at `$1004`.
+        handle_tool_call_internal("r2000_undo", &json!({}), &mut app_state, &mut view_state)
+            .expect("undo must succeed");
+        let cur_undo = handle_tool_call_internal(
+            "r2000_get_disassembly_cursor",
+            &json!({}),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("cursor query after undo must succeed");
+        assert_eq!(cur_undo["content"][0]["text"], "$1004");
+
+        handle_tool_call_internal("r2000_redo", &json!({}), &mut app_state, &mut view_state)
+            .expect("redo must succeed");
+        let cur_redo = handle_tool_call_internal(
+            "r2000_get_disassembly_cursor",
+            &json!({}),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("cursor query after redo must succeed");
+        assert_eq!(cur_redo["content"][0]["text"], "$1004");
     }
 }

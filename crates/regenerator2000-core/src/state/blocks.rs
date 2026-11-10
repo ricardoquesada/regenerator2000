@@ -1,8 +1,8 @@
 //! Block range queries, splitter management, Blocks View item construction, and preamble generation.
 //!
-//! This module provides [`AppState`] methods that query and update [`BlockType`] regions,
-//! toggle manual splitters, build [`BlockItem`] lists for the Blocks View, and generate
-//! preamble [`DisassemblyLine`] items for external label equates and enum definitions.
+//! Provides [`AppState`] methods for [`BlockType`] range queries, splitters, [`BlockItem`]
+//! lists, and preamble [`DisassemblyLine`] generation. Preamble generation omits addresses bound
+//! to an active Tier 2 `address_offset`.
 
 use super::app_state::{AppState, BlockItem};
 use super::project::Block;
@@ -401,11 +401,11 @@ impl AppState {
         self.get_external_label_definitions_with_formatter(include_xrefs, formatter.as_ref())
     }
 
-    /// Generates preamble [`DisassemblyLine`] items for all external and [`BlockType::ExternalFile`]
-    /// labels using `formatter`.
+    /// Generates preamble [`DisassemblyLine`] items for external and [`BlockType::ExternalFile`] labels.
     ///
-    /// The output includes a prefix legend, side comments, and (when `include_xrefs` is `true`)
-    /// cross-reference summaries.
+    /// Omits addresses with an active Tier 2 `address_offset` so displaced bytes never emit orphan
+    /// equates such as `zpa_FC = $fc`. Recomputes the prefix legend from the remaining visible
+    /// symbols, and appends inline cross-reference summaries when `include_xrefs` is `true`.
     #[must_use]
     pub fn get_external_label_definitions_with_formatter(
         &self,
@@ -415,7 +415,15 @@ impl AppState {
         let mut candidates: Vec<(Addr, LabelType, &String)> = Vec::new();
 
         for (addr, labels) in &self.labels {
+            // Skip external addresses bound to an active Tier 2 `address_offset` so orphan
+            // equates (for example, `zpa_FC = $fc` when `$00FC` is `zp_ptr + 1`) are omitted
+            // even when `settings.auto_analyze` is disabled.
             if self.is_external(*addr)
+                && !crate::disassembler::symbols::has_active_address_offset(
+                    *addr,
+                    &self.labels,
+                    &self.annotations,
+                )
                 && let Some(label) =
                     crate::disassembler::resolve_label(labels, (*addr).into(), &self.settings)
             {
@@ -458,17 +466,24 @@ impl AppState {
                 LabelType::AbsoluteAddress => (ExtGroup::Abs, false),
                 LabelType::Pointer => (ExtGroup::Ptr, false),
                 LabelType::ExternalJump => (ExtGroup::ExtJump, false),
-                _ => (ExtGroup::Other, false),
+                _ => (ExtGroup::Other, addr.0 <= 0xFF),
             };
             flat.push((addr.0, name, group, is_zp));
         }
 
-        // Collect labels whose addresses fall inside ExternalFile blocks.
+        // Collect labels whose addresses fall inside ExternalFile blocks (likewise suppressing
+        // internal struct/field offsets bound via Tier 2 `address_offset`).
         let mut ext_file_labels: Vec<(u16, &String)> = Vec::new();
         {
             let mut seen: std::collections::HashSet<&String> = std::collections::HashSet::new();
             for (addr, labels) in &self.labels {
-                if !self.is_external(*addr) {
+                if !self.is_external(*addr)
+                    && !crate::disassembler::symbols::has_active_address_offset(
+                        *addr,
+                        &self.labels,
+                        &self.annotations,
+                    )
+                {
                     let offset = addr.offset_from(self.origin);
                     if offset < self.block_types.len()
                         && self.block_types[offset] == BlockType::ExternalFile
@@ -1169,6 +1184,124 @@ mod tests {
         assert_eq!(
             state.get_enum_definition_lines(),
             state.get_enum_definition_lines_with_formatter(tass_formatter.as_ref())
+        );
+    }
+
+    #[test]
+    fn test_external_label_definitions_suppresses_tier2_address_offset_and_updates_legend() {
+        use crate::state::{Label, LabelKind, OffsetRadix, SymbolicOffset};
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000..=$1FFF Code, $2000..=$2003 ExternalFile (total 0x1004 bytes)
+        state.raw_data = vec![0xEA; 0x1004];
+        let mut block_types = vec![BlockType::Code; 0x1000];
+        block_types.extend(vec![BlockType::ExternalFile; 4]);
+        state.block_types = block_types;
+
+        // External labels at $00FB ("zp_ptr") and $00FC ("zpa_FC")
+        state.labels.insert(
+            Addr(0x00FB),
+            vec![Label {
+                name: "zp_ptr".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        state.labels.insert(
+            Addr(0x00FC),
+            vec![Label {
+                name: "zpa_FC".to_string(),
+                kind: LabelKind::Auto,
+                label_type: LabelType::ZeroPageAbsoluteAddress,
+            }],
+        );
+
+        // ExternalFile labels at $2000 ("music_init") and $2001 ("music_field")
+        state.labels.insert(
+            Addr(0x2000),
+            vec![Label {
+                name: "music_init".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        state.labels.insert(
+            Addr(0x2001),
+            vec![Label {
+                name: "music_field".to_string(),
+                kind: LabelKind::Auto,
+                label_type: LabelType::Field,
+            }],
+        );
+
+        // Apply Tier 2 address_offset to $00FC and $2001 WITHOUT re-running analyze (simulating auto_analyze == false)
+        state.annotations.update(Addr(0x00FC), |e| {
+            e.address_offset = Some(SymbolicOffset {
+                base: Addr(0x00FB),
+                offset: 1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        state.annotations.update(Addr(0x2001), |e| {
+            e.address_offset = Some(SymbolicOffset {
+                base: Addr(0x2000),
+                offset: 1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+
+        let defs = state.get_external_label_definitions(true);
+        let mnemonics: Vec<&str> = defs.iter().map(|l| l.mnemonic.as_str()).collect();
+
+        assert!(
+            mnemonics.iter().any(|m| m.starts_with("zp_ptr = $fb")),
+            "zp_ptr equate must remain: {mnemonics:?}"
+        );
+        assert!(
+            mnemonics
+                .iter()
+                .any(|m| m.starts_with("music_init = $2000")),
+            "music_init equate must remain: {mnemonics:?}"
+        );
+        assert!(
+            !mnemonics.iter().any(|m| m.contains("zpa_FC")),
+            "zpa_FC must be suppressed by Tier 2 address_offset: {mnemonics:?}"
+        );
+        assert!(
+            !mnemonics.iter().any(|m| m.contains("music_field")),
+            "music_field must be suppressed by Tier 2 address_offset: {mnemonics:?}"
+        );
+        assert!(
+            !mnemonics
+                .iter()
+                .any(|m| m.contains("zpa_ = Zero Page Absolute Address")),
+            "zpa_ legend entry must be omitted when $00FC is suppressed: {mnemonics:?}"
+        );
+
+        // Defense-in-depth: if an explicit User label coexists with a Tier 2 address_offset
+        // (e.g. hand-edited project), User wins so its equate definition is preserved.
+        state.labels.insert(
+            Addr(0x00FE),
+            vec![Label {
+                name: "explicit_fe".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        state.annotations.update(Addr(0x00FE), |e| {
+            e.address_offset = Some(SymbolicOffset {
+                base: Addr(0x00FB),
+                offset: 3,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        let defs_with_user = state.get_external_label_definitions(true);
+        assert!(
+            defs_with_user
+                .iter()
+                .any(|l| l.mnemonic.starts_with("explicit_fe = $fe")),
+            "Explicit User label must beat Tier 2 address_offset in preamble equates"
         );
     }
 }

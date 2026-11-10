@@ -1,3 +1,6 @@
+//! Bridge between TUI [`AppAction`] triggers, [`Core::apply_action`], and modal [`DialogType`]
+//! instantiation.
+
 use crate::events::AppEvent;
 use crate::ui_state::UIState;
 use regenerator2000_core::Core;
@@ -244,6 +247,29 @@ pub fn handle_menu_action(
                 DialogType::ManageEnums => {
                     ui_state.active_dialog = Some(Box::new(
                         crate::ui::dialog_manage_enums::ManageEnumsDialog::new(&core.state),
+                    ));
+                }
+                DialogType::SymbolicOffset {
+                    site_address,
+                    target_address,
+                    address_range,
+                    initial_input,
+                    is_global,
+                    lock_global,
+                    is_zero_page_mode,
+                } => {
+                    ui_state.active_dialog = Some(Box::new(
+                        crate::ui::dialog_symbolic_offset::SymbolicOffsetDialog::new(
+                            crate::ui::dialog_symbolic_offset::SymbolicOffsetDialogParams {
+                                site_address,
+                                target_address,
+                                address_range,
+                                initial_input: &initial_input,
+                                is_global,
+                                lock_global,
+                                is_zero_page_mode,
+                            },
+                        ),
                     ));
                 }
                 DialogType::Unpack => {

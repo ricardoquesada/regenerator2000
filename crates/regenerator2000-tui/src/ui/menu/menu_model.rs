@@ -1,3 +1,9 @@
+//! Top-level menu bar state, hierarchy definition, and context-sensitive item availability.
+//!
+//! [`MenuState::new`] defines Layer 2 of the 4-layer keyboard shortcut architecture.
+//! [`MenuState::update_availability`] enables or disables menu items for the active pane,
+//! document state, and cursor mode.
+
 use crate::state::actions::AppAction;
 use crate::ui_state::ActivePane;
 
@@ -13,8 +19,8 @@ pub struct MenuState {
 impl MenuState {
     /// Constructs the canonical menu bar hierarchy with shortcut labels and [`AppAction`] bindings.
     ///
-    /// Every shortcut declared here is verified against `ShortcutsDialog::get_shortcuts`
-    /// and `docs/keyboard_shortcuts.md` by the Pillar 3 synchronization contract test.
+    /// The Pillar 3 contract test checks every shortcut against `ShortcutsDialog::get_shortcuts`
+    /// and `docs/keyboard_shortcuts.md`.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -131,6 +137,21 @@ impl MenuState {
                         MenuItem::new("Side Comment", Some(";"), Some(AppAction::SideComment)),
                         MenuItem::new("Line Comment", Some(":"), Some(AppAction::LineComment)),
                         MenuItem::new("Set Label", Some("L"), Some(AppAction::SetLabel)),
+                        MenuItem::new(
+                            "Symbolic Offset...",
+                            Some("O"),
+                            Some(AppAction::SymbolicOffsetDialog),
+                        ),
+                        MenuItem::new(
+                            "Increment Symbolic Offset",
+                            Some("+"),
+                            Some(AppAction::NudgeSymbolicOffset { delta: 1 }),
+                        ),
+                        MenuItem::new(
+                            "Decrement Symbolic Offset",
+                            Some("-"),
+                            Some(AppAction::NudgeSymbolicOffset { delta: -1 }),
+                        ),
                         MenuItem::new(
                             "Toggle Bookmark",
                             Some("Ctrl+B"),
@@ -348,7 +369,7 @@ impl MenuState {
     }
 
     /// Selects the category matching `accelerator` (case-insensitive) and highlights its first
-    /// enabled item. Returns `true` if a matching category was found.
+    /// enabled item. Returns `true` when a category matches.
     pub fn select_category_by_accelerator(&mut self, accelerator: char) -> bool {
         if let Some(pos) = self
             .categories
@@ -538,7 +559,11 @@ impl MenuState {
                             AppAction::ToggleBitmapMulticolor => {
                                 item.disabled = active_pane != ActivePane::Bitmap;
                             }
+                            // Enable label, symbolic-offset, reference, bookmark, and enum actions
+                            // only when Disassembly holds focus.
                             AppAction::SetLabel
+                            | AppAction::SymbolicOffsetDialog
+                            | AppAction::NudgeSymbolicOffset { .. }
                             | AppAction::FindReferences
                             | AppAction::ToggleBookmark
                             | AppAction::ApplyEnumDialog => {

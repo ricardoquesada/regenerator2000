@@ -510,6 +510,15 @@ pub fn build_label_lookup_map(state: &AppState, assembler: Assembler) -> HashMap
     let local_prefix = formatter.local_label_prefix();
     let mut label_name_to_addr = HashMap::new();
     for (addr, label_vec) in &state.labels {
+        // Skip labels suppressed by an active Tier 2 `address_offset` so HTML anchors never
+        // point to suppressed equate/body label IDs when `settings.auto_analyze` is `false`.
+        if crate::disassembler::symbols::has_active_address_offset(
+            *addr,
+            &state.labels,
+            &state.annotations,
+        ) {
+            continue;
+        }
         for l in label_vec {
             label_name_to_addr.insert(l.name.clone(), *addr);
             if l.label_type == LabelType::LocalUserDefined
@@ -530,8 +539,11 @@ pub fn build_label_lookup_map(state: &AppState, assembler: Assembler) -> HashMap
 ///   for `64tass` and `ca65`.
 /// - Keeps hexadecimal (`$xxxx`), binary (`%0101`), and decimal literals as
 ///   [`OperandToken::Text`] so hex digits like `$a0` or `$ff` never link to matching label names.
-/// - Keeps 6502 index register suffixes (`,x`, `,y`, `,x)`) and the `ca65` `a:` absolute
-///   override prefix as [`OperandToken::Text`].
+/// - Keeps 6502 index register suffixes (`,x`, `,y`, `,x)`) and the `ca65` `a:` / `64tass` `@w`
+///   force-absolute prefixes as [`OperandToken::Text`].
+/// - Splits [`SymbolicOffset`](crate::state::SymbolicOffset) expressions (`sub_C100 + 3`,
+///   `#<(sub_C100 - 1)`, `<(sub_C100 - 1)`) so only the base identifier `sub_C100` becomes an
+///   [`OperandToken::InternalLink`] to `sym.base`, while ` + 3` / ` - 1)` remains plain text.
 /// - Resolves local labels prefixed with `_` (`64tass`), `.` (`ACME`), or `@` (`ca65`).
 #[must_use]
 pub fn tokenize_operand<S: std::hash::BuildHasher>(
@@ -546,8 +558,12 @@ pub fn tokenize_operand<S: std::hash::BuildHasher>(
     }
 
     // Fast path for branches and jumps whose entire operand resolves to one internal address.
+    // Symbolic offset expressions (`sub_C100 + 3`, `sub_C100 - 1`) fall through to the
+    // identifier scanner so only the base symbol links to `sym.base`, while PC-relative
+    // `*+$nn` / `*-$nn` branch targets remain whole-operand links.
     if let Some(target) = target_address
         && !state.is_external(target)
+        && (!operand.contains(['+', '-']) || operand.starts_with('*'))
     {
         return vec![OperandToken::InternalLink {
             text: operand.to_string(),
@@ -1948,5 +1964,186 @@ mod tests {
         };
         let err = bad_bundle.write_to_disk().unwrap_err();
         assert!(matches!(err, CoreError::Export(ExportError::Io { .. })));
+    }
+
+    #[test]
+    fn test_tokenize_operand_symbolic_offsets_link_base_identifier_only() {
+        use crate::state::{OffsetRadix, SymbolicOffset};
+
+        let mut state = make_state_with_internal_labels(
+            0x1000,
+            0x40,
+            &[
+                (0x1010, "sub_C100", LabelType::Subroutine),
+                (0x1020, "sub_C200", LabelType::Subroutine),
+            ],
+        );
+        state.labels.insert(
+            Addr(0x00FB),
+            vec![Label {
+                name: "zp_ptr".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::ZeroPagePointer,
+            }],
+        );
+        let map_tass = build_label_lookup_map(&state, Assembler::Tass64);
+        let map_ca65 = build_label_lookup_map(&state, Assembler::Ca65);
+
+        // 1. Control-flow jump with `target_address = Some($1013)` bypasses fast path and links only `sub_C100`
+        assert_eq!(
+            tokenize_operand(
+                "sub_C100 + 3",
+                Some(Addr(0x1013)),
+                Assembler::Tass64,
+                &state,
+                &map_tass
+            ),
+            vec![
+                OperandToken::InternalLink {
+                    text: "sub_C100".to_string(),
+                    target: Addr(0x1010),
+                },
+                OperandToken::Text(" + 3".to_string()),
+            ]
+        );
+
+        // 2. Parenthesized byte operators `#<(sub_C100 - 1)` and `<(sub_C100 - 1)`
+        assert_eq!(
+            tokenize_operand(
+                "#<(sub_C100 - 1)",
+                None,
+                Assembler::Tass64,
+                &state,
+                &map_tass
+            ),
+            vec![
+                OperandToken::Text("#<(".to_string()),
+                OperandToken::InternalLink {
+                    text: "sub_C100".to_string(),
+                    target: Addr(0x1010),
+                },
+                OperandToken::Text(" - 1)".to_string()),
+            ]
+        );
+        assert_eq!(
+            tokenize_operand(
+                "<(sub_C100 - 1)",
+                None,
+                Assembler::Tass64,
+                &state,
+                &map_tass
+            ),
+            vec![
+                OperandToken::Text("<(".to_string()),
+                OperandToken::InternalLink {
+                    text: "sub_C100".to_string(),
+                    target: Addr(0x1010),
+                },
+                OperandToken::Text(" - 1)".to_string()),
+            ]
+        );
+
+        // 3. Indexed & force-absolute (`sub_C100 - 1,x`, `a:sub_C100 - 1,x`, `@w sub_C100 - 1,x`)
+        assert_eq!(
+            tokenize_operand("sub_C100 - 1,x", None, Assembler::Tass64, &state, &map_tass),
+            vec![
+                OperandToken::InternalLink {
+                    text: "sub_C100".to_string(),
+                    target: Addr(0x1010),
+                },
+                OperandToken::Text(" - 1,x".to_string()),
+            ]
+        );
+        assert_eq!(
+            tokenize_operand("a:sub_C100 - 1,x", None, Assembler::Ca65, &state, &map_ca65),
+            vec![
+                OperandToken::Text("a:".to_string()),
+                OperandToken::InternalLink {
+                    text: "sub_C100".to_string(),
+                    target: Addr(0x1010),
+                },
+                OperandToken::Text(" - 1,x".to_string()),
+            ]
+        );
+        assert_eq!(
+            tokenize_operand(
+                "@w sub_C100 - 1,x",
+                None,
+                Assembler::Tass64,
+                &state,
+                &map_tass
+            ),
+            vec![
+                OperandToken::Text("@w ".to_string()),
+                OperandToken::InternalLink {
+                    text: "sub_C100".to_string(),
+                    target: Addr(0x1010),
+                },
+                OperandToken::Text(" - 1,x".to_string()),
+            ]
+        );
+
+        // 4. Multi-word `.word sub_C100 - 1, sub_C200 - 1` (`target_address == None`)
+        assert_eq!(
+            tokenize_operand(
+                "sub_C100 - 1, sub_C200 - 1",
+                None,
+                Assembler::Tass64,
+                &state,
+                &map_tass
+            ),
+            vec![
+                OperandToken::InternalLink {
+                    text: "sub_C100".to_string(),
+                    target: Addr(0x1010),
+                },
+                OperandToken::Text(" - 1, ".to_string()),
+                OperandToken::InternalLink {
+                    text: "sub_C200".to_string(),
+                    target: Addr(0x1020),
+                },
+                OperandToken::Text(" - 1".to_string()),
+            ]
+        );
+
+        // 5. External base `(zp_ptr + 1),y` does not emit internal HTML anchor
+        assert_eq!(
+            tokenize_operand("(zp_ptr + 1),y", None, Assembler::Tass64, &state, &map_tass),
+            vec![OperandToken::Text("(zp_ptr + 1),y".to_string())]
+        );
+
+        // 6. Full `build_export_document` across all assemblers with `JMP sub_C100 + 3`
+        // $1000: 4C 13 10 (JMP $1013) with Tier 1 `sub_C100 + 3`
+        state.raw_data[0..3].copy_from_slice(&[0x4C, 0x13, 0x10]);
+        state.annotations.update(Addr(0x1000), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x1010),
+                offset: 3,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        for &asm in Assembler::all() {
+            let options = ExportOptions::for_assembler(&state, Path::new("test.html"), asm);
+            let doc = build_export_document(&state, &options);
+            let jmp_row = doc
+                .rows
+                .iter()
+                .find_map(|r| match r {
+                    ExportRow::Instruction(ir) if ir.address == Addr(0x1000) => Some(ir),
+                    _ => None,
+                })
+                .expect("JMP row at $1000 must exist");
+            assert_eq!(
+                jmp_row.operand_tokens,
+                vec![
+                    OperandToken::InternalLink {
+                        text: "sub_C100".to_string(),
+                        target: Addr(0x1010),
+                    },
+                    OperandToken::Text(" + 3".to_string()),
+                ],
+                "failed for assembler {asm:?}"
+            );
+        }
     }
 }

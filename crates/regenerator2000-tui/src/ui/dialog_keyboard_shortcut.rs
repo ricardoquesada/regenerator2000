@@ -1,5 +1,9 @@
+//! Modal keyboard shortcuts reference dialog (`Help -> Keyboard Shortcuts` / `?`).
+//!
+//! Defines Layer 3 of the 4-layer keyboard shortcut architecture alongside live key routing,
+//! [`crate::ui::menu::MenuState::new`], and `docs/keyboard_shortcuts.md`.
+
 use crate::ui_state::UIState;
-// use crate::utils::centered_rect;
 use crossterm::event::KeyCode;
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -9,9 +13,117 @@ use ratatui::widgets::{Block, Clear, List, ListItem, ListState};
 
 use crate::ui::widget::{Widget, WidgetResult};
 
-/// Modal help dialog displaying all application keyboard shortcuts (Layer 3 of the keyboard
-/// shortcut architecture).
+const SHORTCUTS: &[(&str, &str)] = &[
+    ("General", ""),
+    ("F10", "Activate Main Menu"),
+    ("Alt+f", "File Menu"),
+    ("Alt+t", "Edit Menu"),
+    ("Alt+j", "Jump Menu"),
+    ("Alt+r", "Search Menu"),
+    ("Alt+v", "View Menu"),
+    ("Alt+u", "Debugger Menu"),
+    ("Alt+h", "Help Menu"),
+    ("Ctrl+q", "Quit"),
+    ("Ctrl+o", "Open File"),
+    ("Alt+o (Ctrl+Shift+o)", "Open Recent Projects"),
+    ("Ctrl+s", "Save Project"),
+    ("Alt+s (Ctrl+Shift+s)", "Save Project As"),
+    ("Ctrl+e", "Export to .asm"),
+    ("Alt+e (Ctrl+Shift+e)", "Export to .asm as..."),
+    ("Alt+d (Ctrl+Shift+d)", "Document Settings"),
+    ("Alt+p (Ctrl+,)", "Settings"),
+    ("u", "Undo"),
+    ("Ctrl+r", "Redo"),
+    (
+        "Tab",
+        "Switch Pane (Disasm/Hex Dump/Sprites/Charset/Bitmap/Blocks/Debugger)",
+    ),
+    ("Alt+1 (Ctrl+1)", "Toggle Blocks View"),
+    ("Alt+2 (Ctrl+2)", "Cycle Hex Dump View (16/8/Off)"),
+    ("Alt+3 (Ctrl+3)", "Cycle Sprites View (2-Col/1-Col/Off)"),
+    ("Alt+4 (Ctrl+4)", "Cycle Charset View (8-Col/4-Col/Off)"),
+    ("Alt+5 (Ctrl+5)", "Toggle Bitmap View"),
+    ("Alt+6 (Ctrl+6)", "Toggle Debugger Panel"),
+    ("", ""),
+    ("Navigation", ""),
+    ("Up/Down/j/k", "Move Cursor"),
+    ("PageUp/PageDown", "Page Up/Down"),
+    ("Home/End", "Start/End of File"),
+    ("Ctrl+u / Ctrl+d", "Up/Down 10 Lines"),
+    ("Alt+g (Ctrl+g)", "Jump to Address"),
+    ("Alt+Shift+g (Ctrl+Shift+g)", "Jump to Line"),
+    ("[Number] Shift+g", "Jump to Line / End"),
+    ("Enter", "Jump to Operand / Jump to Disasm"),
+    ("Delete", "Remove Scope / Exclude External Address"),
+    ("Backspace", "Navigate Back"),
+    ("Ctrl+n", "Next Unexplored Block"),
+    ("Ctrl+Shift+n", "Prev Unexplored Block"),
+    ("", ""),
+    ("Search", ""),
+    ("/", "Vim Search"),
+    ("n / N", "Next / Prev Match"),
+    ("Ctrl+f", "Search Dialog"),
+    ("F3 / Shift+F3", "Find Next / Previous"),
+    ("Ctrl+p", "Go to symbol"),
+    ("Ctrl+x", "Find Cross References"),
+    ("", ""),
+    ("Editing (Disassembly)", ""),
+    ("Shift+v", "Toggle Visual Selection Mode"),
+    ("Shift+Arrows", "Select Text"),
+    ("d", "Disassemble Address (flow analysis)"),
+    ("c", "Code"),
+    ("r", "Add Scope"),
+    ("Alt+Up / Alt+Down", "Nudge Scope Boundary"),
+    ("b", "Byte"),
+    ("w", "Word"),
+    ("a", "Address"),
+    ("p", "Petscii Text"),
+    ("s", "Screencode Text"),
+    ("Shift+e", "External File"),
+    ("?", "Undefined"),
+    ("i / I", "Next/Prev Immediate Mode Format"),
+    ("e", "Apply Enum"),
+    ("[", "Pack Lo/Hi Address (Immediate Mode)"),
+    ("]", "Pack Hi/Lo Address (Immediate Mode)"),
+    ("<", "Lo/Hi Address"),
+    (">", "Hi/Lo Address"),
+    (",", "Lo/Hi Word"),
+    (".", "Hi/Lo Word"),
+    (";", "Side Comment"),
+    (":", "Line Comment"),
+    ("l", "Label"),
+    ("o", "Set Symbolic Offset"),
+    ("+ / -", "Increment/Decrement Symbolic Offset"),
+    ("Ctrl+b", "Toggle Bookmark"),
+    ("Alt+b (Ctrl+Shift+b)", "List Bookmarks"),
+    ("|", "Toggle Splitter"),
+    ("Ctrl+a", "Analyze"),
+    ("Ctrl+k", "Toggle Collapsed Block"),
+    ("", ""),
+    ("Debugger", ""),
+    ("F2", "Toggle Breakpoint"),
+    ("Shift+F2", "Toggle Breakpoint..."),
+    ("F6", "Watchpoint"),
+    ("m", "Memory Dump..."),
+    ("F4", "Run to Cursor"),
+    ("F7", "Step Instruction"),
+    ("F8", "Step Over"),
+    ("Shift+F8", "Step Out"),
+    ("F9", "Run / Pause (Continue)"),
+    ("", ""),
+    ("Editing (Hex Dump, Sprites, Charset, Bitmap)", ""),
+    ("Shift+v", "Toggle Visual Selection Mode"),
+    ("Shift+Arrows", "Select Text"),
+    ("b", "Byte"),
+    ("m", "Toggle Multicolor (Sprites/Charset,Bitmap)"),
+    ("m / M", "Next / Prev Text mode (Hex Dump)"),
+    ("s / S", "Next / Prev Screen RAM (Bitmap)"),
+    ("x", "Screen RAM after Bitmap (Bitmap)"),
+];
+
+/// Modal help dialog that shows all application keyboard shortcuts (Layer 3).
 pub struct ShortcutsDialog {
+    /// Zero-based vertical scroll offset into the rendered shortcut rows.
     pub scroll_offset: usize,
 }
 
@@ -28,119 +140,15 @@ impl ShortcutsDialog {
         Self { scroll_offset: 0 }
     }
 
-    /// Returns the canonical list of keyboard shortcut categories and `(key, description)` pairs
-    /// displayed in the Help -> Keyboard Shortcuts dialog.
+    /// Returns the static slice of shortcut categories and `(key, description)` pairs for the
+    /// Help -> Keyboard Shortcuts dialog.
     ///
-    /// This table serves as Layer 3 of the 4-layer keyboard shortcut architecture and is
-    /// cross-checked against [`crate::ui::menu::MenuState::new`] and `docs/keyboard_shortcuts.md`
-    /// by the Pillar 3 synchronization contract test.
+    /// This table defines Layer 3 of the 4-layer keyboard shortcut architecture. The Pillar 3
+    /// contract test checks it against [`crate::ui::menu::MenuState::new`] and
+    /// `docs/keyboard_shortcuts.md`.
     #[must_use]
-    pub fn get_shortcuts() -> Vec<(&'static str, &'static str)> {
-        vec![
-            ("General", ""),
-            ("F10", "Activate Main Menu"),
-            ("Alt+f", "File Menu"),
-            ("Alt+t", "Edit Menu"),
-            ("Alt+j", "Jump Menu"),
-            ("Alt+r", "Search Menu"),
-            ("Alt+v", "View Menu"),
-            ("Alt+u", "Debugger Menu"),
-            ("Alt+h", "Help Menu"),
-            ("Ctrl+q", "Quit"),
-            ("Ctrl+o", "Open File"),
-            ("Alt+o (Ctrl+Shift+o)", "Open Recent Projects"),
-            ("Ctrl+s", "Save Project"),
-            ("Alt+s (Ctrl+Shift+s)", "Save Project As"),
-            ("Ctrl+e", "Export to .asm"),
-            ("Alt+e (Ctrl+Shift+e)", "Export to .asm as..."),
-            ("Alt+d (Ctrl+Shift+d)", "Document Settings"),
-            ("Alt+p (Ctrl+,)", "Settings"),
-            ("u", "Undo"),
-            ("Ctrl+r", "Redo"),
-            (
-                "Tab",
-                "Switch Pane (Disasm/Hex Dump/Sprites/Charset/Bitmap/Blocks/Debugger)",
-            ),
-            ("Alt+1 (Ctrl+1)", "Toggle Blocks View"),
-            ("Alt+2 (Ctrl+2)", "Cycle Hex Dump View (16/8/Off)"),
-            ("Alt+3 (Ctrl+3)", "Cycle Sprites View (2-Col/1-Col/Off)"),
-            ("Alt+4 (Ctrl+4)", "Cycle Charset View (8-Col/4-Col/Off)"),
-            ("Alt+5 (Ctrl+5)", "Toggle Bitmap View"),
-            ("Alt+6 (Ctrl+6)", "Toggle Debugger Panel"),
-            ("", ""),
-            ("Navigation", ""),
-            ("Up/Down/j/k", "Move Cursor"),
-            ("PageUp/PageDown", "Page Up/Down"),
-            ("Home/End", "Start/End of File"),
-            ("Ctrl+u / Ctrl+d", "Up/Down 10 Lines"),
-            ("Alt+g (Ctrl+g)", "Jump to Address"),
-            ("Alt+Shift+g (Ctrl+Shift+g)", "Jump to Line"),
-            ("[Number] Shift+g", "Jump to Line / End"),
-            ("Enter", "Jump to Operand / Jump to Disasm"),
-            ("Delete", "Remove Scope / Exclude External Address"),
-            ("Backspace", "Navigate Back"),
-            ("Ctrl+n", "Next Unexplored Block"),
-            ("Ctrl+Shift+n", "Prev Unexplored Block"),
-            ("", ""),
-            ("Search", ""),
-            ("/", "Vim Search"),
-            ("n / N", "Next / Prev Match"),
-            ("Ctrl+f", "Search Dialog"),
-            ("F3 / Shift+F3", "Find Next / Previous"),
-            ("Ctrl+p", "Go to symbol"),
-            ("Ctrl+x", "Find Cross References"),
-            ("", ""),
-            ("Editing (Disassembly)", ""),
-            ("Shift+v", "Toggle Visual Selection Mode"),
-            ("Shift+Arrows", "Select Text"),
-            ("d", "Disassemble Address (flow analysis)"),
-            ("c", "Code"),
-            ("r", "Add Scope"),
-            ("Alt+Up / Alt+Down", "Nudge Scope Boundary"),
-            ("b", "Byte"),
-            ("w", "Word"),
-            ("a", "Address"),
-            ("p", "Petscii Text"),
-            ("s", "Screencode Text"),
-            ("Shift+e", "External File"),
-            ("?", "Undefined"),
-            ("i / I", "Next/Prev Immediate Mode Format"),
-            ("e", "Apply Enum"),
-            ("[", "Pack Lo/Hi Address (Immediate Mode)"),
-            ("]", "Pack Hi/Lo Address (Immediate Mode)"),
-            ("<", "Lo/Hi Address"),
-            (">", "Hi/Lo Address"),
-            (",", "Lo/Hi Word"),
-            (".", "Hi/Lo Word"),
-            (";", "Side Comment"),
-            (":", "Line Comment"),
-            ("l", "Label"),
-            ("Ctrl+b", "Toggle Bookmark"),
-            ("Alt+b (Ctrl+Shift+b)", "List Bookmarks"),
-            ("|", "Toggle Splitter"),
-            ("Ctrl+a", "Analyze"),
-            ("Ctrl+k", "Toggle Collapsed Block"),
-            ("", ""),
-            ("Debugger", ""),
-            ("F2", "Toggle Breakpoint"),
-            ("Shift+F2", "Toggle Breakpoint..."),
-            ("F6", "Watchpoint"),
-            ("m", "Memory Dump..."),
-            ("F4", "Run to Cursor"),
-            ("F7", "Step Instruction"),
-            ("F8", "Step Over"),
-            ("Shift+F8", "Step Out"),
-            ("F9", "Run / Pause (Continue)"),
-            ("", ""),
-            ("Editing (Hex Dump, Sprites, Charset, Bitmap)", ""),
-            ("Shift+v", "Toggle Visual Selection Mode"),
-            ("Shift+Arrows", "Select Text"),
-            ("b", "Byte"),
-            ("m", "Toggle Multicolor (Sprites/Charset,Bitmap)"),
-            ("m / M", "Next / Prev Text mode (Hex Dump)"),
-            ("s / S", "Next / Prev Screen RAM (Bitmap)"),
-            ("x", "Screen RAM after Bitmap (Bitmap)"),
-        ]
+    pub const fn get_shortcuts() -> &'static [(&'static str, &'static str)] {
+        SHORTCUTS
     }
 
     pub fn scroll_down(&mut self) {
@@ -176,10 +184,9 @@ impl Widget for ShortcutsDialog {
 
         let inner = block.inner(area);
 
-        let shortcuts = Self::get_shortcuts();
-
-        let items: Vec<ListItem> = shortcuts
-            .into_iter()
+        let items: Vec<ListItem> = Self::get_shortcuts()
+            .iter()
+            .copied()
             .map(|(key, desc)| {
                 if key.is_empty() && desc.is_empty() {
                     ListItem::new("").style(Style::default())

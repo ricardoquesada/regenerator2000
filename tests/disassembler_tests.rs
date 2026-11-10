@@ -2015,3 +2015,217 @@ fn test_bytes_per_line() {
     assert_eq!(lines[1].bytes.len(), 2);
     assert_eq!(lines[1].bytes, vec![0x44, 0x55]);
 }
+
+#[test]
+fn test_symbolic_offset_target_side_comment_fallback() {
+    use regenerator2000_core::state::{Label, LabelKind, LabelType, OffsetRadix, SymbolicOffset};
+
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
+    let disassembler = Disassembler::new();
+    let mut labels = BTreeMap::new();
+    labels.insert(
+        Addr(0x00FB),
+        vec![Label {
+            name: "zp_ptr".to_string(),
+            kind: LabelKind::User,
+            label_type: LabelType::UserDefined,
+        }],
+    );
+    labels.insert(
+        Addr(0xC100),
+        vec![Label {
+            name: "sub_C100".to_string(),
+            kind: LabelKind::User,
+            label_type: LabelType::UserDefined,
+        }],
+    );
+
+    // $1000..=$1001: STA $FC (Code)
+    // $1002..=$1003: .word $C0FF (Address)
+    // $1004..=$1005: .byte >$C0FF / <$C0FF (HiLoAddress)
+    let data = vec![0x85, 0xFC, 0xFF, 0xC0, 0xC0, 0xFF];
+    let block_types = vec![
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Address,
+        BlockType::Address,
+        BlockType::HiLoAddress,
+        BlockType::HiLoAddress,
+    ];
+
+    let mut ann = AnnotationManager::default();
+    ann.update(Addr(0x00FB), |e| {
+        e.user_side_comment = Some("16-bit screen pointer".to_string());
+    });
+    ann.update(Addr(0x00FC), |e| {
+        e.address_offset = Some(SymbolicOffset {
+            base: Addr(0x00FB),
+            offset: 1,
+            radix: OffsetRadix::Decimal,
+        });
+    });
+    ann.update(Addr(0xC100), |e| {
+        e.user_side_comment = Some("Dispatch handler".to_string());
+    });
+    ann.update(Addr(0x1002), |e| {
+        e.operand_offset = Some(SymbolicOffset {
+            base: Addr(0xC100),
+            offset: -1,
+            radix: OffsetRadix::Decimal,
+        });
+    });
+    ann.update(Addr(0x1004), |e| {
+        e.operand_offset = Some(SymbolicOffset {
+            base: Addr(0xC100),
+            offset: -1,
+            radix: OffsetRadix::Decimal,
+        });
+    });
+
+    // 1. When effective_addr has no comment, sym.base's target comment is rendered!
+    let lines = disassembler.disassemble(
+        &data,
+        &block_types,
+        &labels,
+        Addr(0x1000),
+        &settings,
+        &ann,
+        &BTreeMap::new(),
+        &[],
+        &BTreeSet::new(),
+    );
+    assert_eq!(lines.len(), 4);
+    assert_eq!(lines[0].operand, "zp_ptr + 1");
+    assert_eq!(lines[0].comment, "16-bit screen pointer");
+    assert_eq!(lines[1].operand, "sub_C100 - 1");
+    assert_eq!(lines[1].comment, "Dispatch handler");
+    assert_eq!(lines[2].operand, ">(sub_C100 - 1)");
+    assert_eq!(lines[2].comment, "Dispatch handler");
+    assert_eq!(lines[3].operand, "<(sub_C100 - 1)");
+    assert_eq!(lines[3].comment, "Dispatch handler");
+
+    // 2. When effective_addr has its own target comment, effective_addr's comment wins!
+    ann.update(Addr(0x00FC), |e| {
+        e.user_side_comment = Some("Pointer high byte override".to_string());
+    });
+    ann.update(Addr(0xC0FF), |e| {
+        e.user_side_comment = Some("RTS minus one override".to_string());
+    });
+    let lines_override = disassembler.disassemble(
+        &data,
+        &block_types,
+        &labels,
+        Addr(0x1000),
+        &settings,
+        &ann,
+        &BTreeMap::new(),
+        &[],
+        &BTreeSet::new(),
+    );
+    assert_eq!(lines_override[0].comment, "Pointer high byte override");
+    assert_eq!(lines_override[1].comment, "RTS minus one override");
+    assert_eq!(lines_override[2].comment, "RTS minus one override");
+    assert_eq!(lines_override[3].comment, "RTS minus one override");
+}
+
+#[test]
+fn test_mid_instruction_and_body_label_suppressed_when_auto_analyze_disabled_and_address_offset_set()
+ {
+    use regenerator2000_core::state::{
+        AppState, Label, LabelKind, LabelType, OffsetRadix, SymbolicOffset,
+    };
+
+    let mut state = AppState::new();
+    state.settings.auto_analyze = false;
+    state.origin = Addr(0x1000);
+    // $1000..=$1002: JMP $1005 (4C 05 10)
+    // $1003: DataByte ($AA)
+    // $1004: DataByte ($BB)
+    // $1005: RTS (60)
+    state.raw_data = vec![0x4C, 0x05, 0x10, 0xAA, 0xBB, 0x60];
+    state.block_types = vec![
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::DataByte,
+        BlockType::DataByte,
+        BlockType::Code,
+    ];
+    state.splitters.insert(Addr(0x1004));
+
+    // Pre-existing Auto labels at $1001 (mid-instruction) and $1004 (body data line)
+    state.labels.insert(
+        Addr(0x1000),
+        vec![Label {
+            name: "entry".to_string(),
+            kind: LabelKind::User,
+            label_type: LabelType::Subroutine,
+        }],
+    );
+    state.labels.insert(
+        Addr(0x1001),
+        vec![Label {
+            name: "a_1001".to_string(),
+            kind: LabelKind::Auto,
+            label_type: LabelType::AbsoluteAddress,
+        }],
+    );
+    state.labels.insert(
+        Addr(0x1003),
+        vec![Label {
+            name: "struct_base".to_string(),
+            kind: LabelKind::User,
+            label_type: LabelType::UserDefined,
+        }],
+    );
+    state.labels.insert(
+        Addr(0x1004),
+        vec![Label {
+            name: "f_1004".to_string(),
+            kind: LabelKind::Auto,
+            label_type: LabelType::Field,
+        }],
+    );
+
+    // Apply Tier 2 address_offset on $1001 and $1004 without running analyze()
+    state.annotations.update(Addr(0x1001), |e| {
+        e.address_offset = Some(SymbolicOffset {
+            base: Addr(0x1000),
+            offset: 1,
+            radix: OffsetRadix::Decimal,
+        });
+    });
+    state.annotations.update(Addr(0x1004), |e| {
+        e.address_offset = Some(SymbolicOffset {
+            base: Addr(0x1003),
+            offset: 1,
+            radix: OffsetRadix::Decimal,
+        });
+    });
+
+    state.disassemble();
+
+    let jmp_line = state
+        .disassembly
+        .iter()
+        .find(|l| l.address == Addr(0x1000) && l.opcode.is_some())
+        .unwrap();
+    assert!(
+        jmp_line.mid_instruction_labels(&state).is_empty(),
+        "Mid-instruction label at $1001 must be suppressed when address_offset is set"
+    );
+    assert_eq!(jmp_line.mid_instruction_label_count(&state), 0);
+
+    let data_1004 = state
+        .disassembly
+        .iter()
+        .find(|l| l.address == Addr(0x1004) && !l.bytes.is_empty())
+        .unwrap();
+    assert_eq!(
+        data_1004.label, None,
+        "Body label at $1004 must be suppressed when address_offset is set"
+    );
+}

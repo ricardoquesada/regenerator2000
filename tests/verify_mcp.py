@@ -282,6 +282,7 @@ EXPECTED_TOOLS = {
     "r2000_apply_enum_usage",
     "r2000_unpack_binary",
     "r2000_disassemble",
+    "r2000_set_symbolic_offset",
 }
 
 REMOVED_TOOLS = {
@@ -1223,6 +1224,51 @@ def test_malformed_calls(client):
     )
 
     # -----------------------------------------------------------------------
+    # r2000_set_symbolic_offset & plain-label syntax validation
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_set_symbolic_offset", {"expression": "$00FB + 1"}),
+        "r2000_set_symbolic_offset: missing address and range",
+    )
+    check(
+        call("r2000_set_symbolic_offset", {"address": 0x00FC}),
+        "r2000_set_symbolic_offset: missing offset specification",
+    )
+    check(
+        call(
+            "r2000_set_symbolic_offset",
+            {
+                "address": 0x00FC,
+                "start_address": 0x00FC,
+                "end_address": 0x00FD,
+                "offset": 1,
+            },
+        ),
+        "r2000_set_symbolic_offset: mutually exclusive address and range",
+    )
+    check(
+        call(
+            "r2000_set_symbolic_offset",
+            {"address": 0x00FC, "offset": 1, "scope": "global"},
+        ),
+        "r2000_set_symbolic_offset: invalid 'scope' value 'global'",
+    )
+    check(
+        call(
+            "r2000_set_symbolic_offset",
+            {"address": 0x00FC, "offset": 1, "radix": "binary"},
+        ),
+        "r2000_set_symbolic_offset: invalid 'radix' value 'binary'",
+    )
+    check(
+        call(
+            "r2000_set_label_name",
+            {"address": 0x1000, "name": "(corrupt_label)"},
+        ),
+        "r2000_set_label_name: invalid plain label syntax '(corrupt_label)'",
+    )
+
+    # -----------------------------------------------------------------------
     # tools/call with missing 'name'
     # -----------------------------------------------------------------------
     res = client.rpc("tools/call", {"arguments": {}})
@@ -1232,6 +1278,7 @@ def test_malformed_calls(client):
         print("PASS: All malformed calls correctly returned errors.")
     else:
         print("FAIL: Some malformed calls did not return the expected error.")
+        sys.exit(1)
 
 
 def test_project_enums_crud(client):
@@ -1361,6 +1408,221 @@ def test_project_enums_crud(client):
         return
 
 
+def _require_tool_text(res: dict | None, label: str) -> str:
+    if not res or "result" not in res:
+        print(f"  FAIL: {label} request failed: {res}")
+        sys.exit(1)
+    content = res["result"].get("content", [])
+    return content[0].get("text", "") if content else ""
+
+
+def _parse_tool_json(text: str, label: str) -> object:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as err:
+        print(f"  FAIL: Could not parse {label} JSON: {err}")
+        sys.exit(1)
+
+
+def test_set_symbolic_offset(client: MCPClient) -> None:
+    print("\nTesting r2000_set_symbolic_offset...")
+    zp_base = 0x00F8 if BASE_ADDR > 0x0100 else 0xFFF8
+    zp_hi = zp_base + 1
+    word_addr = BASE_ADDR + 0x30
+    base_label = "mcp_verify_ptr"
+
+    try:
+        # 1. Create temporary base label and bind zp_hi -> mcp_verify_ptr + 1.
+        res_lbl = client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_set_label_name",
+                "arguments": {"address": zp_base, "name": base_label},
+            },
+        )
+        _require_tool_text(res_lbl, f"set base label at ${zp_base:04X}")
+
+        res_set = client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_set_symbolic_offset",
+                "arguments": {
+                    "address": zp_hi,
+                    "expression": f"{base_label} + 1",
+                    "scope": "address",
+                    "radix": "decimal",
+                },
+            },
+        )
+        set_text = _require_tool_text(res_set, "r2000_set_symbolic_offset")
+        if "Set global symbolic offset" not in set_text:
+            print(f"  FAIL: Unexpected set response: {set_text}")
+            sys.exit(1)
+        print(f"  PASS: Tier 2 symbolic offset set ({set_text})")
+
+        # 2. Read back via r2000_get_address_details (metadata.symbolic_offset).
+        res_details = client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_get_address_details",
+                "arguments": {"address": zp_hi},
+            },
+        )
+        details_text = _require_tool_text(
+            res_details, "r2000_get_address_details"
+        )
+        details = _parse_tool_json(details_text, "r2000_get_address_details")
+        assert isinstance(details, dict)
+        sym_meta = details.get("metadata", {}).get("symbolic_offset", {})
+        if not (
+            sym_meta.get("expression") == f"{base_label} + 1"
+            and sym_meta.get("base_address") == zp_base
+            and sym_meta.get("offset") == 1
+            and sym_meta.get("scope") == "address"
+        ):
+            print(f"  FAIL: Unexpected metadata.symbolic_offset: {sym_meta}")
+            sys.exit(1)
+        print(
+            "  PASS: r2000_get_address_details returned "
+            f"metadata.symbolic_offset: {sym_meta}"
+        )
+
+        # 3. Read back via r2000_get_symbols (kind='derived', name=base_label).
+        res_syms = client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_get_symbols",
+                "arguments": {"kind": "derived", "name": base_label},
+            },
+        )
+        syms_text = _require_tool_text(res_syms, "r2000_get_symbols")
+        syms = _parse_tool_json(syms_text, "r2000_get_symbols")
+        assert isinstance(syms, list)
+        matched = [
+            s
+            for s in syms
+            if s.get("address") == zp_hi
+            and s.get("name") == f"{base_label} + 1"
+            and s.get("kind") == "Derived"
+            and s.get("base_address") == zp_base
+            and s.get("offset") == 1
+        ]
+        if len(matched) != 1:
+            print(f"  FAIL: Expected 1 derived symbol, got: {syms}")
+            sys.exit(1)
+        print(
+            f"  PASS: r2000_get_symbols(kind='derived') returned {matched[0]}"
+        )
+
+        # 4. Exercise Tier 1 ('operand') on a temporary 2-byte address word.
+        res_dt = client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_set_data_type",
+                "arguments": {
+                    "start_address": word_addr,
+                    "end_address": word_addr + 1,
+                    "data_type": "address",
+                },
+            },
+        )
+        _require_tool_text(res_dt, "r2000_set_data_type(address)")
+
+        res_word_info = client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_get_address_details",
+                "arguments": {"address": word_addr},
+            },
+        )
+        word_text = _require_tool_text(
+            res_word_info, "r2000_get_address_details(word_addr)"
+        )
+        word_info = _parse_tool_json(word_text, "word_addr details")
+        assert isinstance(word_info, dict)
+        raw_bytes = word_info.get("instruction", {}).get("bytes", [])
+        raw_word = (
+            (raw_bytes[0] | (raw_bytes[1] << 8)) if len(raw_bytes) >= 2 else 0
+        )
+        delta = 1 if raw_word == 0xFFFF else -1
+
+        res_op = client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_set_symbolic_offset",
+                "arguments": {
+                    "address": word_addr,
+                    "offset": delta,
+                    "scope": "operand",
+                },
+            },
+        )
+        op_text = _require_tool_text(res_op, "Tier 1 r2000_set_symbolic_offset")
+        if "Set operand symbolic offset" not in op_text:
+            print(f"  FAIL: Unexpected Tier 1 set response: {op_text}")
+            sys.exit(1)
+        print(f"  PASS: Tier 1 operand symbolic offset set ({op_text})")
+
+        # 5. Verify explicit Tier 2 clear confirmation before finally cleanup.
+        res_clear = client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_set_symbolic_offset",
+                "arguments": {
+                    "address": zp_hi,
+                    "expression": "",
+                    "scope": "address",
+                },
+            },
+        )
+        clear_text = _require_tool_text(res_clear, "clear Tier 2 offset")
+        if "Cleared global symbolic offset" not in clear_text:
+            print(f"  FAIL: Unexpected clear response: {clear_text}")
+            sys.exit(1)
+        print("  PASS: Cleared Tier 2 symbolic offset and restored clean state")
+    finally:
+        client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_set_symbolic_offset",
+                "arguments": {
+                    "address": word_addr,
+                    "expression": "",
+                    "scope": "operand",
+                },
+            },
+        )
+        client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_set_data_type",
+                "arguments": {
+                    "start_address": word_addr,
+                    "end_address": word_addr + 1,
+                    "data_type": "undefined",
+                },
+            },
+        )
+        client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_set_symbolic_offset",
+                "arguments": {
+                    "address": zp_hi,
+                    "expression": "",
+                    "scope": "address",
+                },
+            },
+        )
+        client.rpc(
+            "tools/call",
+            {
+                "name": "r2000_set_label_name",
+                "arguments": {"address": zp_base, "name": ""},
+            },
+        )
+
+
 def test_unpack_binary(client):
     print("\nTesting r2000_unpack_binary...")
     res = client.rpc("tools/call", {
@@ -1479,6 +1741,7 @@ if __name__ == "__main__":
     test_set_label(client)
     test_set_comment(client)
     test_set_data_type(client)
+    test_set_symbolic_offset(client)
     test_read_region(client)
     test_read_selected(client)
     test_get_binary_info(client)

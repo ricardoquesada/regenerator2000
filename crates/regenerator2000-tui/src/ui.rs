@@ -1,3 +1,8 @@
+//! Top-level TUI rendering composition and widget module registry.
+//!
+//! Splits the terminal frame into the menu bar, minimap bar, main workspace, and status bar.
+//! Overlays active menu popups and modal [`Widget`] dialogs on top.
+
 use crate::state::AppState;
 use crate::ui_state::{RightPane, UIState};
 
@@ -23,6 +28,7 @@ pub(crate) mod dialog_open_recent;
 pub(crate) mod dialog_prompt;
 pub(crate) mod dialog_search;
 pub(crate) mod dialog_settings;
+pub(crate) mod dialog_symbolic_offset;
 pub(crate) mod dialog_unpack;
 pub(crate) mod dialog_vice_connect;
 pub(crate) mod dialog_watchpoint_address;
@@ -30,6 +36,7 @@ pub(crate) mod graphics_common;
 pub(crate) mod menu;
 pub(crate) mod minimap_bar;
 pub(crate) mod navigable;
+pub(crate) mod scoped_input;
 pub(crate) mod statusbar;
 pub(crate) mod view_bitmap;
 pub(crate) mod view_blocks;
@@ -47,6 +54,9 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
 };
 
+/// Renders a full TUI frame and updates cached hit-test rectangles on `ui_state`.
+///
+/// Draws active menu popups and modal dialogs last so they cover background panes.
 pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -179,5 +189,49 @@ mod tests {
 
         assert!(ui_state.active_dialog.is_some());
         assert!(ui_state.active_dialog_area.width > 0);
+    }
+
+    #[test]
+    fn ui_renders_symbolic_offset_dialog_modal_overlay() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0800);
+        app_state.raw_data = vec![0x85, 0xFC, 0x60];
+        app_state.block_types = vec![BlockType::Code; 3];
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.dismiss_logo = true;
+        ui_state.active_dialog = Some(Box::new(
+            crate::ui::dialog_symbolic_offset::SymbolicOffsetDialog::new(
+                crate::ui::dialog_symbolic_offset::SymbolicOffsetDialogParams {
+                    site_address: Some(Addr(0x0800)),
+                    target_address: Addr(0x00FC),
+                    address_range: None,
+                    initial_input: "zp_ptr + 1",
+                    is_global: false,
+                    lock_global: false,
+                    is_zero_page_mode: true,
+                },
+            ),
+        ));
+
+        let backend = TestBackend::new(100, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| ui(f, &app_state, &mut ui_state)).unwrap();
+
+        assert!(ui_state.active_dialog.is_some());
+        assert_eq!(ui_state.active_dialog_area.height, 8);
+        assert!(ui_state.active_dialog_area.width >= 92);
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(ratatui::buffer::Cell::symbol)
+            .collect();
+        assert!(rendered.contains(" Symbolic Offset for $00FC (at $0800) "));
+        assert!(rendered.contains("zp_ptr + 1"));
+        assert!(rendered.contains("[ ] Apply globally to all $00FC references"));
     }
 }

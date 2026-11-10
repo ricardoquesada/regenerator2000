@@ -53,6 +53,8 @@ These shortcuts work across Windows, macOS, and Linux terminals, including `tmux
 |                                    | **Convert to External File**                                                            | ++shift+e++                                                   |
 |                                    | **Convert to Undefined**                                                                | ++question-mark++                                             |
 |                                    | **Set Label**                                                                           | ++l++                                                         |
+|                                    | **Set Symbolic Offset**                                                                 | ++o++                                                         |
+|                                    | **Increment/Decrement Symbolic Offset**                                                 | ++plus++ / ++minus++                                          |
 |                                    | **Toggle Bookmark**                                                                     | ++ctrl+b++                                                    |
 |                                    | **List Bookmarks**                                                                      | ++ctrl+shift+b++ or ++alt+b++                                 |
 |                                    | **Add Side Comment**                                                                    | ++semicolon++                                                 |

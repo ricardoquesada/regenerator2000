@@ -35,7 +35,7 @@ mod tests {
             .as_array()
             .expect("Expected CallToolResult content array");
         let text = content[0]["text"].as_str().unwrap();
-        serde_json::from_str(text).unwrap()
+        serde_json::from_str(text).unwrap_or_else(|_| json!(text))
     }
 
     #[test]
@@ -216,5 +216,262 @@ mod tests {
             json!({ "address": 0xFFFF }),
         );
         assert_eq!(details_last["address"], 0xFFFF);
+    }
+
+    #[test]
+    fn test_address_details_symbolic_offset_roundtrip() {
+        let mut app_state = AppState::new();
+        app_state.system_config.default_is_unexplored = false;
+        let origin = regenerator2000_core::state::Addr(0x1000);
+        // $1000: STA $FC       (85 FC)
+        // $1002: LDA $1FFF,X   (BD FF 1F)
+        // $1005: RTS           (60)
+        let data = vec![0x85, 0xFC, 0xBD, 0xFF, 0x1F, 0x60];
+        app_state.load_binary(origin, data).unwrap();
+
+        let mut ui_state = UIState::new(Theme::default());
+
+        call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_set_label_name",
+            json!({ "address": 0x00FB, "name": "zp_ptr" }),
+        );
+        call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_set_label_name",
+            json!({ "address": 0x2000, "name": "table_2000" }),
+        );
+
+        // Set Tier 2 `address_offset` on external `$00FC` (`zp_ptr + 1`) and Tier 1 `operand_offset`
+        // on `$1002` (`table_2000 - 1`).
+        call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_set_symbolic_offset",
+            json!({ "address": 0x00FC, "base": "zp_ptr" }),
+        );
+        call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_set_symbolic_offset",
+            json!({ "address": 0x1002, "offset": -1 }),
+        );
+
+        let ext_details = call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_get_address_details",
+            json!({ "address": 0x00FC }),
+        );
+        assert_eq!(ext_details["address"], 0x00FC);
+        assert_eq!(
+            ext_details["metadata"]["symbolic_offset"],
+            json!({
+                "expression": "zp_ptr + 1",
+                "base_address": 251,
+                "base_hex": "$00FB",
+                "offset": 1,
+                "radix": "decimal",
+                "scope": "address"
+            })
+        );
+
+        let tier1_details = call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_get_address_details",
+            json!({ "address": 0x1002 }),
+        );
+        assert_eq!(tier1_details["instruction"]["operands"], "table_2000 - 1,x");
+        assert_eq!(
+            tier1_details["metadata"]["symbolic_offset"],
+            json!({
+                "expression": "table_2000 - 1",
+                "base_address": 0x2000,
+                "base_hex": "$2000",
+                "offset": -1,
+                "radix": "decimal",
+                "scope": "operand"
+            })
+        );
+
+        let derived_symbols = call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_get_symbols",
+            json!({ "kind": "derived" }),
+        );
+        assert_eq!(
+            derived_symbols,
+            json!([
+                {
+                    "address": 252,
+                    "name": "zp_ptr + 1",
+                    "kind": "Derived",
+                    "type": "SymbolicOffset",
+                    "base_address": 251,
+                    "offset": 1
+                }
+            ])
+        );
+    }
+
+    #[test]
+    fn test_unreferenced_system_label_derived_symbols_and_address_details() {
+        use regenerator2000_core::state::{Addr, BlockType};
+
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        app_state.origin = Addr(0x1000);
+        app_state.raw_data = vec![0x60]; // RTS only -> zero XRefs to $FFD2 / $FFD3
+        app_state.block_types = vec![BlockType::Code];
+        app_state.load_system_assets();
+        let _ = app_state.perform_analysis();
+
+        assert!(!app_state.labels.contains_key(&Addr(0xFFD2)));
+
+        call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_set_symbolic_offset",
+            json!({ "address": 0xFFD3, "base": "KERNAL_CHROUT", "scope": "address" }),
+        );
+
+        let details = call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_get_address_details",
+            json!({ "address": 0xFFD3 }),
+        );
+        assert_eq!(
+            details["metadata"]["symbolic_offset"]["expression"],
+            "KERNAL_CHROUT + 1"
+        );
+
+        let derived = call_tool(
+            &mut app_state,
+            &mut ui_state,
+            "r2000_get_symbols",
+            json!({ "kind": "derived", "name": "KERNAL_CHROUT" }),
+        );
+        assert_eq!(
+            derived,
+            json!([
+                {
+                    "address": 0xFFD3,
+                    "name": "KERNAL_CHROUT + 1",
+                    "kind": "Derived",
+                    "type": "SymbolicOffset",
+                    "base_address": 0xFFD2,
+                    "offset": 1
+                }
+            ])
+        );
+    }
+
+    #[test]
+    fn test_zero_page_instruction_ignores_out_of_bounds_base_across_mcp_and_navigation() {
+        use regenerator2000_core::Core;
+        use regenerator2000_core::state::actions::AppAction;
+        use regenerator2000_core::state::{
+            Addr, BlockType, Label, LabelKind, LabelType, OffsetRadix, SymbolicOffset,
+        };
+
+        let mut core = Core::new();
+        core.state.origin = Addr(0x1000);
+        core.state.settings.all_labels = true;
+        core.state.settings.preserve_long_bytes = true;
+        // $1000: B5 FF (LDA $FF,X — 2-byte ZeroPageX), $1002: BD FF 00 (LDA $00FF,X — 3-byte AbsoluteX), $1005: 60 (RTS)
+        core.state.raw_data = vec![0xB5, 0xFF, 0xBD, 0xFF, 0x00, 0x60];
+        core.state.block_types = vec![BlockType::Code; 6];
+        core.state.labels.insert(
+            Addr(0x0100),
+            vec![Label {
+                name: "table_0100".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::Field,
+            }],
+        );
+        core.state.annotations.update(Addr(0x0100), |e| {
+            e.user_side_comment = Some("Page 1 table".to_string());
+        });
+        let page1_minus_1 = SymbolicOffset {
+            base: Addr(0x0100),
+            offset: -1,
+            radix: OffsetRadix::Decimal,
+        };
+        // Attach the same `base = $0100` Tier 1 `operand_offset` to both sites (for example,
+        // from a stale edit or corrupted project): 2-byte ZP `$1000` must reject `base > $00FF`,
+        // while 3-byte AbsoluteX `$1002` honors it across comments, navigation, and MCP details.
+        core.state.annotations.update(Addr(0x1000), |e| {
+            e.operand_offset = Some(page1_minus_1);
+        });
+        core.state.annotations.update(Addr(0x1002), |e| {
+            e.operand_offset = Some(page1_minus_1);
+        });
+        let _ = core.state.perform_analysis();
+        core.state.disassemble();
+
+        // 1. 2-byte ZP line `$1000` must NOT inherit `$0100`'s side comment or jump to `$0100`.
+        let zp_idx = core
+            .state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
+            .unwrap();
+        assert!(
+            !core.state.disassembly[zp_idx]
+                .comment
+                .contains("Page 1 table")
+        );
+
+        core.view.cursor_index = zp_idx;
+        core.apply_action(AppAction::JumpToOperand);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].external_label_address,
+            Some(Addr(0x00FF))
+        );
+
+        // 3-byte AbsoluteX line `$1002` DOES inherit `$0100`'s side comment and jump to `$0100`.
+        let abs_idx = core
+            .state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
+            .unwrap();
+        assert!(
+            core.state.disassembly[abs_idx]
+                .comment
+                .contains("Page 1 table")
+        );
+        core.view.cursor_index = abs_idx;
+        core.apply_action(AppAction::JumpToOperand);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].external_label_address,
+            Some(Addr(0x0100))
+        );
+
+        // 2. `r2000_get_address_details` on `$1000` must NOT expose `table_0100 - 1`, whereas 3-byte `$1002` DOES.
+        let mut ui_state = UIState::new(Theme::default());
+        let zp_details = call_tool(
+            &mut core.state,
+            &mut ui_state,
+            "r2000_get_address_details",
+            json!({ "address": 0x1000 }),
+        );
+        assert!(zp_details["metadata"]["symbolic_offset"].is_null());
+
+        let abs_details = call_tool(
+            &mut core.state,
+            &mut ui_state,
+            "r2000_get_address_details",
+            json!({ "address": 0x1002 }),
+        );
+        assert_eq!(
+            abs_details["metadata"]["symbolic_offset"]["expression"],
+            "table_0100 - 1"
+        );
     }
 }

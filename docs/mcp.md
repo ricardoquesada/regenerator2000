@@ -5,7 +5,7 @@ Regenerator 2000 supports the **Model Context Protocol (MCP)**. AI agents such a
 Through the MCP server, an AI assistant performs four core operations:
 
 -   **Read** disassembly text, memory dumps, and project state.
--   **Modify** comments, labels, and block types.
+-   **Modify** comments, labels, symbolic offsets, immediate formats, scopes, enums, and block types.
 -   **Navigate** to memory addresses and move the cursor.
 -   **Analyze** code structure and control flow.
 
@@ -176,25 +176,39 @@ your_project/
 
 Run the analysis skills in this sequence:
 
-1.  **Macro Analysis**: Run `r2000-analyze-blocks` to partition the binary into code and data blocks.
-2.  **Micro Analysis (Control Flow)**: Run `r2000-analyze-routine` to document individual subroutines.
-3.  **Micro Analysis (Data Flow)**: Run `r2000-analyze-symbol` to classify variables, pointers, and hardware registers.
+1.  **BASIC Stub Analysis**: Run `r2000-analyze-basic` to decode tokenized Commodore BASIC lines and `SYS` entry points.
+2.  **Macro Analysis**: Run `r2000-analyze-blocks` to partition the binary into code and data blocks.
+3.  **Micro Analysis (Control Flow)**: Run `r2000-analyze-routine` to document individual subroutines.
+4.  **Micro Analysis (Data Flow)**: Run `r2000-analyze-symbol` to classify variables, pointers, and hardware registers.
 
-Alternatively, run **`r2000-analyze-program`** to execute all three phases automatically with parallel subagents.
+Alternatively, run **`r2000-analyze-program`** to execute all four skills automatically with parallel subagents.
 
 ### Skill: `r2000-analyze-program`
 
-Analyzes all of the loaded binary. This skill runs block classification first and then spawns parallel subagents to analyze subroutines and data symbols:
+Analyzes all of the loaded binary. This orchestrator coordinates BASIC decoding, block classification, and parallel subagent analysis of routines and symbols:
 
-1.  **Phase 0 — Gather Context**: Reads binary metadata, existing blocks, symbols, and line comments.
-2.  **Phase 1 — Classify Blocks**: Runs `r2000-analyze-blocks` to classify memory regions (code, data, text, and tables) and refreshes state.
-3.  **Phase 2 — Analyze Routines**: Finds unanalyzed subroutines (`s_XXXX` labels, uncommented `JSR` targets, `p_XXXX` pointers inside `Code` blocks, and the `start` entry point). Spawns a rolling window of up to 10 parallel subagents that run `r2000-analyze-routine`.
-4.  **Phase 3 — Analyze Symbols**: Finds unanalyzed data symbols with auto-generated prefixes (`zpp_`, `zpf_`, `zpa_`, `p_`, `f_`, `a_`). Spawns up to 10 parallel subagents that run `r2000-analyze-symbol` to classify and rename each symbol.
+1.  **Phase 0 — Gather Context**: Reads binary metadata, entropy, existing blocks, symbols, and comments.
+2.  **Phase 1 — Decode BASIC & Classify Blocks**: Runs `r2000-analyze-basic` on BASIC headers and `r2000-analyze-blocks` across undefined memory regions.
+3.  **Phase 2 — Analyze Routines**: Finds unanalyzed subroutines (`s_XXXX` labels, uncommented `JSR` targets, `p_XXXX` pointers inside `Code` blocks, and the `start` entry point). Spawns parallel subagents that run `r2000-analyze-routine`.
+4.  **Phase 3 — Analyze Symbols**: Finds unanalyzed data symbols with auto-generated prefixes (`zpp_`, `zpf_`, `zpa_`, `p_`, `f_`, `a_`). Spawns parallel subagents that run `r2000-analyze-symbol` to classify and rename each symbol.
 5.  **Phase 4 — Save & Report**: Saves the project and generates a summary report of analyzed routines, renamed symbols, and ambiguous items.
 
 !!! example "Prompt"
 
     > "Analyze this program", "Full analysis", "Analyze everything"
+
+### Skill: `r2000-analyze-basic`
+
+Decodes tokenized Commodore BASIC sequences at the system BASIC start address and formats each line with plain BASIC side comments:
+
+1.  Resolves the BASIC start address from `r2000_get_binary_info` (`$0801` on C64, `$1C01` on C128, `$1001`/`$0401`/`$1201` on VIC-20, `$0401` on PET, or `$1001` on Plus/4 and C16).
+2.  Walks the 16-bit next-line pointer chain until the `$00 $00` end-of-program marker.
+3.  Formats next-line pointers as `address`, line numbers as `word`, and token payloads as `byte` blocks.
+4.  Adds decoded BASIC source statements as side comments and disassembles unmarked `SYS` targets.
+
+!!! example "Prompt"
+
+    > "Analyze BASIC", "Decode BASIC header", "Create side comments for BASIC lines"
 
 ### Skill: `r2000-analyze-blocks`
 
@@ -257,7 +271,7 @@ The server exposes **6** resources:
 
 ## Available Tools
 
-The server exposes **28** tools.
+The server exposes **29** tools.
 
 ### `r2000_add_scope`
 
@@ -326,7 +340,7 @@ Runs recursive flow disassembly from the specified start address.
 
 ### `r2000_get_address_details`
 
-Returns instruction semantics, cross-references, labels, comments, and the block type for a memory address. The `metadata` object includes `cross_refs_in` (numeric source addresses) and `typed_cross_refs_in` (objects with `address`, `from_address`, `from_hex`, `kind`, and `badge`).
+Returns instruction semantics, cross-references, labels, comments, symbolic offsets, and the block type for a memory address. The `metadata` object includes `cross_refs_in` (numeric source addresses) and `typed_cross_refs_in` (`address`, `from_address`, `from_hex`, `kind`, and `badge`). When a symbolic offset is active, `metadata` also includes `symbolic_offset` (`expression`, `base_address`, `base_hex`, `offset`, `radix`, and `scope`).
 
 **Arguments:**
 
@@ -381,15 +395,16 @@ _No arguments._
 
 ### `r2000_get_symbols`
 
-Returns defined labels and their addresses. Without arguments, this tool returns all symbols. Optional filters narrow the results with logical `AND`. `names` resolves specific label names. `start_address` and `end_address` restrict the address range. `kind` filters by label source.
+Returns defined labels (user, system, auto, and derived symbolic offsets) and their addresses. Without arguments, this tool returns all symbols. Optional filters narrow the results with logical `AND`: `names` matches exact label names, `name` matches a substring, `start_address` and `end_address` restrict the address range, and `kind` filters by symbol kind.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
 | `end_address` | `integer` | Optional inclusive upper address bound in decimal. | No |
-| `kind` | `string` | Optional label source filter: `'user'` (user-defined), `'system'` (KERNAL and hardware registers), or `'auto'` (analyzer labels such as `s_C000`). | No |
-| `names` | `array` | Optional case-sensitive list of label names to match. | No |
+| `kind` | `string` | Optional symbol kind filter: `'user'` (user-defined labels), `'system'` (KERNAL and hardware registers), `'auto'` (analyzer labels such as `s_C000`), or `'derived'` (Tier 2 global symbolic offset expressions such as `zp_ptr + 1`). | No |
+| `name` | `string` | Optional case-sensitive substring filter matching label names (or expression text and base label name for `'derived'` symbolic offsets). | No |
+| `names` | `array` | Optional case-sensitive list of exact label names to match. | No |
 | `start_address` | `integer` | Optional inclusive lower address bound in decimal. | No |
 
 ### `r2000_jump_to_address`
@@ -464,14 +479,14 @@ Searches binary memory for a byte sequence or text string and returns all matchi
 
 ### `r2000_set_comment`
 
-Sets or clears a comment at a specific address. A `'line'` comment appears on a dedicated line before the instruction and supports multiple lines. A `'side'` comment appears inline next to the instruction. Pass an empty string (or omit `comment`) to remove an existing comment.
+Sets or deletes a comment at a specific address. A `'line'` comment appears on a dedicated line before the instruction and supports multiple lines. A `'side'` comment appears inline next to the instruction. Pass an empty string (or omit `comment`) to delete an existing comment.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
 | `address` | `integer` | Target memory address in decimal (for example, `4096` for `$1000`). | Yes |
-| `comment` | `string` | Comment text without a leading `;` character, or an empty string to remove the existing comment. | No |
+| `comment` | `string` | Comment text without a leading `;` character, or an empty string to delete the existing comment. | No |
 | `type` | `string` | Comment placement: `'line'` (above instruction) or `'side'` (inline). | Yes |
 
 ### `r2000_set_data_type`
@@ -488,26 +503,45 @@ Sets the block classification (`code`, `byte`, `word`, `address`, `petscii`, `sc
 
 ### `r2000_set_immediate_format`
 
-Sets the display format for an immediate operand at a specific address (hexadecimal, decimal, binary, or low/high byte of a 16-bit address).
+Sets the operand format for an immediate instruction at a specific address. Supported formats include hexadecimal, decimal, binary, and low/high byte address references with optional signed offsets.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
 | `address` | `integer` | Instruction address in decimal. | Yes |
-| `format` | `string` | Display format: `hex` (`$00`), `decimal` (`0`), `binary` (`%00000000`), `low_byte` (`#<p_ADDRESS`), or `high_byte` (`#>p_ADDRESS`). | Yes |
+| `format` | `string` | Operand format: `'hex'` (`$00`), `'decimal'` (`0`), `'binary'` (`%00000000`), `'low_byte'` (`#<p_ADDRESS`), or `'high_byte'` (`#>p_ADDRESS`). | Yes |
+| `offset` | `integer` | Optional signed byte displacement (such as `-1` for `#<(sub_C100 - 1)`). Accepts a base or effective `target_address` and checks the immediate operand byte. | No |
+| `radix` | `string` | Offset radix when `offset` is non-zero: `'decimal'` (`- 1`) or `'hex'` (`- $1`). Default: `'decimal'`. | No |
 | `target_address` | `integer` | 16-bit target address in decimal (required when `format` is `'low_byte'` or `'high_byte'`). | No |
 
 ### `r2000_set_label_name`
 
-Assigns or removes a user-defined label at a specific 6502 memory address.
+Sets or deletes a user-defined label or Tier 2 global symbolic offset (such as `'zp_ptr + 1'`) at a memory address. Use this tool to name subroutines, variables, jump targets, or pointer and struct fields.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
 | `address` | `integer` | Target memory address in decimal (for example, `4096` for `$1000`). | Yes |
-| `name` | `string` | Label identifier (for example, `'init_screen'` or `'loop_start'`), or an empty string to remove an existing user label. | Yes |
+| `name` | `string` | Label identifier (such as `'init_screen'`), symbolic offset expression (such as `'zp_ptr + 1'`), or `''` to delete an existing label or offset. | Yes |
+
+### `r2000_set_symbolic_offset`
+
+Formats an operand, address table (including Lo/Hi `RTS` tables), or target address as a symbolic offset (such as `'zp_ptr + 1'`). Pass `address` for one site or address, or pass `start_address` and `end_address` for a table or struct range. Set the offset with `expression` (`'zp_ptr + 1'` or `''`), `base` (name or address), or `offset` (signed integer, `0` to clear).
+
+**Arguments:**
+
+| Name | Type | Description | Required |
+| :--- | :--- | :--- | :---: |
+| `address` | `integer` | Single instruction, table entry, or target memory address in decimal. | No |
+| `base` | `string \| integer` | Base symbol name (for example, `'zp_ptr'` or `'SCREEN_RAM'`) or base address (for example, `251` or `'$00FB'`). Automatically calculates `offset = effective_address - base`. | No |
+| `end_address` | `integer` | Inclusive end address in decimal when applying to an address table or struct range. | No |
+| `expression` | `string` | Symbolic expression such as `'zp_ptr + 1'`, `'sub_C100 - 1'`, `'SCREEN_RAM + $28'`, or `''` to clear. | No |
+| `offset` | `integer` | Signed byte displacement from `base` (for example, `-1` for `RTS` dispatch tables or 1-based indexed loops, `+1` for a pointer high byte, or `0` to clear). Automatically calculates `base = effective_address - offset`. | No |
+| `radix` | `string` | Offset radix: `'decimal'` (`+ 40`) or `'hex'` (`+ $28`). Default: `'decimal'`. | No |
+| `scope` | `string` | Binding scope: `'operand'`, `'address'`, or `'auto'` (default: `'auto'`). `'operand'` sets Tier 1 on the site. `'address'` sets Tier 2 globally. `'auto'` selects `'operand'` on operand sites and `'address'` elsewhere. | No |
+| `start_address` | `integer` | Inclusive start address in decimal when applying to an address table or struct range. | No |
 
 ### `r2000_toggle_splitter`
 

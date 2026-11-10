@@ -162,6 +162,30 @@ pub enum DialogType {
     },
     /// Enum definition manager dialog.
     ManageEnums,
+    /// Symbolic offset expression editor dialog (`base +/- offset`), opened via `o` in the
+    /// Disassembly View.
+    SymbolicOffset {
+        /// Referencing instruction or table entry address when editing a site operand, or `None`
+        /// for external equates, mid-instruction byte rows, and global struct/data addresses.
+        site_address: Option<Addr>,
+        /// Primary effective target address being annotated (for example, `$00FC` on `STA $FC` or
+        /// `$C0FF` on `.byte <$C0FF`).
+        target_address: Addr,
+        /// Optional inclusive `(start, end)` address range when invoked across a multi-entry
+        /// visual selection (such as an `RTS` dispatch table or contiguous struct fields).
+        address_range: Option<(Addr, Addr)>,
+        /// Pre-populated symbolic offset expression (for example, `"zp_ptr + 1"`, `"sub_C100 - 1"`,
+        /// `"-1"`, or a struct base name).
+        initial_input: String,
+        /// Initial state of the global Tier 2 (`address_offset`) scope checkbox.
+        is_global: bool,
+        /// When `true`, forces and locks Tier 2 global scope (`is_global == true`) because no
+        /// referencing operand site applies (such as external equates or raw struct/data bytes).
+        lock_global: bool,
+        /// `true` when validating a 2-byte zero-page instruction operand (`ZeroPage*`, `IndirectX`,
+        /// `IndirectY`), enforcing `base <= $00FF` for single-pass cross-assembler compatibility.
+        is_zero_page_mode: bool,
+    },
     /// Binary unpacker configuration dialog.
     Unpack,
 }

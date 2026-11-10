@@ -1,8 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use regenerator2000_core::disassembler::Disassembler;
-use regenerator2000_core::state::Addr;
-use regenerator2000_core::state::{AnnotationManager, Assembler, DocumentSettings};
-use std::collections::BTreeMap;
+use regenerator2000_core::state::{Addr, Assembler, DocumentSettings};
+use symbolic_offset_formatter::format_raw_instruction;
 
 #[test]
 fn test_format_instructions() {
@@ -10,68 +9,16 @@ fn test_format_instructions() {
         assembler: Assembler::Kick,
         ..Default::default()
     };
-    let formatter = Disassembler::create_formatter(settings.assembler);
-    let labels = BTreeMap::new();
-    let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator2000_core::cpu::get_opcodes();
 
     // LDA #$00
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xA9].as_ref().unwrap(),
-        operands: &[0x00],
-        address: regenerator2000_core::state::Addr(0x1000),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
     assert_eq!(
-        formatter.format_instruction(&ctx),
+        format_raw_instruction(&settings, 0xA9, &[0x00], 0x1000),
         ("lda".to_string(), "#$00".to_string())
     );
 
     // STA $D020
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0x8D].as_ref().unwrap(),
-        operands: &[0x20, 0xD0],
-        address: regenerator2000_core::state::Addr(0x1002),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
     assert_eq!(
-        formatter.format_instruction(&ctx),
+        format_raw_instruction(&settings, 0x8D, &[0x20, 0xD0], 0x1002),
         ("sta".to_string(), "$d020".to_string())
     );
 }
@@ -83,7 +30,6 @@ fn test_origin() {
         ..Default::default()
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
-    // KickAssembler usually uses *=$xxxx
     assert_eq!(formatter.format_header_origin(Addr(0x1000)), "*=$1000");
 }
 
@@ -94,8 +40,6 @@ fn test_labels() {
         ..Default::default()
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
-    // Label references: "Label"
-    // Label definitions: "Label:"
     assert_eq!(formatter.format_label("MyLabel"), "MyLabel");
     assert_eq!(formatter.format_label_definition("MyLabel"), "MyLabel:");
 }
@@ -107,7 +51,6 @@ fn test_relative_label() {
         ..Default::default()
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
-    // .label myLabel = * + 10
     assert_eq!(
         formatter.format_relative_label("myLabel", 10),
         ".label myLabel = * + 10"
@@ -118,97 +61,27 @@ fn test_relative_label() {
 fn test_forced_absolute() {
     let mut settings = DocumentSettings {
         assembler: Assembler::Kick,
+        preserve_long_bytes: true,
         ..Default::default()
     };
-    let formatter = Disassembler::create_formatter(settings.assembler);
-    let labels = BTreeMap::new();
-    let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator2000_core::cpu::get_opcodes();
 
     // True functionality: should output .abs
-    settings.preserve_long_bytes = true;
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xAD].as_ref().unwrap(),
-        operands: &[0x02, 0x00],
-        address: regenerator2000_core::state::Addr(0x1000),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
     assert_eq!(
-        formatter.format_instruction(&ctx),
+        format_raw_instruction(&settings, 0xAD, &[0x02, 0x00], 0x1000),
         ("lda.abs".to_string(), "$0002".to_string())
     );
 
     // False functionality: should NOT output .abs
-    // Note: If preserve_long_bytes is false, the disassembler usually tries to reduce to ZP if possible
-    // but here we are testing the formatter output given a specific instruction context (Absolute).
-    // If the instruction IS Absolute in the context (0xAD) but the settings say don't preserve long bytes,
-    // technically the re-assembler might optimize it back to ZP if we don't force it.
-    // But the request is to control the .abs suffix.
-    // If we omit .abs, KickAssembler will likely assemble it as ZP ($A5).
-    // This matches the behavior of "not preserving" the long form.
-    let mut settings_false = settings.clone();
-    settings_false.preserve_long_bytes = false;
-    let ctx_false = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xAD].as_ref().unwrap(),
-        operands: &[0x02, 0x00],
-        address: regenerator2000_core::state::Addr(0x1000),
-        target_context: None,
-        labels: &labels,
-        settings: &settings_false,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
+    settings.preserve_long_bytes = false;
     assert_eq!(
-        formatter.format_instruction(&ctx_false),
+        format_raw_instruction(&settings, 0xAD, &[0x02, 0x00], 0x1000),
         ("lda".to_string(), "$0002".to_string())
     );
 
     // LDA $02 (ZeroPage) -> A5 02
-    // Should be formatted as "lda $02"
-    let ctx_zp = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xA5].as_ref().unwrap(),
-        operands: &[0x02],
-        address: regenerator2000_core::state::Addr(0x1000),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
+    settings.preserve_long_bytes = true;
     assert_eq!(
-        formatter.format_instruction(&ctx_zp),
+        format_raw_instruction(&settings, 0xA5, &[0x02], 0x1000),
         ("lda".to_string(), "$02".to_string())
     );
 }
@@ -407,5 +280,17 @@ fn test_quote_escaping() {
             "@\"He said \\\"Hi\\\"\"".to_string(),
             true
         )
+    );
+}
+
+#[path = "common/symbolic_offset_formatter.rs"]
+mod symbolic_offset_formatter;
+
+#[test]
+fn test_symbolic_offset_formatting_all_modes_kickasm() {
+    symbolic_offset_formatter::assert_symbolic_offset_formatting_all_modes(
+        Assembler::Kick,
+        "lda.abs",
+        "table_0100 - 1,x",
     );
 }

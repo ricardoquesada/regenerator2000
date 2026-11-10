@@ -62,6 +62,8 @@ Auto-generated labels start with a prefix. The prefix shows how the code referen
 | **Remove Scope / Exclude External Address** | ++delete++                        |
 | **Nudge Scope Boundary**                    | ++alt+up++ / ++alt+down++         |
 | **Set Label**                               | ++l++                             |
+| **Set Symbolic Offset**                     | ++o++                             |
+| **Increment/Decrement Symbolic Offset**     | ++plus++ / ++minus++              |
 | **Add Side Comment**                        | ++semicolon++                     |
 | **Add Line Comment**                        | ++colon++                         |
 | **Next/Prev Immediate Format**              | ++i++ / ++shift+i++               |

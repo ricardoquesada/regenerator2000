@@ -1,4 +1,5 @@
-//! Semantic actions that any frontend (TUI, GUI, Web, MCP) can produce.
+//! Semantic actions that any frontend (TUI, GUI, Web, MCP) can produce, along with document,
+//! destructive-check, and modal dialog-closure contracts.
 
 /// Semantic application action produced by the UI or programmatic clients.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -239,11 +240,11 @@ pub enum AppAction {
         /// When `true`, expand the boundary outward. When `false`, shrink it inward.
         expand: bool,
     },
-    /// Remove the lexical scope that encloses the current cursor address.
+    /// Delete the lexical scope that encloses the current cursor address.
     RemoveScope,
     /// Add the external label target address to the per-project excluded set and re-analyze.
     ExcludeExternalAddress,
-    /// Wrap an action that the user has explicitly confirmed so core skips destructive checks.
+    /// Wrap a pre-approved action so core skips destructive confirmation checks.
     Confirmed(Box<AppAction>),
     /// Open the enum management dialog.
     ManageEnums,
@@ -266,6 +267,34 @@ pub enum AppAction {
         definition: Option<super::types::EnumDefinition>,
         /// Previous enum name when renaming an existing global enum.
         rename_from: Option<String>,
+    },
+    /// Open the symbolic offset expression editor (`o`) for the current operand, table entry,
+    /// visual selection, or address.
+    SymbolicOffsetDialog,
+    /// Increment (`+` / `=`) or decrement (`-`) the symbolic offset displacement on the current
+    /// operand, visual selection, or external equate.
+    NudgeSymbolicOffset {
+        /// Signed displacement delta (`+1` to increment, `-1` to decrement).
+        delta: i16,
+    },
+    /// Apply or clear a Tier 1 (`operand_offset`) or Tier 2 (`address_offset`) symbolic offset expression.
+    ///
+    /// Modal frontends check submissions via
+    /// [`validate_symbolic_offset_submission`](crate::action_handlers::disassembly_handler::validate_symbolic_offset_submission)
+    /// before emitting this action because [`AppAction::closes_dialog`] returns `true` for it.
+    ApplySymbolicOffset {
+        /// Referencing instruction or table entry [`Addr`](super::Addr), when editing an operand site.
+        site_address: Option<super::Addr>,
+        /// Primary effective target [`Addr`](super::Addr).
+        target_address: super::Addr,
+        /// Optional inclusive `(start, end)` [`Addr`](super::Addr) range when applying across a selection.
+        address_range: Option<(super::Addr, super::Addr)>,
+        /// User-entered symbolic offset expression (empty or `"0"` clears the offset).
+        input: String,
+        /// When `true`, sets Tier 2 (`address_offset`) globally. When `false`, sets Tier 1 (`operand_offset`).
+        is_global: bool,
+        /// `true` when checking a 2-byte zero-page instruction operand (`base <= $00FF`).
+        is_zero_page_mode: bool,
     },
 }
 
@@ -336,7 +365,11 @@ impl AppAction {
                 | AppAction::ViceSetBreakpointAt { .. }
                 | AppAction::ViceSetMemoryDumpAddress { .. }
                 | AppAction::NavigateToAddress(_)
+                // `LabelDialog` and `SymbolicOffsetDialog` pre-validate user input on `Enter`
+                // before emitting `ApplyLabel` / `ApplySymbolicOffset` so invalid expressions
+                // keep the modal open rather than closing and prematurely draining `dialog_queue`.
                 | AppAction::ApplyLabel { .. }
+                | AppAction::ApplySymbolicOffset { .. }
                 | AppAction::ApplyComment { .. }
                 | AppAction::ApplyEnumUsage { .. }
                 | AppAction::Search

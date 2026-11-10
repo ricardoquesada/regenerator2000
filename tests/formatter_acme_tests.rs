@@ -4,8 +4,8 @@
 /// Mirrors the test structure of `formatter_ca65_tests.rs` and `formatter_kickasm_tests.rs`,
 /// providing equivalent coverage for the ACME assembler output.
 use regenerator2000_core::disassembler::Disassembler;
-use regenerator2000_core::state::{AnnotationManager, Assembler, DocumentSettings};
-use std::collections::BTreeMap;
+use regenerator2000_core::state::{Addr, Assembler, DocumentSettings};
+use symbolic_offset_formatter::format_raw_instruction;
 
 #[test]
 fn test_format_instructions() {
@@ -13,129 +13,18 @@ fn test_format_instructions() {
         assembler: Assembler::Acme,
         ..Default::default()
     };
-    let formatter = Disassembler::create_formatter(settings.assembler);
-    let labels = BTreeMap::new();
-    let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator2000_core::cpu::get_opcodes();
 
-    // LDA #$00  (A9 00)
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xA9].as_ref().unwrap(),
-        operands: &[0x00],
-        address: regenerator2000_core::state::Addr(0x1000),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
-    assert_eq!(
-        formatter.format_instruction(&ctx),
-        ("lda".to_string(), "#$00".to_string())
-    );
-
-    // STA $D020  (8D 20 D0)
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0x8D].as_ref().unwrap(),
-        operands: &[0x20, 0xD0],
-        address: regenerator2000_core::state::Addr(0x1002),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
-    assert_eq!(
-        formatter.format_instruction(&ctx),
-        ("sta".to_string(), "$d020".to_string())
-    );
-
-    // NOP  (EA) — Implied
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xEA].as_ref().unwrap(),
-        operands: &[],
-        address: regenerator2000_core::state::Addr(0x1005),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
-    assert_eq!(
-        formatter.format_instruction(&ctx),
-        ("nop".to_string(), String::new())
-    );
-
-    // ASL (Accumulator) — ACME uses empty operand (not "a")
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0x0A].as_ref().unwrap(),
-        operands: &[],
-        address: regenerator2000_core::state::Addr(0x1006),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
-    let (mnemonic, operand) = formatter.format_instruction(&ctx);
-    assert_eq!(mnemonic, "asl");
-    assert_eq!(operand, ""); // ACME uses implicit accumulator
+    for (opcode, operands, addr, expected) in [
+        (0xA9, &[0x00][..], 0x1000, ("lda", "#$00")),
+        (0x8D, &[0x20, 0xD0][..], 0x1002, ("sta", "$d020")),
+        (0xEA, &[][..], 0x1005, ("nop", "")),
+        (0x0A, &[][..], 0x1006, ("asl", "")),
+    ] {
+        assert_eq!(
+            format_raw_instruction(&settings, opcode, operands, addr),
+            (expected.0.to_string(), expected.1.to_string())
+        );
+    }
 }
 
 #[test]
@@ -145,14 +34,8 @@ fn test_origin() {
         ..Default::default()
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
-    assert_eq!(
-        formatter.format_header_origin(regenerator2000_core::state::Addr(0x0801)),
-        "* = $0801"
-    );
-    assert_eq!(
-        formatter.format_header_origin(regenerator2000_core::state::Addr(0xC000)),
-        "* = $c000"
-    );
+    assert_eq!(formatter.format_header_origin(Addr(0x0801)), "* = $0801");
+    assert_eq!(formatter.format_header_origin(Addr(0xC000)), "* = $c000");
 }
 
 #[test]
@@ -162,7 +45,6 @@ fn test_labels() {
         ..Default::default()
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
-    // ACME uses label without colon for both definition and reference
     assert_eq!(formatter.format_label("MyLabel"), "MyLabel");
     assert_eq!(formatter.format_label_definition("MyLabel"), "MyLabel");
 }
@@ -183,113 +65,29 @@ fn test_directives() {
 fn test_forced_absolute_plus2() {
     let mut settings = DocumentSettings {
         assembler: Assembler::Acme,
+        preserve_long_bytes: true,
         ..Default::default()
     };
-    let formatter = Disassembler::create_formatter(settings.assembler);
-    let labels = BTreeMap::new();
-    let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator2000_core::cpu::get_opcodes();
 
     // ACME uses "+2" suffix for forced 16-bit addressing
-    settings.preserve_long_bytes = true;
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xAD].as_ref().unwrap(),
-        operands: &[0x02, 0x00],
-        address: regenerator2000_core::state::Addr(0x1000),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
     assert_eq!(
-        formatter.format_instruction(&ctx),
+        format_raw_instruction(&settings, 0xAD, &[0x02, 0x00], 0x1000),
         ("lda+2".to_string(), "$0002".to_string())
+    );
+    assert_eq!(
+        format_raw_instruction(&settings, 0x9D, &[0x10, 0x00], 0x1003),
+        ("sta+2".to_string(), "$0010,x".to_string())
+    );
+    assert_eq!(
+        format_raw_instruction(&settings, 0xAD, &[0x20, 0xD0], 0x1006),
+        ("lda".to_string(), "$d020".to_string())
     );
 
     // With preserve_long_bytes=false, no +2
-    let mut settings_false = settings.clone();
-    settings_false.preserve_long_bytes = false;
-    let ctx_false = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xAD].as_ref().unwrap(),
-        operands: &[0x02, 0x00],
-        address: regenerator2000_core::state::Addr(0x1000),
-        target_context: None,
-        labels: &labels,
-        settings: &settings_false,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
+    settings.preserve_long_bytes = false;
     assert_eq!(
-        formatter.format_instruction(&ctx_false),
+        format_raw_instruction(&settings, 0xAD, &[0x02, 0x00], 0x1000),
         ("lda".to_string(), "$0002".to_string())
-    );
-
-    // Absolute,X with forced absolute: STA $0010,X
-    let ctx_x = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0x9D].as_ref().unwrap(), // STA abs,X
-        operands: &[0x10, 0x00],
-        address: regenerator2000_core::state::Addr(0x1003),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
-    assert_eq!(
-        formatter.format_instruction(&ctx_x),
-        ("sta+2".to_string(), "$0010,x".to_string())
-    );
-
-    // Non-ZP absolute address: should NOT get +2
-    let ctx_normal = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xAD].as_ref().unwrap(),
-        operands: &[0x20, 0xD0],
-        address: regenerator2000_core::state::Addr(0x1006),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
-    assert_eq!(
-        formatter.format_instruction(&ctx_normal),
-        ("lda".to_string(), "$d020".to_string())
     );
 }
 
@@ -299,100 +97,17 @@ fn test_addressing_modes() {
         assembler: Assembler::Acme,
         ..Default::default()
     };
-    let formatter = Disassembler::create_formatter(settings.assembler);
-    let labels = BTreeMap::new();
-    let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator2000_core::cpu::get_opcodes();
 
-    // LDA ($20,X) — Indirect X
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xA1].as_ref().unwrap(),
-        operands: &[0x20],
-        address: regenerator2000_core::state::Addr(0x2000),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
-    assert_eq!(
-        formatter.format_instruction(&ctx),
-        ("lda".to_string(), "($20,x)".to_string())
-    );
-
-    // LDA ($20),Y — Indirect Y
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xB1].as_ref().unwrap(),
-        operands: &[0x20],
-        address: regenerator2000_core::state::Addr(0x2002),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
-    assert_eq!(
-        formatter.format_instruction(&ctx),
-        ("lda".to_string(), "($20),y".to_string())
-    );
-
-    // BNE $2007 — Relative forward
-    let annotations = {
-        let mut ann = AnnotationManager::default();
-        for (a, f) in &immediate_value_formats {
-            ann.update(*a, |e| e.immediate_format = Some(*f));
-        }
-        ann
-    };
-    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-        opcode: opcodes[0xD0].as_ref().unwrap(),
-        operands: &[0x03],
-        address: regenerator2000_core::state::Addr(0x2004),
-        target_context: None,
-        labels: &labels,
-        settings: &settings,
-        annotations: &annotations,
-        local_label_names: None,
-        label_scope_names: None,
-        current_scope_name: None,
-        scope_separator: ".",
-        local_prefix: None,
-        enums: &BTreeMap::new(),
-        user_global_enums: &BTreeMap::new(),
-        builtin_enums: &BTreeMap::new(),
-    };
-    assert_eq!(
-        formatter.format_instruction(&ctx),
-        ("bne".to_string(), "$2009".to_string())
-    );
+    for (opcode, operands, addr, expected) in [
+        (0xA1, &[0x20][..], 0x2000, ("lda", "($20,x)")),
+        (0xB1, &[0x20][..], 0x2002, ("lda", "($20),y")),
+        (0xD0, &[0x03][..], 0x2004, ("bne", "$2009")),
+    ] {
+        assert_eq!(
+            format_raw_instruction(&settings, opcode, operands, addr),
+            (expected.0.to_string(), expected.1.to_string())
+        );
+    }
 }
 
 #[test]
@@ -403,7 +118,6 @@ fn test_definition() {
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
 
-    // ACME: always uses shortest hex representation to avoid forcing absolute
     assert_eq!(
         formatter.format_definition("zpVar", 0x00C5, true),
         "zpVar = $c5"
@@ -412,7 +126,6 @@ fn test_definition() {
         formatter.format_definition("kernal", 0xFFD2, false),
         "kernal = $ffd2"
     );
-    // Even non-ZP, if value <= 0xFF, use $xx form
     assert_eq!(
         formatter.format_definition("lowAddr", 0x0010, false),
         "lowAddr = $10"
@@ -431,7 +144,7 @@ fn test_file_header() {
     assert!(header.contains("acme"));
     assert!(header.contains("--format cbm"));
     assert!(header.contains("-o my_game.prg my_game.asm"));
-    assert!(!header.contains("--cpu 6510")); // no illegal opcodes
+    assert!(!header.contains("--cpu 6510"));
 
     let header_illegal = formatter.format_file_header("my_game", true);
     assert!(header_illegal.contains("--cpu 6510"));
@@ -447,14 +160,12 @@ fn test_text_formatting() {
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
 
-    // Pure text: !text "hello"
     let fragments = vec![TextFragment::Text("hello".to_string())];
     let lines = formatter.format_text(&fragments, true, true);
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].0, "!text");
     assert_eq!(lines[0].1, "\"hello\"");
 
-    // Mixed text and bytes
     let fragments = vec![
         TextFragment::Text("AB".to_string()),
         TextFragment::Byte(0x00),
@@ -476,13 +187,10 @@ fn test_text_escaping() {
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
 
-    // Quotes: escaped with backslash in ACME
     let fragments = vec![TextFragment::Text("SAY \"HI\"".to_string())];
     let lines = formatter.format_text(&fragments, true, true);
-    // ACME escapes with backslash
     assert_eq!(lines[0].1, "\"SAY \\\"HI\\\"\"");
 
-    // Backslashes: escaped with double backslash
     let fragments = vec![TextFragment::Text("C:\\DOS".to_string())];
     let lines = formatter.format_text(&fragments, true, true);
     assert_eq!(lines[0].1, "\"C:\\\\DOS\"");
@@ -498,23 +206,19 @@ fn test_screencode_formatting() {
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
 
-    // ACME: screencode pre/post are empty (no encoding wrapper)
     assert!(formatter.format_screencode_pre().is_empty());
     assert!(formatter.format_screencode_post().is_empty());
 
-    // Screencode body: uses !scr with case-swapped text
     let fragments = vec![TextFragment::Text("Hello World".to_string())];
     let lines = formatter.format_screencode(&fragments);
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].0, "!scr");
     assert_eq!(lines[0].1, "\"hELLO wORLD\"");
 
-    // Screencode with special chars that need hex escaping
     let fragments = vec![TextFragment::Text("A{B|C}D~E".to_string())];
     let lines = formatter.format_screencode(&fragments);
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].0, "!scr");
-    // { -> $5b, | -> $5c, } -> $5d, ~ -> $5e, letters case-swapped
     assert_eq!(
         lines[0].1,
         "\"a\", $5b, \"b\", $5c, \"c\", $5d, \"d\", $5e, \"e\""
@@ -543,43 +247,23 @@ fn test_screencode_bytes() {
 
 #[test]
 fn test_lax_immediate_mnemonic() {
-    // ACME uses "lxa" for opcode $AB (LAX immediate), not "lax"
-    let mut settings = DocumentSettings {
+    let settings = DocumentSettings {
         assembler: Assembler::Acme,
+        use_illegal_opcodes: true,
         ..Default::default()
     };
-    settings.use_illegal_opcodes = true;
-    let formatter = Disassembler::create_formatter(settings.assembler);
-    let labels = BTreeMap::new();
-    let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator2000_core::cpu::get_opcodes();
+    let (mnemonic, _) = format_raw_instruction(&settings, 0xAB, &[0x42], 0x1000);
+    assert_eq!(mnemonic, "lxa", "ACME should use 'lxa' for opcode $AB");
+}
 
-    if let Some(opcode) = opcodes[0xAB].as_ref() {
-        let annotations = {
-            let mut ann = AnnotationManager::default();
-            for (a, f) in &immediate_value_formats {
-                ann.update(*a, |e| e.immediate_format = Some(*f));
-            }
-            ann
-        };
-        let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
-            opcode,
-            operands: &[0x42],
-            address: regenerator2000_core::state::Addr(0x1000),
-            target_context: None,
-            labels: &labels,
-            settings: &settings,
-            annotations: &annotations,
-            local_label_names: None,
-            label_scope_names: None,
-            current_scope_name: None,
-            scope_separator: ".",
-            local_prefix: None,
-            enums: &BTreeMap::new(),
-            user_global_enums: &BTreeMap::new(),
-            builtin_enums: &BTreeMap::new(),
-        };
-        let (mnemonic, _) = formatter.format_instruction(&ctx);
-        assert_eq!(mnemonic, "lxa", "ACME should use 'lxa' for opcode $AB");
-    }
+#[path = "common/symbolic_offset_formatter.rs"]
+mod symbolic_offset_formatter;
+
+#[test]
+fn test_symbolic_offset_formatting_all_modes_acme() {
+    symbolic_offset_formatter::assert_symbolic_offset_formatting_all_modes(
+        Assembler::Acme,
+        "lda+2",
+        "table_0100 - 1,x",
+    );
 }

@@ -1,4 +1,5 @@
-//! Core domain types for 6502 addresses, target systems, block types, labels, and cross-references.
+//! Core domain types for 6502 addresses, target systems, block types, labels, symbolic offsets,
+//! and typed cross-references.
 
 use serde::{Deserialize, Serialize};
 
@@ -986,6 +987,34 @@ impl LabelType {
             format!("{prefix}{addr:04X}")
         }
     }
+
+    /// Normalizes zero-page vs. 16-bit memory [`LabelType`] variants to match `addr`'s address space.
+    ///
+    /// When an active [`SymbolicOffset`] redirects a reference across `$00FF` / `$0100` to `sym.base`,
+    /// auto-generated labels at `sym.base` must match `sym.base`'s address width. Zero-page bases
+    /// (`$0000..=$00FF`) use `zpf_`, `zpa_`, and `zpp_`, while 16-bit bases (`$0100..=$FFFF`) use `f_`, `a_`, and `p_`.
+    /// Control-flow, predefined, and user-defined variants remain unchanged.
+    ///
+    /// Note: Static analysis calls this method **only** when a [`SymbolicOffset`] redirects a reference.
+    /// Direct 3-byte instructions targeting zero-page addresses without an offset keep 16-bit prefixes (`a_00A0`).
+    #[must_use]
+    pub const fn normalize_for_address(self, addr: Addr) -> Self {
+        if addr.0 > 0x00FF {
+            match self {
+                Self::ZeroPageField => Self::Field,
+                Self::ZeroPageAbsoluteAddress => Self::AbsoluteAddress,
+                Self::ZeroPagePointer => Self::Pointer,
+                other => other,
+            }
+        } else {
+            match self {
+                Self::Field => Self::ZeroPageField,
+                Self::AbsoluteAddress => Self::ZeroPageAbsoluteAddress,
+                Self::Pointer => Self::ZeroPagePointer,
+                other => other,
+            }
+        }
+    }
 }
 
 /// Display format for an 8-bit immediate operand.
@@ -1007,6 +1036,212 @@ pub enum ImmediateFormat {
     LowByte(Addr),
     /// High byte of a 16-bit target address (`#>label`).
     HighByte(Addr),
+}
+
+/// Numeric radix used when formatting the signed displacement in a [`SymbolicOffset`].
+///
+/// # Examples
+///
+/// ```
+/// use regenerator2000_core::state::{Addr, OffsetParentheses, OffsetRadix, SymbolicOffset};
+///
+/// let dec = SymbolicOffset { base: Addr(0x0400), offset: 40, radix: OffsetRadix::Decimal };
+/// let hex = SymbolicOffset { base: Addr(0x0400), offset: 0x28, radix: OffsetRadix::Hex };
+/// assert_eq!(
+///     dec.format_expression("SCREEN_RAM", OffsetParentheses::Bare),
+///     "SCREEN_RAM + 40"
+/// );
+/// assert_eq!(
+///     hex.format_expression("SCREEN_RAM", OffsetParentheses::Bare),
+///     "SCREEN_RAM + $28"
+/// );
+/// assert_eq!(OffsetRadix::Decimal.as_str(), "decimal");
+/// assert_eq!(OffsetRadix::Hex.as_str(), "hex");
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum OffsetRadix {
+    /// Formats displacement in base-10 (for example, `label + 1`, `label - 1`, `label + 40`).
+    #[default]
+    Decimal,
+    /// Formats displacement in lowercase base-16 with `$` prefix (for example, `label + $28`).
+    Hex,
+}
+
+impl OffsetRadix {
+    /// Returns the lowercase identifier (`"decimal"` or `"hex"`) used in structured JSON output.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Decimal => "decimal",
+            Self::Hex => "hex",
+        }
+    }
+}
+
+impl std::fmt::Display for OffsetRadix {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Controls whether a non-zero [`SymbolicOffset`] expression wraps in outer parentheses.
+///
+/// Unary byte-extraction operators (`#<`, `#>`, `<`, `>`) require
+/// [`OffsetParentheses::Parenthesized`] (`#<(sub_C100 - 1)`) so binary `+`/`-` bind before `<`/`>`,
+/// whereas direct memory and `.word` operands use [`OffsetParentheses::Bare`] (`sub_C100 - 1`) to
+/// avoid triggering 6502 indirect addressing syntax.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum OffsetParentheses {
+    /// Emit bare `base + N` or `base - N` without outer parentheses.
+    #[default]
+    Bare,
+    /// Wrap non-zero offsets in outer parentheses (`(base + N)` or `(base - N)`).
+    Parenthesized,
+}
+
+/// Represents an instruction operand, 16-bit `.word` slot, or split-table pair targeting a 6502 [`Addr`].
+///
+/// Returned by [`AppState::effective_targets_with_pair_in_range`](super::AppState::effective_targets_with_pair_in_range).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OperandTargetSite {
+    /// Canonical reference site address (instruction start, `.word` address, or first-half split-table byte).
+    pub site_addr: Addr,
+    /// Raw un-offset effective target address decoded from the operand or table entry.
+    pub raw_target: Addr,
+    /// `true` when `site_addr` is a 2-byte zero-page instruction whose base must fit `$00..=$FF`.
+    pub is_zero_page_mode: bool,
+    /// Paired second-half byte address when `site_addr` belongs to a [`BlockType::LoHiAddress`] or [`BlockType::HiLoAddress`] table.
+    pub second_pair_addr: Option<Addr>,
+}
+
+/// Relational binding that formats an effective 16-bit MOS 6502 address as `base_symbol +/- offset`.
+///
+/// Regenerator 2000 attaches [`SymbolicOffset`] records across two complementary tiers in
+/// [`AddressEntry`](super::AddressEntry):
+///
+/// - **Tier 1 (`operand_offset`)**: Binds one instruction or table site (such as `LDA table - 1,X`
+///   or `.byte <(sub_C100 - 1)`). Labels at `base - 1` stay unchanged.
+/// - **Tier 2 (`address_offset`)**: Binds a target address globally across the binary (such as
+///   `zp_ptr + 1` at `$00FC`). Routes incoming cross-references to `base` and suppresses orphan equates.
+///
+/// # Invariants
+///
+/// - **Non-wrapping 16-bit equality**: `i32::from(base.0) + i32::from(offset)` must equal
+///   `i32::from(effective_address.0)` within `0x0000..=0xFFFF` (wrapping across `$FFFF` / `$0000`
+///   is rejected).
+/// - **Non-zero displacement**: `offset` is always non-zero (`offset == 0` normalizes to `None`).
+///
+/// # Examples
+///
+/// ```
+/// use regenerator2000_core::state::{Addr, OffsetParentheses, OffsetRadix, SymbolicOffset};
+///
+/// // 16-bit zero-page pointer high byte ($00FC -> zp_ptr + 1)
+/// let zp_hi = SymbolicOffset::from_base_and_effective(
+///     Addr(0x00FB),
+///     Addr(0x00FC),
+///     OffsetRadix::Decimal,
+/// )
+/// .unwrap();
+/// assert!(zp_hi.matches_target(Addr(0x00FC)));
+/// assert_eq!(
+///     zp_hi.format_expression("zp_ptr", OffsetParentheses::Bare),
+///     "zp_ptr + 1"
+/// );
+///
+/// // RTS dispatch vector ($C0FF -> (sub_C100 - 1) inside #< / #> or < / > byte extractors)
+/// let rts_vec = SymbolicOffset::from_base_and_effective(
+///     Addr(0xC100),
+///     Addr(0xC0FF),
+///     OffsetRadix::Decimal,
+/// )
+/// .unwrap();
+/// assert_eq!(rts_vec.effective_address(), Some(Addr(0xC0FF)));
+/// assert_eq!(
+///     rts_vec.format_expression("sub_C100", OffsetParentheses::Parenthesized),
+///     "(sub_C100 - 1)"
+/// );
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SymbolicOffset {
+    /// Canonical base address whose resolved symbol name anchors the expression.
+    pub base: Addr,
+    /// Non-zero signed byte displacement (`effective_address - base`).
+    pub offset: i16,
+    /// Display radix (`Decimal` or `Hex`) used when formatting [`Self::offset`].
+    #[serde(default)]
+    pub radix: OffsetRadix,
+}
+
+impl SymbolicOffset {
+    /// Computes the effective 16-bit address `base + offset` if the non-wrapping sum lies within `0x0000..=0xFFFF`.
+    #[must_use]
+    pub const fn effective_address(self) -> Option<Addr> {
+        let sum = (self.base.0 as i32) + (self.offset as i32);
+        if sum >= 0 && sum <= 0xFFFF {
+            Some(Addr(sum as u16))
+        } else {
+            None
+        }
+    }
+
+    /// Returns `true` if `self.offset != 0` and `base + offset == raw_target` (non-wrapping 16-bit).
+    #[must_use]
+    pub const fn matches_target(self, raw_target: Addr) -> bool {
+        if self.offset == 0 {
+            return false;
+        }
+        matches!(self.effective_address(), Some(addr) if addr.0 == raw_target.0)
+    }
+
+    /// Constructs a [`SymbolicOffset`] from `base` and `effective`, returning `None` if
+    /// `base == effective` (`offset == 0`) or if `effective - base` overflows `i16`.
+    #[must_use]
+    pub fn from_base_and_effective(
+        base: Addr,
+        effective: Addr,
+        radix: OffsetRadix,
+    ) -> Option<Self> {
+        let diff = i32::from(effective.0) - i32::from(base.0);
+        if diff == 0 {
+            return None;
+        }
+        let offset = i16::try_from(diff).ok()?;
+        Some(Self {
+            base,
+            offset,
+            radix,
+        })
+    }
+
+    /// Formats the signed displacement suffix (for example, `" + 1"`, `" - 1"`, `" + $28"`).
+    #[must_use]
+    pub fn format_displacement(self) -> String {
+        let sign = if self.offset >= 0 { "+" } else { "-" };
+        // Use `unsigned_abs()` so `i16::MIN` (`-32768` / `-$8000`) formats without signed negation overflow.
+        let mag = self.offset.unsigned_abs();
+        match self.radix {
+            OffsetRadix::Decimal => format!(" {sign} {mag}"),
+            OffsetRadix::Hex => format!(" {sign} ${mag:x}"),
+        }
+    }
+
+    /// Formats the complete symbolic expression around `base_name`.
+    ///
+    /// When `parens` is [`OffsetParentheses::Parenthesized`], wraps non-zero expressions in
+    /// parentheses (`"(sub_C100 - 1)"`) because unary `<` and `>` byte extractors bind tighter
+    /// than binary `+` and `-` across assemblers.
+    #[must_use]
+    pub fn format_expression(self, base_name: &str, parens: OffsetParentheses) -> String {
+        if self.offset == 0 {
+            return base_name.to_string();
+        }
+        let disp = self.format_displacement();
+        match parens {
+            OffsetParentheses::Parenthesized => format!("({base_name}{disp})"),
+            OffsetParentheses::Bare => format!("{base_name}{disp}"),
+        }
+    }
 }
 
 /// Precomputed line indices for a control-flow arrow in the disassembly gutter.
@@ -1490,6 +1725,322 @@ mod tests {
                 XRef::new(Addr(0x1000), XRefKind::Offset),
                 XRef::new(Addr(0x2000), XRefKind::Jump),
             ]
+        );
+    }
+
+    #[test]
+    fn test_symbolic_offset_effective_address_and_non_wrapping_bounds() {
+        // 1. Strict non-wrapping lower bound ($0000 - 1)
+        let underflow = SymbolicOffset {
+            base: Addr(0x0000),
+            offset: -1,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(underflow.effective_address(), None);
+        assert!(!underflow.matches_target(Addr(0xFFFF)));
+        assert!(!underflow.matches_target(Addr(0x0000)));
+
+        // 2. Strict non-wrapping upper bound ($FFFF + 1)
+        let overflow = SymbolicOffset {
+            base: Addr(0xFFFF),
+            offset: 1,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(overflow.effective_address(), None);
+        assert!(!overflow.matches_target(Addr(0x0000)));
+        assert!(!overflow.matches_target(Addr(0xFFFF)));
+
+        // 3. Exact boundary hits
+        let exact_zero = SymbolicOffset {
+            base: Addr(0x0001),
+            offset: -1,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(exact_zero.effective_address(), Some(Addr(0x0000)));
+        assert!(exact_zero.matches_target(Addr(0x0000)));
+
+        let exact_ffff = SymbolicOffset {
+            base: Addr(0xFFFE),
+            offset: 1,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(exact_ffff.effective_address(), Some(Addr(0xFFFF)));
+        assert!(exact_ffff.matches_target(Addr(0xFFFF)));
+
+        // 4. i16::MIN (-32768) and i16::MAX (32767) extremes
+        let min_ok = SymbolicOffset {
+            base: Addr(0x8000),
+            offset: i16::MIN,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(min_ok.effective_address(), Some(Addr(0x0000)));
+        assert!(min_ok.matches_target(Addr(0x0000)));
+
+        let min_underflow = SymbolicOffset {
+            base: Addr(0x7FFF),
+            offset: i16::MIN,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(min_underflow.effective_address(), None);
+
+        let max_ok = SymbolicOffset {
+            base: Addr(0x8000),
+            offset: i16::MAX,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(max_ok.effective_address(), Some(Addr(0xFFFF)));
+        assert!(max_ok.matches_target(Addr(0xFFFF)));
+
+        let max_overflow = SymbolicOffset {
+            base: Addr(0x8001),
+            offset: i16::MAX,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(max_overflow.effective_address(), None);
+    }
+
+    #[test]
+    fn test_symbolic_offset_zero_displacement_rejected_and_from_base_and_effective() {
+        let zero_sym = SymbolicOffset {
+            base: Addr(0x1000),
+            offset: 0,
+            radix: OffsetRadix::Decimal,
+        };
+        assert!(!zero_sym.matches_target(Addr(0x1000)));
+
+        assert_eq!(
+            SymbolicOffset::from_base_and_effective(
+                Addr(0x1000),
+                Addr(0x1000),
+                OffsetRadix::Decimal,
+            ),
+            None
+        );
+        assert_eq!(
+            SymbolicOffset::from_base_and_effective(
+                Addr(0x00FB),
+                Addr(0x00FC),
+                OffsetRadix::Decimal,
+            ),
+            Some(SymbolicOffset {
+                base: Addr(0x00FB),
+                offset: 1,
+                radix: OffsetRadix::Decimal,
+            })
+        );
+        assert_eq!(
+            SymbolicOffset::from_base_and_effective(Addr(0xC100), Addr(0xC0FF), OffsetRadix::Hex),
+            Some(SymbolicOffset {
+                base: Addr(0xC100),
+                offset: -1,
+                radix: OffsetRadix::Hex,
+            })
+        );
+        // +65535 and -65535 exceed i16 range
+        assert_eq!(
+            SymbolicOffset::from_base_and_effective(
+                Addr(0x0000),
+                Addr(0xFFFF),
+                OffsetRadix::Decimal,
+            ),
+            None
+        );
+        assert_eq!(
+            SymbolicOffset::from_base_and_effective(
+                Addr(0xFFFF),
+                Addr(0x0000),
+                OffsetRadix::Decimal,
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn test_symbolic_offset_format_displacement_and_expression() {
+        // 1. Decimal positive and negative
+        let zp_hi = SymbolicOffset {
+            base: Addr(0x00FB),
+            offset: 1,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(zp_hi.format_displacement(), " + 1");
+        assert_eq!(
+            zp_hi.format_expression("zp_ptr", OffsetParentheses::Bare),
+            "zp_ptr + 1"
+        );
+        assert_eq!(
+            zp_hi.format_expression("zp_ptr", OffsetParentheses::Parenthesized),
+            "(zp_ptr + 1)"
+        );
+
+        let rts_sub = SymbolicOffset {
+            base: Addr(0xC100),
+            offset: -1,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(rts_sub.format_displacement(), " - 1");
+        assert_eq!(
+            rts_sub.format_expression("sub_C100", OffsetParentheses::Bare),
+            "sub_C100 - 1"
+        );
+        assert_eq!(
+            rts_sub.format_expression("sub_C100", OffsetParentheses::Parenthesized),
+            "(sub_C100 - 1)"
+        );
+
+        let screen_row = SymbolicOffset {
+            base: Addr(0x0400),
+            offset: 40,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(
+            screen_row.format_expression("SCREEN_RAM", OffsetParentheses::Bare),
+            "SCREEN_RAM + 40"
+        );
+
+        // 2. Hex positive, negative, and i16::MIN (-32768 -> $8000 without overflow panic)
+        let screen_hex = SymbolicOffset {
+            base: Addr(0x0400),
+            offset: 0x28,
+            radix: OffsetRadix::Hex,
+        };
+        assert_eq!(
+            screen_hex.format_expression("SCREEN_RAM", OffsetParentheses::Bare),
+            "SCREEN_RAM + $28"
+        );
+        assert_eq!(
+            screen_hex.format_expression("SCREEN_RAM", OffsetParentheses::Parenthesized),
+            "(SCREEN_RAM + $28)"
+        );
+
+        let table_neg_hex = SymbolicOffset {
+            base: Addr(0x2000),
+            offset: -0x10,
+            radix: OffsetRadix::Hex,
+        };
+        assert_eq!(
+            table_neg_hex.format_expression("table", OffsetParentheses::Bare),
+            "table - $10"
+        );
+        assert_eq!(
+            table_neg_hex.format_expression("table", OffsetParentheses::Parenthesized),
+            "(table - $10)"
+        );
+
+        let min_hex = SymbolicOffset {
+            base: Addr(0x8000),
+            offset: i16::MIN,
+            radix: OffsetRadix::Hex,
+        };
+        assert_eq!(
+            min_hex.format_expression("base", OffsetParentheses::Bare),
+            "base - $8000"
+        );
+
+        // 3. Defensive offset == 0 never wraps in redundant parentheses
+        let zero = SymbolicOffset {
+            base: Addr(0xC100),
+            offset: 0,
+            radix: OffsetRadix::Decimal,
+        };
+        assert_eq!(
+            zero.format_expression("sub_C100", OffsetParentheses::Bare),
+            "sub_C100"
+        );
+        assert_eq!(
+            zero.format_expression("sub_C100", OffsetParentheses::Parenthesized),
+            "sub_C100"
+        );
+        assert_eq!(OffsetParentheses::default(), OffsetParentheses::Bare);
+        assert_eq!(OffsetRadix::default(), OffsetRadix::Decimal);
+        assert_eq!(OffsetRadix::Decimal.to_string(), "decimal");
+        assert_eq!(OffsetRadix::Hex.to_string(), "hex");
+    }
+
+    #[test]
+    fn test_label_type_normalize_for_address() {
+        let unchanged_variants = [
+            LabelType::Subroutine,
+            LabelType::Jump,
+            LabelType::Branch,
+            LabelType::Return,
+            LabelType::ExternalJump,
+            LabelType::Predefined,
+            LabelType::UserDefined,
+            LabelType::LocalUserDefined,
+        ];
+
+        for addr in [Addr(0x0100), Addr(0xC000)] {
+            assert_eq!(
+                LabelType::ZeroPageField.normalize_for_address(addr),
+                LabelType::Field
+            );
+            assert_eq!(
+                LabelType::ZeroPageAbsoluteAddress.normalize_for_address(addr),
+                LabelType::AbsoluteAddress
+            );
+            assert_eq!(
+                LabelType::ZeroPagePointer.normalize_for_address(addr),
+                LabelType::Pointer
+            );
+            assert_eq!(
+                LabelType::Field.normalize_for_address(addr),
+                LabelType::Field
+            );
+            assert_eq!(
+                LabelType::AbsoluteAddress.normalize_for_address(addr),
+                LabelType::AbsoluteAddress
+            );
+            assert_eq!(
+                LabelType::Pointer.normalize_for_address(addr),
+                LabelType::Pointer
+            );
+            for variant in unchanged_variants {
+                assert_eq!(variant.normalize_for_address(addr), variant);
+            }
+        }
+
+        for addr in [Addr(0x0000), Addr(0x00FF)] {
+            assert_eq!(
+                LabelType::Field.normalize_for_address(addr),
+                LabelType::ZeroPageField
+            );
+            assert_eq!(
+                LabelType::AbsoluteAddress.normalize_for_address(addr),
+                LabelType::ZeroPageAbsoluteAddress
+            );
+            assert_eq!(
+                LabelType::Pointer.normalize_for_address(addr),
+                LabelType::ZeroPagePointer
+            );
+            assert_eq!(
+                LabelType::ZeroPageField.normalize_for_address(addr),
+                LabelType::ZeroPageField
+            );
+            assert_eq!(
+                LabelType::ZeroPageAbsoluteAddress.normalize_for_address(addr),
+                LabelType::ZeroPageAbsoluteAddress
+            );
+            assert_eq!(
+                LabelType::ZeroPagePointer.normalize_for_address(addr),
+                LabelType::ZeroPagePointer
+            );
+            for variant in unchanged_variants {
+                assert_eq!(variant.normalize_for_address(addr), variant);
+            }
+        }
+
+        assert_eq!(
+            LabelType::ZeroPageField
+                .normalize_for_address(Addr(0x0100))
+                .format_label(0x0100),
+            "f_0100"
+        );
+        assert_eq!(
+            LabelType::Field
+                .normalize_for_address(Addr(0x00FF))
+                .format_label(0x00FF),
+            "zpf_FF"
         );
     }
 }

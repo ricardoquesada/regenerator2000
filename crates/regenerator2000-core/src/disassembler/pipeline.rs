@@ -12,18 +12,18 @@ use crate::disassembler::data_blocks;
 use crate::disassembler::formatter::Formatter;
 use crate::disassembler::handlers;
 use crate::disassembler::symbols::{
-    compute_local_label_names, compute_scope_names, get_arrow_target_address_for_opcode,
-    get_label_name, get_referenced_address_for_opcode, resolve_line_label,
+    ScopeNameMap, compute_local_label_names, compute_scope_names,
+    get_arrow_target_address_for_opcode, get_label_name, get_referenced_address_for_opcode,
+    has_active_address_offset, resolve_effective_symbolic_offset_for_mode, resolve_line_label,
 };
 use crate::state::{Addr, BlockType};
 use std::collections::BTreeMap;
 
 /// Decodes one MOS 6502/6510 instruction starting at byte offset `args.pc`.
 ///
-/// Returns `(bytes_consumed, emitted_lines)`. This function handles two-byte `BRK`
-/// instructions (`!settings.brk_single_byte`), filters undocumented opcodes when
-/// `!settings.use_illegal_opcodes`, and falls back to a `.byte` directive when an
-/// instruction is incomplete or crosses a non-code block boundary.
+/// Returns `(bytes_consumed, emitted_lines)`. This function handles two-byte `BRK` instructions
+/// (`!settings.brk_single_byte`) and skips undocumented opcodes when `!settings.use_illegal_opcodes`.
+/// Incomplete instructions or instructions that cross a block boundary emit a `.byte` directive.
 #[must_use]
 pub fn disassemble_code_instruction(
     opcodes: &[Option<Opcode>; 256],
@@ -91,6 +91,7 @@ pub fn disassemble_code_instruction(
                                 next_addr,
                                 local_label_names,
                                 labels,
+                                ctx.annotations,
                                 formatter,
                                 settings,
                             ),
@@ -129,13 +130,26 @@ pub fn disassemble_code_instruction(
         {
             let bytes = inst_bytes.to_vec();
 
-            if let Some(target_addr) = get_referenced_address_for_opcode(opcode, &bytes, address)
-                && let Some(target_comment) = ctx.get_target_comment(target_addr)
-            {
-                if !side_comment.is_empty() {
-                    side_comment.push_str("; ");
+            if let Some(target_addr) = get_referenced_address_for_opcode(opcode, &bytes, address) {
+                // Prefer an explicit comment on `target_addr` (for example, a specific struct
+                // field note); otherwise fall back to `sym.base`'s comment when a `SymbolicOffset`
+                // redirects the operand (such as `zp_ptr + 1` inheriting `zp_ptr`'s note).
+                let sym = resolve_effective_symbolic_offset_for_mode(
+                    address,
+                    target_addr,
+                    opcode.mode.is_zero_page(),
+                    labels,
+                    ctx.annotations,
+                );
+                if let Some(target_comment) = ctx
+                    .get_target_comment(target_addr)
+                    .or_else(|| sym.and_then(|s| ctx.get_target_comment(s.base)))
+                {
+                    if !side_comment.is_empty() {
+                        side_comment.push_str("; ");
+                    }
+                    side_comment.push_str(target_comment);
                 }
-                side_comment.push_str(target_comment);
             }
 
             let operands_slice = bytes.get(1..).unwrap_or(&[]);
@@ -243,17 +257,13 @@ pub fn disassemble_ctx(
     let label_scope_names = if supports_scopes {
         compute_scope_names(ctx, formatter)
     } else {
-        BTreeMap::new()
+        ScopeNameMap::default()
     };
 
     let mut all_local_names: Option<BTreeMap<Addr, String>> = None;
     if supports_scopes {
         let mut locals = BTreeMap::new();
-        for (start_addr, end_addr) in ctx
-            .annotations
-            .iter()
-            .filter_map(|(s, e)| e.scope.map(|end| (s, end)))
-        {
+        for (&start_addr, &end_addr) in ctx.annotations.scopes() {
             let start_pc = match start_addr.0.checked_sub(ctx.origin.0) {
                 Some(off) if (off as usize) < ctx.data.len() => off as usize,
                 _ => continue,
@@ -315,7 +325,12 @@ pub fn disassemble_ctx(
             };
             current_scope_end_pc = Some(end);
 
-            let label_name_opt = get_label_name(address, ctx.labels, formatter, ctx.settings);
+            let label_name_opt = if has_active_address_offset(address, ctx.labels, ctx.annotations)
+            {
+                None
+            } else {
+                get_label_name(address, ctx.labels, formatter, ctx.settings)
+            };
 
             if let Some((label, mnemonic, operand)) =
                 formatter.format_scope_start(label_name_opt.as_deref())
@@ -384,6 +399,7 @@ pub fn disassemble_ctx(
                 address,
                 all_local_names.as_ref(),
                 ctx.labels,
+                ctx.annotations,
                 formatter,
                 ctx.settings,
             )

@@ -40,6 +40,17 @@ pub enum AddressingMode {
     Unknown,
 }
 
+impl AddressingMode {
+    /// Returns `true` when the opcode encodes an 8-bit zero-page address operand (`$00..=$FF`).
+    #[must_use]
+    pub const fn is_zero_page(self) -> bool {
+        matches!(
+            self,
+            Self::ZeroPage | Self::ZeroPageX | Self::ZeroPageY | Self::IndirectX | Self::IndirectY
+        )
+    }
+}
+
 /// Describes a single MOS 6502/6510 opcode byte (`0x00..=0xFF`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Opcode {

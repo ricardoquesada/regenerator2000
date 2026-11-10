@@ -228,4 +228,166 @@ mod tests {
                 .contains_key(&regenerator2000_core::state::Addr(0x1005))
         );
     }
+
+    #[test]
+    fn test_batch_execute_symbolic_offsets_and_immediate_format() {
+        let mut app_state = AppState::new();
+        app_state.system_config.default_is_unexplored = false;
+        let origin = Addr(0x1000);
+        // $1000: STA $FC       (85 FC)
+        // $1002: LDA #$FF      (A9 FF) -> LowByte($C0FF) -> #<(sub_C100 - 1)
+        // $1004: LDY #$C0      (A0 C0) -> HighByte($C0FF) -> #>(sub_C100 - 1)
+        // $1006..=$1009: LoHiAddress RTS table for $C0FF, $C0FF (FF FF C0 C0)
+        let data = vec![
+            0x85, 0xFC, 0xA9, 0xFF, 0xA0, 0xC0, 0xFF, 0xFF, 0xC0, 0xC0, 0x60,
+        ];
+        app_state.load_binary(origin, data).unwrap();
+
+        let mut ui_state = UIState::new(Theme::default());
+
+        // 1. Verify `tools/list` schema exposes `r2000_set_symbolic_offset`,
+        // `r2000_set_immediate_format.properties.offset`, and
+        // `r2000_get_symbols.properties.kind` enum containing `"derived"`.
+        let (tx_list, _) = oneshot::channel();
+        let list_req = McpRequest {
+            method: "tools/list".to_string(),
+            params: json!({}),
+            response_sender: tx_list,
+        };
+        let list_resp = handle_request(&list_req, &mut app_state, &mut ui_state);
+        assert!(list_resp.error.is_none());
+        let tools = list_resp.result.unwrap()["tools"]
+            .as_array()
+            .unwrap()
+            .clone();
+
+        let sym_offset_tool = tools
+            .iter()
+            .find(|t| t["name"] == "r2000_set_symbolic_offset")
+            .expect("r2000_set_symbolic_offset must be registered in tools/list");
+        assert!(
+            sym_offset_tool["inputSchema"]["properties"]["offset"].is_object(),
+            "r2000_set_symbolic_offset must expose offset property"
+        );
+        assert!(
+            sym_offset_tool["inputSchema"]["properties"]["base"].is_object(),
+            "r2000_set_symbolic_offset must expose base property"
+        );
+
+        let imm_tool = tools
+            .iter()
+            .find(|t| t["name"] == "r2000_set_immediate_format")
+            .expect("r2000_set_immediate_format must be registered");
+        assert_eq!(
+            imm_tool["inputSchema"]["properties"]["offset"]["type"],
+            "integer"
+        );
+
+        let get_symbols_tool = tools
+            .iter()
+            .find(|t| t["name"] == "r2000_get_symbols")
+            .expect("r2000_get_symbols must be registered");
+        let kind_enum = get_symbols_tool["inputSchema"]["properties"]["kind"]["enum"]
+            .as_array()
+            .expect("r2000_get_symbols.properties.kind.enum must be an array");
+        assert!(
+            kind_enum.iter().any(|v| v == "derived"),
+            "r2000_get_symbols kind enum must include 'derived'"
+        );
+
+        // 2. Dispatch `r2000_batch_execute` combining `r2000_set_data_type`, `r2000_set_label_name`,
+        // `r2000_set_symbolic_offset`, and `r2000_set_immediate_format`.
+        let calls = vec![
+            json!({
+                "name": "r2000_set_data_type",
+                "arguments": {
+                    "start_address": 0x1006,
+                    "end_address": 0x1009,
+                    "data_type": "lo_hi_address"
+                }
+            }),
+            json!({
+                "name": "r2000_set_label_name",
+                "arguments": { "address": 0xC100, "name": "sub_C100" }
+            }),
+            json!({
+                "name": "r2000_set_label_name",
+                "arguments": { "address": 0x00FB, "name": "zp_ptr" }
+            }),
+            json!({
+                "name": "r2000_set_label_name",
+                "arguments": { "address": 0x00FC, "name": "zp_ptr + 1" }
+            }),
+            json!({
+                "name": "r2000_set_symbolic_offset",
+                "arguments": {
+                    "start_address": 0x1006,
+                    "end_address": 0x1009,
+                    "offset": -1
+                }
+            }),
+            json!({
+                "name": "r2000_set_immediate_format",
+                "arguments": {
+                    "address": 0x1002,
+                    "format": "low_byte",
+                    "target_address": 0xC100,
+                    "offset": -1
+                }
+            }),
+            json!({
+                "name": "r2000_set_immediate_format",
+                "arguments": {
+                    "address": 0x1004,
+                    "format": "high_byte",
+                    "target_address": 0xC0FF,
+                    "offset": -1
+                }
+            }),
+        ];
+
+        let (tx, _) = oneshot::channel();
+        let req = McpRequest {
+            method: "tools/call".to_string(),
+            params: json!({
+                "name": "r2000_batch_execute",
+                "arguments": { "calls": calls }
+            }),
+            response_sender: tx,
+        };
+        let response = handle_request(&req, &mut app_state, &mut ui_state);
+        assert!(
+            response.error.is_none(),
+            "batch execute failed: {:?}",
+            response.error
+        );
+        let text_result = response.result.unwrap()["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let batch_items: Vec<serde_json::Value> = serde_json::from_str(&text_result).unwrap();
+        assert_eq!(batch_items.len(), 7);
+        for (idx, item) in batch_items.iter().enumerate() {
+            assert_eq!(
+                item["status"], "success",
+                "batch item {idx} failed: {item:?}"
+            );
+        }
+
+        // Verify disassembled operands reflect all symbolic offsets.
+        let find_op = |addr: u16| -> String {
+            app_state
+                .disassembly
+                .iter()
+                .find(|l| l.address == Addr(addr) && !l.bytes.is_empty())
+                .unwrap()
+                .operand
+                .clone()
+        };
+        assert_eq!(find_op(0x1000), "zp_ptr + 1");
+        assert_eq!(find_op(0x1002), "#<(sub_C100 - 1)");
+        assert_eq!(find_op(0x1004), "#>(sub_C100 - 1)");
+        assert_eq!(find_op(0x1006), "<(sub_C100 - 1), <(sub_C100 - 1)");
+        assert_eq!(find_op(0x1008), ">(sub_C100 - 1), >(sub_C100 - 1)");
+    }
 }

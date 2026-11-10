@@ -1,6 +1,7 @@
 //! TUI disassembly view component for rendering and interacting with MOS 6502 disassembly.
 //!
 //! This module organizes the disassembly view widget into specialized submodules:
+//!
 //! - [`layout`]: Visual line height calculation, line mapping, and layout geometry breakdown.
 //! - [`navigation`]: Cursor movement, scrolling, paging, and jump commands.
 //! - [`mouse`]: Mouse event handling, scroll wheel actions, and click/drag range selection.
@@ -229,6 +230,19 @@ impl Widget for DisassemblyView {
             }
             KeyCode::Char('l') if key.modifiers.is_empty() => {
                 WidgetResult::Action(AppAction::SetLabel)
+            }
+            KeyCode::Char('o') if key.modifiers.is_empty() => {
+                WidgetResult::Action(AppAction::SymbolicOffsetDialog)
+            }
+            // Accept both shifted `+` (`NONE` or `SHIFT` across terminal protocols) and unshifted
+            // `=` on US/ISO keyboards for ergonomic 1-keystroke `+1` offset nudging.
+            KeyCode::Char('+' | '=')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
+                WidgetResult::Action(AppAction::NudgeSymbolicOffset { delta: 1 })
+            }
+            KeyCode::Char('-') if key.modifiers.is_empty() => {
+                WidgetResult::Action(AppAction::NudgeSymbolicOffset { delta: -1 })
             }
             KeyCode::Char('c') if key.modifiers.is_empty() => WidgetResult::Action(AppAction::Code),
             KeyCode::Char('r')

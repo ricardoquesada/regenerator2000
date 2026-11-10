@@ -230,4 +230,170 @@ mod tests {
 
         let _ = std::fs::remove_file(path);
     }
+
+    #[test]
+    fn test_symbolic_offsets_project_save_and_load_roundtrip() {
+        use regenerator2000_core::state::{
+            Addr, ImmediateFormat, Label, LabelType, OffsetRadix, ProjectSaveContext,
+            SymbolicOffset, XRef, XRefKind,
+        };
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        // $1000: STA $FC (85 FC)
+        // $1002: LDA #$FF (A9 FF) -> LowByte($C0FF) + Tier 1 base: $C100, offset: -1
+        // $1004..=$1007: LoHiAddress table ($C0FF, $C1FF -> FF FF C0 C1) + Tier 1 offset: -1
+        app_state.raw_data = vec![0x85, 0xFC, 0xA9, 0xFF, 0xFF, 0xFF, 0xC0, 0xC1];
+        app_state.block_types = vec![
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress,
+        ];
+
+        app_state.labels.insert(
+            Addr(0x00FB),
+            vec![Label {
+                name: "zp_ptr".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        app_state.annotations.update(Addr(0x00FC), |e| {
+            e.address_offset = Some(SymbolicOffset {
+                base: Addr(0x00FB),
+                offset: 1,
+                radix: OffsetRadix::Hex,
+            });
+        });
+        app_state.annotations.update(Addr(0x1002), |e| {
+            e.immediate_format = Some(ImmediateFormat::LowByte(Addr(0xC0FF)));
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0xC100),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        app_state.annotations.update(Addr(0x1004), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0xC100),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        app_state.annotations.update(Addr(0x1005), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0xC200),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+
+        let _ = app_state.perform_analysis();
+        app_state.disassemble();
+
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "test_symbolic_offsets_roundtrip_{}.regen2000proj",
+            std::process::id()
+        ));
+        app_state.project_path = Some(path.clone());
+
+        let save_ctx = ProjectSaveContext {
+            cursor_address: None,
+            hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
+            charset_cursor_address: None,
+            bitmap_cursor_address: None,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
+            bitmap_multicolor_mode: false,
+            hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
+            splitters: std::collections::BTreeSet::new(),
+            blocks_view_cursor: None,
+        };
+        app_state
+            .save_project(save_ctx, false)
+            .expect("save_project should succeed");
+
+        let mut reloaded = AppState::new();
+        reloaded
+            .load_project(&path)
+            .expect("load_project should succeed");
+        let _ = std::fs::remove_file(&path);
+
+        // 1. Verify persisted Tier 2 address_offset
+        assert_eq!(
+            reloaded
+                .annotations
+                .get(Addr(0x00FC))
+                .and_then(|e| e.address_offset),
+            Some(SymbolicOffset {
+                base: Addr(0x00FB),
+                offset: 1,
+                radix: OffsetRadix::Hex,
+            })
+        );
+
+        // 2. Verify persisted Tier 1 operand_offset
+        assert_eq!(
+            reloaded
+                .annotations
+                .get(Addr(0x1002))
+                .and_then(|e| e.operand_offset),
+            Some(SymbolicOffset {
+                base: Addr(0xC100),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            })
+        );
+
+        // 3. Verify routed cross-references after load_project analysis
+        assert!(!reloaded.cross_refs.contains_key(&Addr(0x00FC)));
+        assert_eq!(
+            reloaded.cross_refs.get(&Addr(0x00FB)),
+            Some(&vec![XRef::new(Addr(0x1000), XRefKind::Write)])
+        );
+        assert!(!reloaded.cross_refs.contains_key(&Addr(0xC0FF)));
+        assert_eq!(
+            reloaded.cross_refs.get(&Addr(0xC100)),
+            Some(&vec![
+                XRef::new(Addr(0x1002), XRefKind::Offset),
+                XRef::new(Addr(0x1004), XRefKind::Offset),
+            ])
+        );
+
+        // 4. Verify rendered disassembly and suppressed orphan zpa_FC equate
+        let line_1000 = reloaded
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x1000) && l.opcode.is_some())
+            .unwrap();
+        assert_eq!(line_1000.mnemonic, "sta");
+        assert_eq!(line_1000.operand, "zp_ptr + $1");
+
+        let line_1002 = reloaded
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x1002) && l.opcode.is_some())
+            .unwrap();
+        assert_eq!(line_1002.mnemonic, "lda");
+        // Note: $1004 LoHiAddress runs before $1002 ImmediateFormat loop in analyzer,
+        // so first_type at $C100 is AbsoluteAddress ("a_C100") unless only ImmediateFormat hits it.
+        assert_eq!(
+            reloaded.labels.get(&Addr(0xC100)).unwrap()[0].name,
+            "a_C100"
+        );
+        assert_eq!(line_1002.operand, "#<(a_C100 - 1)");
+
+        let has_zpa_fc = reloaded.disassembly.iter().any(|l| {
+            l.external_label_address == Some(Addr(0x00FC)) || l.mnemonic.contains("zpa_FC")
+        });
+        assert!(!has_zpa_fc, "Orphan zpa_FC equate must be suppressed");
+    }
 }

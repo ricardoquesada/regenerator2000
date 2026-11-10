@@ -88,6 +88,7 @@ impl AppState {
         self.export_html_path = None;
         self.entry_point = None;
         self.labels.clear();
+        self.system_labels.clear();
         self.settings = DocumentSettings::default();
         self.annotations.clear();
         self.cross_refs.clear();

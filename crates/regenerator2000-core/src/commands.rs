@@ -1,10 +1,12 @@
 //! Undoable state mutation commands and the [`UndoStack`] history manager.
 //!
-//! Defines [`Command`] variants for all user-facing [`AppState`] edits (block types, labels,
-//! comments, origin, immediate formats, collapsed blocks, splitters, scopes, bookmarks,
-//! excluded addresses, and enums) and provides [`UndoStack`] for undo and redo transitions.
+//! Defines [`Command`] variants for all user-facing [`AppState`] edits, including labels,
+//! comments, block types, scopes, enums, and Tier 1/Tier 2 symbolic offsets. [`UndoStack`]
+//! manages chronological undo and redo history.
 
-use crate::state::{Addr, AppState, BlockType, EnumDefinition, ImmediateFormat, Label, XRef};
+use crate::state::{
+    Addr, AppState, BlockType, EnumDefinition, ImmediateFormat, Label, SymbolicOffset, XRef,
+};
 use std::collections::BTreeMap;
 
 /// Represents an executable and undoable state mutation command.
@@ -149,6 +151,32 @@ pub enum Command {
         new_definition: Option<EnumDefinition>,
         /// Previous enum definition for undo.
         old_definition: Option<EnumDefinition>,
+    },
+    /// Sets or clears a Tier 1 per-site operand [`SymbolicOffset`] at `address`.
+    ///
+    /// Both [`Command::apply`] and [`Command::undo`] normalize any `Some(sym)` with
+    /// `sym.offset == 0` to `None` so [`AnnotationManager`](crate::state::AnnotationManager)
+    /// prunes empty entries automatically.
+    SetOperandOffset {
+        /// Referencing instruction or address-table entry address.
+        address: Addr,
+        /// Replacement per-site operand offset, or `None` to clear.
+        new_offset: Option<SymbolicOffset>,
+        /// Previous per-site operand offset at `address` for undo.
+        old_offset: Option<SymbolicOffset>,
+    },
+    /// Sets or clears a Tier 2 global target-address [`SymbolicOffset`] at `address`.
+    ///
+    /// Both [`Command::apply`] and [`Command::undo`] normalize any `Some(sym)` with
+    /// `sym.offset == 0` to `None` so [`AnnotationManager`](crate::state::AnnotationManager)
+    /// prunes empty entries automatically.
+    SetAddressOffset {
+        /// Target 6502 memory address bound globally to `base +/- offset`.
+        address: Addr,
+        /// Replacement global address offset, or `None` to clear.
+        new_offset: Option<SymbolicOffset>,
+        /// Previous global address offset at `address` for undo.
+        old_offset: Option<SymbolicOffset>,
     },
     /// Executes a sequence of commands as one atomic undoable action.
     Batch(Vec<Command>),
@@ -310,6 +338,26 @@ impl Command {
                 } else {
                     state.enums.remove(name);
                 }
+            }
+            Command::SetOperandOffset {
+                address,
+                new_offset,
+                old_offset: _,
+            } => {
+                let normalized = new_offset.filter(|s| s.offset != 0);
+                state
+                    .annotations
+                    .update(*address, |e| e.operand_offset = normalized);
+            }
+            Command::SetAddressOffset {
+                address,
+                new_offset,
+                old_offset: _,
+            } => {
+                let normalized = new_offset.filter(|s| s.offset != 0);
+                state
+                    .annotations
+                    .update(*address, |e| e.address_offset = normalized);
             }
             Command::Batch(commands) => {
                 for command in commands {
@@ -475,6 +523,26 @@ impl Command {
                 } else {
                     state.enums.remove(name);
                 }
+            }
+            Command::SetOperandOffset {
+                address,
+                new_offset: _,
+                old_offset,
+            } => {
+                let normalized = old_offset.filter(|s| s.offset != 0);
+                state
+                    .annotations
+                    .update(*address, |e| e.operand_offset = normalized);
+            }
+            Command::SetAddressOffset {
+                address,
+                new_offset: _,
+                old_offset,
+            } => {
+                let normalized = old_offset.filter(|s| s.offset != 0);
+                state
+                    .annotations
+                    .update(*address, |e| e.address_offset = normalized);
             }
             Command::Batch(commands) => {
                 for command in commands.iter().rev() {
@@ -1040,5 +1108,178 @@ mod tests {
             "Pushing new command must clear redo stack"
         );
         assert_eq!(stack.get_pointer(), 2);
+    }
+
+    #[test]
+    fn test_set_operand_offset_and_set_address_offset_commands_undo_redo_and_zero_norm() {
+        use crate::state::{Label, LabelKind, LabelType, OffsetRadix, SymbolicOffset};
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: STA $FC (85 FC), $1002: LDA $1FFF,X (BD FF 1F)
+        state.raw_data = vec![0x85, 0xFC, 0xBD, 0xFF, 0x1F];
+        state.block_types = vec![BlockType::Code; 5];
+        state.labels.insert(
+            Addr(0x00FB),
+            vec![Label {
+                name: "zp_ptr".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        state.labels.insert(
+            Addr(0x2000),
+            vec![Label {
+                name: "table_2000".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        state.disassemble();
+
+        // 1. Apply SetOperandOffset at $1002: None -> Some(table_2000 - 1)
+        let op_sym = SymbolicOffset {
+            base: Addr(0x2000),
+            offset: -1,
+            radix: OffsetRadix::Decimal,
+        };
+        let cmd_op_set = Command::SetOperandOffset {
+            address: Addr(0x1002),
+            new_offset: Some(op_sym),
+            old_offset: None,
+        };
+        cmd_op_set.apply(&mut state);
+        state.undo_stack.push(cmd_op_set);
+        state.disassemble();
+        assert_eq!(
+            state
+                .annotations
+                .get(Addr(0x1002))
+                .and_then(|e| e.operand_offset),
+            Some(op_sym)
+        );
+        let line_1002 = state
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x1002))
+            .unwrap();
+        assert_eq!(line_1002.operand, "table_2000 - 1,x");
+
+        // 2. Apply SetOperandOffset with offset == 0 -> normalizes to None and prunes entry
+        let cmd_op_zero = Command::SetOperandOffset {
+            address: Addr(0x1002),
+            new_offset: Some(SymbolicOffset {
+                base: Addr(0x1FFF),
+                offset: 0,
+                radix: OffsetRadix::Decimal,
+            }),
+            old_offset: Some(op_sym),
+        };
+        cmd_op_zero.apply(&mut state);
+        state.undo_stack.push(cmd_op_zero);
+        state.disassemble();
+        assert!(state.annotations.get(Addr(0x1002)).is_none());
+
+        // Undo -> restores Some(table_2000 - 1) and refreshes disassembly
+        let mut stack = std::mem::take(&mut state.undo_stack);
+        assert_eq!(stack.undo(&mut state).as_deref(), Some("Undone"));
+        state.undo_stack = stack;
+        assert_eq!(
+            state
+                .annotations
+                .get(Addr(0x1002))
+                .and_then(|e| e.operand_offset),
+            Some(op_sym)
+        );
+        let line_1002 = state
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x1002))
+            .unwrap();
+        assert_eq!(line_1002.operand, "table_2000 - 1,x");
+
+        // Redo -> clears back to None and refreshes disassembly
+        let mut stack = std::mem::take(&mut state.undo_stack);
+        assert_eq!(stack.redo(&mut state).as_deref(), Some("Redone"));
+        state.undo_stack = stack;
+        assert!(state.annotations.get(Addr(0x1002)).is_none());
+        let line_1002 = state
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x1002))
+            .unwrap();
+        assert_eq!(line_1002.operand, "$1fff,x");
+
+        // 3. Apply SetAddressOffset at $00FC: None -> Some(zp_ptr + 1) -> Some(offset: 0)
+        let addr_sym = SymbolicOffset {
+            base: Addr(0x00FB),
+            offset: 1,
+            radix: OffsetRadix::Decimal,
+        };
+        let cmd_addr_set = Command::SetAddressOffset {
+            address: Addr(0x00FC),
+            new_offset: Some(addr_sym),
+            old_offset: None,
+        };
+        cmd_addr_set.apply(&mut state);
+        state.undo_stack.push(cmd_addr_set);
+        state.disassemble();
+        assert_eq!(
+            state
+                .annotations
+                .get(Addr(0x00FC))
+                .and_then(|e| e.address_offset),
+            Some(addr_sym)
+        );
+        let line_1000 = state
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x1000))
+            .unwrap();
+        assert_eq!(line_1000.operand, "zp_ptr + 1");
+
+        let cmd_addr_zero = Command::SetAddressOffset {
+            address: Addr(0x00FC),
+            new_offset: Some(SymbolicOffset {
+                base: Addr(0x00FC),
+                offset: 0,
+                radix: OffsetRadix::Decimal,
+            }),
+            old_offset: Some(addr_sym),
+        };
+        cmd_addr_zero.apply(&mut state);
+        state.undo_stack.push(cmd_addr_zero);
+        state.disassemble();
+        assert!(state.annotations.get(Addr(0x00FC)).is_none());
+
+        // Undo -> restores Some(zp_ptr + 1) and refreshes disassembly
+        let mut stack = std::mem::take(&mut state.undo_stack);
+        assert_eq!(stack.undo(&mut state).as_deref(), Some("Undone"));
+        state.undo_stack = stack;
+        assert_eq!(
+            state
+                .annotations
+                .get(Addr(0x00FC))
+                .and_then(|e| e.address_offset),
+            Some(addr_sym)
+        );
+        let line_1000 = state
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x1000))
+            .unwrap();
+        assert_eq!(line_1000.operand, "zp_ptr + 1");
+
+        // Redo -> clears back to None
+        let mut stack = std::mem::take(&mut state.undo_stack);
+        assert_eq!(stack.redo(&mut state).as_deref(), Some("Redone"));
+        state.undo_stack = stack;
+        assert!(state.annotations.get(Addr(0x00FC)).is_none());
+        let line_1000 = state
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x1000))
+            .unwrap();
+        assert_eq!(line_1000.operand, "$fc");
     }
 }

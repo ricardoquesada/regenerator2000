@@ -1,12 +1,11 @@
-//! Sparse, address-keyed annotation storage and lexical scope indexing.
+//! Sparse, address-keyed annotation storage, symbolic offset bindings, and lexical scope indexing.
 //!
-//! This module defines [`AddressEntry`] and [`AnnotationManager`] to store per-address comments,
-//! formatting overrides, bookmarks, enum usages, and lexical symbol scopes.
-//! [`AnnotationManager`] removes empty or whitespace-only entries from the [`BTreeMap`] for
-//! deterministic `.regen2000proj` serialization, while `scopes` and `scope_ends` indices
-//! provide `O(log S)` boundary lookups.
+//! This module defines [`AddressEntry`] and [`AnnotationManager`] for per-address comments,
+//! immediate formats, bookmarks, enums, scopes, and two-tier [`SymbolicOffset`] bindings.
+//! [`AnnotationManager`] normalizes empty values to `None` and prunes empty entries from the map.
+//! It also maintains `scopes` and `scope_ends` indices for `O(log S)` boundary lookups.
 
-use crate::state::types::{Addr, ImmediateFormat};
+use crate::state::types::{Addr, ImmediateFormat, SymbolicOffset};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -18,8 +17,8 @@ fn is_str_none_or_empty(s: &Option<String>) -> bool {
 
 /// Compact sparse annotation entry that stores user annotations and formatting overrides for an [`Addr`].
 ///
-/// [`AnnotationManager::update`] normalizes whitespace-only strings to `None` and removes empty
-/// entries from the map.
+/// [`AnnotationManager::update`] normalizes whitespace-only strings and zero-displacement offsets
+/// to `None` and removes empty entries from the map.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AddressEntry {
     /// Auto-generated or platform system comment from system assets (not saved in `.regen2000proj` files).
@@ -49,10 +48,25 @@ pub struct AddressEntry {
     /// Name of the enum definition applied to the operand at this [`Addr`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enum_usage: Option<String>,
+
+    /// Tier 1 per-site symbolic offset applied only to the instruction operand or address-table
+    /// entry at this [`Addr`] (for example, `LDA table - 1,X` or `.byte <(sub_C100 - 1)`).
+    ///
+    /// For [`BlockType::LoHiAddress`](crate::state::BlockType::LoHiAddress) and
+    /// [`BlockType::HiLoAddress`](crate::state::BlockType::HiLoAddress) split tables, canonical
+    /// writes attach `operand_offset` to the first-half byte address of each pair.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operand_offset: Option<SymbolicOffset>,
+
+    /// Tier 2 global symbolic offset binding this target [`Addr`] to `base +/- offset`
+    /// (such as `$00FC` bound to `zp_ptr + 1` or `$0428` bound to `SCREEN_RAM + 40`).
+    /// Tier 1 overrides and explicit [`LabelKind::User`](crate::state::LabelKind::User) labels take priority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub address_offset: Option<SymbolicOffset>,
 }
 
 impl AddressEntry {
-    /// Normalizes empty or whitespace-only string fields to `None`.
+    /// Normalizes empty or whitespace-only string fields and zero-displacement symbolic offsets to `None`.
     pub fn normalize(&mut self) {
         if self
             .system_comment
@@ -89,11 +103,21 @@ impl AddressEntry {
         {
             self.enum_usage = None;
         }
+        // Zero-displacement offsets represent direct symbol lookups (`base + 0 == base`),
+        // so prune them to `None` to prevent redundant `+ 0` expressions or orphan map nodes.
+        if self.operand_offset.is_some_and(|s| s.offset == 0) {
+            self.operand_offset = None;
+        }
+        if self.address_offset.is_some_and(|s| s.offset == 0) {
+            self.address_offset = None;
+        }
     }
 
     /// Returns `true` if all metadata fields (including `system_comment`) are `None`, empty, or whitespace-only.
     #[must_use]
     pub fn is_empty(&self) -> bool {
+        // Intentionally non-`const`: `is_str_none_or_empty` treats unnormalized empty or
+        // whitespace-only strings as empty before `normalize()` runs.
         is_str_none_or_empty(&self.system_comment)
             && is_str_none_or_empty(&self.user_side_comment)
             && is_str_none_or_empty(&self.user_line_comment)
@@ -101,6 +125,8 @@ impl AddressEntry {
             && is_str_none_or_empty(&self.bookmark)
             && self.scope.is_none()
             && is_str_none_or_empty(&self.enum_usage)
+            && self.operand_offset.is_none()
+            && self.address_offset.is_none()
     }
 
     /// Returns `true` if the entry contains user-defined annotations for `.regen2000proj` files.
@@ -115,6 +141,8 @@ impl AddressEntry {
             || !is_str_none_or_empty(&self.bookmark)
             || self.scope.is_some()
             || !is_str_none_or_empty(&self.enum_usage)
+            || self.operand_offset.is_some()
+            || self.address_offset.is_some()
     }
 }
 
@@ -299,6 +327,8 @@ impl<'de> serde::Deserialize<'de> for AnnotationManager {
             bookmarks: Option<BTreeMap<Addr, String>>,
             scopes: Option<BTreeMap<Addr, Addr>>,
             enum_usages: Option<BTreeMap<Addr, String>>,
+            operand_offsets: Option<BTreeMap<Addr, SymbolicOffset>>,
+            address_offsets: Option<BTreeMap<Addr, SymbolicOffset>>,
         }
 
         let payload = AnnotationsPayload::deserialize(deserializer)?;
@@ -355,6 +385,16 @@ impl<'de> serde::Deserialize<'de> for AnnotationManager {
                 if let Some(enums) = raw.enum_usages {
                     for (addr, en) in enums {
                         manager.update(addr, |e| e.enum_usage = Some(en));
+                    }
+                }
+                if let Some(op_offsets) = raw.operand_offsets {
+                    for (addr, sym) in op_offsets {
+                        manager.update(addr, |e| e.operand_offset = Some(sym));
+                    }
+                }
+                if let Some(addr_offsets) = raw.address_offsets {
+                    for (addr, sym) in addr_offsets {
+                        manager.update(addr, |e| e.address_offset = Some(sym));
                     }
                 }
             }
@@ -664,5 +704,201 @@ mod tests {
         assert!(manager.is_scope_end(Addr(0x1021)));
         assert_eq!(manager.scopes().len(), 1);
         assert_eq!(manager.scope_ends_set().len(), 1);
+    }
+
+    #[test]
+    fn test_address_entry_symbolic_offsets_is_empty_is_persistent_and_normalize() {
+        use crate::state::types::OffsetRadix;
+
+        // 1. Preserves non-const whitespace behavior
+        let ws_only = AddressEntry {
+            system_comment: Some(String::new()),
+            user_side_comment: Some("   ".to_string()),
+            ..Default::default()
+        };
+        assert!(ws_only.is_empty());
+        assert!(!ws_only.is_persistent());
+
+        // 2. operand_offset alone
+        let op_entry = AddressEntry {
+            operand_offset: Some(SymbolicOffset {
+                base: Addr(0xC100),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            }),
+            ..Default::default()
+        };
+        assert!(!op_entry.is_empty());
+        assert!(op_entry.is_persistent());
+
+        // 3. address_offset alone
+        let addr_entry = AddressEntry {
+            address_offset: Some(SymbolicOffset {
+                base: Addr(0x00FB),
+                offset: 1,
+                radix: OffsetRadix::Hex,
+            }),
+            ..Default::default()
+        };
+        assert!(!addr_entry.is_empty());
+        assert!(addr_entry.is_persistent());
+
+        // 4. normalize() converts zero-displacement offsets to None
+        let mut zero_entry = AddressEntry {
+            operand_offset: Some(SymbolicOffset {
+                base: Addr(0x1000),
+                offset: 0,
+                radix: OffsetRadix::Decimal,
+            }),
+            address_offset: Some(SymbolicOffset {
+                base: Addr(0x2000),
+                offset: 0,
+                radix: OffsetRadix::Hex,
+            }),
+            ..Default::default()
+        };
+        zero_entry.normalize();
+        assert_eq!(zero_entry.operand_offset, None);
+        assert_eq!(zero_entry.address_offset, None);
+        assert!(zero_entry.is_empty());
+        assert!(!zero_entry.is_persistent());
+    }
+
+    #[test]
+    fn test_annotation_manager_symbolic_offset_update_and_pruning() {
+        use crate::state::types::OffsetRadix;
+
+        let mut manager = AnnotationManager::default();
+        let addr = Addr(0x1000);
+
+        // 1. Setting operand_offset inserts node
+        manager.update(addr, |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0xC100),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        assert_eq!(manager.len(), 1);
+        assert_eq!(
+            manager.get(addr).and_then(|e| e.operand_offset),
+            Some(SymbolicOffset {
+                base: Addr(0xC100),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            })
+        );
+
+        // 2. Updating operand_offset to offset == 0 normalizes to None and prunes node
+        manager.update(addr, |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x2000),
+                offset: 0,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        assert_eq!(manager.len(), 0);
+        assert!(manager.get(addr).is_none());
+
+        // 3. Coexisting user_side_comment preserved when clearing address_offset
+        manager.update(addr, |e| {
+            e.user_side_comment = Some("keep".to_string());
+            e.address_offset = Some(SymbolicOffset {
+                base: Addr(0x0FF0),
+                offset: 16,
+                radix: OffsetRadix::Hex,
+            });
+        });
+        assert_eq!(manager.len(), 1);
+        manager.update(addr, |e| {
+            e.address_offset = None;
+        });
+        assert_eq!(manager.len(), 1);
+        assert_eq!(
+            manager
+                .get(addr)
+                .and_then(|e| e.user_side_comment.as_deref()),
+            Some("keep")
+        );
+        assert_eq!(manager.get(addr).and_then(|e| e.address_offset), None);
+    }
+
+    #[test]
+    fn test_annotation_manager_serde_direct_structured_and_legacy_compat() {
+        use crate::state::types::OffsetRadix;
+
+        // 1. Direct roundtrip omitting None keys
+        let mut manager = AnnotationManager::default();
+        manager.update(Addr(0x2000), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0xC100),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        manager.update(Addr(0x00FC), |e| {
+            e.address_offset = Some(SymbolicOffset {
+                base: Addr(0x00FB),
+                offset: 1,
+                radix: OffsetRadix::Hex,
+            });
+        });
+        let json = serde_json::to_string(&manager).unwrap();
+        assert!(!json.contains("user_side_comment"));
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(val["8192"].get("address_offset").is_none());
+        assert!(val["252"].get("operand_offset").is_none());
+        let roundtripped: AnnotationManager = serde_json::from_str(&json).unwrap();
+        assert_eq!(manager, roundtripped);
+
+        // 2. Default radix & zero pruning on deserialize
+        let direct_default_and_zero = r#"{
+            "252": { "address_offset": { "base": 251, "offset": 1 } },
+            "4096": { "operand_offset": { "base": 4096, "offset": 0 } }
+        }"#;
+        let parsed_direct: AnnotationManager =
+            serde_json::from_str(direct_default_and_zero).unwrap();
+        assert_eq!(
+            parsed_direct.get(Addr(0x00FC)).unwrap().address_offset,
+            Some(SymbolicOffset {
+                base: Addr(0x00FB),
+                offset: 1,
+                radix: OffsetRadix::Decimal,
+            })
+        );
+        assert!(parsed_direct.get(Addr(0x1000)).is_none());
+
+        // 3. Structured RawAnnotations with operand_offsets and address_offsets
+        let structured_json = r#"{
+            "operand_offsets": { "8192": { "base": 49408, "offset": -1 } },
+            "address_offsets": { "252": { "base": 251, "offset": 1, "radix": "Hex" } }
+        }"#;
+        let parsed_structured: AnnotationManager = serde_json::from_str(structured_json).unwrap();
+        assert_eq!(
+            parsed_structured.get(Addr(8192)).unwrap().operand_offset,
+            Some(SymbolicOffset {
+                base: Addr(49408),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            })
+        );
+        assert_eq!(
+            parsed_structured.get(Addr(252)).unwrap().address_offset,
+            Some(SymbolicOffset {
+                base: Addr(251),
+                offset: 1,
+                radix: OffsetRadix::Hex,
+            })
+        );
+
+        // 4. Legacy backward compatibility
+        let legacy_json = r#"{
+            "user_side_comments": { "4096": "note" },
+            "scopes": { "4096": 4112 }
+        }"#;
+        let parsed_legacy: AnnotationManager = serde_json::from_str(legacy_json).unwrap();
+        let legacy_entry = parsed_legacy.get(Addr(4096)).unwrap();
+        assert_eq!(legacy_entry.operand_offset, None);
+        assert_eq!(legacy_entry.address_offset, None);
     }
 }

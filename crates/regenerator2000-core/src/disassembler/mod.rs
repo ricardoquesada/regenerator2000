@@ -10,15 +10,14 @@
 //!
 //! - [`DisassemblyLineKind`] and [`DisassemblyLine::classify_kind`]: Classify lines without ad-hoc
 //!   string matching.
-//! - [`LabelPlacement`] and [`DisassemblyLine::label_placement`]: Determine whether a formatted
-//!   label fits inline within [`LABEL_COLUMN_WIDTH`] (`20` columns) or wraps onto its own preceding
-//!   visual row (`OwnLine`).
+//! - [`LabelPlacement`] and [`DisassemblyLine::label_placement`]: Check whether a formatted label
+//!   fits within [`LABEL_COLUMN_WIDTH`] (`20` columns) or wraps onto [`LabelPlacement::OwnLine`].
 //! - [`MidInstructionLabel`] and [`DisassemblyLine::mid_instruction_labels`]: Resolve at most one
 //!   highest-priority relative label (`* + offset`) per intermediate instruction byte via
 //!   [`resolve_label`].
 //! - [`VisualLineCounts`] and [`DisassemblyLine::visual_line_counts`]: Compute the vertical
-//!   sub-row breakdown (`0..labels`, `labels..labels + comments`, optional `OwnLine` label row, and
-//!   `opcode_sub_index()`), and map between 6502 [`Addr`] values and visual sub-cursor indices.
+//!   sub-row breakdown (`0..labels`, `labels..labels + comments`, and `opcode_sub_index()`).
+//!   These methods also map between 6502 [`Addr`] values and visual sub-cursor indices.
 
 use crate::cpu::Opcode;
 use crate::state::{Addr, AppState, Assembler, LabelType};
@@ -35,7 +34,10 @@ pub mod pipeline;
 pub mod symbols;
 
 pub use context::{DisassemblyContext, HandleArgs, format_cross_references};
-pub use symbols::{resolve_label, resolve_label_name};
+pub use symbols::{
+    ScopeNameMap, resolve_label, resolve_label_name, resolve_symbolic_label_name,
+    resolve_symbolic_offset,
+};
 
 /// Column width (`20`) reserved for inline labels before the instruction mnemonic column.
 ///
@@ -105,8 +107,8 @@ pub enum LabelPlacement {
     /// The formatted label (for example, `main_loop:`) is shorter than [`LABEL_COLUMN_WIDTH`]
     /// (`20` characters) and fits inline to the left of the mnemonic.
     Inline,
-    /// The formatted label is at least `20` characters long, or sits on an unindented scope
-    /// delimiter (`{` or `}`), and wraps onto its own dedicated visual row above the instruction.
+    /// The formatted label reaches `20` characters or sits on an unindented scope delimiter (`{` or `}`).
+    /// It wraps onto a dedicated visual row above the instruction.
     OwnLine,
 }
 
@@ -224,7 +226,8 @@ pub struct DisassemblyLine {
 }
 
 impl DisassemblyLine {
-    /// Iterates over resolved mid-instruction labels at intermediate byte offsets (`1..self.bytes.len()`).
+    /// Iterates over resolved mid-instruction labels at intermediate byte offsets (`1..self.bytes.len()`),
+    /// suppressing intermediate addresses bound to an active Tier 2 `address_offset`.
     fn iter_mid_instruction_labels<'a>(
         &'a self,
         state: &'a AppState,
@@ -236,6 +239,11 @@ impl DisassemblyLine {
         };
         (1..max_offset).filter_map(move |offset| {
             let mid_addr = self.address.wrapping_add(offset as u16);
+            // Defense-in-depth when `auto_analyze == false`: never emit `label = * + offset`
+            // for an intermediate byte whose label is suppressed by Tier 2 `address_offset`.
+            if symbols::has_active_address_offset(mid_addr, &state.labels, &state.annotations) {
+                return None;
+            }
             let label_vec = state.labels.get(&mid_addr)?;
             let label = symbols::resolve_label(label_vec, mid_addr.0, &state.settings)?;
             Some((offset, mid_addr, label))

@@ -67,7 +67,7 @@ flowchart TB
     subgraph ws ["regenerator2000 Cargo Workspace"]
         direction TB
         Bin["regenerator2000 (Binary Crate)<br/>src/main.rs — CLI Entry Point & Terminal Init"]
-        Tui["regenerator2000-tui (Library Crate)<br/>crates/regenerator2000-tui — Ratatui Views, 25 Dialog Modules (30 DialogTypes), Events & Themes"]
+        Tui["regenerator2000-tui (Library Crate)<br/>crates/regenerator2000-tui — Ratatui Views, 26 Dialog Modules (31 DialogTypes), Events & Themes"]
         CoreCrate["regenerator2000-core (Library Crate)<br/>crates/regenerator2000-core — Headless Engine, State, Disassembler, Unpacker, MCP & VICE"]
         CompareBin["unpacker_compare_all (Benchmarking CLI)<br/>crates/regenerator2000-core/src/bin/unpacker_compare_all"]
 
@@ -83,12 +83,12 @@ flowchart TB
 | Module / Path | Responsibility |
 | :--- | :--- |
 | `core.rs` | Engine central hub (`Core`) combining `AppState` and `CoreViewState`. |
-| `action_handlers/` | Modular domain action dispatchers (`file_handler`, `disassembly_handler`, `debug_handler`, `navigation_handler`). |
-| `state/` | Domain models (`AppState`, `Addr`, `BlockType`, `TargetSystem`, `XRef`, `XRefKind`), sparse `AnnotationManager`, and `.regen2000proj` persistence. |
-| `disassembler/` | Disassembly pipeline, symbol resolution, data block formatters, and 4 assembler backends (`64tass`, `ACME`, `ca65`, `KickAss`). |
-| `cpu.rs` | MOS 6502/6510 256-opcode table, cycle counts, addressing modes, `Opcode::xref_kind()`, and undocumented opcodes. |
+| `action_handlers/` | Modular domain action dispatchers (`file_handler`, `disassembly_handler`, `debug_handler`, `navigation_handler`) and `DisassemblyViewAnchor`. |
+| `state/` | Domain models (`AppState`, `Addr`, `BlockType`, `TargetSystem`, `SymbolicOffset`, `XRef`, `XRefKind`), sparse `AnnotationManager`, and `.regen2000proj` persistence. |
+| `disassembler/` | Disassembly pipeline, 5-tier symbol and symbolic-offset resolution, data block formatters, and 4 assembler backends (`64tass`, `ACME`, `ca65`, `KickAss`). |
+| `cpu.rs` | MOS 6502/6510 256-opcode table, cycle counts, `AddressingMode` (`is_zero_page()`), `Opcode::xref_kind()`, and undocumented opcodes. |
 | `commands.rs` | Reversible `Command` enum and `UndoStack` for atomic undo/redo and batch execution. |
-| `analyzer.rs` | Recursive control-flow tracer, typed cross-reference (`XRef` / `XRefKind`) builder, fill-run detector, and auto-label generator. |
+| `analyzer.rs` | Recursive control-flow tracer, symbolic-offset target redirection, typed cross-reference (`XRef` / `XRefKind`) builder, fill-run detector, and auto-label generator. |
 | `parser/` | Container and symbol parsers (`.prg`, BASIC `SYS`, `.crt`, `.d64`/`.d71`/`.d81`, `.t64`, `.dis65`, `.lbl`, `.vsf`). |
 | `exporter/` | 3-stage Exporter IR pipeline (`ir.rs`), pure ASM/HTML backends (`asm.rs`, `html.rs`), and roundtrip assembler verification (`verify.rs`). |
 | `unpacker/` | 2-phase 6502 emulation sandbox (`bus.rs`, `cia.rs`, `machine.rs`, `engine.rs`, `detector.rs`). |
@@ -108,11 +108,12 @@ flowchart TB
 | `ui.rs` / `ui_state.rs` | Top-level Ratatui layout engine and `UIState` (wrapping `CoreViewState` via `Deref`). |
 | `theme.rs` / `theme_file.rs` | Runtime color theme engine and TOML theme file parser/exporter. |
 | `ui/widget.rs` / `ui/navigable.rs` | `Widget` trait (`render`, `handle_input`, `handle_mouse`, `handle_tick`, `refresh`), `WidgetResult`, `Navigable` trait, and `AlignedGridRange` grid helpers. |
+| `ui/scoped_input.rs` | Shared single-line `ScopedInputModal` and `ScopeLock` controller for `LabelDialog` and `SymbolicOffsetDialog`. |
 | `ui/statusbar.rs` / `ui/minimap_bar.rs` | Dynamic bottom status bar and memory block distribution minimap bar. |
 | `ui/menu/` | Top menu bar model (`menu_model.rs`), popup renderer (`menu_render.rs`), and action dispatcher (`menu_action.rs`). |
 | `ui/view_disassembly/` | Modular disassembly view (`mod.rs`, `layout.rs`, `navigation.rs`, `mouse.rs`, `render.rs`). |
 | `ui/view_*.rs` | Right-pane views: `view_hexdump.rs`, `view_sprites.rs`, `view_charset.rs`, `view_bitmap.rs`, `view_blocks.rs`, and `view_debugger.rs`. |
-| `ui/dialog_*.rs` | 25 modal dialog modules serving 30 `DialogType` variants (including unified `FileBrowserDialog`, `PromptDialog`, `ContainerPickerDialog`, and table-driven `DocumentSettingsDialog`). |
+| `ui/dialog_*.rs` | 26 modal dialog modules serving 31 `DialogType` variants (including `SymbolicOffsetDialog`, unified `FileBrowserDialog`, `PromptDialog`, `ContainerPickerDialog`, and table-driven `DocumentSettingsDialog`). |
 
 ---
 
@@ -141,21 +142,21 @@ pub struct ActionContext<'a> {
 }
 ```
 
-The context provides `preserve_cursor()`. This method records the memory address at the active cursor line and re-anchors the view cursor after disassembly or analysis updates.
+The context provides `preserve_cursor()` and `DisassemblyViewAnchor` (`capture_anchor()` and `restore_anchor()`). These helpers re-anchor the cursor and visual selection when preamble rows or labels change.
 
 #### Modular Action Handlers (`action_handlers/`)
 
 Each domain handler implements `DomainActionHandler`:
 
 -   **`file_handler.rs`**: Opens and saves projects, exports ASM and HTML files, imports and exports VICE labels, and starts binary unpacking.
--   **`disassembly_handler.rs`**: Updates memory block types, user comments, labels, immediate operand formats, scopes, splitters, and enum usages.
+-   **`disassembly_handler.rs`**: Updates memory block types, user comments, labels, symbolic offsets, immediate operand formats, scopes, splitters, and enum usages.
 -   **`debug_handler.rs`**: Manages the VICE monitor TCP connection, execution stepping (Step, Step Over, Step Out, Continue, Run to Cursor), and breakpoints/watchpoints.
 -   **`navigation_handler.rs`**: Handles address jumps, operand target resolution, navigation history, bookmarks, symbol lookup, and cross-reference queries.
 
 #### Domain Errors & Events
 
 -   **`error.rs`**: Defines a typed error hierarchy using `thiserror`. `CoreError` wraps `UnpackError`, `ExportError`, `ViceError`, `ProjectError`, and `ParseFailed`. The `IoResultExt` trait attaches file path context (`with_path`) to standard I/O errors.
--   **`event.rs`**: Defines frontend-agnostic events via `CoreEvent` (`StateChanged`, `ViewChanged`, `StatusMessage`, `DialogRequested(DialogType)`, `DialogDismissalRequested`, `QuitRequested`, `OpenUrl`, `UnpackStarted`, `StartMcpServerRequested`, and `StopMcpServerRequested`) and 30 modal `DialogType` variants.
+-   **`event.rs`**: Defines frontend-agnostic events via `CoreEvent` (`StateChanged`, `ViewChanged`, `StatusMessage`, `DialogRequested(DialogType)`, `DialogDismissalRequested`, `QuitRequested`, `OpenUrl`, `UnpackStarted`, `StartMcpServerRequested`, and `StopMcpServerRequested`) and 31 modal `DialogType` variants.
 -   **`view_state.rs`**: Implements `CoreViewState` to track active panes (`ActivePane`), right-pane modes (`RightPane`), cursor indices, visual selections, scroll offsets, navigation history, and search queries.
 
 ---
@@ -207,8 +208,10 @@ pub struct AppState {
 -   `bookmark`: Persisted user bookmark label.
 -   `scope`: Persisted routine scope boundary address.
 -   `enum_usage`: Persisted enumeration reference name.
+-   `operand_offset`: Persisted Tier 1 per-site `SymbolicOffset` on an instruction or address-table entry.
+-   `address_offset`: Persisted Tier 2 global `SymbolicOffset` on a target memory address.
 
-`AnnotationManager` normalizes whitespace and removes empty entries automatically. Its custom `Serialize` implementation writes one JSON object per address and skips transient `system_comment` values. Its custom `Deserialize` implementation also accepts the legacy per-field maps (`user_side_comments`, `user_line_comments`, `immediate_value_formats`, `bookmarks`, `scopes`, and `enum_usages`), so older `.regen2000proj` files load without errors.
+`AnnotationManager` normalizes whitespace and zero-displacement offsets, and removes empty entries automatically. Its custom `Serialize` implementation writes one JSON object per address and skips transient `system_comment` values. Its custom `Deserialize` implementation also accepts the legacy per-field maps (`user_side_comments`, `user_line_comments`, `immediate_value_formats`, `bookmarks`, `scopes`, and `enum_usages`), so older `.regen2000proj` files load without errors.
 
 #### Domain Types (`state/types.rs`)
 
@@ -216,6 +219,7 @@ pub struct AppState {
 -   **`Addr`**: Wraps a 16-bit memory address (`pub struct Addr(pub u16)`). Implements wrapping 16-bit address arithmetic, hexadecimal formatting, and numeric JSON serialization.
 -   **`BlockType`**: Classifies memory regions (`Code`, `DataByte`, `DataWord`, `Address`, `PetsciiText`, `ScreencodeText`, `LoHiAddress`, `HiLoAddress`, `LoHiWord`, `HiLoWord`, `ExternalFile`, and `Undefined`).
 -   **`Assembler`**: Selects the target assembler syntax (`Tass64`, `Acme`, `Ca65`, or `Kick`).
+-   **`SymbolicOffset`, `OffsetRadix`, `OffsetParentheses` & `OperandTargetSite`**: Model two-tier symbolic displacements (`base +/- offset`), decimal or hex radices, byte-extractor parenthesization, and decoded operand target sites.
 -   **`XRef` & `XRefKind`**: Represent a typed cross-reference edge (`from: Addr`, `kind: XRefKind`) and its semantic access or control-flow classification: `Read` (`[R]`), `Write` (`[W]`), `ReadModifyWrite` (`[R/W]`), `Call` (`[C]`), `Jump` (`[J]`), and `Offset` (`[O]`). Sorted deterministically by `(from, kind)`.
 
 ---
@@ -252,7 +256,7 @@ flowchart TB
 
 -   **`context.rs`**: `DisassemblyContext` holds references to memory buffers, block types, labels, cross-references, settings, and annotations. It pre-computes `scope_ends` into a `BTreeSet`. `is_virtual_splitter()` treats user splitters, scope starts, and scope ends as section breaks with `O(log S)` lookups, while `breaks_data_group()` provides a unified interior boundary predicate (block type changes, user labels, comments, virtual splitters, and mid-group cross-references) for multi-byte data formatters.
 -   **`pipeline.rs`**: Drives the main disassembly loop, emits label header lines, and decodes instructions via `disassemble_code_instruction`.
--   **`symbols.rs`**: Resolves symbol precedence (`LabelKind::User` > `LabelKind::System` > `LabelKind::Auto`), formats local labels, computes scope paths (`compute_scope_names`), and resolves operand target addresses.
+-   **`symbols.rs`**: Enforces 5-tier symbol and symbolic-offset precedence (`Tier 1 operand_offset` > `User` > `Tier 2 address_offset` > `System` > `Auto`), formats local labels and scope paths (`compute_scope_names`), and wraps byte-extractor offsets via `OffsetParentheses`.
 -   **`data_blocks.rs`**: Formats non-code blocks including byte tables (`.byte`), 16-bit words (`.word`), address tables, PETSCII and Screencode strings, split Lo/Hi and Hi/Lo tables, external binary includes (`.incbin`), and fill runs (`.fill`).
 -   **`handlers.rs`**: Decodes instruction operands across all 13 MOS 6502 addressing modes.
 -   **`formatter.rs`** and Assembler Formatters: Defines the `Formatter` trait, shared 13-mode operand formatting in `Formatter::format_operand()` (parameterized by `accumulator_operand()` and `absolute_zero_page_prefix()` with `FormatContext::should_force_absolute()`), file-level preamble directives via `FileDirective` and `Formatter::format_file_directives()`, and mid-instruction relative label definitions via `Formatter::format_relative_label()`:
@@ -269,7 +273,7 @@ flowchart TB
 The CPU module defines all 256 opcode bytes of the MOS 6502/6510 processor:
 
 -   **`Opcode`**: Stores the mnemonic, addressing mode, byte length (1–3), cycle count, description, illegal-opcode flag, and `Opcode::xref_kind()` classifier (`Read`, `Write`, `ReadModifyWrite`, `Call`, or `Jump`).
--   **`AddressingMode`**: Enumerates all 13 addressing modes (`Implied`, `Accumulator`, `Immediate`, `ZeroPage`, `ZeroPageX`, `ZeroPageY`, `Relative`, `Absolute`, `AbsoluteX`, `AbsoluteY`, `Indirect`, `IndirectX`, and `IndirectY`), plus an `Unknown` sentinel for undecodable bytes.
+-   **`AddressingMode`**: Enumerates all 13 addressing modes (`Implied`, `Accumulator`, `Immediate`, `ZeroPage`, `ZeroPageX`, `ZeroPageY`, `Relative`, `Absolute`, `AbsoluteX`, `AbsoluteY`, `Indirect`, `IndirectX`, and `IndirectY`), `AddressingMode::is_zero_page()`, and an `Unknown` sentinel for undecodable bytes.
 -   **Undocumented Opcodes**: Supports undocumented 6502 opcodes (`LAX`, `SAX`, `DCP`, `ISC`, `SLO`, `RLA`, `SRE`, `RRA`, `ALR`, `ANC`, `ARR`, `AXS`, multi-byte `NOP` variants, and `KIL`/`JAM`). If you disable `use_illegal_opcodes` in Document Settings, the disassembler formats undocumented opcodes as raw `.byte` values.
 
 ---
@@ -297,6 +301,8 @@ pub enum Command {
     SetUserExcludedAddress { address: Addr, add: bool, old_labels: BTreeMap<Addr, Vec<Label>>, old_cross_refs: BTreeMap<Addr, Vec<XRef>> },
     SetEnumUsage { address: Addr, new_enum: Option<String>, old_enum: Option<String> },
     SetEnumDefinition { name: String, new_definition: Option<EnumDefinition>, old_definition: Option<EnumDefinition> },
+    SetOperandOffset { address: Addr, new_offset: Option<SymbolicOffset>, old_offset: Option<SymbolicOffset> },
+    SetAddressOffset { address: Addr, new_offset: Option<SymbolicOffset>, old_offset: Option<SymbolicOffset> },
     Batch(Vec<Command>),
 }
 ```
@@ -328,6 +334,7 @@ The analyzer records each reference as a typed `XRef` (`from: Addr`, `kind: XRef
 
 -   **Instruction Operands**: `Opcode::xref_kind()` classifies operands as `Read` (`[R]`), `Write` (`[W]`), `ReadModifyWrite` (`[R/W]`), `Call` (`[C]`), or `Jump` (`[J]`). Indirect jump targets resolved through `Address` blocks (`JMP ($xxxx)`) also emit `XRefKind::Jump`.
 -   **Symbolic Offsets & Address Tables**: Immediate low/high byte formats (`ImmediateFormat::LowByte(Addr)` / `HighByte(Addr)`) and 16-bit address blocks (`BlockType::Address`, `LoHiAddress`, `HiLoAddress`) emit `XRefKind::Offset` (`[O]`).
+-   **Displaced Target Redirection**: When an active `SymbolicOffset` applies (enforcing `base <= $00FF` in zero-page modes), the analyzer redirects cross-references and auto-label generation from `raw_target` to `sym.base`.
 
 #### Auto-Generated Label Prefixes
 
@@ -436,12 +443,12 @@ Regenerator 2000 implements an MCP (`2024-11-05`) server so AI agents (Antigravi
     -   **`http.rs`**: Serves streamable HTTP with Server-Sent Events (SSE) on port `3000` by default via `rmcp`, including `server/discover` and `subscriptions/listen` compatibility handlers.
     -   **`stdio.rs`**: Runs a headless standard I/O loop for subprocess clients.
 
--   **Request Dispatcher (`handler.rs`)**: Routes JSON-RPC requests (`initialize`, `notifications/initialized`, `ping`, `tools/list`, `resources/list`, `resources/read`, and `tools/call`).
+-   **Request Dispatcher (`handler.rs`)**: Routes JSON-RPC requests (`initialize`, `notifications/initialized`, `ping`, `tools/list`, `resources/list`, `resources/read`, and `tools/call`) and preserves view state via `DisassemblyViewAnchor`.
 -   **Tool Submodules (`mcp/tools/`)**:
 
     -   **`analysis_tools.rs`**: Reads disassembly regions, blocks, cross-references, symbols, address details, binary metadata, and search matches.
     -   **`navigation_tools.rs`**: Queries and moves the disassembly cursor.
-    -   **`modification_tools.rs`**: Modifies block types, labels, comments, immediate formats, splitters, scopes, and enums.
+    -   **`modification_tools.rs`**: Modifies block types, labels, symbolic offsets, comments, immediate formats, splitters, scopes, and enums.
     -   **`session_tools.rs`**: Executes project save, undo, redo, batch execution, and binary unpacking.
     -   **`common.rs`**: Validates address and range parameters (`get_address`, `get_optional_address`, `get_optional_address_range`, `parse_address_value`), applies block commands with re-analysis (`apply_block_command_with_analysis`), and builds JSON-RPC error responses (`make_mcp_error`).
 
@@ -483,7 +490,7 @@ flowchart TB
 
         Minimap["Minimap Bar (ui/minimap_bar.rs)<br/>Memory Block Distribution Overview"]
         StatusBar["Status Bar (ui/statusbar.rs)<br/>Address · Opcodes · Mode · Progress · Status"]
-        ModalOverlay["Modal Dialog Overlay (dialog_*.rs — 25 Modules / 30 DialogTypes)<br/>Settings · Search · Labels · Comments · Bookmarks · Pickers"]
+        ModalOverlay["Modal Dialog Overlay (dialog_*.rs — 26 Modules / 31 DialogTypes)<br/>Settings · Search · Labels · Offsets · Comments · Bookmarks · Pickers"]
 
         MenuBar --> MainWorkspace
         MainWorkspace --> Minimap
@@ -527,8 +534,9 @@ flowchart TB
     -   `view_blocks.rs`: Lists all memory blocks with their types, address ranges, sizes, and collapsed states.
     -   `view_debugger.rs`: Displays live VICE CPU registers, processor flags, stack memory (`$0100–$01FF`), hardware registers, and active breakpoints.
 
--   **Unified Modal Dialogs (`ui/dialog_*.rs`)**:
+-   **Unified Modal Dialogs (`ui/dialog_*.rs` & `ui/scoped_input.rs`)**:
 
+    -   `scoped_input.rs`, `dialog_label.rs`, and `dialog_symbolic_offset.rs`: Shared `ScopedInputModal` (`ScopeLock`) for single-line text editing, scope toggles (`Tab`, `Alt+L`, `Alt+G`), and inline validation in `LabelDialog` and `SymbolicOffsetDialog` (`SymbolicOffsetDialogParams`).
     -   `dialog_file_browser.rs`: Unified `FileBrowserDialog` parameterized by `FileBrowserMode` (`Open`, `SaveProject`, `Export`, and `ImportViceLabels` / `ExportLabels`).
     -   `dialog_prompt.rs`: Unified single-line `PromptDialog` parameterized by `PromptMode` (`Origin`, `JumpToAddress`, `JumpToLine`, `BreakpointAddress`, and `MemoryDumpAddress`).
     -   `dialog_container_picker.rs`: Unified `ContainerPickerDialog` parameterized by `ContainerKind` for `.d64`/`.d71`/`.d81` disk directories and `.t64` tape directories.
@@ -590,23 +598,23 @@ sequenceDiagram
     participant State as AppState & UndoStack
 
     Agent->>MCP: JSON-RPC POST tools/call ("r2000_set_label_name")
+    MCP->>MCP: DisassemblyViewAnchor::capture(app_state, view_state)
     MCP->>Tool: Route request to set_label_name_impl()
-    Tool->>State: AppState::create_set_user_label_command() (shared validation)
-    State-->>Tool: Return validated Command::SetLabel
-    Tool->>State: Command::apply() & AppState::push_command()
-    Tool->>State: AppState::disassemble() (rebuild disassembly cache)
+    Tool->>State: AppState::apply_user_label_or_address_offset() (shared validation)
+    State->>State: Apply Command::SetLabel (or SetAddressOffset), push to UndoStack & disassemble()
     Tool-->>MCP: Return JSON-RPC success payload
+    MCP->>MCP: DisassemblyViewAnchor::restore(app_state, view_state)
     MCP-->>Agent: Write response to HTTP SSE stream or Stdio pipe
     MCP--)State: Emit AppEvent::Mcp to trigger TUI redraw (if active)
 ```
 
 1.  **Client Request**: The external AI agent sends a JSON-RPC POST `tools/call` (`"r2000_set_label_name"`, `{address: 2064, name: "init"}`).
 2.  **Transport Handling**: `mcp::http` or `mcp::stdio` decodes the JSON-RPC request.
-3.  **Handler Router**: `mcp::handler` routes `tools/call` to `modification_tools`, which matches the tool name to `set_label_name_impl()`.
-4.  **Shared Validation**: The tool calls `AppState::create_set_user_label_command()`. This core method validates the name (for example, it rejects duplicates) and builds a `Command::SetLabel`. The TUI path (`DisassemblyActionHandler` for `AppAction::ApplyLabel`) calls the same method.
-5.  **Command Execution**: The tool calls `Command::apply()` on `AppState`. Then `AppState::push_command()` records it on the `UndoStack`. MCP tools do not dispatch an `AppAction` through `Core::apply_action()`.
-6.  **Reactive Invalidation**: The tool calls `AppState::disassemble()` to rebuild the disassembly cache.
-7.  **Response Construction**: The MCP handler constructs a JSON-RPC success response.
+3.  **Handler Router**: `mcp::handler` captures a `DisassemblyViewAnchor` and routes `tools/call` to `modification_tools::set_label_name_impl()`.
+4.  **Shared Validation**: The tool calls `AppState::apply_user_label_or_address_offset()`. This core method validates label names or Tier 2 offset expressions, matching the `AppAction::ApplyLabel` TUI path.
+5.  **Command Execution**: `AppState` constructs `Command::SetLabel` (or `Command::SetAddressOffset`) and records it on the `UndoStack`. MCP tools do not dispatch an `AppAction` through `Core::apply_action()`.
+6.  **Reactive Invalidation**: `AppState` re-analyzes (when `auto_analyze` is active) and rebuilds the disassembly cache via `disassemble()`.
+7.  **Anchor Restore & Reply**: `mcp::handler` restores `DisassemblyViewAnchor` on `CoreViewState` and constructs a JSON-RPC success response.
 8.  **Transport Reply**: The transport writes the response to the HTTP SSE stream or Stdio pipe.
 9.  **TUI Coordination**: If the TUI is active, the event loop receives `AppEvent::Mcp` and redraws the screen.
 
@@ -694,7 +702,11 @@ Regenerator 2000 saves projects as `.regen2000proj` JSON files designed for sche
     { "start": 13, "end": 100, "type_": "DataByte", "collapsed": false }
   ],
   "labels": {
+    "251": [ { "name": "zp_ptr", "label_type": "ZeroPagePointer", "kind": "User" } ],
     "2049": [ { "name": "start", "label_type": "Subroutine", "kind": "User" } ]
+  },
+  "252": {
+    "address_offset": { "base": 251, "offset": 1, "radix": "Decimal" }
   },
   "2049": {
     "user_side_comment": "Initialize VIC-II",

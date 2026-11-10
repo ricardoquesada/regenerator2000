@@ -117,26 +117,26 @@ impl AppState {
     /// Prioritizes content lines with bytes over label-only or external equate header lines.
     #[must_use]
     pub fn get_line_index_for_address(&self, address: Addr) -> Option<usize> {
-        // First pass: try to find exact match with content (bytes not empty)
-        // This prioritizes real instructions/data over label-only or header lines
-        if let Some(idx) = self
-            .disassembly
-            .iter()
-            .position(|line| line.address == address && !line.bytes.is_empty())
+        // First pass: exact match on an in-binary content line with non-empty bytes.
+        if let Some(idx) = self.disassembly.iter().position(|line| {
+            line.external_label_address.is_none()
+                && line.address == address
+                && !line.bytes.is_empty()
+        }) {
+            return Some(idx);
+        }
+
+        // Second pass: exact match on a zero-byte in-binary body line (such as a collapsed block or splitter).
+        if !self.is_external(address)
+            && let Some(idx) = self
+                .disassembly
+                .iter()
+                .position(|line| line.external_label_address.is_none() && line.address == address)
         {
             return Some(idx);
         }
 
-        // Second pass: try to find any exact match
-        if let Some(idx) = self
-            .disassembly
-            .iter()
-            .position(|line| line.address == address)
-        {
-            return Some(idx);
-        }
-
-        // Check for external label definitions (external_label_address matches target)
+        // Third pass: external label equate in the preamble.
         if let Some(idx) = self
             .disassembly
             .iter()
@@ -144,22 +144,17 @@ impl AppState {
         {
             return Some(idx);
         }
-        // Third pass: find first *content* line (has bytes) with address >= target.
-        // We intentionally skip external-label / header / separator lines (those
-        // with no bytes) here: they are prepended when `settings.all_labels` is
-        // enabled and can have large addresses that would otherwise be returned
-        // before the real instruction in the main disassembly body.
-        if let Some(idx) = self
-            .disassembly
-            .iter()
-            .position(|line| !line.bytes.is_empty() && line.address >= address)
-        {
+
+        // Fourth pass: first in-binary content line (non-empty bytes) with `address >= target`.
+        if let Some(idx) = self.disassembly.iter().position(|line| {
+            line.external_label_address.is_none()
+                && !line.bytes.is_empty()
+                && line.address >= address
+        }) {
             return Some(idx);
         }
 
-        // Fourth pass: any line (including label-only / header) with address >= target.
-        // This is the last resort — external label lines can still match here when no
-        // content line is at or above the requested address.
+        // Last resort: any line with `address >= target`.
         self.disassembly
             .iter()
             .position(|line| line.address >= address)
@@ -168,13 +163,10 @@ impl AppState {
     /// Returns the index of the [`DisassemblyLine`](crate::disassembler::DisassemblyLine) whose byte span or collapsed range contains `address`.
     #[must_use]
     pub fn get_line_index_containing_address(&self, address: Addr) -> Option<usize> {
-        // Check if address is in a collapsed block
         for (start_idx, end_idx) in &self.collapsed_blocks {
             let start_addr = self.origin.wrapping_add(*start_idx as u16);
             let end_addr = self.origin.wrapping_add(*end_idx as u16);
 
-            // Check if address is within this collapsed block [start, end]
-            // Handle wrap-around if necessary
             let in_range = if start_addr <= end_addr {
                 address >= start_addr && address <= end_addr
             } else {
@@ -182,30 +174,33 @@ impl AppState {
             };
 
             if in_range {
-                // Return the index of the line that represents this collapsed block
-                // This line starts at start_addr and has is_collapsed=true
                 return self.get_line_index_for_address(start_addr);
             }
         }
 
-        self.disassembly.iter().position(|line| {
+        let is_ext = self.is_external(address);
+        if let Some(idx) = self.disassembly.iter().position(|line| {
+            if line.external_label_address.is_some() {
+                return false;
+            }
             let start = line.address;
             let len = line.bytes.len() as u16;
-
-            // For collapsed blocks or special lines with no bytes, we match if address is exact
             if len == 0 {
-                return start == address;
+                return !is_ext && start == address;
             }
-
             let end = start.wrapping_add(len);
-
             if start < end {
                 address >= start && address < end
             } else {
-                // Wrap around case
                 address >= start || address < end
             }
-        })
+        }) {
+            return Some(idx);
+        }
+
+        self.disassembly
+            .iter()
+            .position(|line| line.external_label_address == Some(address))
     }
 }
 

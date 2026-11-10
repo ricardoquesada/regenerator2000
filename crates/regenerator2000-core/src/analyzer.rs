@@ -1,11 +1,14 @@
 //! Static control-flow and data-reference analyzer for MOS 6502 binaries.
 //!
-//! Scans [`AppState`] memory blocks, decodes 6502 instructions and address tables,
-//! generates canonical auto-labels ([`LabelType`]), builds the typed cross-reference index
-//! (`BTreeMap<Addr, Vec<XRef>>`), resolves indirect jump vectors (`JMP ($xxxx)`), and performs
-//! breadth-first control-flow reachability tracing ([`flow_analyze`]).
+//! Scans [`AppState`] blocks to decode 6502 instructions, pointer tables, and indirect vectors.
+//! Redirects active [`SymbolicOffset`](crate::state::SymbolicOffset) targets to `sym.base`,
+//! generates canonical [`LabelType`] auto-labels, builds typed cross-references, and runs
+//! reachability analysis ([`flow_analyze`]).
 
 use crate::cpu::{AddressingMode, Opcode};
+use crate::disassembler::symbols::{
+    resolve_effective_symbolic_offset_for_mode, resolve_split_pair_effective_symbolic_offset,
+};
 use crate::state::{
     Addr, AppState, BlockType, ImmediateFormat, Label, LabelKind, LabelType, XRef, XRefKind,
 };
@@ -22,20 +25,42 @@ pub struct AnalysisResult {
 /// Stores incoming [`XRef`] edges and the first observed [`LabelType`] for a target address.
 type UsageData = (Vec<XRef>, LabelType);
 
+/// Redirects `raw_target` to `sym.base` when an active [`SymbolicOffset`](crate::state::SymbolicOffset) applies.
+///
+/// Normalizes `label_type` only when an offset applies, preserving 16-bit prefixes on direct 3-byte zero-page operands.
+#[must_use]
+fn resolve_analyzed_target(
+    site_addr: Addr,
+    raw_target: Addr,
+    label_type: LabelType,
+    is_zero_page_mode: bool,
+    state: &AppState,
+) -> (Addr, LabelType) {
+    if let Some(sym) = resolve_effective_symbolic_offset_for_mode(
+        site_addr,
+        raw_target,
+        is_zero_page_mode,
+        &state.labels,
+        &state.annotations,
+    ) {
+        (sym.base, label_type.normalize_for_address(sym.base))
+    } else {
+        (raw_target, label_type)
+    }
+}
+
 /// Runs a full static analysis pass over `state` and returns generated labels and cross-references.
 ///
 /// The analyzer executes four stages:
 ///
-/// 1. **Linear instruction and data-block scan**: Decodes [`BlockType::Code`] instructions
-///    (including indirect jump resolution through internal [`BlockType::Address`] vectors) and
-///    extracts 16-bit target addresses from [`BlockType::Address`], [`BlockType::LoHiAddress`],
-///    and [`BlockType::HiLoAddress`] blocks as [`XRefKind::Offset`].
-/// 2. **Return-stub promotion**: Promotes branch, jump, and subroutine targets whose first
-///    instruction is `RTS` (`$60`) or `RTI` (`$40`) to [`LabelType::Return`].
-/// 3. **Immediate low/high byte offset collection**: Records [`XRefKind::Offset`] references for
-///    instructions annotated with [`ImmediateFormat::LowByte`] or [`ImmediateFormat::HighByte`].
-/// 4. **Canonical label and [`XRef`] normalization**: Sorts and deduplicates each target's
-///    `Vec<XRef>` by `(from, kind)` and generates auto-labels while preserving user and system labels.
+/// 1. **Linear scan**: Decodes [`BlockType::Code`] instructions and address tables, routing any
+///    active [`SymbolicOffset`](crate::state::SymbolicOffset) reference to `sym.base`.
+/// 2. **Return-stub promotion**: Promotes jump and branch targets that start with `RTS` (`$60`)
+///    or `RTI` (`$40`) to [`LabelType::Return`].
+/// 3. **Immediate byte offsets**: Records [`XRefKind::Offset`] edges for `LowByte` and `HighByte`
+///    immediates, redirecting displaced pointers to `sym.base`.
+/// 4. **Normalization**: Sorts and deduplicates [`XRef`] lists by `(from, kind)` and generates
+///    auto-labels while preserving user and system labels.
 #[must_use]
 pub fn analyze(state: &AppState) -> AnalysisResult {
     let mut usage_map: BTreeMap<Addr, UsageData> = BTreeMap::new();
@@ -94,11 +119,19 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                     let low = state.raw_data[pc];
                     let high = state.raw_data[pc + 1];
                     let val = Addr(u16::from(high) << 8 | u16::from(low));
-                    update_usage(
-                        &mut usage_map,
+                    let site_addr = origin.wrapping_add(pc as u16);
+                    let (effective_target, effective_label_type) = resolve_analyzed_target(
+                        site_addr,
                         val,
                         LabelType::AbsoluteAddress,
-                        XRef::new(origin.wrapping_add(pc as u16), XRefKind::Offset),
+                        false,
+                        state,
+                    );
+                    update_usage(
+                        &mut usage_map,
+                        effective_target,
+                        effective_label_type,
+                        XRef::new(site_addr, XRefKind::Offset),
                     );
                     pc += 2;
                 } else {
@@ -143,10 +176,12 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
         else {
             continue;
         };
+        let (effective_target, effective_label_type) =
+            resolve_analyzed_target(addr, *target_addr, LabelType::Pointer, false, state);
         update_usage(
             &mut usage_map,
-            *target_addr,
-            LabelType::Pointer,
+            effective_target,
+            effective_label_type,
             XRef::new(addr, XRefKind::Offset),
         );
     }
@@ -163,8 +198,20 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
 
         if let Some(existing_vec) = state.labels.get(&addr) {
             for existing in existing_vec {
-                if matches!(existing.kind, LabelKind::User | LabelKind::System) {
+                if existing.kind == LabelKind::User {
                     addr_labels.push(existing.clone());
+                }
+            }
+        }
+
+        if !state.excluded_addresses.contains(&addr) {
+            if let Some(sys_vec) = state.system_labels.get(&addr).filter(|v| !v.is_empty()) {
+                addr_labels.extend(sys_vec.iter().cloned());
+            } else if let Some(existing_vec) = state.labels.get(&addr) {
+                for existing in existing_vec {
+                    if existing.kind == LabelKind::System {
+                        addr_labels.push(existing.clone());
+                    }
                 }
             }
         }
@@ -219,7 +266,13 @@ fn has_unsplit_pair(state: &AppState, pc: usize, block_type: BlockType) -> bool 
         && !state.is_virtual_splitter(state.origin.wrapping_add((pc + 1) as u16))
 }
 
-/// Returns the byte length of the contiguous `block_type` run starting at `pc`, stopping at splitters.
+/// Returns the byte length of the contiguous split-table `block_type` sub-block starting at `pc`,
+/// stopping at virtual splitters and user line/side comments via
+/// [`AppState::is_split_table_subblock_boundary`].
+///
+/// Sharing [`AppState::is_split_table_subblock_boundary`] guarantees that adjacent `LoHiAddress`
+/// or `HiLoAddress` tables separated solely by a user comment pair `(lo, hi)` bytes identically
+/// across the analyzer, `AppState`, and `disassembler::handlers`.
 #[must_use]
 fn contiguous_block_len(state: &AppState, pc: usize, block_type: BlockType) -> usize {
     let data_len = state.raw_data.len();
@@ -227,7 +280,9 @@ fn contiguous_block_len(state: &AppState, pc: usize, block_type: BlockType) -> u
     let mut count = 0;
 
     while pc + count < data_len && state.block_types.get(pc + count) == Some(&block_type) {
-        if count > 0 && state.is_virtual_splitter(origin.wrapping_add((pc + count) as u16)) {
+        if count > 0
+            && state.is_split_table_subblock_boundary(origin.wrapping_add((pc + count) as u16))
+        {
             break;
         }
         count += 1;
@@ -237,6 +292,10 @@ fn contiguous_block_len(state: &AppState, pc: usize, block_type: BlockType) -> u
 }
 
 /// Extracts 16-bit target addresses from a split `LoHiAddress` or `HiLoAddress` table.
+///
+/// Queries Tier 1 `operand_offset` on both `first_addr` (canonical) and `second_addr` (fallback)
+/// before Tier 2 `address_offset`, while emitting strictly **one** [`XRefKind::Offset`] edge from
+/// `first_addr` per pair.
 fn analyze_split_address_table(
     state: &AppState,
     pc: usize,
@@ -256,11 +315,28 @@ fn analyze_split_address_table(
             (second, first)
         };
         let val = Addr(u16::from(hi) << 8 | u16::from(lo));
+        let first_addr = origin.wrapping_add((pc + i) as u16);
+        let second_addr = origin.wrapping_add((pc + pair_count + i) as u16);
+        let (effective_target, effective_label_type) = if let Some(sym) =
+            resolve_split_pair_effective_symbolic_offset(
+                first_addr,
+                second_addr,
+                val,
+                &state.labels,
+                &state.annotations,
+            ) {
+            (
+                sym.base,
+                LabelType::AbsoluteAddress.normalize_for_address(sym.base),
+            )
+        } else {
+            (val, LabelType::AbsoluteAddress)
+        };
         update_usage(
             usage_map,
-            val,
-            LabelType::AbsoluteAddress,
-            XRef::new(origin.wrapping_add((pc + i) as u16), XRefKind::Offset),
+            effective_target,
+            effective_label_type,
+            XRef::new(first_addr, XRefKind::Offset),
         );
     }
 }
@@ -283,29 +359,35 @@ fn analyze_instruction(
         | AddressingMode::Unknown => {}
         AddressingMode::ZeroPage => {
             if let Some(&zp) = operands.first() {
-                update_usage(
-                    usage_map,
+                let (effective_target, effective_label_type) = resolve_analyzed_target(
+                    address,
                     Addr(u16::from(zp)),
                     LabelType::ZeroPageAbsoluteAddress,
-                    xref,
+                    true,
+                    state,
                 );
+                update_usage(usage_map, effective_target, effective_label_type, xref);
             }
         }
         AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
             if let Some(&zp) = operands.first() {
-                update_usage(
-                    usage_map,
+                let (effective_target, effective_label_type) = resolve_analyzed_target(
+                    address,
                     Addr(u16::from(zp)),
                     LabelType::ZeroPageField,
-                    xref,
+                    true,
+                    state,
                 );
+                update_usage(usage_map, effective_target, effective_label_type, xref);
             }
         }
         AddressingMode::Relative => {
             if let Some(&rel) = operands.first() {
                 let offset = rel as i8;
                 let target = Addr((address.0.wrapping_add(2)).wrapping_add(offset as u16));
-                update_usage(usage_map, target, LabelType::Branch, xref);
+                let (effective_target, effective_label_type) =
+                    resolve_analyzed_target(address, target, LabelType::Branch, false, state);
+                update_usage(usage_map, effective_target, effective_label_type, xref);
             }
         }
         AddressingMode::Absolute => {
@@ -316,31 +398,50 @@ fn analyze_instruction(
                     "JMP" => LabelType::Jump,
                     _ => LabelType::AbsoluteAddress,
                 };
-                update_usage(usage_map, target, label_type, xref);
+                let (effective_target, effective_label_type) =
+                    resolve_analyzed_target(address, target, label_type, false, state);
+                update_usage(usage_map, effective_target, effective_label_type, xref);
             }
         }
         AddressingMode::AbsoluteX | AddressingMode::AbsoluteY => {
             if operands.len() >= 2 {
                 let target = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                update_usage(usage_map, target, LabelType::Field, xref);
+                let (effective_target, effective_label_type) =
+                    resolve_analyzed_target(address, target, LabelType::Field, false, state);
+                update_usage(usage_map, effective_target, effective_label_type, xref);
             }
         }
         AddressingMode::Indirect => {
             if operands.len() >= 2 {
                 let pointer_addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                update_usage(usage_map, pointer_addr, LabelType::Pointer, xref);
+                let (effective_target, effective_label_type) = resolve_analyzed_target(
+                    address,
+                    pointer_addr,
+                    LabelType::Pointer,
+                    false,
+                    state,
+                );
+                update_usage(usage_map, effective_target, effective_label_type, xref);
 
                 // When `JMP ($xxxx)` points to an internal 2-byte `BlockType::Address` vector,
-                // record the dereferenced destination as a `Jump` target as well.
+                // route the `Pointer` usage above to `effective_target` (`sym.base`) while still
+                // dereferencing `raw_data` at the actual runtime `pointer_addr` vector bytes.
                 if opcode.mnemonic == "JMP" && !state.is_external(pointer_addr) {
                     let ptr_offset = pointer_addr.offset_from(state.origin);
                     if has_unsplit_pair(state, ptr_offset, BlockType::Address) {
-                        let target = Addr(
+                        let raw_dest = Addr(
                             u16::from(state.raw_data[ptr_offset + 1]) << 8
                                 | u16::from(state.raw_data[ptr_offset]),
                         );
-                        update_usage(usage_map, target, LabelType::Jump, xref);
-                        if let Some((_, first_type)) = usage_map.get_mut(&target)
+                        let (dest_target, dest_type) = resolve_analyzed_target(
+                            pointer_addr,
+                            raw_dest,
+                            LabelType::Jump,
+                            false,
+                            state,
+                        );
+                        update_usage(usage_map, dest_target, dest_type, xref);
+                        if let Some((_, first_type)) = usage_map.get_mut(&dest_target)
                             && *first_type == LabelType::AbsoluteAddress
                         {
                             *first_type = LabelType::Jump;
@@ -351,12 +452,14 @@ fn analyze_instruction(
         }
         AddressingMode::IndirectX | AddressingMode::IndirectY => {
             if let Some(&base) = operands.first() {
-                update_usage(
-                    usage_map,
+                let (effective_target, effective_label_type) = resolve_analyzed_target(
+                    address,
                     Addr(u16::from(base)),
                     LabelType::ZeroPagePointer,
-                    xref,
+                    true,
+                    state,
                 );
+                update_usage(usage_map, effective_target, effective_label_type, xref);
             }
         }
     }
@@ -1629,5 +1732,410 @@ mod tests {
         );
         assert_eq!(labels_at_1005[0].name, "j_1005");
         assert_eq!(labels_at_1005[0].label_type, LabelType::Jump);
+    }
+
+    #[test]
+    fn test_analyze_symbolic_offset_zp_pointer_reclaims_orphan_and_routes_xrefs() {
+        use crate::state::{OffsetRadix, SymbolicOffset};
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: LDA #$00 (A9 00)
+        // $1002: STA $FB  (85 FB)
+        // $1004: STA $FC  (85 FC)
+        // $1006: LDA ($FB),Y (B1 FB)
+        // $1008: INC $FC  (E6 FC)
+        state.raw_data = vec![0xA9, 0x00, 0x85, 0xFB, 0x85, 0xFC, 0xB1, 0xFB, 0xE6, 0xFC];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
+
+        state.labels.insert(
+            Addr(0x00FB),
+            vec![Label {
+                name: "zp_ptr".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        state.annotations.update(Addr(0x00FC), |e| {
+            e.address_offset = Some(SymbolicOffset {
+                base: Addr(0x00FB),
+                offset: 1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+
+        let result = analyze(&state);
+
+        assert!(
+            !result.labels.contains_key(&Addr(0x00FC)),
+            "Orphan auto-label zpa_FC at $00FC must be reclaimed"
+        );
+        assert!(
+            !result.cross_refs.contains_key(&Addr(0x00FC)),
+            "$00FC must not retain separate cross-references"
+        );
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x00FB)),
+            Some(&vec![
+                XRef::new(Addr(0x1002), XRefKind::Write),
+                XRef::new(Addr(0x1004), XRefKind::Write),
+                XRef::new(Addr(0x1006), XRefKind::Read),
+                XRef::new(Addr(0x1008), XRefKind::ReadModifyWrite),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_analyze_symbolic_offset_all_four_sites_and_single_xref_per_split_pair() {
+        use crate::state::{OffsetRadix, SymbolicOffset};
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // Layout:
+        // $1000..=$1001: BlockType::Address -> $1017 (17 10)
+        // $1002..=$1003: LDA #$17 (A9 17) -> LowByte($1017)
+        // $1004..=$1005: LDY #$10 (A0 10) -> HighByte($1017)
+        // $1006..=$1009: BlockType::LoHiAddress (2 pairs: $1017, $1017 -> 17 17 10 10)
+        // $100A..=$100B: BlockType::HiLoAddress (1 pair:  $1017 -> 10 17)
+        // $100C..=$100E: LDA $1017,X (BD 17 10)
+        // $100F..=$1011: JMP ($1012) (6C 12 10) with Tier 1 base: $1014, offset: -2
+        // $1012..=$1013: BlockType::Address vector -> $101A (1A 10)
+        // $1014..=$1016: NOP; NOP; NOP (EA EA EA)
+        // $1017:         RTS (60) — preceding routine's RTS!
+        // $1018..=$1019: NOP; RTS (EA 60) — target subroutine!
+        // $101A:         NOP (EA) — indirect jump destination!
+        state.raw_data = vec![
+            0x17, 0x10, // $1000..=$1001
+            0xA9, 0x17, // $1002..=$1003
+            0xA0, 0x10, // $1004..=$1005
+            0x17, 0x17, 0x10, 0x10, // $1006..=$1009
+            0x10, 0x17, // $100A..=$100B
+            0xBD, 0x17, 0x10, // $100C..=$100E
+            0x6C, 0x12, 0x10, // $100F..=$1011
+            0x1A, 0x10, // $1012..=$1013
+            0xEA, 0xEA, 0xEA, // $1014..=$1016
+            0x60, // $1017
+            0xEA, 0x60, // $1018..=$1019
+            0xEA, // $101A
+        ];
+        state.block_types = vec![
+            BlockType::Address,
+            BlockType::Address, // $1000..=$1001
+            BlockType::Code,
+            BlockType::Code, // $1002..=$1003
+            BlockType::Code,
+            BlockType::Code, // $1004..=$1005
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress, // $1006..=$1009
+            BlockType::HiLoAddress,
+            BlockType::HiLoAddress, // $100A..=$100B
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code, // $100C..=$100E
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code, // $100F..=$1011
+            BlockType::Address,
+            BlockType::Address, // $1012..=$1013
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code, // $1014..=$1016
+            BlockType::Code, // $1017
+            BlockType::Code,
+            BlockType::Code, // $1018..=$1019
+            BlockType::Code, // $101A
+        ];
+
+        let rts_sym = SymbolicOffset {
+            base: Addr(0x1018),
+            offset: -1,
+            radix: OffsetRadix::Decimal,
+        };
+        // Site 1: inline BlockType::Address at $1000
+        state
+            .annotations
+            .update(Addr(0x1000), |e| e.operand_offset = Some(rts_sym));
+        // Site 2: LowByte and HighByte at $1002 and $1004
+        state.annotations.update(Addr(0x1002), |e| {
+            e.immediate_format = Some(ImmediateFormat::LowByte(Addr(0x1017)));
+            e.operand_offset = Some(rts_sym);
+        });
+        state.annotations.update(Addr(0x1004), |e| {
+            e.immediate_format = Some(ImmediateFormat::HighByte(Addr(0x1017)));
+            e.operand_offset = Some(rts_sym);
+        });
+        // Site 3: LoHiAddress pair 0 on first-half ($1006), pair 1 on second-half ($1009), HiLoAddress on $100A
+        state
+            .annotations
+            .update(Addr(0x1006), |e| e.operand_offset = Some(rts_sym));
+        state
+            .annotations
+            .update(Addr(0x1009), |e| e.operand_offset = Some(rts_sym));
+        state
+            .annotations
+            .update(Addr(0x100A), |e| e.operand_offset = Some(rts_sym));
+        // Site 4: LDA $1017,X at $100C + JMP ($1012) at $100F
+        state
+            .annotations
+            .update(Addr(0x100C), |e| e.operand_offset = Some(rts_sym));
+        state.annotations.update(Addr(0x100F), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x1014),
+                offset: -2,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+
+        let result = analyze(&state);
+
+        // 1. Zero auto-labels and zero cross-refs at preceding RTS $1017
+        assert!(!result.labels.contains_key(&Addr(0x1017)));
+        assert!(!result.cross_refs.contains_key(&Addr(0x1017)));
+
+        // 2 & 3. All 7 routed XRefs on $1018, with strictly ONE XRef per split-table pair (Landmine 2)
+        let refs_1018 = result
+            .cross_refs
+            .get(&Addr(0x1018))
+            .expect("$1018 must receive routed XRefs");
+        assert_eq!(
+            refs_1018,
+            &vec![
+                XRef::new(Addr(0x1000), XRefKind::Offset),
+                XRef::new(Addr(0x1002), XRefKind::Offset),
+                XRef::new(Addr(0x1004), XRefKind::Offset),
+                XRef::new(Addr(0x1006), XRefKind::Offset),
+                XRef::new(Addr(0x1007), XRefKind::Offset),
+                XRef::new(Addr(0x100A), XRefKind::Offset),
+                XRef::new(Addr(0x100C), XRefKind::Read),
+            ]
+        );
+        assert!(
+            !refs_1018
+                .iter()
+                .any(|r| matches!(r.from.0, 0x1008 | 0x1009 | 0x100B)),
+            "Split tables must never emit duplicate second-half XRefs"
+        );
+
+        // 4. JMP ($1012) routes Pointer XRef to $1014 while still dereferencing raw $1012 -> $101A
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x1014)),
+            Some(&vec![XRef::new(Addr(0x100F), XRefKind::Jump)])
+        );
+        assert_eq!(result.labels.get(&Addr(0x101A)).unwrap()[0].name, "j_101A");
+        assert_eq!(
+            result.cross_refs.get(&Addr(0x101A)),
+            Some(&vec![
+                XRef::new(Addr(0x100F), XRefKind::Jump),
+                XRef::new(Addr(0x1012), XRefKind::Offset),
+            ])
+        );
+    }
+
+    #[test]
+    fn test_analyze_label_type_normalization_only_when_symbolic_offset_active() {
+        use crate::state::{OffsetRadix, SymbolicOffset};
+
+        // Case A (Landmine 1): No symbolic offset -> 3-byte ZP operands preserve a_00A0, f_00A1, p_00FB
+        let mut state_no_offset = AppState::new();
+        state_no_offset.origin = Addr(0x1000);
+        // STA $00A0 (8D A0 00), STA $00A1,X (9D A1 00), JMP ($00FB) (6C FB 00)
+        state_no_offset.raw_data = vec![0x8D, 0xA0, 0x00, 0x9D, 0xA1, 0x00, 0x6C, 0xFB, 0x00];
+        state_no_offset.block_types = vec![BlockType::Code; 9];
+
+        let res_a = analyze(&state_no_offset);
+        assert_eq!(res_a.labels.get(&Addr(0x00A0)).unwrap()[0].name, "a_00A0");
+        assert_eq!(res_a.labels.get(&Addr(0x00A1)).unwrap()[0].name, "f_00A1");
+        assert_eq!(res_a.labels.get(&Addr(0x00FB)).unwrap()[0].name, "p_00FB");
+
+        // Case B: Active symbolic offsets on 3-byte and immediate sites normalize LabelType to base space.
+        let mut state_with_offset = AppState::new();
+        state_with_offset.origin = Addr(0x1000);
+        // $1000: LDA $0100,X (BD 00 01) -> base $00FF (+1) produces zpf_FF.
+        // $1003: LDA #$00    (A9 00)    -> LowByte($0100) with base $00FE (+2) produces zpp_FE.
+        // $1005: LDA $00FF,X (BD FF 00) -> base $0100 (-1) produces f_0100.
+        // $1008: LDA $00FD   (AD FD 00) -> base $0101 (-4) produces a_0101.
+        // $100B: JMP ($00FC) (6C FC 00) -> base $0102 (-6) produces p_0102.
+        state_with_offset.raw_data = vec![
+            0xBD, 0x00, 0x01, // $1000
+            0xA9, 0x00, // $1003
+            0xBD, 0xFF, 0x00, // $1005
+            0xAD, 0xFD, 0x00, // $1008
+            0x6C, 0xFC, 0x00, // $100B
+        ];
+        state_with_offset.block_types = vec![BlockType::Code; 14];
+
+        state_with_offset.annotations.update(Addr(0x1000), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x00FF),
+                offset: 1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        state_with_offset.annotations.update(Addr(0x1003), |e| {
+            e.immediate_format = Some(ImmediateFormat::LowByte(Addr(0x0100)));
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x00FE),
+                offset: 2,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        state_with_offset.annotations.update(Addr(0x1005), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x0100),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        state_with_offset.annotations.update(Addr(0x1008), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x0101),
+                offset: -4,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        state_with_offset.annotations.update(Addr(0x100B), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x0102),
+                offset: -6,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+
+        let res_b = analyze(&state_with_offset);
+        assert_eq!(res_b.labels.get(&Addr(0x00FF)).unwrap()[0].name, "zpf_FF");
+        assert_eq!(res_b.labels.get(&Addr(0x00FE)).unwrap()[0].name, "zpp_FE");
+        assert_eq!(res_b.labels.get(&Addr(0x0100)).unwrap()[0].name, "f_0100");
+        assert_eq!(res_b.labels.get(&Addr(0x0101)).unwrap()[0].name, "a_0101");
+        assert_eq!(res_b.labels.get(&Addr(0x0102)).unwrap()[0].name, "p_0102");
+
+        // Case C: 2-byte zero-page instructions ignore out-of-bounds base > $00FF offsets.
+        let mut state_zp_oob = AppState::new();
+        state_zp_oob.origin = Addr(0x1000);
+        state_zp_oob.raw_data = vec![
+            0xB5, 0xFF, // $1000: LDA $FF,X
+            0xA5, 0xFD, // $1002: LDA $FD
+            0xB1, 0xFC, // $1004: LDA ($FC),Y
+        ];
+        state_zp_oob.block_types = vec![BlockType::Code; 6];
+        state_zp_oob.annotations.update(Addr(0x1000), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x0100),
+                offset: -1,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        state_zp_oob.annotations.update(Addr(0x1002), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x0101),
+                offset: -4,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+        state_zp_oob.annotations.update(Addr(0x1004), |e| {
+            e.operand_offset = Some(SymbolicOffset {
+                base: Addr(0x0102),
+                offset: -6,
+                radix: OffsetRadix::Decimal,
+            });
+        });
+
+        let res_c = analyze(&state_zp_oob);
+        assert_eq!(res_c.labels.get(&Addr(0x00FF)).unwrap()[0].name, "zpf_FF");
+        assert_eq!(res_c.labels.get(&Addr(0x00FD)).unwrap()[0].name, "zpa_FD");
+        assert_eq!(res_c.labels.get(&Addr(0x00FC)).unwrap()[0].name, "zpp_FC");
+        assert!(!res_c.labels.contains_key(&Addr(0x0100)));
+        assert!(!res_c.labels.contains_key(&Addr(0x0101)));
+        assert!(!res_c.labels.contains_key(&Addr(0x0102)));
+    }
+
+    #[test]
+    fn test_analyze_adjacent_lohi_tables_partitioned_by_user_comment_route_xrefs_without_bogus_labels()
+     {
+        use crate::state::{OffsetRadix, SymbolicOffset};
+
+        // Memory layout ($1000..=$1027, 40 bytes):
+        // $1000..=$1003: LoHiAddress Table 1 (2 pairs: $1017 = sub_a - 1, $101B = sub_b - 1)
+        //   lo bytes ($1000, $1001): 0x17, 0x1B
+        //   hi bytes ($1002, $1003): 0x10, 0x10
+        // $1004..=$1007: LoHiAddress Table 2 separated ONLY by `user_line_comment` at $1004
+        //   (2 pairs: $101F = sub_c - 1, $1023 = sub_d - 1)
+        //   lo bytes ($1004, $1005): 0x1F, 0x23
+        //   hi bytes ($1006, $1007): 0x10, 0x10
+        // Note: Without sub-block splitting at $1004, a merged 8-byte table would mis-pair
+        // ($1000, $1004) = $1F17, ($1001, $1005) = $231B, ($1002, $1006) = $1010, ($1003, $1007) = $1010!
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        let mut raw_data = vec![
+            0x17, 0x1B, 0x10, 0x10, // $1000..=$1003 Table 1
+            0x1F, 0x23, 0x10, 0x10, // $1004..=$1007 Table 2
+        ];
+        raw_data.extend([0xEA; 0x17 - 0x08]); // $1008..=$1016
+        raw_data.push(0x60); // $1017 preceding RTS
+        raw_data.extend([0xEA, 0xEA, 0xEA, 0x60]); // $1018..=$101B (`sub_a` at $1018, ends with RTS at $101B)
+        raw_data.extend([0xEA, 0xEA, 0xEA, 0x60]); // $101C..=$101F (`sub_b` at $101C, ends with RTS at $101F)
+        raw_data.extend([0xEA, 0xEA, 0xEA, 0x60]); // $1020..=$1023 (`sub_c` at $1020, ends with RTS at $1023)
+        raw_data.extend([0xEA, 0xEA, 0xEA, 0x60]); // $1024..=$1027 (`sub_d` at $1024)
+        assert_eq!(raw_data.len(), 0x28);
+
+        let mut block_types = vec![BlockType::LoHiAddress; 8];
+        block_types.extend([BlockType::Code; 0x20]);
+        state.raw_data = raw_data;
+        state.block_types = block_types;
+
+        // Partition Table 1 and Table 2 SOLELY with a user line comment at $1004 (no splitter!).
+        state.annotations.update(Addr(0x1004), |e| {
+            e.user_line_comment = Some("Stage 2 RTS dispatch vectors".to_string());
+        });
+
+        for (site, base) in [
+            (0x1000, 0x1018),
+            (0x1001, 0x101C),
+            (0x1004, 0x1020),
+            (0x1005, 0x1024),
+        ] {
+            state.annotations.update(Addr(site), |e| {
+                e.operand_offset = Some(SymbolicOffset {
+                    base: Addr(base),
+                    offset: -1,
+                    radix: OffsetRadix::Decimal,
+                });
+            });
+        }
+
+        let res = analyze(&state);
+
+        for (site, expected_base) in [
+            (Addr(0x1000), Addr(0x1018)),
+            (Addr(0x1001), Addr(0x101C)),
+            (Addr(0x1004), Addr(0x1020)),
+            (Addr(0x1005), Addr(0x1024)),
+        ] {
+            assert_eq!(
+                res.cross_refs.get(&expected_base),
+                Some(&vec![XRef::new(site, XRefKind::Offset)]),
+                "Expected exact XRef routing {site:?} -> {expected_base:?}"
+            );
+            assert!(
+                res.labels.contains_key(&expected_base),
+                "Expected auto-label generated at {expected_base:?}"
+            );
+        }
+
+        // Verify ZERO bogus auto-labels or XRefs anywhere else (neither at raw `-1` bytes nor at
+        // mis-paired addresses `$1F17`, `$231B`, `$1010`).
+        assert_eq!(
+            res.labels.len(),
+            4,
+            "unexpected bogus labels: {:?}",
+            res.labels
+        );
+        assert_eq!(
+            res.cross_refs.len(),
+            4,
+            "unexpected bogus cross-refs: {:?}",
+            res.cross_refs
+        );
     }
 }
