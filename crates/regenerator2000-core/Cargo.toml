@@ -4,7 +4,6 @@ version = "0.9.24"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ricardoquesada/regenerator2000"
-homepage = "https://regenerator2000.readthedocs.io/"
 documentation = "https://regenerator2000.readthedocs.io/"
 description = "Core library for Regenerator 2000: state, disassembler, analyzer, commands, parsers, and exporter for 6502/Commodore binaries."
 
@@ -26,11 +25,10 @@ mos6502 = "0.10.1"
 tokio = { version = "1.52", features = ["rt-multi-thread", "sync", "net", "macros"], optional = true }
 rmcp = { version = "3.8.0", features = ["server", "transport-streamable-http-server"], optional = true }
 axum = { version = "0.8.9", optional = true }
-reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"], optional = true }
 
 [features]
 default = []
-mcp = ["dep:tokio", "dep:rmcp", "dep:axum", "dep:reqwest"]
+mcp = ["dep:tokio", "dep:rmcp", "dep:axum"]
 
 [lints]
 workspace = true

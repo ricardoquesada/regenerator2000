@@ -695,12 +695,8 @@ mod tests {
         app_state.undo_stack.push(command);
 
         // Verify application
-        for i in 0..5 {
-            assert_eq!(app_state.block_types[i], BlockType::DataByte);
-        }
-        for i in 5..10 {
-            assert_eq!(app_state.block_types[i], BlockType::Code);
-        }
+        assert_eq!(&app_state.block_types[0..5], &[BlockType::DataByte; 5]);
+        assert_eq!(&app_state.block_types[5..10], &[BlockType::Code; 5]);
 
         // Undo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
@@ -708,9 +704,7 @@ mod tests {
         app_state.undo_stack = stack;
 
         // Verify Undo
-        for i in 0..10 {
-            assert_eq!(app_state.block_types[i], BlockType::Code);
-        }
+        assert_eq!(&app_state.block_types[0..10], &[BlockType::Code; 10]);
 
         // Redo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
@@ -718,9 +712,7 @@ mod tests {
         app_state.undo_stack = stack;
 
         // Verify Redo
-        for i in 0..5 {
-            assert_eq!(app_state.block_types[i], BlockType::DataByte);
-        }
+        assert_eq!(&app_state.block_types[0..5], &[BlockType::DataByte; 5]);
     }
 
     #[test]

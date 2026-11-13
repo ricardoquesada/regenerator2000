@@ -528,8 +528,8 @@ impl AppState {
         let ranges = crate::analyzer::flow_analyze(self, entry);
         for range in ranges {
             let end = range.end.min(self.block_types.len());
-            for i in range.start..end {
-                self.block_types[i] = BlockType::Code;
+            if let Some(slice) = self.block_types.get_mut(range.start..end) {
+                slice.fill(BlockType::Code);
             }
         }
 

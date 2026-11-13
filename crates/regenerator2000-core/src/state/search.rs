@@ -261,7 +261,7 @@ pub fn check_string_pattern(
     }
 
     // Check Screencode encoding (convert to PETSCII first, then to Unicode).
-    let screencode_match = (0..=1).any(|shift| {
+    (0..=1).any(|shift| {
         let shifted = shift == 1;
         query_chars.iter().enumerate().all(|(i, &query_char)| {
             let idx = start_offset + i;
@@ -273,13 +273,7 @@ pub fn check_string_pattern(
             let sc_char = petscii_to_unicode(petscii_byte, shifted);
             sc_char.eq_ignore_ascii_case(&query_char)
         })
-    });
-
-    if screencode_match {
-        return true;
-    }
-
-    false
+    })
 }
 
 // ---------------------------------------------------------------------------

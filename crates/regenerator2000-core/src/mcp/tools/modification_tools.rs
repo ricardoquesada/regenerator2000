@@ -259,15 +259,15 @@ fn disassemble_impl(app_state: &mut AppState, args: &Value) -> Result<Value, Mcp
 
     for range in ranges {
         let end = range.end.min(max_len);
-        let old_types = app_state.block_types[range.start..end].to_vec();
-        for i in range.start..end {
-            app_state.block_types[i] = BlockType::Code;
+        if let Some(slice) = app_state.block_types.get_mut(range.start..end) {
+            let old_types = slice.to_vec();
+            slice.fill(BlockType::Code);
+            commands.push(Command::SetBlockType {
+                range,
+                new_type: BlockType::Code,
+                old_types,
+            });
         }
-        commands.push(Command::SetBlockType {
-            range,
-            new_type: BlockType::Code,
-            old_types,
-        });
     }
 
     let (_, msg) = app_state.perform_analysis();
@@ -1657,9 +1657,7 @@ mod tests {
             "data_type": "byte"
         });
         set_data_type_impl(&mut app_state, &args).expect("Data type set should succeed");
-        for addr_idx in 0..16 {
-            assert_eq!(app_state.block_types[addr_idx], BlockType::DataByte);
-        }
+        assert_eq!(&app_state.block_types[0..16], &[BlockType::DataByte; 16]);
     }
 
     #[test]

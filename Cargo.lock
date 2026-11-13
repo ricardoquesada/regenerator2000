@@ -2495,7 +2495,6 @@ dependencies = [
  "log",
  "mos6502",
  "regex",
- "reqwest",
  "rmcp",
  "serde",
  "serde_json",
