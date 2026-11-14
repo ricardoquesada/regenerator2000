@@ -104,9 +104,12 @@ Complete BASIC decoding (Phase 1A) and memory block classification (Phase 1B) vi
         >
         > Binary info: system = {system}, origin = {origin}, size = {size}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
         >
-        > Apply all block conversions, splitters, table/string labels, and comments automatically without asking for user confirmation. When using `r2000_batch_execute` (for `>= 5` operations), inspect per-item `"status"` fields for any inner `"error"` entries.
+        > Apply all block conversions, splitters, symbolic offsets (`r2000_set_symbolic_offset`), table/string labels, and table/data comments automatically without asking for user confirmation:
+        > - For `PHA / PHA / RTS` (`target_address - 1`) dispatch tables, classify as `lo_hi_address`, `hi_lo_address`, or `address` (never `lo_hi_word`, `hi_lo_word`, or `word`) and immediately call `r2000_set_symbolic_offset` across `[table_start, table_end]` with `offset: -1` and `scope: "operand"`.
+        > - Do NOT attach `"line"` comments to newly disassembled `Code` subroutine entry points (only attach `"line"` comments to data blocks, tables, and strings) so Phase 2 analyzes every subroutine.
+        > - When using `r2000_batch_execute` (for `>= 5` operations), inspect per-item `"status"` fields for any inner `"error"` entries. Skip `r2000_save_project` (the orchestrator saves in Phase 1C).
         >
-        > Report all classified blocks within `[$XXXX, $YYYY]` grouped by type, newly discovered code entry points or tables, and any regions left Undefined.
+        > Report all classified blocks within `[$XXXX, $YYYY]` grouped by type, newly discovered code entry points (including any out-of-range `entry + 1` targets) or tables, and any regions left Undefined.
 
 3.  **Wait for Phase 1B Completion:** Wait for all Phase 1B subagents to complete before starting Phase 2.
 
@@ -139,13 +142,13 @@ Treat a routine as already analyzed if its entry-point address already has a lin
 
 1.  **Re-Fetch Updated Metadata After Wave 2A:**
     *   Call `r2000_get_symbols` (to pick up any newly discovered routines or labels from Wave 2A).
-    *   Call `r2000_get_blocks` with `"block_type": "Code"`.
+    *   Call `r2000_get_blocks` with `"block_type": "Code"` (and `"Address"` / `"Lo/Hi Address"` / `"Hi/Lo Address"` if mapping jump-table dispatch edges).
     *   Call `r2000_get_comments` with `"type": "line"` (never passing `start_address` without `end_address`).
 2.  **Filter Remaining Unanalyzed Routine Entry Points:**
     *   **Include** unanalyzed routine entry points inside `Code` blocks that lack a line comment in `r2000_get_comments`:
         *   Auto-generated subroutine labels (`s_XXXX`).
-        *   Labels in a `Code` block that have at least one `JSR` cross-reference.
-        *   Valid instruction-start pointer-to-code labels (`p_XXXX`) in `Code` blocks (jump table targets, state-machine callbacks, or chained interrupt handlers not already analyzed in Wave 2A).
+        *   Labels in a `Code` block that have at least one `JSR` (`"kind": "call"`) cross-reference.
+        *   Valid instruction-start jump-table, `RTS`-dispatch (`entry + 1`), or immediate-pointer callback entry points in `Code` blocks (`p_XXXX`, `a_XXXX`, or Phase-1B `User` labels not yet analyzed in Wave 2A) that have `"kind": "offset"` (`[O]`) cross-references from an `Address` / `Lo/Hi Address` / `Hi/Lo Address` table or `#<`/`#>` immediate pointer load (never confuse valid instruction-start `[O]` routine entry points with mid-instruction `instr + 1` / `instr + 2` SMC operand bytes referenced by `"write"` / `"read"` / `"read_modify_write"` instructions).
         *   Unanalyzed indirect-jump (`JMP ($XXXX)`) or inter-routine tail-call (`JMP $XXXX`) entry-point labels (`j_XXXX`) that head a separate routine in a `Code` block.
     *   **Exclude:**
         *   Any routine whose entry address already has a line comment in `r2000_get_comments`.
@@ -155,7 +158,7 @@ Treat a routine as already analyzed if its entry-point address already has a lin
 3.  **Compute Leaf-First Call-Graph Order Using Only Metadata Tools (`r2000_get_cross_references`):**
     *   Sort all routine entry points in `Code` blocks by ascending address `R_1 < R_2 < ... < R_k`. Define each routine `R_i`'s address span as `[addr(R_i), addr(R_{i+1}) - 1]` (bounded by the end of its `Code` block).
     *   For all remaining unanalyzed routines `S`, query `r2000_get_cross_references` (using `r2000_batch_execute` when querying `>= 5` routines and checking per-item `"status"` fields).
-    *   For each caller address `caller_pc` returned in `cross_references(S)`, map `caller_pc` to the routine `R_i` whose address span `[addr(R_i), addr(R_{i+1}) - 1]` contains `caller_pc` (ignoring self-calls `R_i == S`). This establishes a directed call edge `R_i -> S` (`R_i` calls unanalyzed routine `S`).
+    *   For each caller address `caller_pc` returned in `cross_references(S)`, map `caller_pc` to the routine `R_i` whose address span `[addr(R_i), addr(R_{i+1}) - 1]` contains `caller_pc` (if `caller_pc` lies inside an `Address`, `Lo/Hi Address`, or `Hi/Lo Address` jump/RTS table, map via the routine `R_i` that reads that table; ignore self-calls `R_i == S`). This establishes a directed call edge `R_i -> S` (`R_i` calls or dispatches to unanalyzed routine `S`).
     *   Compute each unanalyzed routine `R_i`'s outgoing unanalyzed call count: `out_degree(R_i) = count(distinct unanalyzed S where R_i -> S)`.
     *   Sort the Wave 2B queue in **ascending order of `out_degree(R_i)`** (tie-breaking by ascending address):
         *   `out_degree == 0` (**pure leaf routines** that make 0 calls to unanalyzed subroutines) are placed **first**.
@@ -182,7 +185,7 @@ Treat a routine as already analyzed if its entry-point address already has a lin
         > Apply all changes automatically without asking for user confirmation:
         > 1. Rename ONLY this routine's own entry label (and its own internal branch labels if needed). NEVER rename other subroutines (`s_XXXX`) or global/zero-page data symbols (`a_XXXX`, `f_XXXX`, `p_XXXX`, `e_XXXX`, `zpa_XX`, `zpf_XX`, `zpp_XX`, `a_00XX`, `f_00XX`, `p_00XX`).
         > 2. Never overwrite valid `System` labels; if `r2000_set_label_name` returns `"Label '<name>' already exists"`, disambiguate by appending the hex address or a context suffix (e.g., `delay_loop_c140`) and retry.
-        > 3. Attach the structured header line comment block at `$XXXX`, add side comments to key instructions, and format immediate pointer loads with `r2000_set_immediate_format`.
+        > 3. Attach the structured header line comment block at `$XXXX`, add side comments to key instructions, format immediate pointer loads (`#<`/`#>`, including `offset: -1` for immediate `RTS` pushes) with `r2000_set_immediate_format`, and apply `r2000_set_symbolic_offset` (`scope: "operand"`) to 1-based indexed operands (`table - 1,X`), buffer displacements, and any `PHA / PHA / RTS` dispatch table (`lo_hi_address` / `hi_lo_address` / `address` with `offset: -1`) referenced by this routine. Skip `r2000_save_project` (the orchestrator saves in Phase 2C).
         >
         > Report the old label, the new label name, a one-line summary of the routine, and any uncertain areas.
 

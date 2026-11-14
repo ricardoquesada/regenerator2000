@@ -48,7 +48,7 @@ pub fn tool_schemas() -> Vec<Value> {
         }),
         json!({
             "name": "r2000_set_symbolic_offset",
-            "description": "Format an operand, address table (including Lo/Hi RTS tables), or target address as a symbolic offset (e.g. 'zp_ptr + 1', 'sub_C100 - 1'). Pass 'address' for one site or address, or pass 'start_address' and 'end_address' for a table or struct range. Set the offset with 'expression' ('zp_ptr + 1' or '' to clear), 'base' (name or address), or 'offset' (signed integer, 0 to clear).",
+            "description": "Format an operand, address table (including Lo/Hi, Hi/Lo, or contiguous RTS target-1 tables), or target address as a symbolic offset (e.g. 'zp_ptr + 1', 'sub_C100 - 1'). For RTS dispatch tables, first set data_type to 'address', 'lo_hi_address', or 'hi_lo_address' (never 'word', 'lo_hi_word', or 'hi_lo_word'), then apply offset: -1 with scope: 'operand'. Pass 'address' for one site or address, or pass 'start_address' and 'end_address' for a table or struct range. Set the offset with 'expression' ('zp_ptr + 1' or '' to clear), 'base' (name or address), or 'offset' (signed integer, 0 to clear).",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -61,7 +61,7 @@ pub fn tool_schemas() -> Vec<Value> {
                     "scope": {
                         "type": "string",
                         "enum": ["auto", "operand", "address"],
-                        "description": "'operand' sets Tier 1 on the instruction or table at address. 'address' sets Tier 2 on the target address across all references. Default 'auto' uses 'address' when no operand exists, and 'operand' on instructions or address tables."
+                        "description": "'operand' sets Tier 1 on the instruction or address table ('address', 'lo_hi_address', 'hi_lo_address') at address/range. 'address' sets Tier 2 on the target address across all references (or across a byte/word struct range). Default 'auto' uses 'operand' on instructions or address tables, and 'address' when no operand or address table exists (such as 'byte', 'word', or 'lo_hi_word' blocks). Pass explicit 'operand' for address/RTS tables."
                     },
                     "radix": {
                         "type": "string",
@@ -90,7 +90,7 @@ pub fn tool_schemas() -> Vec<Value> {
         }),
         json!({
             "name": "r2000_set_data_type",
-            "description": "Set the block data type for a memory region (code, bytes, words, addresses, text, or split tables).",
+            "description": "Set the block data type for a memory region (bytes, words, addresses, text, split tables, or external file; for executable code, prefer r2000_disassemble). Use 'address', 'lo_hi_address', or 'hi_lo_address' for pointer and jump tables—including RTS (target - 1) dispatch tables paired with r2000_set_symbolic_offset (offset: -1, scope: 'operand'). Reserve 'word', 'lo_hi_word', and 'hi_lo_word' for non-pointer numeric 16-bit values.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -103,7 +103,7 @@ pub fn tool_schemas() -> Vec<Value> {
                             "lo_hi_address", "hi_lo_address", "lo_hi_word", "hi_lo_word",
                             "external_file", "undefined"
                         ],
-                        "description": "Data type classification string."
+                        "description": "Data type classification: 'address', 'lo_hi_address', or 'hi_lo_address' for 16-bit pointer or RTS (target - 1) tables (enables cross-references and r2000_set_symbolic_offset); 'word', 'lo_hi_word', or 'hi_lo_word' for numeric 16-bit constants; 'byte', 'petscii', 'screencode', 'external_file', 'undefined', or 'code'."
                     }
                 },
                 "required": ["start_address", "end_address", "data_type"]
@@ -679,10 +679,30 @@ fn set_symbolic_offset_impl(app_state: &mut AppState, args: &Value) -> Result<Va
                         }]
                     }));
                 }
+                let start_pc = usize::from(start.0.saturating_sub(app_state.origin.0));
+                let end_pc = usize::from(end.0.saturating_sub(app_state.origin.0))
+                    .min(app_state.block_types.len().saturating_sub(1));
+                let has_word_block =
+                    app_state
+                        .block_types
+                        .get(start_pc..=end_pc)
+                        .is_some_and(|s| {
+                            s.iter().any(|b| {
+                                matches!(
+                                    b,
+                                    BlockType::DataWord | BlockType::LoHiWord | BlockType::HiLoWord
+                                )
+                            })
+                        });
+                let hint = if has_word_block {
+                    " (region contains word block types; for RTS or displaced pointer tables, set data_type to 'address', 'lo_hi_address', or 'hi_lo_address' first)"
+                } else {
+                    ""
+                };
                 return Err(make_mcp_error(
                     -32602,
                     format!(
-                        "No instruction operands or address table entries found in ${start:04X}..=${end:04X}"
+                        "No instruction operands or address table entries found in ${start:04X}..=${end:04X}{hint}"
                     ),
                 ));
             }
@@ -2869,6 +2889,88 @@ mod tests {
                 .and_then(|e| e.operand_offset)
                 .map(|s| (s.base, s.offset)),
             Some((Addr(0x1020), 4))
+        );
+    }
+
+    #[test]
+    fn test_r2000_set_symbolic_offset_word_table_hint_and_rts_schema_guidance() {
+        let schemas = tool_schemas();
+        let sym_schema = schemas
+            .iter()
+            .find(|s| s["name"] == "r2000_set_symbolic_offset")
+            .expect("r2000_set_symbolic_offset schema");
+        let sym_desc = sym_schema["description"].as_str().unwrap();
+        assert!(sym_desc.contains("lo_hi_address"));
+        assert!(sym_desc.contains("lo_hi_word"));
+
+        let dt_schema = schemas
+            .iter()
+            .find(|s| s["name"] == "r2000_set_data_type")
+            .expect("r2000_set_data_type schema");
+        let dt_desc = dt_schema["description"].as_str().unwrap();
+        assert!(dt_desc.contains("lo_hi_address"));
+        assert!(dt_desc.contains("r2000_set_symbolic_offset"));
+
+        let mut app_state = make_app_state(0x0800, 0x60);
+        // $082F..=$0834: 3-entry split RTS table ($0834, $083E, $0848) mistakenly set to LoHiWord
+        app_state.raw_data[0x2F..0x35].copy_from_slice(&[0x34, 0x3E, 0x48, 0x08, 0x08, 0x08]);
+        app_state.block_types[0x2F..0x35].fill(BlockType::LoHiWord);
+        app_state.insert_typed_user_labels(&[
+            (0x0835, "state_0", LabelType::Subroutine),
+            (0x083F, "state_1", LabelType::Subroutine),
+            (0x0849, "state_2", LabelType::Subroutine),
+        ]);
+        app_state.perform_analysis();
+
+        let err = handle_call(
+            "r2000_set_symbolic_offset",
+            &json!({
+                "start_address": 0x082F,
+                "end_address": 0x0834,
+                "offset": -1,
+                "scope": "operand"
+            }),
+            &mut app_state,
+        )
+        .unwrap()
+        .expect_err("LoHiWord must reject operand-scope offset with actionable hint");
+        assert_eq!(err.code, -32602);
+        assert!(err.message.contains("lo_hi_address"));
+
+        // Converting to `lo_hi_address` + `offset: -1, scope: "operand"` formats `<(state_0 - 1)` cleanly.
+        handle_call(
+            "r2000_set_data_type",
+            &json!({
+                "start_address": 0x082F,
+                "end_address": 0x0834,
+                "data_type": "lo_hi_address"
+            }),
+            &mut app_state,
+        )
+        .unwrap()
+        .expect("convert to lo_hi_address");
+
+        handle_call(
+            "r2000_set_symbolic_offset",
+            &json!({
+                "start_address": 0x082F,
+                "end_address": 0x0834,
+                "offset": -1,
+                "scope": "operand"
+            }),
+            &mut app_state,
+        )
+        .unwrap()
+        .expect("lo_hi_address RTS offset -1 should succeed");
+
+        let lo_line = app_state
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x082F) && !l.bytes.is_empty())
+            .expect("lo row at $082F");
+        assert_eq!(
+            lo_line.operand,
+            "<(state_0 - 1), <(state_1 - 1), <(state_2 - 1)"
         );
     }
 }

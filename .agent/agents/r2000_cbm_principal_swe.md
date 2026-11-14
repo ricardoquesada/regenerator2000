@@ -161,10 +161,14 @@ Identify these 6502 code patterns when analyzing binaries in Regenerator 2000:
 
 *   **Self-Modifying Code (SMC) Operand Patching:**
     *   Writes to `instruction_addr + 1` or `instruction_addr + 2` modify the immediate operand (`LDA #$00`), zero-page address, or 16-bit absolute address (`LDA $FFFF,X`, `STA $FFFF,Y`, `JMP $FFFF`) of a target instruction.
-    *   Document the patched target instruction clearly. Treat `label + 1` and `label + 2` references as dynamic operand bytes, not as separate variables or corrupted instructions.
-*   **`RTS` Dispatch (`PHA / PHA / RTS` Jump Tables):**
-    *   `RTS` pulls a 16-bit address from the stack and adds 1 before jumping. Therefore, `RTS` dispatch tables store `target_address - 1` (pushing the high byte first, then the low byte, followed by `RTS`).
-    *   Classify split `RTS` dispatch tables as `LoHiWord` or `HiLoWord` (because the stored values are `addr - 1`). Add 1 to each table entry to locate the target subroutine entry points.
+    *   Document the patched target instruction clearly. Treat `label + 1` and `label + 2` references as dynamic operand bytes (formatted via `r2000_set_symbolic_offset` relative to the target instruction label or named as paired `smc_*_lo`/`smc_*_hi` operand symbols), not as unrelated variables or corrupted instructions.
+*   **`RTS` Dispatch (`PHA / PHA / RTS` Jump Tables and Immediate Pushes):**
+    *   `RTS` pulls a 16-bit address from the stack and adds `1` before jumping. Therefore, `RTS` dispatch tables store `target_address - 1` (pushing the high byte first, then the low byte, followed by `RTS`).
+    *   Add `1` to each table entry to locate and disassemble (`r2000_disassemble`) the target subroutine entry points.
+    *   **Always classify `RTS` dispatch tables as Address tables** (`lo_hi_address` or `hi_lo_address` for split tables; `address` for contiguous 16-bit tables)—**never** as `lo_hi_word`, `hi_lo_word`, or `word` (which are numeric-only and disable target cross-references and Tier 1 symbolic offsets). Immediately apply `r2000_set_symbolic_offset` across `[table_start, table_end]` with `offset: -1` and `scope: "operand"` so entries render as `<(handler - 1)` / `>(handler - 1)` (or `.word handler - 1`) and emit `[O]` (`offset`) cross-references to `handler`.
+    *   For immediate `RTS` push sequences (`LDA #>(handler - 1) : PHA : LDA #<(handler - 1) : PHA : RTS`), call `r2000_set_immediate_format` with `format: "high_byte"` / `"low_byte"`, `target_address: <handler_decimal>`, and `offset: -1`.
+*   **1-Based Indexed Loops and Struct/Buffer Displacements:**
+    *   When a loop indexes `1..=N` via `LDA table - 1,X` or accesses a fixed byte offset from a base buffer/struct (`SCREEN_RAM + 40`), call `r2000_set_symbolic_offset` on the instruction (`address`, `offset: -1` or `base: "<symbol>"`, `scope: "operand"`).
 *   **Inline Data After `JSR`:**
     *   Some subroutines store inline parameter bytes or strings immediately after the `JSR` instruction. The subroutine pulls the return address from the stack (`PLA`), reads the inline bytes using that pointer, adds the payload length to the return address, and jumps or returns to the updated address.
     *   Convert the inline bytes between the `JSR` instruction and the resumption address to data (`DataByte`, `DataWord`, or `PetsciiText`), not code.

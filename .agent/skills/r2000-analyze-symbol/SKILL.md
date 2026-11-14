@@ -55,15 +55,15 @@ This skill uses the **`r2000-cbm-principal-swe`** agent persona for MOS 6502 ins
 ### 16-Bit Pointer or 16-Bit Word Pair (`$ADDR` and `$(ADDR + 1)`)
 
 *   Check whether the address pair is in Zero Page (`$00–$FF`) and used with `($xx),Y` or `($xx,X)`, or whether it holds a 16-bit vector or 16-bit value (`_lo` / `_hi`) in Zero Page or RAM.
-*   Rename both the low byte (`$ADDR`) and high byte (`$(ADDR + 1)`) with matching `_lo` and `_hi` suffixes (such as `zp_ptr_screen_lo` / `zp_ptr_screen_hi` or `score_lo` / `score_hi`).
-*   **Format Immediate Pointer Loads:** If code initializes the pointer or word with immediate low/high byte loads (`LDA #<target` and `LDA #>target`):
-    *   Call `r2000_set_immediate_format` on the low-byte instruction with `"format": "low_byte"` and `"target_address": <decimal_target>`.
-    *   Call `r2000_set_immediate_format` on the high-byte instruction with `"format": "high_byte"` and `"target_address": <decimal_target>`.
+*   Rename both the low byte (`$ADDR`) and high byte (`$(ADDR + 1)`) with matching `_lo` and `_hi` suffixes (such as `zp_ptr_screen_lo` / `zp_ptr_screen_hi` or `score_lo` / `score_hi`), or set a base label on `$ADDR` (`zp_ptr_screen`) and bind `$(ADDR + 1)` as `zp_ptr_screen + 1` via `r2000_set_symbolic_offset` (`"address": <addr_plus_1>, "base": "<base_label>", "scope": "address"`).
+*   **Format Immediate Pointer Loads:** If code initializes the pointer or word with immediate low/high byte loads (`LDA #<target` and `LDA #>target`, or `target - 1` for `RTS` dispatch):
+    *   Call `r2000_set_immediate_format` on the low-byte instruction with `"format": "low_byte"` and `"target_address": <decimal_target>` (plus `"offset": -1` if storing `target - 1`).
+    *   Call `r2000_set_immediate_format` on the high-byte instruction with `"format": "high_byte"` and `"target_address": <decimal_target>` (plus `"offset": -1` if storing `target - 1`).
 
 ### Self-Modifying Code (SMC) Operand
 
 *   If the symbol lies at `instruction_addr + 1` or `instruction_addr + 2` inside a `Code` block, it is a self-modified operand byte (or a paired 16-bit self-modified operand at `instruction_addr + 1` and `instruction_addr + 2`).
-*   Name it after the operation it controls (such as `smc_blit_src_lo` / `smc_blit_src_hi`).
+*   Name it after the operation it controls (such as `smc_blit_src_lo` / `smc_blit_src_hi`), or—if `instruction_addr` itself already carries a descriptive label (such as `smc_blit_src`)—bind the operand address(es) relative to that instruction label (`smc_blit_src + 1` / `smc_blit_src + 2`) via `r2000_set_symbolic_offset` (`"address": <operand_addr>, "base": "<instr_label>", "scope": "address"`).
 
 ### Flag or Bitmask
 

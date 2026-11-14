@@ -491,15 +491,15 @@ Sets or deletes a comment at a specific address. A `'line'` comment appears on a
 
 ### `r2000_set_data_type`
 
-Sets the block classification (`code`, `byte`, `word`, `address`, `petscii`, `screencode`, or split tables) for a memory range.
+Set the block data type for a memory region (bytes, words, addresses, text, split tables, or external file; for executable code, prefer r2000_disassemble). Use 'address', 'lo_hi_address', or 'hi_lo_address' for pointer and jump tables—including RTS (target - 1) dispatch tables paired with r2000_set_symbolic_offset (offset: -1, scope: 'operand'). Reserve 'word', 'lo_hi_word', and 'hi_lo_word' for non-pointer numeric 16-bit values.
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `data_type` | `string` | Block type classification string. | Yes |
-| `end_address` | `integer` | Inclusive end address of the memory region in decimal. | Yes |
-| `start_address` | `integer` | Inclusive start address of the memory region in decimal. | Yes |
+| `data_type` | `string` | Data type classification: 'address', 'lo_hi_address', or 'hi_lo_address' for 16-bit pointer or RTS (target - 1) tables (enables cross-references and r2000_set_symbolic_offset); 'word', 'lo_hi_word', or 'hi_lo_word' for numeric 16-bit constants; 'byte', 'petscii', 'screencode', 'external_file', 'undefined', or 'code'. | Yes |
+| `end_address` | `integer` | End of the memory region (inclusive), decimal. | Yes |
+| `start_address` | `integer` | Start of the memory region (inclusive), decimal. | Yes |
 
 ### `r2000_set_immediate_format`
 
@@ -528,20 +528,20 @@ Sets or deletes a user-defined label or Tier 2 global symbolic offset (such as `
 
 ### `r2000_set_symbolic_offset`
 
-Formats an operand, address table (including Lo/Hi `RTS` tables), or target address as a symbolic offset (such as `'zp_ptr + 1'`). Pass `address` for one site or address, or pass `start_address` and `end_address` for a table or struct range. Set the offset with `expression` (`'zp_ptr + 1'` or `''`), `base` (name or address), or `offset` (signed integer, `0` to clear).
+Format an operand, address table (including Lo/Hi, Hi/Lo, or contiguous RTS target-1 tables), or target address as a symbolic offset (e.g. 'zp_ptr + 1', 'sub_C100 - 1'). For RTS dispatch tables, first set data_type to 'address', 'lo_hi_address', or 'hi_lo_address' (never 'word', 'lo_hi_word', or 'hi_lo_word'), then apply offset: -1 with scope: 'operand'. Pass 'address' for one site or address, or pass 'start_address' and 'end_address' for a table or struct range. Set the offset with 'expression' ('zp_ptr + 1' or '' to clear), 'base' (name or address), or 'offset' (signed integer, 0 to clear).
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `address` | `integer` | Single instruction, table entry, or target memory address in decimal. | No |
-| `base` | `string \| integer` | Base symbol name (for example, `'zp_ptr'` or `'SCREEN_RAM'`) or base address (for example, `251` or `'$00FB'`). Automatically calculates `offset = effective_address - base`. | No |
-| `end_address` | `integer` | Inclusive end address in decimal when applying to an address table or struct range. | No |
-| `expression` | `string` | Symbolic expression such as `'zp_ptr + 1'`, `'sub_C100 - 1'`, `'SCREEN_RAM + $28'`, or `''` to clear. | No |
-| `offset` | `integer` | Signed byte displacement from `base` (for example, `-1` for `RTS` dispatch tables or 1-based indexed loops, `+1` for a pointer high byte, or `0` to clear). Automatically calculates `base = effective_address - offset`. | No |
-| `radix` | `string` | Offset radix: `'decimal'` (`+ 40`) or `'hex'` (`+ $28`). Default: `'decimal'`. | No |
-| `scope` | `string` | Binding scope: `'operand'`, `'address'`, or `'auto'` (default: `'auto'`). `'operand'` sets Tier 1 on the site. `'address'` sets Tier 2 globally. `'auto'` selects `'operand'` on operand sites and `'address'` elsewhere. | No |
-| `start_address` | `integer` | Inclusive start address in decimal when applying to an address table or struct range. | No |
+| `address` | `integer` | Single instruction, table entry, or target memory address (decimal). | No |
+| `base` | `string \| integer` | Base symbol name (e.g. 'zp_ptr', 'SCREEN_RAM') or base address (e.g. 251 or '$00FB'). Automatically calculates offset = effective_address - base. | No |
+| `end_address` | `integer` | End address (inclusive, decimal) when applying to an address table or struct range. | No |
+| `expression` | `string` | Symbolic expression such as 'zp_ptr + 1', 'sub_C100 - 1', 'SCREEN_RAM + $28', or '' to clear. | No |
+| `offset` | `integer` | Signed byte displacement from base (e.g. -1 for RTS dispatch tables or 1-based indexed loops, +1 for pointer high byte, 0 to clear). Automatically calculates base = effective_address - offset. | No |
+| `radix` | `string` | Offset radix ('decimal' -> '+ 40', 'hex' -> '+ $28'). Default: 'decimal'. | No |
+| `scope` | `string` | 'operand' sets Tier 1 on the instruction or address table ('address', 'lo_hi_address', 'hi_lo_address') at address/range. 'address' sets Tier 2 on the target address across all references (or across a byte/word struct range). Default 'auto' uses 'operand' on instructions or address tables, and 'address' when no operand or address table exists (such as 'byte', 'word', or 'lo_hi_word' blocks). Pass explicit 'operand' for address/RTS tables. | No |
+| `start_address` | `integer` | Start address (inclusive, decimal) when applying to an address table or struct range. | No |
 
 ### `r2000_toggle_splitter`
 

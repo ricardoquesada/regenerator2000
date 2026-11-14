@@ -29,7 +29,8 @@ This skill uses the **`r2000-cbm-principal-swe`** agent persona for MOS 6502 ins
 *   Call `r2000_read_region` with `"view": "disasm"` to read the instructions.
 *   Identify standard 6502 patterns:
     *   `SEI` and `CLI` around vector/register writes -> Interrupt configuration.
-    *   `LDA` / `STA` loop with `DEX` / `DEY` / `BNE` -> Memory copy or fill.
+    *   `LDA` / `STA` loop with `DEX` / `DEY` / `BNE` -> Memory copy or fill (check whether `X`/`Y` runs `1..=N` over `table - 1,X`).
+    *   `LDA hi_table,X : PHA : LDA lo_table,X : PHA : RTS` (or immediate `#>(target - 1)` / `#<(target - 1)` pushes before `RTS`) -> `RTS` jump-table or tail-call dispatch (`target_address - 1`).
     *   Bit shifts (`ASL`, `LSR`, `ROL`, `ROR`) and `ADC` / `SBC` chains -> Arithmetic or decompression.
     *   Reads from an I/O register followed by a conditional branch -> Hardware status polling.
     *   Writes to `label + 1` or `label + 2` -> Self-modifying code (SMC) patching an instruction operand.
@@ -44,7 +45,7 @@ This skill uses the **`r2000-cbm-principal-swe`** agent persona for MOS 6502 ins
     *   Called once from `start` -> Initialization routine.
     *   Called from a main loop -> Per-frame update routine.
     *   Called from an ISR or referenced by `$0314`/`$0315` (`$0090`/`$0091` on PET) or `$FFFE`/`$FFFF` -> Interrupt routine.
-    *   Referenced in an address or word table -> Jump-table or `RTS`-dispatch target.
+    *   Referenced in an address or `RTS`-dispatch table (`[O]` `offset` cross-reference) -> Jump-table or `RTS`-dispatch target.
 
 ## 5. Analyze Data and Operand Usage
 
@@ -55,9 +56,12 @@ For each memory address accessed by the routine:
 *   **Apply Enums:** Check whether immediate values or memory accesses represent discrete states or bitflags:
     *   If an existing enum matches, call `r2000_apply_enum_usage` on the instruction address.
     *   If the values form a new state set or bitmask, create a project enum with `r2000_create_project_enum` and apply it with `r2000_apply_enum_usage`.
-*   **Format Immediate Pointers:** Check whether the routine loads the low and high bytes of a 16-bit target address (such as `LDA #<target : STA ptr` and `LDA #>target : STA ptr+1`):
-    *   Call `r2000_set_immediate_format` on the low-byte instruction with `"format": "low_byte"` and `"target_address": <decimal_target>`.
-    *   Call `r2000_set_immediate_format` on the high-byte instruction with `"format": "high_byte"` and `"target_address": <decimal_target>`.
+*   **Format Immediate Pointers (`r2000_set_immediate_format`):** Check whether the routine loads the low and high bytes of a 16-bit target address (such as `LDA #<target : STA ptr` and `LDA #>target : STA ptr+1`, or `PHA / PHA / RTS` immediate pushes `LDA #>(target - 1) : PHA : LDA #<(target - 1) : PHA : RTS`):
+    *   Call `r2000_set_immediate_format` on the low-byte instruction with `"format": "low_byte"` and `"target_address": <decimal_target>` (plus `"offset": -1` when pushing `target - 1` for `RTS`).
+    *   Call `r2000_set_immediate_format` on the high-byte instruction with `"format": "high_byte"` and `"target_address": <decimal_target>` (plus `"offset": -1` when pushing `target - 1` for `RTS`).
+*   **Format Symbolic Offsets (`r2000_set_symbolic_offset`):**
+    *   **1-Based Indexed Loops & Buffer/Struct Displacements:** When an instruction indexes `1..=N` via `LDA table - 1,X` or accesses a fixed displacement into a known buffer/struct (such as `SCREEN_RAM + 40`), call `r2000_set_symbolic_offset` with `"address": <decimal_instr_addr>`, `"offset": -1` (or `"base": "<symbol>"`), and `"scope": "operand"`.
+    *   **`PHA / PHA / RTS` Dispatch Tables (`target_address - 1`):** When the routine pushes entries from a split or contiguous `RTS` jump table (`LDA hi_table,X : PHA : LDA lo_table,X : PHA : RTS`), verify via `r2000_get_blocks` and `r2000_read_region` that `[table_start, table_end]` is formatted as `"lo_hi_address"`, `"hi_lo_address"`, or `"address"` (if it is still `"lo_hi_word"`, `"hi_lo_word"`, or `"word"`, convert it with `r2000_set_data_type` first) and apply `r2000_set_symbolic_offset` with `"start_address": <table_start>`, `"end_address": <table_end>`, `"offset": -1`, and `"scope": "operand"` so the table renders `<(handler - 1)` / `>(handler - 1)`.
 
 ## 6. Summarize Routine Behavior
 
@@ -80,13 +84,13 @@ Determine the following four attributes:
     Call `r2000_set_comment` with `"type": "line"` at the entry point using this exact format:
 
 ```
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 <Summary of what the routine does>
 
 Inputs:  <registers or memory locations used as arguments, or "None">
 Outputs: <registers or memory locations modified, or "None">
 Side Effects: <hardware changes, screen updates, etc., or "None">
-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 ```
 
 3.  **Attach Side Comments:**
@@ -110,5 +114,5 @@ Report the following to the user or parent agent:
 
 *   **New Label Name** and **Purpose** (one-sentence summary).
 *   **Inputs, Outputs, and Side Effects**.
-*   **Actions Taken** (label rename, header comment, side comments, enums, and immediate formats applied).
+*   **Actions Taken** (label rename, header comment, side comments, enums, immediate formats, and symbolic offsets applied).
 *   **Uncertain Areas** (any unresolved addresses or branches).
