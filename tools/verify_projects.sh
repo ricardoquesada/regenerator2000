@@ -32,6 +32,7 @@ run_verify examples/c64_moving_tubes_lxt.regen2000proj
 run_verify examples/pet_loderunner.regen2000proj
 run_verify examples/plus4_kikstart_8192.regen2000proj
 run_verify examples/vic20_omega_race_cart_generic_a000.regen2000proj
+run_verify examples/c64_frogger_8k.regen2000proj
 
 echo "============================="
 echo "Results: $PASSED passed, $FAILED failed"

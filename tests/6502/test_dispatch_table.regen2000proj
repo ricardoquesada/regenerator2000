@@ -1,0 +1,335 @@
+{
+  "version": 1,
+  "origin": 2049,
+  "raw_data_base64": "H4sIAAAAAAAA/wFSAK3/CwgKAJ4yMDYxAAAAeKkAhfup/80S0ND7zRLQ8PsgJAhMEgim+70yCEi9LwhIYDQ+SAgICKkCjSDQqQGF+2CpBY0g0KkChftgqQaNINCpAIX7YF+XhSZSAAAA",
+  "blocks": [
+    {
+      "start": 0,
+      "end": 1,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 2,
+      "end": 3,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 4,
+      "end": 9,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 10,
+      "end": 11,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 12,
+      "end": 45,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 46,
+      "end": 51,
+      "type_": "LoHiAddress",
+      "collapsed": false
+    },
+    {
+      "start": 52,
+      "end": 81,
+      "type_": "Code",
+      "collapsed": false
+    }
+  ],
+  "labels": {
+    "251": [
+      {
+        "name": "zp_border_state",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2059": [
+      {
+        "name": "basic_stub_end",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2061": [
+      {
+        "name": "main_raster_state_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2066": [
+      {
+        "name": "frame_sync_loop",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
+    "2068": [
+      {
+        "name": "wait_raster_ff",
+        "label_type": "Branch",
+        "kind": "User"
+      }
+    ],
+    "2073": [
+      {
+        "name": "wait_raster_ff_end",
+        "label_type": "Branch",
+        "kind": "User"
+      }
+    ],
+    "2084": [
+      {
+        "name": "dispatch_border_state",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "2095": [
+      {
+        "name": "state_rts_dispatch_lo",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2098": [
+      {
+        "name": "state_rts_dispatch_hi",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2101": [
+      {
+        "name": "state_0_border_red",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2111": [
+      {
+        "name": "state_1_border_green",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2121": [
+      {
+        "name": "state_2_border_blue",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ]
+  },
+  "2049": {
+    "user_side_comment": "10 SYS 2061"
+  },
+  "2059": {
+    "user_side_comment": "Null next-line link terminating BASIC stub",
+    "user_line_comment": "Commodore BASIC V2 end-of-program link word ($0000 = no further BASIC lines)"
+  },
+  "2061": {
+    "user_side_comment": "Disable maskable IRQ interrupts",
+    "user_line_comment": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nProgram entry point: disables IRQs, initializes the border-color state index,\nand runs an infinite frame-sync loop polling raster line $FF to dispatch the\nactive state handler once per video frame.\n\nInputs:  None\nOutputs: zp_border_state = STATE_BORDER_RED (0) initially; A, X, P modified in loop\nSide Effects: Disables maskable IRQs (SEI), busy-waits on VIC-II $D012 for\n              scanline $FF -> $100 transition, and invokes the state-machine\n              dispatcher each frame (infinite loop; never returns)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
+  },
+  "2062": {
+    "user_side_comment": "Initial state 0 (red border)",
+    "enum_usage": "BorderState"
+  },
+  "2064": {
+    "user_side_comment": "Initialize state-machine index"
+  },
+  "2066": {
+    "user_side_comment": "Target raster line $FF (255, lower border)"
+  },
+  "2068": {
+    "user_side_comment": "Poll VIC-II raster counter low byte"
+  },
+  "2071": {
+    "user_side_comment": "Loop until scanline $FF is reached"
+  },
+  "2073": {
+    "user_side_comment": "Re-read $D012 to debounce scanline $FF"
+  },
+  "2076": {
+    "user_side_comment": "Wait until scanline $FF finishes (1x/frame)"
+  },
+  "2078": {
+    "user_side_comment": "Dispatch active border-color state handler"
+  },
+  "2081": {
+    "user_side_comment": "Repeat for next video frame"
+  },
+  "2084": {
+    "user_side_comment": "Load active border-color state index (0..=2)",
+    "user_line_comment": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nDispatches the active border-color state handler via a split Lo/Hi RTS jump\ntable (PHA / PHA / RTS) indexed by zp_border_state.\n\nInputs:  zp_border_state = active border-color state index (0..=2)\nOutputs: X = zp_border_state; A = <(handler - 1); N, Z flags modified (plus outputs of\n         the tail-called state handler)\nSide Effects: Pushes 16-bit (handler - 1) onto the stack and transfers\n              control via RTS to state_0_border_red ($0835),\n              state_1_border_green ($083F), or state_2_border_blue ($0849),\n              which returns directly to the JSR caller ($0821)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
+  },
+  "2086": {
+    "user_side_comment": "Fetch high byte of (handler - 1)"
+  },
+  "2089": {
+    "user_side_comment": "Push target high byte onto stack"
+  },
+  "2090": {
+    "user_side_comment": "Fetch low byte of (handler - 1)"
+  },
+  "2093": {
+    "user_side_comment": "Push target low byte onto stack"
+  },
+  "2094": {
+    "user_side_comment": "Pop (handler - 1) + 1 to tail-call state handler"
+  },
+  "2095": {
+    "user_line_comment": "Split Lo/Hi RTS dispatch table storing (handler - 1) for PHA/PHA/RTS.\nIndex 0: state_0_border_red ($0835)\nIndex 1: state_1_border_green ($083F)\nIndex 2: state_2_border_blue ($0849)",
+    "operand_offset": {
+      "base": 2101,
+      "offset": -1,
+      "radix": "Decimal"
+    }
+  },
+  "2096": {
+    "operand_offset": {
+      "base": 2111,
+      "offset": -1,
+      "radix": "Decimal"
+    }
+  },
+  "2097": {
+    "operand_offset": {
+      "base": 2121,
+      "offset": -1,
+      "radix": "Decimal"
+    }
+  },
+  "2101": {
+    "user_side_comment": "C64 color $02 (red)",
+    "user_line_comment": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nState 0 handler: sets the VIC-II border color to red and advances the\nstate-machine index to state 1 (green border).\n\nInputs:  None (dispatched via RTS jump table when zp_border_state == 0)\nOutputs: zp_border_state = STATE_BORDER_GREEN (1); A = $01; N, Z flags modified\nSide Effects: Writes VicColor.RED ($02) to VIC-II border color ($D020)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
+    "enum_usage": "VicColor"
+  },
+  "2103": {
+    "user_side_comment": "Set VIC-II border color to red"
+  },
+  "2106": {
+    "user_side_comment": "Next state 1 (green border)",
+    "enum_usage": "BorderState"
+  },
+  "2108": {
+    "user_side_comment": "Advance state-machine index for next frame"
+  },
+  "2110": {
+    "user_side_comment": "Return to main raster frame loop ($0821)"
+  },
+  "2111": {
+    "user_side_comment": "C64 color $05 (green)",
+    "user_line_comment": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nState 1 handler: sets the VIC-II border color to green and advances the\nstate-machine index to state 2 (blue border).\n\nInputs:  None (dispatched via RTS jump table when zp_border_state == 1)\nOutputs: zp_border_state = STATE_BORDER_BLUE (2); A = $02; N, Z flags modified\nSide Effects: Writes VicColor.GREEN ($05) to VIC-II border color ($D020)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
+    "enum_usage": "VicColor"
+  },
+  "2113": {
+    "user_side_comment": "Set VIC-II border color to green"
+  },
+  "2116": {
+    "user_side_comment": "Next state 2 (blue border)",
+    "enum_usage": "BorderState"
+  },
+  "2118": {
+    "user_side_comment": "Advance state-machine index for next frame"
+  },
+  "2120": {
+    "user_side_comment": "Return to main raster frame loop ($0821)"
+  },
+  "2121": {
+    "user_side_comment": "C64 color $06 (blue)",
+    "user_line_comment": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nState 2 handler: sets the VIC-II border color to blue and wraps the\nstate-machine index back to state 0 (red border).\n\nInputs:  None (dispatched via RTS jump table when zp_border_state == 2)\nOutputs: zp_border_state = STATE_BORDER_RED (0); A = $00; N, Z flags modified\nSide Effects: Writes VicColor.BLUE ($06) to VIC-II border color ($D020)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
+    "enum_usage": "VicColor"
+  },
+  "2123": {
+    "user_side_comment": "Set VIC-II border color to blue"
+  },
+  "2126": {
+    "user_side_comment": "Wrap to state 0 (red border)",
+    "enum_usage": "BorderState"
+  },
+  "2128": {
+    "user_side_comment": "Reset state-machine index for next frame"
+  },
+  "2130": {
+    "user_side_comment": "Return to main raster frame loop ($0821)"
+  },
+  "settings": {
+    "all_labels": true,
+    "preserve_long_bytes": true,
+    "brk_single_byte": true,
+    "patch_brk": false,
+    "system": "Commodore 64",
+    "assembler": "Tass64",
+    "max_xref_count": 5,
+    "max_arrow_columns": 6,
+    "use_illegal_opcodes": false,
+    "text_char_limit": 40,
+    "addresses_per_line": 5,
+    "bytes_per_line": 8,
+    "enabled_features": {},
+    "description": "",
+    "auto_analyze": true,
+    "show_system_comments": true,
+    "fill_run_threshold": 8,
+    "exclude_well_known_labels": true
+  },
+  "cursor_address": 0,
+  "hex_dump_cursor_address": 2048,
+  "sprites_cursor_address": 2048,
+  "charset_cursor_address": 2048,
+  "right_pane_visible": "Blocks",
+  "sprite_multicolor_mode": false,
+  "charset_multicolor_mode": false,
+  "bitmap_cursor_address": 0,
+  "bitmap_multicolor_mode": false,
+  "hexdump_view_mode": "ScreencodeShifted",
+  "splitters": [],
+  "blocks_view_cursor": 0,
+  "enums": {
+    "BorderState": {
+      "name": "BorderState",
+      "description": "State machine indices for cycling the VIC-II border color ($D020)",
+      "variants": {
+        "0": "STATE_BORDER_RED",
+        "1": "STATE_BORDER_GREEN",
+        "2": "STATE_BORDER_BLUE"
+      }
+    },
+    "VicColor": {
+      "name": "VicColor",
+      "description": "Commodore 64 VIC-II 16-color palette codes",
+      "variants": {
+        "0": "BLACK",
+        "1": "WHITE",
+        "2": "RED",
+        "3": "CYAN",
+        "4": "PURPLE",
+        "5": "GREEN",
+        "6": "BLUE",
+        "7": "YELLOW",
+        "8": "ORANGE",
+        "9": "BROWN",
+        "10": "LIGHT_RED",
+        "11": "DARK_GREY",
+        "12": "GREY",
+        "13": "LIGHT_GREEN",
+        "14": "LIGHT_BLUE",
+        "15": "LIGHT_GREY"
+      }
+    }
+  },
+  "user_excluded_addresses": []
+}

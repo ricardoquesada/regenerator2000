@@ -30,4 +30,7 @@ $REGEN --headless --export_html docs/examples/plus4_kikstart_8192.html examples/
 echo "Exporting vic20_omega_race_cart_generic_a000..."
 $REGEN --headless --export_html docs/examples/vic20_omega_race_cart_generic_a000.html examples/vic20_omega_race_cart_generic_a000.regen2000proj
 
+echo "Exporting c64_frogger_8k..."
+$REGEN --headless --export_html docs/examples/c64_frogger_8k.html examples/c64_frogger_8k.regen2000proj
+
 echo "All examples exported to docs/examples"
