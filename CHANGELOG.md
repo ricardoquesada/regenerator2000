@@ -6,6 +6,52 @@ The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.25] - 2026-11-15
+
+### Features
+
+- **Analyzer / UI / MCP**: Add two-tier `SymbolicOffset` expressions (`base`,
+  signed `i16` `offset`, and `OffsetRadix`) to disassembly, static analysis, and
+  `.regen2000proj` files. Format offsets in `64tass`, `ACME`, `ca65`, and
+  `KickAssembler` with `#<(...)` and `#>(...)` parentheses. Add
+  `SymbolicOffsetDialog` (`o`, `+`/`=`, and `-`) and MCP support in
+  `r2000_set_symbolic_offset`, `r2000_set_immediate_format`,
+  `r2000_get_address_details`, and `r2000_get_symbols` (`kind = "derived"`).
+- **Core & UI**: Resolve multiple jump targets (`OperandJumpTarget`,
+  `AppState::resolve_disassembly_jump_targets`) on `.word`, `LoHiAddress`, and
+  `HiLoAddress` rows. Redirect Tier 1 and Tier 2 `SymbolicOffset` targets to
+  their base address. Add `JumpToOperandDialog` (`Enter`) with `[1]`-`[9]`
+  hotkeys, line previews, and keyboard and mouse controls.
+- **Agents & Skills**: Update `r2000-cbm-principal-swe` and the
+  `r2000-analyze-*` skills with two-tier symbolic offset rules and workflows.
+
+### Fixes
+
+- **Navigation & MCP**: Isolate `$0000` preamble headers and `$FFFF` wraparound
+  spans in `resolve_jump_content_line_index`. Keep navigation history unchanged
+  until the user selects a jump target. Reject out-of-binary addresses in
+  `r2000_jump_to_address`.
+- **UI**: Keep the disassembly cursor and visual selection anchored via
+  `DisassemblyViewAnchor` when preamble rows change.
+
+### Refactor / Internal
+
+- **Core & TUI**: Extract shared `ScopedInputModal` (`ScopeLock`) for
+  `LabelDialog` and `SymbolicOffsetDialog`. Fix Rust 1.100 Clippy warnings and
+  remove unused dependencies.
+
+### Documentation
+
+- **Examples**: Add the annotated 8 KB C64 Frogger project
+  (`examples/c64_frogger_8k.regen2000proj` and
+  `docs/examples/c64_frogger_8k.html`) and the test fixture for split RTS
+  dispatch tables (`tests/6502/test_dispatch_table.regen2000proj`). Update the
+  exported HTML examples.
+- **Docs**: Update `docs/architecture.md`, `docs/views.md`,
+  `docs/keyboard_shortcuts.md`, `docs/mcp.md`, and
+  `docs/presentation/transmission64_2026.md` for symbolic offsets,
+  `JumpToOperandDialog`, and MCP schemas.
+
 ## [0.9.24] - 2026-11-08
 
 ### Features
