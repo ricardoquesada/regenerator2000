@@ -139,6 +139,8 @@ impl UIState {
 
     pub fn push_dialog(&mut self, dialog: Box<dyn Widget>) {
         if self.active_dialog.is_none() {
+            // Clear any bounds recorded by a prior modal before the newly activated dialog renders.
+            self.active_dialog_area = ratatui::layout::Rect::default();
             self.active_dialog = Some(dialog);
         } else {
             self.dialog_queue.push(dialog);
@@ -147,8 +149,13 @@ impl UIState {
 
     /// Promotes the next queued dialog into `active_dialog` when no dialog is currently active.
     pub fn promote_next_dialog(&mut self) {
-        if self.active_dialog.is_none() && !self.dialog_queue.is_empty() {
-            self.active_dialog = Some(self.dialog_queue.remove(0));
+        if self.active_dialog.is_none() {
+            // Drop stale modal bounds regardless of whether another queued dialog is promoted so
+            // pre-render mouse `[x]` hit-testing cannot trigger before the next frame renders.
+            self.active_dialog_area = ratatui::layout::Rect::default();
+            if !self.dialog_queue.is_empty() {
+                self.active_dialog = Some(self.dialog_queue.remove(0));
+            }
         }
     }
 

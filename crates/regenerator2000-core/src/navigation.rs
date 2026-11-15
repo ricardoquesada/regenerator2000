@@ -2,30 +2,295 @@
 
 use crate::state::{Addr, AppState, ProjectSaveContext};
 use crate::view_state::{ActivePane, CoreViewState, NavigationTarget, RightPane};
+use std::collections::BTreeMap;
 
-/// Resolves the disassembly line index for `target_addr` if the address exists in the document.
-fn resolve_jump_line_index(app_state: &AppState, target_addr: Addr) -> Option<usize> {
-    if let Some(idx) = app_state.get_line_index_containing_address(target_addr) {
-        return Some(idx);
+/// Returns `true` when `target_addr` lies inside the inclusive wrap-aware range `start_addr..=end_addr`.
+///
+/// When `start_addr > end_addr`, the range crosses the `$FFFF -> $0000` boundary.
+#[must_use]
+pub(crate) fn address_in_inclusive_span(
+    target_addr: Addr,
+    start_addr: Addr,
+    end_addr: Addr,
+) -> bool {
+    if start_addr <= end_addr {
+        target_addr >= start_addr && target_addr <= end_addr
+    } else {
+        target_addr >= start_addr || target_addr <= end_addr
     }
-    if let Some(idx) = app_state.disassembly.iter().position(|line| {
-        line.address == target_addr || line.external_label_address == Some(target_addr)
-    }) {
-        return Some(idx);
-    }
-    if !app_state.is_external(target_addr) {
-        return app_state.get_line_index_for_address(target_addr);
-    }
-    None
 }
 
-/// Jumps to `target_addr` and pushes the current cursor position onto the navigation history stack.
+/// Returns `true` when `target_addr` lies inside the half-open wrap-aware byte span
+/// `[start_addr, start_addr + byte_len)`.
+///
+/// Handles spans that reach `$FFFF` and wrap to `$0000` (for example, `$FFFE` with `byte_len == 2`
+/// produces `end_addr == $0000`, matching `$FFFE..=$FFFF` without matching `$0000`).
+#[must_use]
+pub(crate) fn address_in_byte_span(target_addr: Addr, start_addr: Addr, byte_len: usize) -> bool {
+    let Ok(len_u16) = u16::try_from(byte_len) else {
+        return false;
+    };
+    if len_u16 == 0 {
+        return false;
+    }
+    let end_addr = start_addr.wrapping_add(len_u16);
+    if start_addr < end_addr {
+        target_addr >= start_addr && target_addr < end_addr
+    } else {
+        target_addr >= start_addr || target_addr < end_addr
+    }
+}
+
+/// Resolves the raw disassembly line index for `target_addr` before zero-byte header advancement.
+///
+/// Delegates span and `$0000` preamble isolation to [`AppState::get_line_index_containing_address`],
+/// falling back to [`AppState::get_line_index_for_address`] only for non-external non-zero gaps.
+#[must_use]
+fn resolve_jump_line_index(app_state: &AppState, target_addr: Addr) -> Option<usize> {
+    app_state
+        .get_line_index_containing_address(target_addr)
+        .or_else(|| {
+            (!app_state.is_external(target_addr) && target_addr != Addr::ZERO)
+                .then(|| app_state.get_line_index_for_address(target_addr))
+                .flatten()
+        })
+}
+
+/// Advances `idx` past consecutive zero-byte body headers (`{splitter}`, scope `{`) that share
+/// `target_addr` without walking off external equates or collapsed summary rows.
+#[must_use]
+fn advance_to_content_line(app_state: &AppState, target_addr: Addr, mut idx: usize) -> usize {
+    // Check `external_label_address.is_none()` on both `idx` and `idx + 1` so an external `$0000`
+    // equate never walks onto the trailing preamble blank separator (also at `Addr::ZERO`), and
+    // require `!is_collapsed` so a collapsed summary row never steps onto an adjacent header.
+    while idx + 1 < app_state.disassembly.len()
+        && app_state.disassembly[idx].external_label_address.is_none()
+        && !app_state.disassembly[idx].is_collapsed
+        && app_state.disassembly[idx].address == target_addr
+        && app_state.disassembly[idx].bytes.is_empty()
+        && app_state.disassembly[idx + 1]
+            .external_label_address
+            .is_none()
+        && app_state.disassembly[idx + 1].address == target_addr
+    {
+        idx += 1;
+    }
+    idx
+}
+
+/// Resolves the final content [`DisassemblyLine`](crate::disassembler::DisassemblyLine) index
+/// in [`AppState::disassembly`] for `address`, skipping preamble and zero-byte body headers.
+///
+/// Both live cursor jumps ([`perform_jump_to_address`], [`perform_jump_to_address_no_history`])
+/// and target previews ([`AppState::resolve_disassembly_jump_targets`]) call this helper. Cursor
+/// jumps and picker previews thus land on the exact same row. External addresses match only
+/// preamble equate rows (`external_label_address == Some(address)`). Collapsed blocks stop on
+/// their summary row, and multi-byte instructions match interior bytes without advancing.
+/// Returns `None` when `address` is out of range and has no external equate row.
+#[must_use]
+pub fn resolve_jump_content_line_index(state: &AppState, address: Addr) -> Option<usize> {
+    let raw_idx = resolve_jump_line_index(state, address)?;
+    Some(advance_to_content_line(state, address, raw_idx))
+}
+
+/// Converts an address-sorted map of first line indices into a suffix-minimum vector where each
+/// `(addr, min_idx)` stores the smallest disassembly index among all entries with `>= addr`.
+#[must_use]
+fn build_suffix_min_table(entries: BTreeMap<Addr, usize>) -> Vec<(Addr, usize)> {
+    let mut table = Vec::with_capacity(entries.len());
+    let mut running_min = usize::MAX;
+    for (addr, idx) in entries.into_iter().rev() {
+        running_min = running_min.min(idx);
+        table.push((addr, running_min));
+    }
+    table.reverse();
+    table
+}
+
+/// Returns the smallest disassembly index among lines with `address >= target_addr` from a table
+/// produced by [`build_suffix_min_table`].
+#[must_use]
+fn suffix_min_lookup(table: &[(Addr, usize)], target_addr: Addr) -> Option<usize> {
+    let pos = table.partition_point(|&(addr, _)| addr < target_addr);
+    table.get(pos).map(|&(_, min_idx)| min_idx)
+}
+
+/// Transient `O(L)` index accelerating batch [`resolve_jump_content_line_index`] queries when
+/// building target previews for multi-entry pointer or split-address table lines.
+pub(crate) struct JumpTargetIndex {
+    collapsed_by_addr: BTreeMap<Addr, usize>,
+    byte_spans: Vec<(Addr, u16, usize)>,
+    spans_monotonic_disjoint: bool,
+    exact_byte_line: BTreeMap<Addr, usize>,
+    external_equates: BTreeMap<Addr, usize>,
+    zero_byte_internal: BTreeMap<Addr, usize>,
+    zero_addr_marker_idx: Option<usize>,
+    min_idx_ge_byte_addr: Vec<(Addr, usize)>,
+    min_idx_ge_any_addr: Vec<(Addr, usize)>,
+}
+
+impl JumpTargetIndex {
+    /// Builds a single-pass address resolution index over `app_state.disassembly`.
+    #[must_use]
+    pub(crate) fn new(app_state: &AppState) -> Self {
+        let mut collapsed_by_addr = BTreeMap::new();
+        let mut byte_spans = Vec::new();
+        let mut spans_monotonic_disjoint = true;
+        let mut prev_end_excl = 0u32;
+        let mut exact_byte_line = BTreeMap::new();
+        let mut external_equates = BTreeMap::new();
+        let mut zero_byte_internal = BTreeMap::new();
+        let mut zero_addr_marker_idx = None;
+        let mut first_any_by_addr = BTreeMap::new();
+
+        for (idx, line) in app_state.disassembly.iter().enumerate() {
+            first_any_by_addr.entry(line.address).or_insert(idx);
+
+            if line.is_collapsed {
+                collapsed_by_addr.entry(line.address).or_insert(idx);
+            }
+
+            if let Some(ext_addr) = line.external_label_address {
+                external_equates.entry(ext_addr).or_insert(idx);
+                continue;
+            }
+
+            if line.bytes.is_empty() {
+                zero_byte_internal.entry(line.address).or_insert(idx);
+                if line.address == Addr::ZERO && (line.is_splitter() || line.label.is_some()) {
+                    zero_addr_marker_idx.get_or_insert(idx);
+                }
+            } else {
+                exact_byte_line.entry(line.address).or_insert(idx);
+                if let Ok(len_u16) = u16::try_from(line.bytes.len())
+                    && len_u16 > 0
+                {
+                    let start_u32 = u32::from(line.address.0);
+                    let end_excl = start_u32 + u32::from(len_u16);
+                    if start_u32 < prev_end_excl || end_excl > 0x1_0000 {
+                        spans_monotonic_disjoint = false;
+                    } else {
+                        prev_end_excl = end_excl;
+                    }
+                    byte_spans.push((line.address, len_u16, idx));
+                }
+            }
+        }
+
+        // Preserve `exact_byte_line` for exact fallback checks while building the suffix-min table.
+        let min_idx_ge_byte_addr = build_suffix_min_table(exact_byte_line.clone());
+        let min_idx_ge_any_addr = build_suffix_min_table(first_any_by_addr);
+
+        Self {
+            collapsed_by_addr,
+            byte_spans,
+            spans_monotonic_disjoint,
+            exact_byte_line,
+            external_equates,
+            zero_byte_internal,
+            zero_addr_marker_idx,
+            min_idx_ge_byte_addr,
+            min_idx_ge_any_addr,
+        }
+    }
+
+    /// Resolves the raw disassembly line index for `target_addr`, matching [`resolve_jump_line_index`].
+    #[must_use]
+    fn resolve_raw_line_index(&self, app_state: &AppState, target_addr: Addr) -> Option<usize> {
+        let is_ext = app_state.is_external(target_addr);
+
+        if !is_ext {
+            for (start_idx, end_idx) in &app_state.collapsed_blocks {
+                let start_addr = app_state.origin.wrapping_add(*start_idx as u16);
+                let end_addr = app_state.origin.wrapping_add(*end_idx as u16);
+                if address_in_inclusive_span(target_addr, start_addr, end_addr)
+                    && let Some(&idx) = self.collapsed_by_addr.get(&start_addr)
+                {
+                    return Some(idx);
+                }
+            }
+        }
+
+        if self.spans_monotonic_disjoint {
+            let pos = self
+                .byte_spans
+                .partition_point(|&(start, _, _)| start <= target_addr);
+            if let Some(prev) = pos.checked_sub(1)
+                && let Some(&(start, len_u16, idx)) = self.byte_spans.get(prev)
+                && address_in_byte_span(target_addr, start, usize::from(len_u16))
+            {
+                return Some(idx);
+            }
+        } else {
+            for &(start, len_u16, idx) in &self.byte_spans {
+                if address_in_byte_span(target_addr, start, usize::from(len_u16)) {
+                    return Some(idx);
+                }
+            }
+        }
+
+        if is_ext {
+            return self.external_equates.get(&target_addr).copied();
+        }
+
+        if let Some(&idx) = self.collapsed_by_addr.get(&target_addr) {
+            return Some(idx);
+        }
+
+        if target_addr != Addr::ZERO {
+            if let Some(&idx) = self.zero_byte_internal.get(&target_addr) {
+                return Some(idx);
+            }
+
+            // Mirror `AppState::get_line_index_for_address` fallback ordering.
+            if let Some(&idx) = self.exact_byte_line.get(&target_addr) {
+                return Some(idx);
+            }
+            let exact_internal = match (
+                self.exact_byte_line.get(&target_addr),
+                self.zero_byte_internal.get(&target_addr),
+            ) {
+                (Some(&a), Some(&b)) => Some(a.min(b)),
+                (Some(&a), None) | (None, Some(&a)) => Some(a),
+                (None, None) => None,
+            };
+            if exact_internal.is_some() {
+                return exact_internal;
+            }
+            if let Some(&idx) = self.external_equates.get(&target_addr) {
+                return Some(idx);
+            }
+            if let Some(idx) = suffix_min_lookup(&self.min_idx_ge_byte_addr, target_addr) {
+                return Some(idx);
+            }
+            return suffix_min_lookup(&self.min_idx_ge_any_addr, target_addr);
+        }
+
+        self.zero_addr_marker_idx
+    }
+
+    /// Resolves the final content line index for `target_addr`, matching [`resolve_jump_content_line_index`].
+    #[must_use]
+    pub(crate) fn resolve_content_line_index(
+        &self,
+        app_state: &AppState,
+        target_addr: Addr,
+    ) -> Option<usize> {
+        let raw_idx = self.resolve_raw_line_index(app_state, target_addr)?;
+        Some(advance_to_content_line(app_state, target_addr, raw_idx))
+    }
+}
+
+/// Jumps to `target_addr` and pushes the current cursor position onto [`CoreViewState::navigation_history`].
+///
+/// If [`resolve_jump_content_line_index`] returns `None`, emits an out-of-range status message
+/// on `view_state` without modifying cursor position or navigation history.
 pub fn perform_jump_to_address(
     app_state: &AppState,
     view_state: &mut CoreViewState,
     target_addr: Addr,
 ) {
-    let Some(idx) = resolve_jump_line_index(app_state, target_addr) else {
+    let Some(idx) = resolve_jump_content_line_index(app_state, target_addr) else {
         report_out_of_range(app_state, view_state, target_addr);
         return;
     };
@@ -56,46 +321,42 @@ pub fn perform_jump_to_address(
     apply_resolved_jump(app_state, view_state, target_addr, idx);
 }
 
-/// Jumps to `target_addr` without modifying the navigation history stack.
+/// Jumps to `target_addr` without modifying [`CoreViewState::navigation_history`].
+///
+/// Emits an out-of-range status message on `view_state` when [`resolve_jump_content_line_index`]
+/// returns `None`.
 pub fn perform_jump_to_address_no_history(
     app_state: &AppState,
     view_state: &mut CoreViewState,
     target_addr: Addr,
 ) {
-    if let Some(idx) = resolve_jump_line_index(app_state, target_addr) {
-        apply_resolved_jump(app_state, view_state, target_addr, idx);
-    } else {
+    let Some(idx) = resolve_jump_content_line_index(app_state, target_addr) else {
         report_out_of_range(app_state, view_state, target_addr);
-    }
+        return;
+    };
+    apply_resolved_jump(app_state, view_state, target_addr, idx);
 }
 
+/// Applies cursor, viewport scroll, sub-cursor, active pane, and status updates after a target
+/// content index has already been resolved and advanced past zero-byte headers.
 fn apply_resolved_jump(
     app_state: &AppState,
     view_state: &mut CoreViewState,
     target_addr: Addr,
-    mut idx: usize,
+    content_idx: usize,
 ) {
-    // Advance past zero-byte header or comment lines when the next line shares `target_addr`.
-    while idx + 1 < app_state.disassembly.len()
-        && app_state.disassembly[idx].address == target_addr
-        && app_state.disassembly[idx].bytes.is_empty()
-        && app_state.disassembly[idx + 1].address == target_addr
-    {
-        idx += 1;
-    }
-
-    // Preserve the current scroll offset when `idx` is already inside the viewport.
+    // Preserve the current scroll offset when `content_idx` is already inside the viewport.
     let is_visible = view_state.disassembly_viewport_height > 0
-        && idx >= view_state.scroll_index
-        && idx < view_state.scroll_index + view_state.disassembly_viewport_height;
+        && content_idx >= view_state.scroll_index
+        && content_idx < view_state.scroll_index + view_state.disassembly_viewport_height;
 
-    view_state.cursor_index = idx;
+    view_state.cursor_index = content_idx;
     if !is_visible {
-        view_state.scroll_index = idx;
+        view_state.scroll_index = content_idx;
         view_state.scroll_sub_index = 0;
     }
 
-    if let Some(line) = app_state.disassembly.get(idx) {
+    if let Some(line) = app_state.disassembly.get(content_idx) {
         view_state.sub_cursor_index = line.get_sub_index_for_address(app_state, target_addr);
     } else {
         view_state.sub_cursor_index = 0;
@@ -340,5 +601,846 @@ mod tests {
         assert_eq!(ctx.bitmap_cursor_address, Some(Addr(8192)));
         assert_eq!(ctx.charset_cursor_address, Some(Addr(0x0800 + 3 * 8)));
         assert_eq!(ctx.hex_dump_cursor_address, Some(Addr(0x0800 + 4 * 16)));
+    }
+
+    #[test]
+    fn core_nav_01_resolve_jump_content_line_index_body_and_mid_instruction() {
+        use crate::state::BlockType;
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        // $0801: LDA $1234 (AD 34 12), $0804: RTS (60)
+        app_state.raw_data = vec![0xAD, 0x34, 0x12, 0x60];
+        app_state.block_types = vec![BlockType::Code; 4];
+        app_state.disassemble();
+
+        let lda_idx = app_state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x0801) && !l.bytes.is_empty())
+            .expect("LDA $1234 line");
+        let rts_idx = app_state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x0804) && !l.bytes.is_empty())
+            .expect("RTS line");
+
+        assert_eq!(
+            resolve_jump_content_line_index(&app_state, Addr(0x0801)),
+            Some(lda_idx)
+        );
+        // Interior byte offsets inside the 3-byte LDA stay on the instruction line.
+        assert_eq!(
+            resolve_jump_content_line_index(&app_state, Addr(0x0802)),
+            Some(lda_idx)
+        );
+        assert_eq!(
+            resolve_jump_content_line_index(&app_state, Addr(0x0803)),
+            Some(lda_idx)
+        );
+        assert_eq!(
+            resolve_jump_content_line_index(&app_state, Addr(0x0804)),
+            Some(rts_idx)
+        );
+    }
+
+    #[test]
+    fn core_nav_02_resolve_jump_content_line_index_collapsed_at_1000_and_0000() {
+        use crate::disassembler::DisassemblyLine;
+        use crate::state::BlockType;
+
+        // 1. Collapsed block at $1002..=$1005 with following instruction at $1006.
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        app_state.raw_data = vec![0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0x60];
+        app_state.block_types = vec![BlockType::Code; 7];
+        app_state.collapsed_blocks.push((2, 5));
+        app_state.disassemble();
+
+        let collapsed_idx = app_state
+            .disassembly
+            .iter()
+            .position(|l| l.is_collapsed && l.address == Addr(0x1002))
+            .expect("collapsed summary line at $1002");
+
+        for target in [Addr(0x1002), Addr(0x1003), Addr(0x1005)] {
+            assert_eq!(
+                resolve_jump_content_line_index(&app_state, target),
+                Some(collapsed_idx)
+            );
+        }
+
+        // 2. Origin $0000 collapsed block preceded by `$0000` enum preamble headers must land strictly
+        // on the collapsed summary row and never on preamble index 0 or the following instruction.
+        let mut zero_state = AppState::new();
+        zero_state.origin = Addr::ZERO;
+        zero_state.raw_data = vec![0xEA, 0xEA, 0x60];
+        zero_state.block_types = vec![BlockType::Code; 3];
+        zero_state.collapsed_blocks.push((0, 1));
+        zero_state.disassembly = vec![
+            DisassemblyLine {
+                address: Addr::ZERO,
+                bytes: Vec::new(),
+                mnemonic: "; enum Mode".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr::ZERO,
+                bytes: Vec::new(),
+                mnemonic: "; Collapsed Code block from $0000-$0001".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: true,
+            },
+            DisassemblyLine {
+                address: Addr(0x0002),
+                bytes: vec![0x60],
+                mnemonic: "rts".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+        ];
+        assert_eq!(
+            resolve_jump_content_line_index(&zero_state, Addr::ZERO),
+            Some(1)
+        );
+        assert_eq!(
+            resolve_jump_content_line_index(&zero_state, Addr(0x0001)),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn core_nav_03_resolve_jump_content_line_index_zero_external_equate_and_guard() {
+        use crate::disassembler::DisassemblyLine;
+        use crate::state::BlockType;
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        app_state.raw_data = vec![0x60];
+        app_state.block_types = vec![BlockType::Code];
+        app_state.disassembly = vec![
+            DisassemblyLine {
+                address: Addr::ZERO,
+                bytes: Vec::new(),
+                mnemonic: "; enum Foo".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr::ZERO,
+                bytes: Vec::new(),
+                mnemonic: "zp_zero = $00".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+                external_label_address: Some(Addr::ZERO),
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr(0x0002),
+                bytes: Vec::new(),
+                mnemonic: "zp_two = $02".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+                external_label_address: Some(Addr(0x0002)),
+                is_collapsed: false,
+            },
+        ];
+
+        assert_eq!(
+            resolve_jump_content_line_index(&app_state, Addr::ZERO),
+            Some(1)
+        );
+
+        // Even if a zero-byte splitter at `$0000` sits directly above a `$0000` external equate,
+        // the `idx + 1` external-label guard stops advancement before sliding onto the equate.
+        let mut guard_state = AppState::new();
+        guard_state.origin = Addr::ZERO;
+        guard_state.raw_data = vec![0xEA];
+        guard_state.block_types = vec![BlockType::Code];
+        guard_state.disassembly = vec![
+            DisassemblyLine {
+                address: Addr::ZERO,
+                bytes: Vec::new(),
+                mnemonic: "{splitter}".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr::ZERO,
+                bytes: Vec::new(),
+                mnemonic: "ext_zero = $00".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+                external_label_address: Some(Addr::ZERO),
+                is_collapsed: false,
+            },
+        ];
+        assert_eq!(
+            resolve_jump_content_line_index(&guard_state, Addr::ZERO),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn core_nav_04_resolve_jump_content_line_index_rejects_orphan_zero_preamble() {
+        use crate::disassembler::DisassemblyLine;
+        use crate::state::BlockType;
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        app_state.raw_data = vec![0x60];
+        app_state.block_types = vec![BlockType::Code];
+        app_state.disassembly = vec![
+            DisassemblyLine {
+                address: Addr::ZERO,
+                bytes: Vec::new(),
+                mnemonic: "; enum Mode".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr(0x0801),
+                bytes: vec![0x60],
+                mnemonic: "rts".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+        ];
+
+        assert_eq!(
+            resolve_jump_content_line_index(&app_state, Addr::ZERO),
+            None
+        );
+        assert_eq!(
+            resolve_jump_content_line_index(&app_state, Addr(0xDEAD)),
+            None
+        );
+    }
+
+    #[test]
+    fn core_nav_05_perform_jump_to_address_updates_history_pane_and_handles_invalid() {
+        use crate::state::BlockType;
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        app_state.raw_data = vec![0xEA, 0xEA, 0x60];
+        app_state.block_types = vec![BlockType::Code; 3];
+        app_state.disassemble();
+
+        let target_idx = resolve_jump_content_line_index(&app_state, Addr(0x1002)).expect("$1002");
+
+        let mut view = CoreViewState::new();
+        view.active_pane = ActivePane::HexDump;
+        view.hex_cursor_index = 4;
+
+        perform_jump_to_address(&app_state, &mut view, Addr(0x1002));
+        assert_eq!(view.active_pane, ActivePane::Disassembly);
+        assert_eq!(view.cursor_index, target_idx);
+        assert_eq!(
+            view.navigation_history,
+            vec![(ActivePane::HexDump, NavigationTarget::Index(4))]
+        );
+
+        // Invalid target does not mutate cursor, active_pane, or navigation_history.
+        let history_before = view.navigation_history.clone();
+        perform_jump_to_address(&app_state, &mut view, Addr(0xDEAD));
+        assert_eq!(view.cursor_index, target_idx);
+        assert_eq!(view.active_pane, ActivePane::Disassembly);
+        assert_eq!(view.navigation_history, history_before);
+        assert!(
+            view.status_message
+                .as_deref()
+                .is_some_and(|msg| msg.contains("DEAD"))
+        );
+    }
+
+    #[test]
+    fn core_nav_06_perform_jump_to_address_no_history_preserves_history_stack() {
+        use crate::state::BlockType;
+
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        app_state.raw_data = vec![0xEA, 0x60];
+        app_state.block_types = vec![BlockType::Code; 2];
+        app_state.disassemble();
+
+        let expected_idx =
+            resolve_jump_content_line_index(&app_state, Addr(0x1001)).expect("$1001 line");
+
+        let mut view = CoreViewState::new();
+        view.active_pane = ActivePane::Blocks;
+        view.navigation_history
+            .push((ActivePane::Disassembly, NavigationTarget::Address(0x1000)));
+
+        perform_jump_to_address_no_history(&app_state, &mut view, Addr(0x1001));
+        assert_eq!(view.active_pane, ActivePane::Disassembly);
+        assert_eq!(view.cursor_index, expected_idx);
+        assert_eq!(
+            view.navigation_history,
+            vec![(ActivePane::Disassembly, NavigationTarget::Address(0x1000))]
+        );
+
+        // Missing address leaves cursor and history untouched.
+        perform_jump_to_address_no_history(&app_state, &mut view, Addr(0xCAFE));
+        assert_eq!(view.cursor_index, expected_idx);
+        assert_eq!(view.navigation_history.len(), 1);
+    }
+
+    #[test]
+    fn core_nav_07_resolve_jump_content_line_index_skips_zero_byte_body_headers() {
+        use crate::disassembler::DisassemblyLine;
+        use crate::state::BlockType;
+
+        // Case 1: consecutive zero-byte headers ({splitter}, scope `{`) followed by instruction body row.
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        app_state.raw_data = vec![0xA9, 0x00, 0x60];
+        app_state.block_types = vec![BlockType::Code; 3];
+        app_state.disassembly = vec![
+            DisassemblyLine {
+                address: Addr::ZERO,
+                bytes: Vec::new(),
+                mnemonic: "; enum Header".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr(0x1000),
+                bytes: Vec::new(),
+                mnemonic: "{splitter}".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr(0x1000),
+                bytes: Vec::new(),
+                mnemonic: ".block".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: Some("sub_1000".to_string()),
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr(0x1000),
+                bytes: vec![0xA9, 0x00],
+                mnemonic: "lda".to_string(),
+                operand: "#$00".to_string(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+        ];
+        assert_eq!(
+            resolve_jump_content_line_index(&app_state, Addr(0x1000)),
+            Some(3)
+        );
+
+        // Case 2: consecutive zero-byte headers followed by a zero-byte content row at `$1000`
+        // advances via `advance_to_content_line` without sliding into `$1001`.
+        let mut header_only_state = AppState::new();
+        header_only_state.origin = Addr(0x1000);
+        header_only_state.raw_data = vec![0xEA, 0x60];
+        header_only_state.block_types = vec![BlockType::Code; 2];
+        header_only_state.disassembly = vec![
+            DisassemblyLine {
+                address: Addr(0x1000),
+                bytes: Vec::new(),
+                mnemonic: "{splitter}".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr(0x1000),
+                bytes: Vec::new(),
+                mnemonic: ".block".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: Some("sub_1000".to_string()),
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr(0x1000),
+                bytes: Vec::new(),
+                mnemonic: "sub_content".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+            DisassemblyLine {
+                address: Addr(0x1001),
+                bytes: vec![0x60],
+                mnemonic: "rts".to_string(),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            },
+        ];
+        assert_eq!(
+            resolve_jump_content_line_index(&header_only_state, Addr(0x1000)),
+            Some(2)
+        );
+    }
+
+    #[test]
+    fn core_nav_real_disassemble_zero_collision_and_wraparound() {
+        use crate::state::{BlockType, EnumDefinition, Label, LabelKind, LabelType};
+        use std::collections::BTreeMap;
+
+        let add_colors_enum = |state: &mut AppState, enum_addr: Addr| {
+            let mut variants = BTreeMap::new();
+            variants.insert(0, "BLACK".to_string());
+            state.enums.insert(
+                "Colors".to_string(),
+                EnumDefinition {
+                    name: "Colors".to_string(),
+                    description: None,
+                    variants,
+                    source_file: None,
+                },
+            );
+            state.annotations.update(enum_addr, |e| {
+                e.enum_usage = Some("Colors".to_string());
+            });
+        };
+
+        // CORE-NAV-01: Case 1 (`origin > $0000`, external equate at `$0000`, `all_labels = true`, active enum preamble).
+        let mut case1 = AppState::new();
+        case1.origin = Addr(0x0801);
+        case1.settings.all_labels = true;
+        case1.raw_data = vec![0xA9, 0x00]; // LDA #Colors.BLACK
+        case1.block_types = vec![BlockType::Code; 2];
+        add_colors_enum(&mut case1, Addr(0x0801));
+        case1.labels.insert(
+            Addr::ZERO,
+            vec![Label {
+                name: "zp_zero".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::ZeroPageField,
+            }],
+        );
+        case1.disassemble();
+
+        let eq_idx = resolve_jump_content_line_index(&case1, Addr::ZERO)
+            .expect("$0000 external equate index");
+        assert_eq!(
+            case1.disassembly[eq_idx].external_label_address,
+            Some(Addr::ZERO)
+        );
+        assert!(case1.disassembly[eq_idx].mnemonic.contains("zp_zero"));
+        let mut view1 = CoreViewState::new();
+        view1.active_pane = ActivePane::Disassembly;
+        view1.cursor_index = case1.disassembly.len() - 1;
+        perform_jump_to_address(&case1, &mut view1, Addr::ZERO);
+        assert_eq!(view1.cursor_index, eq_idx);
+        assert_eq!(view1.navigation_history.len(), 1);
+
+        // CORE-NAV-02: Case 1b (`origin > $0000`, `.word $0000` with NO label at `$0000`, `all_labels = true`, enum preamble active).
+        let mut case1b = AppState::new();
+        case1b.origin = Addr(0x0801);
+        case1b.settings.all_labels = true;
+        case1b.raw_data = vec![0x00, 0x00, 0xA9, 0x00];
+        case1b.block_types = vec![
+            BlockType::Address,
+            BlockType::Address,
+            BlockType::Code,
+            BlockType::Code,
+        ];
+        add_colors_enum(&mut case1b, Addr(0x0803));
+        case1b.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::AbsoluteAddress,
+            }],
+        );
+        case1b.disassemble();
+
+        assert_eq!(resolve_jump_content_line_index(&case1b, Addr::ZERO), None);
+        let word_line = case1b
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x0801) && !l.bytes.is_empty())
+            .expect(".word $0000 line");
+        let word_targets = case1b.resolve_disassembly_jump_targets(word_line);
+        assert_eq!(word_targets.len(), 1);
+        assert_eq!(word_targets[0].target_address, Addr::ZERO);
+        assert_eq!(
+            word_targets[0].target_preview,
+            Some("(out of range)".to_string())
+        );
+        let mut view1b = CoreViewState::new();
+        view1b.active_pane = ActivePane::Disassembly;
+        view1b.cursor_index = case1b.disassembly.len() - 1;
+        let orig_cursor = view1b.cursor_index;
+        perform_jump_to_address(&case1b, &mut view1b, Addr::ZERO);
+        assert_eq!(view1b.cursor_index, orig_cursor);
+        assert!(view1b.navigation_history.is_empty());
+        assert!(
+            view1b
+                .status_message
+                .as_deref()
+                .is_some_and(|msg| msg.contains("out of range"))
+        );
+
+        // CORE-NAV-03: Case 2 (`origin == $0000`, collapsed `(0, 2)`, `all_labels = true`, external equate + enum preamble).
+        let mut case2 = AppState::new();
+        case2.origin = Addr::ZERO;
+        case2.settings.all_labels = true;
+        case2.raw_data = vec![0xEA, 0xEA, 0xEA, 0xA9, 0x00, 0x60];
+        case2.block_types = vec![BlockType::Code; 6];
+        case2.collapsed_blocks.push((0, 2));
+        add_colors_enum(&mut case2, Addr(0x0003));
+        case2.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::AbsoluteAddress,
+            }],
+        );
+        case2.disassemble();
+
+        let collapsed_idx = resolve_jump_content_line_index(&case2, Addr::ZERO)
+            .expect("collapsed $0000 summary index");
+        assert!(case2.disassembly[collapsed_idx].is_collapsed);
+        assert_eq!(case2.disassembly[collapsed_idx].address, Addr::ZERO);
+        assert_eq!(
+            resolve_jump_content_line_index(&case2, Addr(0x0002)),
+            Some(collapsed_idx)
+        );
+        let mut view2 = CoreViewState::new();
+        perform_jump_to_address(&case2, &mut view2, Addr(0x0002));
+        assert_eq!(view2.cursor_index, collapsed_idx);
+
+        // CORE-NAV-04: Case 3 (`origin == $0000`, non-collapsed `$0000` body + `{splitter}` / scope `{` + enum preamble).
+        let mut case3 = AppState::new();
+        case3.origin = Addr::ZERO;
+        case3.settings.all_labels = true;
+        case3.raw_data = vec![0xAD, 0x20, 0xD0, 0xA9, 0x00, 0x60];
+        case3.block_types = vec![BlockType::Code; 6];
+        case3.splitters.insert(Addr::ZERO);
+        case3.annotations.update(Addr::ZERO, |e| {
+            e.scope = Some(Addr(0x0005));
+        });
+        add_colors_enum(&mut case3, Addr(0x0003));
+        case3.labels.insert(
+            Addr::ZERO,
+            vec![Label {
+                name: "zp_start".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::Subroutine,
+            }],
+        );
+        case3.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::AbsoluteAddress,
+            }],
+        );
+        case3.disassemble();
+
+        let body_idx =
+            resolve_jump_content_line_index(&case3, Addr::ZERO).expect("body row at $0000");
+        assert!(!case3.disassembly[body_idx].bytes.is_empty());
+        assert_eq!(case3.disassembly[body_idx].address, Addr::ZERO);
+        assert!(case3.disassembly[body_idx].external_label_address.is_none());
+
+        // CORE-NAV-07: Wraparound span `$FFFE..=$FFFF` (`origin = $FFFC`, `raw_data.len() = 4`).
+        let mut wrap = AppState::new();
+        wrap.origin = Addr(0xFFFC);
+        wrap.raw_data = vec![0xEA, 0xEA, 0x00, 0x08];
+        wrap.block_types = vec![
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Address,
+            BlockType::Address,
+        ];
+        wrap.disassemble();
+
+        let word_fffe_idx =
+            resolve_jump_content_line_index(&wrap, Addr(0xFFFF)).expect("$FFFF inside $FFFE .word");
+        assert_eq!(wrap.disassembly[word_fffe_idx].address, Addr(0xFFFE));
+        assert_eq!(wrap.disassembly[word_fffe_idx].bytes, vec![0x00, 0x08]);
+        assert_eq!(resolve_jump_content_line_index(&wrap, Addr::ZERO), None);
+    }
+
+    #[test]
+    fn jump_target_index_matches_resolve_jump_content_line_index_across_all_edge_cases() {
+        use crate::disassembler::DisassemblyLine;
+        use crate::state::{BlockType, EnumDefinition, Label, LabelKind, LabelType};
+        use std::collections::BTreeMap;
+
+        let assert_index_matches = |state: &AppState, probes: &[Addr]| {
+            let index = JumpTargetIndex::new(state);
+            for &addr in probes {
+                assert_eq!(
+                    index.resolve_content_line_index(state, addr),
+                    resolve_jump_content_line_index(state, addr),
+                    "JumpTargetIndex mismatch at ${:04X}",
+                    addr.0
+                );
+            }
+        };
+
+        let add_colors_enum = |state: &mut AppState, enum_addr: Addr| {
+            let mut variants = BTreeMap::new();
+            variants.insert(0, "BLACK".to_string());
+            state.enums.insert(
+                "Colors".to_string(),
+                EnumDefinition {
+                    name: "Colors".to_string(),
+                    description: None,
+                    variants,
+                    source_file: None,
+                },
+            );
+            state.annotations.update(enum_addr, |e| {
+                e.enum_usage = Some("Colors".to_string());
+            });
+        };
+
+        // 1. External `$0000` equate + enum preamble + non-aligned gap probes.
+        let mut ext_zero = AppState::new();
+        ext_zero.origin = Addr(0x0801);
+        ext_zero.settings.all_labels = true;
+        ext_zero.raw_data = vec![0xAD, 0x20, 0xD0, 0xA9, 0x00];
+        ext_zero.block_types = vec![BlockType::Code; 5];
+        add_colors_enum(&mut ext_zero, Addr(0x0804));
+        ext_zero.labels.insert(
+            Addr::ZERO,
+            vec![Label {
+                name: "zp_zero".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::ZeroPageField,
+            }],
+        );
+        ext_zero.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::AbsoluteAddress,
+            }],
+        );
+        ext_zero.disassemble();
+        assert_index_matches(
+            &ext_zero,
+            &[
+                Addr::ZERO,
+                Addr(0x0400),
+                Addr(0x0800),
+                Addr(0x0801),
+                Addr(0x0802),
+                Addr(0x0803),
+                Addr(0x0804),
+                Addr(0x0805),
+                Addr(0x0900),
+                Addr(0xD020),
+                Addr(0xFFFF),
+            ],
+        );
+
+        // 2. Origin `$0000` with collapsed `(0, 2)` + splitter/scope headers at `$0000` and `$0003`.
+        let mut collapsed = AppState::new();
+        collapsed.origin = Addr::ZERO;
+        collapsed.settings.all_labels = true;
+        collapsed.raw_data = vec![0xEA, 0xEA, 0xEA, 0xAD, 0x20, 0xD0];
+        collapsed.block_types = vec![BlockType::Code; 6];
+        collapsed.collapsed_blocks.push((0, 2));
+        collapsed.splitters.insert(Addr(0x0003));
+        collapsed.annotations.update(Addr(0x0003), |e| {
+            e.scope = Some(Addr(0x0005));
+        });
+        add_colors_enum(&mut collapsed, Addr(0x0003));
+        collapsed.disassemble();
+        assert_index_matches(
+            &collapsed,
+            &[
+                Addr::ZERO,
+                Addr(0x0001),
+                Addr(0x0002),
+                Addr(0x0003),
+                Addr(0x0004),
+                Addr(0x0005),
+                Addr(0x0006),
+                Addr(0xD020),
+            ],
+        );
+
+        // 3. Wraparound across `$FFFF -> $0000` (tests non-monotonic span fallback + `$FFFF`).
+        let mut wrap = AppState::new();
+        wrap.origin = Addr(0xFFFE);
+        wrap.raw_data = vec![0x4C, 0x00, 0x08];
+        wrap.block_types = vec![BlockType::Code; 3];
+        wrap.disassemble();
+        assert_index_matches(
+            &wrap,
+            &[
+                Addr::ZERO,
+                Addr(0x0001),
+                Addr(0x0800),
+                Addr(0xFFFD),
+                Addr(0xFFFE),
+                Addr(0xFFFF),
+            ],
+        );
+
+        // 4. Synthetic non-monotonic zero-byte & wrapped-span disassembly covering fallback passes.
+        let make_line = |address: Addr, bytes: Vec<u8>, mnemonic: &str| DisassemblyLine {
+            address,
+            bytes,
+            mnemonic: mnemonic.to_string(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        let mut synthetic = AppState::new();
+        synthetic.origin = Addr(0x1000);
+        synthetic.raw_data = vec![0xEA; 0x20];
+        synthetic.disassembly = vec![
+            make_line(Addr::ZERO, Vec::new(), "; banner"),
+            make_line(Addr(0x1010), Vec::new(), "; zero-byte header"),
+            make_line(Addr(0x1008), vec![0xEA, 0xEA], "nop"),
+            make_line(Addr(0x1010), vec![0xEA], "nop"),
+            make_line(Addr(0xFFFE), vec![0x01, 0x02, 0x03], ".byte"),
+        ];
+        assert_index_matches(
+            &synthetic,
+            &[
+                Addr::ZERO,
+                Addr(0x0001),
+                Addr(0x1000),
+                Addr(0x1005),
+                Addr(0x1008),
+                Addr(0x1009),
+                Addr(0x100A),
+                Addr(0x1010),
+                Addr(0x1015),
+                Addr(0xFFFE),
+                Addr(0xFFFF),
+            ],
+        );
     }
 }

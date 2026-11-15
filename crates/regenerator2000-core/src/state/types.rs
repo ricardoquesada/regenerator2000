@@ -1114,6 +1114,42 @@ pub struct OperandTargetSite {
     pub second_pair_addr: Option<Addr>,
 }
 
+/// Selectable jump destination produced by [`AppState::resolve_disassembly_jump_targets`](super::AppState::resolve_disassembly_jump_targets).
+///
+/// Represents one unique [`Addr`] destination referenced by an instruction operand or external equate.
+/// Also covers `.word` pointers and split [`BlockType::LoHiAddress`] / [`BlockType::HiLoAddress`] pairs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OperandJumpTarget {
+    /// Final 6502 destination address.
+    ///
+    /// Points to `sym.base` instead of the raw stored address when a Tier 1 or Tier 2
+    /// [`SymbolicOffset`] applies (for example, `handler` rather than `handler - 1`).
+    pub target_address: Addr,
+    /// Verbatim operand expression shown on the source disassembly line
+    /// (for example, `"<(state_0_border_red - 1)"`, `"idle"`, or `"$0835"`).
+    pub operand_expr: String,
+    /// Single-line preview of the code, data directive, equate, or `(out of range)` label at
+    /// [`Self::target_address`], or `None` when an in-range line has no mnemonic or label.
+    pub target_preview: Option<String>,
+}
+
+impl OperandJumpTarget {
+    /// Creates an [`OperandJumpTarget`] for a resolved `target_address`, its shown
+    /// `operand_expr`, and an optional single-line `target_preview`.
+    #[must_use]
+    pub fn new(
+        target_address: Addr,
+        operand_expr: impl Into<String>,
+        target_preview: Option<String>,
+    ) -> Self {
+        Self {
+            target_address,
+            operand_expr: operand_expr.into(),
+            target_preview,
+        }
+    }
+}
+
 /// Relational binding that formats an effective 16-bit MOS 6502 address as `base_symbol +/- offset`.
 ///
 /// Regenerator 2000 attaches [`SymbolicOffset`] records across two complementary tiers in

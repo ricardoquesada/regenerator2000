@@ -454,17 +454,9 @@ fn handle_vice_registers_get(
     // Jump static disassembly cursor + scroll to PC when PC lies inside the loaded binary.
     let pc_addr = crate::state::Addr(pc);
     if !app_state.is_external(pc_addr)
-        && let Some(mut idx) = app_state
-            .get_line_index_containing_address(pc_addr)
-            .or_else(|| app_state.get_line_index_for_address(pc_addr))
+        && let Some(idx) =
+            regenerator2000_core::navigation::resolve_jump_content_line_index(app_state, pc_addr)
     {
-        while idx + 1 < app_state.disassembly.len()
-            && app_state.disassembly[idx].address == pc_addr
-            && app_state.disassembly[idx].bytes.is_empty()
-            && app_state.disassembly[idx + 1].address == pc_addr
-        {
-            idx += 1;
-        }
         let sub_idx = crate::ui::view_disassembly::DisassemblyView::get_sub_index_for_address(
             &app_state.disassembly[idx],
             app_state,
@@ -838,20 +830,23 @@ fn handle_mouse_dialog(
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
     should_render: &mut bool,
 ) -> EventOutcome {
-    // Check for Close Button Click (Top-Right [x])
+    // Check for Close Button Click (Top-Right [x]) only once the active dialog has rendered bounds.
     let area = ui_state.active_dialog_area;
-    let is_close_click =
-        if mouse.kind == event::MouseEventKind::Down(crossterm::event::MouseButton::Left) {
-            mouse.row == area.y
-                && mouse.column >= area.right().saturating_sub(4)
-                && mouse.column < area.right()
-        } else {
-            false
-        };
+    let is_close_click = if area.width > 0
+        && area.height > 0
+        && mouse.kind == event::MouseEventKind::Down(crossterm::event::MouseButton::Left)
+    {
+        mouse.row == area.y
+            && mouse.column >= area.right().saturating_sub(4)
+            && mouse.column < area.right()
+    } else {
+        false
+    };
 
     if is_close_click {
-        // Dialog close requested via [x] — drop the dialog and promote any queued dialog.
+        // Dialog close requested via [x] — restore status, drop the dialog, and promote any queued dialog.
         *should_render = true;
+        ui_state.set_status_message("Ready");
         ui_state.promote_next_dialog();
         return EventOutcome::Continue;
     }
@@ -1301,6 +1296,43 @@ mod tests {
         // 2. External ROM PC ($EA31) must not snap the static disassembly cursor to the last line.
         handle_vice_registers_get(&build_pc_msg(0xEA31), &mut app_state, &mut ui_state);
         assert_eq!(ui_state.cursor_index, expected_idx);
+
+        // 3. Origin $0000 collapsed block preceded by enum preamble headers at $0000 must land on
+        // the collapsed summary row and never step onto the preamble or past `!is_collapsed`.
+        let mut collapsed_zero_state = AppState::new();
+        collapsed_zero_state.origin = Addr::ZERO;
+        // $0000: collapsed NOP, $0001: LDA #Colors.BLACK
+        collapsed_zero_state.raw_data = vec![0xEA, 0xA9, 0x00];
+        collapsed_zero_state.block_types = vec![BlockType::Code; 3];
+        collapsed_zero_state.collapsed_blocks.push((0, 0));
+        let mut variants = std::collections::BTreeMap::new();
+        variants.insert(0, "BLACK".to_string());
+        collapsed_zero_state.enums.insert(
+            "Colors".to_string(),
+            regenerator2000_core::state::EnumDefinition {
+                name: "Colors".to_string(),
+                description: None,
+                variants,
+                source_file: None,
+            },
+        );
+        collapsed_zero_state.annotations.update(Addr(0x0001), |e| {
+            e.enum_usage = Some("Colors".to_string());
+        });
+        collapsed_zero_state.settings.all_labels = true;
+        collapsed_zero_state.disassemble();
+
+        let mut collapsed_ui = UIState::new(crate::theme::Theme::default());
+        handle_vice_registers_get(
+            &build_pc_msg(0x0000),
+            &mut collapsed_zero_state,
+            &mut collapsed_ui,
+        );
+        assert!(collapsed_zero_state.disassembly[collapsed_ui.cursor_index].is_collapsed);
+        assert_eq!(
+            collapsed_zero_state.disassembly[collapsed_ui.cursor_index].address,
+            Addr::ZERO
+        );
     }
 
     #[test]
@@ -1333,7 +1365,6 @@ mod tests {
 
         let mut core = Core::new();
         let mut ui_state = UIState::new(crate::theme::Theme::default());
-        ui_state.active_dialog_area = Rect::new(10, 5, 40, 10);
         let (tx, _rx) = std::sync::mpsc::channel();
         let mut should_render = false;
 
@@ -1350,6 +1381,8 @@ mod tests {
             )),
         }));
         assert_eq!(ui_state.dialog_queue.len(), 2);
+        // Simulate DummyDialog #1 having been rendered with active bounds before clicking [x].
+        ui_state.active_dialog_area = Rect::new(10, 5, 40, 10);
 
         let close_x_click = MouseEvent {
             kind: event::MouseEventKind::Down(event::MouseButton::Left),
@@ -1441,5 +1474,83 @@ mod tests {
         ui_state.selection_start = None;
         sync_views_before_render(&app_state, &mut ui_state);
         assert_eq!(ui_state.sprites_selection_start, None);
+    }
+
+    #[test]
+    fn jump_to_operand_dialog_close_click_dismisses_and_promotes_queued_dialog() {
+        use crate::ui::dialog_jump_to_operand::JumpToOperandDialog;
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+        use ratatui::layout::Rect;
+        use regenerator2000_core::state::types::{Addr, OperandJumpTarget};
+
+        let mut core = Core::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.dismiss_logo = true;
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut should_render = false;
+
+        let targets = vec![
+            OperandJumpTarget::new(
+                Addr(0x1010),
+                "target_a".to_string(),
+                Some("nop".to_string()),
+            ),
+            OperandJumpTarget::new(
+                Addr(0x1020),
+                "target_b".to_string(),
+                Some("rts".to_string()),
+            ),
+        ];
+        ui_state.push_dialog(Box::new(JumpToOperandDialog::new(Addr(0x1000), targets)));
+
+        // Render once so `active_dialog_area` matches the real centered modal bounds.
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| crate::ui::ui(f, &core.state, &mut ui_state))
+            .unwrap();
+        let dialog_area = ui_state.active_dialog_area;
+        assert_ne!(dialog_area, Rect::default());
+
+        // Queue a follow-up dialog behind `JumpToOperandDialog`.
+        ui_state.push_dialog(Box::new(
+            crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
+        ));
+        assert_eq!(ui_state.dialog_queue.len(), 1);
+        ui_state.set_status_message("Jump pending");
+
+        // Clicking `[x]` on the top-right border resets status, drops the dialog, clears stale
+        // modal bounds, and promotes the queued dialog.
+        let close_click = event::MouseEvent {
+            kind: event::MouseEventKind::Down(event::MouseButton::Left),
+            column: dialog_area.right().saturating_sub(2),
+            row: dialog_area.y,
+            modifiers: event::KeyModifiers::NONE,
+        };
+        handle_mouse_event(
+            close_click,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+
+        assert!(should_render);
+        assert_eq!(ui_state.status_message.as_deref(), Some("Ready"));
+        assert!(ui_state.active_dialog.is_some());
+        assert_eq!(ui_state.dialog_queue.len(), 0);
+        assert_eq!(ui_state.active_dialog_area, Rect::default());
+
+        // Clicking the previous dialog's `[x]` coordinate before the newly promoted dialog renders
+        // must not dismiss it prematurely.
+        handle_mouse_event(
+            close_click,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert!(ui_state.active_dialog.is_some());
     }
 }

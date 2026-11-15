@@ -21,6 +21,7 @@ pub(crate) mod dialog_file_info;
 pub(crate) mod dialog_find_references;
 pub(crate) mod dialog_go_to_symbol;
 pub(crate) mod dialog_import_context;
+pub(crate) mod dialog_jump_to_operand;
 pub(crate) mod dialog_keyboard_shortcut;
 pub(crate) mod dialog_label;
 pub(crate) mod dialog_manage_enums;
@@ -87,6 +88,8 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     if let Some(dialog) = ui_state.active_dialog.take() {
         dialog.render(f, f.area(), app_state, ui_state);
         ui_state.active_dialog = Some(dialog);
+    } else {
+        ui_state.active_dialog_area = Rect::default();
     }
 }
 

@@ -2,7 +2,6 @@
 //! symbolic-offset base redirection, and view settings.
 
 use super::{ActionContext, CoreError, DomainActionHandler};
-use crate::cpu::AddressingMode;
 use crate::event::CoreEvent;
 use crate::state::Addr;
 use crate::state::actions::AppAction;
@@ -167,115 +166,57 @@ fn handle_navigate_to_address(ctx: &mut ActionContext<'_>, target_addr: Addr) {
     ctx.events.push(CoreEvent::ViewChanged);
 }
 
-/// Resolves the operand jump target for `line` in the Disassembly pane, redirecting through
-/// any active Tier 1 `operand_offset` or Tier 2 `address_offset` to `sym.base`.
+/// Resolves the single jump target address for right-hand panes (`HexDump`, `Sprites`, `Charset`,
+/// `Blocks`, and `Bitmap`).
 ///
-/// Supports code instructions (`Absolute*`, `Indirect*`, `ZeroPage*`, and `Immediate` `LowByte`
-/// or `HighByte` operands), `ExternalFile` and Tier 2-offset equates, `.word` address tables,
-/// and both halves of split `LoHiAddress` and `HiLoAddress` tables.
+/// Right-hand panes always map a cursor slot to one disassembly address directly instead of
+/// opening the multi-target operand picker.
 #[must_use]
-fn resolve_disassembly_jump_target(
-    state: &crate::state::AppState,
-    line: &crate::disassembler::DisassemblyLine,
-) -> Option<Addr> {
-    use crate::disassembler::symbols::{
-        resolve_effective_symbolic_offset, resolve_split_pair_effective_symbolic_offset,
-    };
-    use crate::state::{BlockType, ImmediateFormat};
-
-    if let Some(opcode) = &line.opcode {
-        if opcode.mode == AddressingMode::Relative {
-            let offset = *line.bytes.get(1)? as i8;
-            return Some(line.address.wrapping_add(2).wrapping_add(offset as u16));
+fn resolve_non_disassembly_jump_target(ctx: &ActionContext<'_>) -> Option<Addr> {
+    match ctx.view.active_pane {
+        ActivePane::HexDump => {
+            let origin = ctx.state.origin.0 as usize;
+            let bytes_per_row = if ctx.view.right_pane == crate::view_state::RightPane::HexDump8 {
+                8
+            } else {
+                16
+            };
+            let alignment_padding = origin % bytes_per_row;
+            let aligned_origin = origin - alignment_padding;
+            let row_addr = (aligned_origin + ctx.view.hex_cursor_index * bytes_per_row).max(origin);
+            Some(Addr(row_addr as u16))
         }
-
-        let raw_target = match opcode.mode {
-            AddressingMode::Immediate => state
-                .annotations
-                .get(line.address)
-                .and_then(|e| e.immediate_format)
-                .and_then(|fmt| match fmt {
-                    ImmediateFormat::LowByte(target) | ImmediateFormat::HighByte(target) => {
-                        Some(target)
-                    }
-                    _ => None,
-                })?,
-            AddressingMode::Absolute
-            | AddressingMode::AbsoluteX
-            | AddressingMode::AbsoluteY
-            | AddressingMode::Indirect => {
-                let lo = *line.bytes.get(1)?;
-                let hi = *line.bytes.get(2)?;
-                Addr(u16::from_le_bytes([lo, hi]))
-            }
-            AddressingMode::ZeroPage
-            | AddressingMode::ZeroPageX
-            | AddressingMode::ZeroPageY
-            | AddressingMode::IndirectX
-            | AddressingMode::IndirectY => Addr(u16::from(*line.bytes.get(1)?)),
-            _ => return None,
-        };
-
-        // Redirect `Enter` on `lda table_2000 - 1,x` or `lda #<(sub_C100 - 1)` directly to `sym.base`,
-        // honoring the 2-byte zero-page `sym.base <= $00FF` invariant.
-        return Some(
-            crate::disassembler::symbols::resolve_effective_symbolic_offset_for_mode(
-                line.address,
-                raw_target,
-                opcode.mode.is_zero_page(),
-                &state.labels,
-                &state.annotations,
-            )
-            .map_or(raw_target, |sym| sym.base),
-        );
-    }
-
-    if let Some(ext_addr) = line.external_label_address {
-        return resolve_effective_symbolic_offset(
-            ext_addr,
-            ext_addr,
-            &state.labels,
-            &state.annotations,
-        )
-        .map(|sym| sym.base)
-        .or_else(|| (!state.is_external(ext_addr)).then_some(ext_addr));
-    }
-
-    if line.bytes.is_empty() || state.is_external(line.address) {
-        return None;
-    }
-
-    let pc = line.address.offset_from(state.origin);
-    match state.block_types.get(pc) {
-        Some(BlockType::Address) => {
-            let (site_addr, raw_target, _) = state.effective_target_at_address(line.address)?;
-            Some(
-                resolve_effective_symbolic_offset(
-                    site_addr,
-                    raw_target,
-                    &state.labels,
-                    &state.annotations,
-                )
-                .map_or(raw_target, |sym| sym.base),
-            )
+        ActivePane::Sprites => {
+            let origin = ctx.state.origin.0 as usize;
+            let padding = (64 - (origin % 64)) % 64;
+            Some(Addr(
+                (origin + padding + ctx.view.sprites_cursor_index * 64) as u16,
+            ))
         }
-        Some(BlockType::LoHiAddress | BlockType::HiLoAddress) => {
-            // `split_table_pair_at_address` walks backward to the sub-block start so pressing
-            // `Enter` on either the low-byte row or the high-byte row jumps to `sym.base`.
-            let (first_addr, second_addr, raw_target) =
-                state.split_table_pair_at_address(line.address)?;
-            Some(
-                resolve_split_pair_effective_symbolic_offset(
-                    first_addr,
-                    second_addr,
-                    raw_target,
-                    &state.labels,
-                    &state.annotations,
-                )
-                .map_or(raw_target, |sym| sym.base),
-            )
+        ActivePane::Charset => {
+            let origin = ctx.state.origin.0 as usize;
+            let base_alignment = 0x400;
+            let aligned_start_addr = (origin / base_alignment) * base_alignment;
+            Some(Addr(
+                (aligned_start_addr + ctx.view.charset_cursor_index * 8) as u16,
+            ))
         }
-        _ => None,
+        ActivePane::Blocks => {
+            let blocks = ctx.state.get_blocks_view_items();
+            let idx = ctx.view.blocks_selected_index.unwrap_or(0);
+            blocks.get(idx).map(|item| match *item {
+                crate::state::BlockItem::Block { start, .. }
+                | crate::state::BlockItem::Scope { start, .. } => start,
+                crate::state::BlockItem::Splitter(addr) => addr,
+            })
+        }
+        ActivePane::Bitmap => {
+            let origin = ctx.state.origin.0 as usize;
+            let first_aligned_addr = origin.div_ceil(8192) * 8192;
+            let bitmap_addr = first_aligned_addr + (ctx.view.bitmap_cursor_index * 8192);
+            Some(Addr(bitmap_addr as u16))
+        }
+        ActivePane::Disassembly | ActivePane::Debugger => None,
     }
 }
 
@@ -851,61 +792,44 @@ impl DomainActionHandler for NavigationActionHandler {
                 Ok(true)
             }
             AppAction::JumpToOperand => {
-                let target_addr = match ctx.view.active_pane {
-                    ActivePane::Disassembly => ctx
-                        .state
-                        .disassembly
-                        .get(ctx.view.cursor_index)
-                        .and_then(|line| resolve_disassembly_jump_target(ctx.state, line)),
-                    ActivePane::HexDump => {
-                        let origin = ctx.state.origin.0 as usize;
-                        let bytes_per_row =
-                            if ctx.view.right_pane == crate::view_state::RightPane::HexDump8 {
-                                8
-                            } else {
-                                16
-                            };
-                        let alignment_padding = origin % bytes_per_row;
-                        let aligned_origin = origin - alignment_padding;
-                        let row_addr = (aligned_origin + ctx.view.hex_cursor_index * bytes_per_row)
-                            .max(origin);
-                        Some(crate::state::Addr(row_addr as u16))
-                    }
-                    ActivePane::Sprites => {
-                        let origin = ctx.state.origin.0 as usize;
-                        let padding = (64 - (origin % 64)) % 64;
-                        Some(crate::state::Addr(
-                            (origin + padding + ctx.view.sprites_cursor_index * 64) as u16,
-                        ))
-                    }
-                    ActivePane::Charset => {
-                        let origin = ctx.state.origin.0 as usize;
-                        let base_alignment = 0x400;
-                        let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                        Some(crate::state::Addr(
-                            (aligned_start_addr + ctx.view.charset_cursor_index * 8) as u16,
-                        ))
-                    }
-                    ActivePane::Blocks => {
-                        let blocks = ctx.state.get_blocks_view_items();
-                        let idx = ctx.view.blocks_selected_index.unwrap_or(0);
-                        blocks.get(idx).map(|item| match *item {
-                            crate::state::BlockItem::Block { start, .. }
-                            | crate::state::BlockItem::Scope { start, .. } => start,
-                            crate::state::BlockItem::Splitter(addr) => addr,
-                        })
-                    }
-                    ActivePane::Bitmap => {
-                        let origin = ctx.state.origin.0 as usize;
-                        let first_aligned_addr = origin.div_ceil(8192) * 8192;
-                        let bitmap_addr =
-                            first_aligned_addr + (ctx.view.bitmap_cursor_index * 8192);
-                        Some(crate::state::Addr(bitmap_addr as u16))
-                    }
-                    _ => None,
-                };
+                if ctx.view.active_pane == ActivePane::Disassembly {
+                    let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) else {
+                        ctx.events.push(CoreEvent::StatusMessage(
+                            "No valid operand to jump to".to_string(),
+                        ));
+                        return Ok(true);
+                    };
 
-                if let Some(addr) = target_addr {
+                    // Dispatch by deduplicated destination count: 0 targets report status,
+                    // 1 jumps immediately with history, and 2+ open the picker without
+                    // mutating cursor position or navigation history until a target is chosen.
+                    let mut targets = ctx.state.resolve_disassembly_jump_targets(line);
+                    match targets.len() {
+                        0 => {
+                            ctx.events.push(CoreEvent::StatusMessage(
+                                "No valid operand to jump to".to_string(),
+                            ));
+                        }
+                        1 => {
+                            if let Some(target) = targets.pop() {
+                                handle_navigate_to_address(ctx, target.target_address);
+                            }
+                        }
+                        _ => {
+                            let source_address =
+                                line.external_label_address.unwrap_or(line.address);
+                            ctx.events.push(CoreEvent::DialogRequested(
+                                crate::event::DialogType::JumpToOperand {
+                                    source_address,
+                                    targets,
+                                },
+                            ));
+                        }
+                    }
+                    return Ok(true);
+                }
+
+                if let Some(addr) = resolve_non_disassembly_jump_target(ctx) {
                     handle_navigate_to_address(ctx, addr);
                 } else {
                     ctx.events.push(CoreEvent::StatusMessage(
@@ -1601,7 +1525,13 @@ mod tests {
             offset: -1,
             radix: OffsetRadix::Decimal,
         };
-        for site in [Addr(0x1000), Addr(0x1006), Addr(0x1008), Addr(0x100A)] {
+        for site in [
+            Addr(0x1000),
+            Addr(0x1006),
+            Addr(0x1008),
+            Addr(0x100A),
+            Addr(0x100B),
+        ] {
             state.annotations.update(site, |e| {
                 e.operand_offset = Some(sub_minus_1);
             });
@@ -1874,5 +1804,324 @@ mod tests {
         assert!(landed.external_label_address.is_none());
         assert_eq!(landed.address, Addr(0x1004));
         assert_eq!(ctx.view.navigation_history.len(), 1);
+    }
+
+    #[test]
+    fn test_jump_to_operand_multi_target_split_table_emits_dialog() {
+        use crate::event::DialogType;
+        use crate::state::BlockType;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000..$1004: 2-entry LoHiAddress table targeting $100A and $100C.
+        // $1004..$100A: 6 NOPs.
+        // $100A..$100C: LDA #$01; $100C..$100E: LDA #$02; $100E: RTS.
+        let mut raw = vec![0x0A, 0x0C, 0x10, 0x10];
+        raw.extend(std::iter::repeat_n(0xEA, 6));
+        raw.extend_from_slice(&[0xA9, 0x01, 0xA9, 0x02, 0x60]);
+        state.raw_data = raw;
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
+        for bt in &mut state.block_types[0..4] {
+            *bt = BlockType::LoHiAddress;
+        }
+        state.disassemble();
+
+        let lo_idx = state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
+            .unwrap();
+        let hi_idx = state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
+            .unwrap();
+
+        let handler = NavigationActionHandler;
+
+        for (idx, expected_src) in [(lo_idx, Addr(0x1000)), (hi_idx, Addr(0x1002))] {
+            let mut view = CoreViewState::new();
+            view.cursor_index = idx;
+            let mut events = Vec::new();
+            let mut ctx = ActionContext {
+                state: &mut state,
+                view: &mut view,
+                events: &mut events,
+            };
+
+            assert!(
+                handler
+                    .handle_action(&AppAction::JumpToOperand, &mut ctx)
+                    .unwrap()
+            );
+            assert_eq!(ctx.view.cursor_index, idx);
+            assert!(ctx.view.navigation_history.is_empty());
+
+            let dialog = ctx.events.iter().find_map(|ev| match ev {
+                CoreEvent::DialogRequested(DialogType::JumpToOperand {
+                    source_address,
+                    targets,
+                }) => Some((*source_address, targets.clone())),
+                _ => None,
+            });
+            let (src, targets) = dialog.expect("expected JumpToOperand dialog request");
+            assert_eq!(src, expected_src);
+            let addrs: Vec<Addr> = targets.iter().map(|t| t.target_address).collect();
+            assert_eq!(addrs, vec![Addr(0x100A), Addr(0x100C)]);
+        }
+
+        // Selecting a target from the picker via NavigateToAddress moves cursor and pushes history.
+        let mut view = CoreViewState::new();
+        view.cursor_index = lo_idx;
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+        assert!(
+            handler
+                .handle_action(&AppAction::NavigateToAddress(Addr(0x100C)), &mut ctx)
+                .unwrap()
+        );
+        assert_eq!(
+            ctx.state.disassembly[ctx.view.cursor_index].address,
+            Addr(0x100C)
+        );
+        assert_eq!(ctx.view.navigation_history.len(), 1);
+    }
+
+    #[test]
+    fn test_jump_to_operand_multi_word_vs_dedup_single_jumps_or_opens_dialog() {
+        use crate::event::DialogType;
+        use crate::state::BlockType;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000..$1004: .word $1010, $1014 (2 distinct targets -> dialog)
+        // $1004..$1008: .word $1010, $1010 (deduplicates to 1 target -> direct jump)
+        let mut raw = vec![0x10, 0x10, 0x14, 0x10, 0x10, 0x10, 0x10, 0x10];
+        raw.extend(std::iter::repeat_n(0xEA, 16));
+        state.raw_data = raw;
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
+        for bt in &mut state.block_types[0..8] {
+            *bt = BlockType::Address;
+        }
+        state.splitters.insert(Addr(0x1004));
+        state.disassemble();
+
+        let multi_idx = state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
+            .unwrap();
+        let dedup_idx = state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x1004) && !l.bytes.is_empty())
+            .unwrap();
+
+        let handler = NavigationActionHandler;
+
+        // Multi-target .word emits JumpToOperand dialog with no history push.
+        let mut view = CoreViewState::new();
+        view.cursor_index = multi_idx;
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+        handler
+            .handle_action(&AppAction::JumpToOperand, &mut ctx)
+            .unwrap();
+        assert_eq!(ctx.view.cursor_index, multi_idx);
+        assert!(ctx.view.navigation_history.is_empty());
+        assert!(ctx.events.iter().any(|ev| matches!(
+            ev,
+            CoreEvent::DialogRequested(DialogType::JumpToOperand {
+                source_address: Addr(0x1000),
+                targets,
+            }) if targets.iter().map(|t| t.target_address).collect::<Vec<_>>() == vec![Addr(0x1010), Addr(0x1014)]
+        )));
+
+        // Duplicate-target .word deduplicates to 1 target and jumps directly.
+        let mut view = CoreViewState::new();
+        view.cursor_index = dedup_idx;
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+        handler
+            .handle_action(&AppAction::JumpToOperand, &mut ctx)
+            .unwrap();
+        assert_eq!(
+            ctx.state.disassembly[ctx.view.cursor_index].address,
+            Addr(0x1010)
+        );
+        assert_eq!(ctx.view.navigation_history.len(), 1);
+        assert!(
+            !ctx.events
+                .iter()
+                .any(|ev| matches!(ev, CoreEvent::DialogRequested(_)))
+        );
+    }
+
+    #[test]
+    fn test_jump_to_operand_zero_targets_and_oob_cursor_shows_status() {
+        use crate::state::BlockType;
+
+        let handler = NavigationActionHandler;
+
+        // 1. Line with zero targets (`NOP`).
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        state.raw_data = vec![0xEA, 0x60];
+        state.block_types = vec![BlockType::Code; 2];
+        state.disassemble();
+
+        let nop_idx = state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
+            .unwrap();
+
+        for cursor in [nop_idx, usize::MAX] {
+            let mut view = CoreViewState::new();
+            view.cursor_index = cursor;
+            let mut events = Vec::new();
+            let mut ctx = ActionContext {
+                state: &mut state,
+                view: &mut view,
+                events: &mut events,
+            };
+            assert!(
+                handler
+                    .handle_action(&AppAction::JumpToOperand, &mut ctx)
+                    .unwrap()
+            );
+            assert!(ctx.view.navigation_history.is_empty());
+            assert!(ctx.events.contains(&CoreEvent::StatusMessage(
+                "No valid operand to jump to".to_string()
+            )));
+            assert!(
+                !ctx.events
+                    .iter()
+                    .any(|ev| matches!(ev, CoreEvent::DialogRequested(_)))
+            );
+        }
+
+        // 2. Empty disassembly does not panic and emits status message.
+        let mut empty_state = AppState::new();
+        let mut view = CoreViewState::new();
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut empty_state,
+            view: &mut view,
+            events: &mut events,
+        };
+        assert!(
+            handler
+                .handle_action(&AppAction::JumpToOperand, &mut ctx)
+                .unwrap()
+        );
+        assert!(ctx.events.contains(&CoreEvent::StatusMessage(
+            "No valid operand to jump to".to_string()
+        )));
+    }
+
+    #[test]
+    fn test_jump_to_operand_non_disassembly_panes_jump_without_dialog() {
+        use crate::state::BlockType;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x2000);
+        state.raw_data = vec![0xEA; 0x2000];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
+        state.disassemble();
+
+        let handler = NavigationActionHandler;
+
+        let cases = [
+            (ActivePane::HexDump, Addr(0x2010)),
+            (ActivePane::Sprites, Addr(0x2040)),
+            (ActivePane::Charset, Addr(0x2008)),
+            (ActivePane::Bitmap, Addr(0x2000)),
+            (ActivePane::Blocks, Addr(0x2000)),
+        ];
+
+        for (pane, expected_addr) in cases {
+            let mut view = CoreViewState::new();
+            view.active_pane = pane;
+            view.hex_cursor_index = 1;
+            view.sprites_cursor_index = 1;
+            view.charset_cursor_index = 1;
+            view.bitmap_cursor_index = 0;
+            view.blocks_selected_index = Some(0);
+            let mut events = Vec::new();
+            let mut ctx = ActionContext {
+                state: &mut state,
+                view: &mut view,
+                events: &mut events,
+            };
+
+            assert!(
+                handler
+                    .handle_action(&AppAction::JumpToOperand, &mut ctx)
+                    .unwrap()
+            );
+            assert_eq!(ctx.view.active_pane, ActivePane::Disassembly);
+            assert_eq!(
+                ctx.state.disassembly[ctx.view.cursor_index].address,
+                expected_addr
+            );
+            assert_eq!(ctx.view.navigation_history.len(), 1);
+            assert_eq!(ctx.view.navigation_history[0].0, pane);
+            assert!(
+                !ctx.events
+                    .iter()
+                    .any(|ev| matches!(ev, CoreEvent::DialogRequested(_)))
+            );
+        }
+    }
+
+    #[test]
+    fn test_navigate_to_address_out_of_range_shows_status_and_keeps_history() {
+        use crate::state::BlockType;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        state.raw_data = vec![0xEA; 8];
+        state.block_types = vec![BlockType::Code; 8];
+        state.disassemble();
+
+        let start_idx = state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
+            .unwrap();
+
+        let mut view = CoreViewState::new();
+        view.cursor_index = start_idx;
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = NavigationActionHandler;
+        assert!(
+            handler
+                .handle_action(&AppAction::NavigateToAddress(Addr(0xFFD2)), &mut ctx)
+                .unwrap()
+        );
+        assert_eq!(ctx.view.cursor_index, start_idx);
+        assert!(ctx.view.navigation_history.is_empty());
+        assert!(ctx.events.contains(&CoreEvent::StatusMessage(
+            "Address $FFD2 out of range ($1000-$1007)".to_string()
+        )));
     }
 }

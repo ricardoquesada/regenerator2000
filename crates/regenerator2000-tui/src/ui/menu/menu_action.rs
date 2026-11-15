@@ -39,246 +39,268 @@ pub fn handle_menu_action(
                 ui_state.set_status_message(format!("Opened URL: {}", url));
             }
             CoreEvent::StatusMessage(msg) => ui_state.set_status_message(msg),
-            CoreEvent::DialogRequested(dialog_type) => match dialog_type {
-                DialogType::Open => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_file_browser::FileBrowserDialog::new_open(
-                            ui_state.file_dialog_current_dir.clone(),
-                        ),
-                    ));
+            CoreEvent::DialogRequested(dialog_type) => {
+                if !matches!(dialog_type, DialogType::JumpToOperand { .. }) {
+                    // Reset stale hit-test bounds when replacing `active_dialog` directly before its first render.
+                    ui_state.active_dialog_area = ratatui::layout::Rect::default();
                 }
-                DialogType::OpenRecent => {
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_open_recent::OpenRecentDialog));
-                    ui_state.recent_list_state.select(Some(0));
-                }
-                DialogType::ImportViceLabels => {
-                    ui_state.active_dialog = Some(Box::new(
+                match dialog_type {
+                    DialogType::Open => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_file_browser::FileBrowserDialog::new_open(
+                                ui_state.file_dialog_current_dir.clone(),
+                            ),
+                        ));
+                    }
+                    DialogType::OpenRecent => {
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_open_recent::OpenRecentDialog));
+                        ui_state.recent_list_state.select(Some(0));
+                    }
+                    DialogType::ImportViceLabels => {
+                        ui_state.active_dialog = Some(Box::new(
                         crate::ui::dialog_file_browser::FileBrowserDialog::new_import_vice_labels(
                             ui_state.file_dialog_current_dir.clone(),
                             core.state.last_import_labels_path.clone(),
                         ),
                     ));
+                    }
+                    DialogType::ExportLabels { initial_filename } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_file_browser::FileBrowserDialog::new_export_labels(
+                                initial_filename,
+                                ui_state.file_dialog_current_dir.clone(),
+                            ),
+                        ));
+                    }
+                    DialogType::SaveAs { initial_filename } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_file_browser::FileBrowserDialog::new_save_project(
+                                initial_filename,
+                                ui_state.file_dialog_current_dir.clone(),
+                            ),
+                        ));
+                    }
+                    DialogType::ExportAs {
+                        initial_filename,
+                        format,
+                    } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_file_browser::FileBrowserDialog::new_export(
+                                initial_filename,
+                                format,
+                                ui_state.file_dialog_current_dir.clone(),
+                            ),
+                        ));
+                    }
+                    DialogType::DocumentSettings => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_document_settings::DocumentSettingsDialog::new(),
+                        ));
+                    }
+                    DialogType::FileInfo => {
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_file_info::FileInfoDialog::new()));
+                    }
+                    DialogType::JumpToAddress => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_prompt::PromptDialog::new_jump_to_address(),
+                        ));
+                    }
+                    DialogType::JumpToOperand {
+                        source_address,
+                        targets,
+                    } => {
+                        // Use `push_dialog` rather than overwriting `active_dialog` so any queued
+                        // dialog behind the picker promotes cleanly upon dismissal.
+                        ui_state.push_dialog(Box::new(
+                            crate::ui::dialog_jump_to_operand::JumpToOperandDialog::new(
+                                source_address,
+                                targets,
+                            ),
+                        ));
+                    }
+                    DialogType::JumpToLine => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_prompt::PromptDialog::new_jump_to_line(),
+                        ));
+                    }
+                    DialogType::Search { query, filters } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_search::SearchDialog::new(query, filters),
+                        ));
+                    }
+                    DialogType::GoToSymbol => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_go_to_symbol::GoToSymbolDialog::new(&core.state),
+                        ));
+                    }
+                    DialogType::KeyboardShortcuts => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
+                        ));
+                    }
+                    DialogType::About => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_about::AboutDialog::new(ui_state, event_tx.clone()),
+                        ));
+                    }
+                    DialogType::ViceConnect => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_vice_connect::ViceConnectDialog::new(),
+                        ));
+                    }
+                    DialogType::Label {
+                        address,
+                        initial_name,
+                        is_local,
+                        ..
+                    } => {
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_label::LabelDialog::new(
+                                Some(&initial_name),
+                                address,
+                                is_local,
+                            )));
+                    }
+                    DialogType::Comment {
+                        address,
+                        current,
+                        kind,
+                    } => {
+                        let dialog_kind = match kind {
+                            DialogCommentKind::Side => crate::ui::dialog_comment::CommentType::Side,
+                            DialogCommentKind::Line => crate::ui::dialog_comment::CommentType::Line,
+                        };
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_comment::CommentDialog::new(
+                                current.as_deref(),
+                                dialog_kind,
+                                address,
+                            )));
+                    }
+                    DialogType::Confirmation {
+                        title,
+                        message,
+                        action,
+                    } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_confirmation::ConfirmationDialog::new(
+                                title, message, action,
+                            ),
+                        ));
+                    }
+                    DialogType::Bookmarks => {
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_bookmarks::BookmarksDialog::new()));
+                    }
+                    DialogType::FindReferences(addr) => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_find_references::FindReferencesDialog::new(
+                                &core.state,
+                                addr,
+                            ),
+                        ));
+                    }
+                    DialogType::BreakpointAddress(addr) => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_prompt::PromptDialog::new_breakpoint_address(addr),
+                        ));
+                    }
+                    DialogType::WatchpointAddress(addr) => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_watchpoint_address::WatchpointAddressDialog::new(
+                                addr,
+                            ),
+                        ));
+                    }
+                    DialogType::MemoryDumpAddress(addr) => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_prompt::PromptDialog::new_memory_dump_address(addr),
+                        ));
+                    }
+                    DialogType::Settings => {
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_settings::SettingsDialog::new()));
+                    }
+                    DialogType::CompleteAddress {
+                        known_byte,
+                        lo_first,
+                        address,
+                    } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_complete_address::CompleteAddressDialog::new(
+                                known_byte, lo_first, address,
+                            ),
+                        ));
+                    }
+                    DialogType::ImportContext {
+                        origin,
+                        entry_point,
+                    } => {
+                        let packer = core.state.file_info().packer_name;
+                        ui_state.push_dialog(Box::new(
+                            crate::ui::dialog_import_context::ImportContextDialog::new(
+                                core.state.settings.system.as_str(),
+                                origin,
+                                Some(entry_point),
+                                None, // inherit system from current state
+                                None, // no entropy warning
+                                packer,
+                            ),
+                        ));
+                    }
+                    DialogType::Origin => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_prompt::PromptDialog::new_origin(core.state.origin),
+                        ));
+                    }
+                    DialogType::ApplyEnum { address, value } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_apply_enum::ApplyEnumDialog::new(
+                                address,
+                                value,
+                                &core.state,
+                            ),
+                        ));
+                    }
+                    DialogType::ManageEnums => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_manage_enums::ManageEnumsDialog::new(&core.state),
+                        ));
+                    }
+                    DialogType::SymbolicOffset {
+                        site_address,
+                        target_address,
+                        address_range,
+                        initial_input,
+                        is_global,
+                        lock_global,
+                        is_zero_page_mode,
+                    } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_symbolic_offset::SymbolicOffsetDialog::new(
+                                crate::ui::dialog_symbolic_offset::SymbolicOffsetDialogParams {
+                                    site_address,
+                                    target_address,
+                                    address_range,
+                                    initial_input: &initial_input,
+                                    is_global,
+                                    lock_global,
+                                    is_zero_page_mode,
+                                },
+                            ),
+                        ));
+                    }
+                    DialogType::Unpack => {
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_unpack::UnpackDialog::new()));
+                    }
                 }
-                DialogType::ExportLabels { initial_filename } => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_file_browser::FileBrowserDialog::new_export_labels(
-                            initial_filename,
-                            ui_state.file_dialog_current_dir.clone(),
-                        ),
-                    ));
-                }
-                DialogType::SaveAs { initial_filename } => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_file_browser::FileBrowserDialog::new_save_project(
-                            initial_filename,
-                            ui_state.file_dialog_current_dir.clone(),
-                        ),
-                    ));
-                }
-                DialogType::ExportAs {
-                    initial_filename,
-                    format,
-                } => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_file_browser::FileBrowserDialog::new_export(
-                            initial_filename,
-                            format,
-                            ui_state.file_dialog_current_dir.clone(),
-                        ),
-                    ));
-                }
-                DialogType::DocumentSettings => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_document_settings::DocumentSettingsDialog::new(),
-                    ));
-                }
-                DialogType::FileInfo => {
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_file_info::FileInfoDialog::new()));
-                }
-                DialogType::JumpToAddress => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_prompt::PromptDialog::new_jump_to_address(),
-                    ));
-                }
-                DialogType::JumpToLine => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_prompt::PromptDialog::new_jump_to_line(),
-                    ));
-                }
-                DialogType::Search { query, filters } => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_search::SearchDialog::new(query, filters),
-                    ));
-                }
-                DialogType::GoToSymbol => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_go_to_symbol::GoToSymbolDialog::new(&core.state),
-                    ));
-                }
-                DialogType::KeyboardShortcuts => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
-                    ));
-                }
-                DialogType::About => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_about::AboutDialog::new(ui_state, event_tx.clone()),
-                    ));
-                }
-                DialogType::ViceConnect => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_vice_connect::ViceConnectDialog::new(),
-                    ));
-                }
-                DialogType::Label {
-                    address,
-                    initial_name,
-                    is_local,
-                    ..
-                } => {
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_label::LabelDialog::new(
-                            Some(&initial_name),
-                            address,
-                            is_local,
-                        )));
-                }
-                DialogType::Comment {
-                    address,
-                    current,
-                    kind,
-                } => {
-                    let dialog_kind = match kind {
-                        DialogCommentKind::Side => crate::ui::dialog_comment::CommentType::Side,
-                        DialogCommentKind::Line => crate::ui::dialog_comment::CommentType::Line,
-                    };
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_comment::CommentDialog::new(
-                            current.as_deref(),
-                            dialog_kind,
-                            address,
-                        )));
-                }
-                DialogType::Confirmation {
-                    title,
-                    message,
-                    action,
-                } => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_confirmation::ConfirmationDialog::new(
-                            title, message, action,
-                        ),
-                    ));
-                }
-                DialogType::Bookmarks => {
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_bookmarks::BookmarksDialog::new()));
-                }
-                DialogType::FindReferences(addr) => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_find_references::FindReferencesDialog::new(
-                            &core.state,
-                            addr,
-                        ),
-                    ));
-                }
-                DialogType::BreakpointAddress(addr) => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_prompt::PromptDialog::new_breakpoint_address(addr),
-                    ));
-                }
-                DialogType::WatchpointAddress(addr) => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_watchpoint_address::WatchpointAddressDialog::new(addr),
-                    ));
-                }
-                DialogType::MemoryDumpAddress(addr) => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_prompt::PromptDialog::new_memory_dump_address(addr),
-                    ));
-                }
-                DialogType::Settings => {
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_settings::SettingsDialog::new()));
-                }
-                DialogType::CompleteAddress {
-                    known_byte,
-                    lo_first,
-                    address,
-                } => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_complete_address::CompleteAddressDialog::new(
-                            known_byte, lo_first, address,
-                        ),
-                    ));
-                }
-                DialogType::ImportContext {
-                    origin,
-                    entry_point,
-                } => {
-                    let packer = core.state.file_info().packer_name;
-                    ui_state.push_dialog(Box::new(
-                        crate::ui::dialog_import_context::ImportContextDialog::new(
-                            core.state.settings.system.as_str(),
-                            origin,
-                            Some(entry_point),
-                            None, // inherit system from current state
-                            None, // no entropy warning
-                            packer,
-                        ),
-                    ));
-                }
-                DialogType::Origin => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_prompt::PromptDialog::new_origin(core.state.origin),
-                    ));
-                }
-                DialogType::ApplyEnum { address, value } => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_apply_enum::ApplyEnumDialog::new(
-                            address,
-                            value,
-                            &core.state,
-                        ),
-                    ));
-                }
-                DialogType::ManageEnums => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_manage_enums::ManageEnumsDialog::new(&core.state),
-                    ));
-                }
-                DialogType::SymbolicOffset {
-                    site_address,
-                    target_address,
-                    address_range,
-                    initial_input,
-                    is_global,
-                    lock_global,
-                    is_zero_page_mode,
-                } => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_symbolic_offset::SymbolicOffsetDialog::new(
-                            crate::ui::dialog_symbolic_offset::SymbolicOffsetDialogParams {
-                                site_address,
-                                target_address,
-                                address_range,
-                                initial_input: &initial_input,
-                                is_global,
-                                lock_global,
-                                is_zero_page_mode,
-                            },
-                        ),
-                    ));
-                }
-                DialogType::Unpack => {
-                    ui_state.active_dialog =
-                        Some(Box::new(crate::ui::dialog_unpack::UnpackDialog::new()));
-                }
-            },
+            }
             CoreEvent::DialogDismissalRequested => {
                 ui_state.active_dialog = None;
+                ui_state.active_dialog_area = ratatui::layout::Rect::default();
             }
             CoreEvent::ViewChanged | CoreEvent::StateChanged => {
                 ui_state.core = core.view.clone();
@@ -376,5 +398,76 @@ mod tests {
                 is_local: true,
             })
         );
+    }
+
+    #[test]
+    fn handle_menu_action_jump_to_operand_pushes_dialog_and_renders_targets() {
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+        use regenerator2000_core::state::BlockType;
+
+        let mut core = Core::new();
+        core.state.origin = Addr(0x0830);
+        // 2-entry LoHiAddress table at $0830 targeting $0836 and $0839.
+        // $0830..$0834: <$0836, <$0839, >$0836, >$0839; $0834..$083C: NOPs + RTS.
+        let mut raw = vec![0x36, 0x39, 0x08, 0x08];
+        raw.extend(std::iter::repeat_n(0xEA, 8));
+        core.state.raw_data = raw;
+        core.state.block_types = vec![BlockType::Code; core.state.raw_data.len()];
+        for bt in &mut core.state.block_types[0..4] {
+            *bt = BlockType::LoHiAddress;
+        }
+        core.state.labels.insert(
+            Addr(0x0836),
+            vec![Label {
+                name: "state_0_border_red".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::Subroutine,
+            }],
+        );
+        core.state.labels.insert(
+            Addr(0x0839),
+            vec![Label {
+                name: "state_1_border_green".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::Subroutine,
+            }],
+        );
+        core.state.disassemble();
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.dismiss_logo = true;
+        ui_state.cursor_index = core
+            .state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x0830) && !l.bytes.is_empty())
+            .unwrap();
+        let (tx, _rx) = std::sync::mpsc::channel();
+
+        handle_menu_action(&mut core, &mut ui_state, AppAction::JumpToOperand, &tx);
+
+        assert!(ui_state.active_dialog.is_some());
+        assert!(ui_state.core.navigation_history.is_empty());
+        assert!(AppAction::NavigateToAddress(Addr(0x0836)).closes_dialog());
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| crate::ui::ui(f, &core.state, &mut ui_state))
+            .unwrap();
+
+        let rendered: String = terminal
+            .backend()
+            .buffer()
+            .content()
+            .iter()
+            .map(|c| c.symbol())
+            .collect();
+        assert!(rendered.contains("Jump to Operand from $0830"));
+        assert!(rendered.contains("[1]"));
+        assert!(rendered.contains("[2]"));
+        assert!(rendered.contains("$0836"));
+        assert!(rendered.contains("$0839"));
     }
 }

@@ -2,7 +2,7 @@
 
 use crate::state::Addr;
 use crate::state::actions::AppAction;
-pub use crate::state::types::CommentKind;
+pub use crate::state::types::{CommentKind, OperandJumpTarget};
 
 /// Events emitted by [`Core::apply_action`](crate::Core::apply_action) for the active frontend.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,6 +98,14 @@ pub enum DialogType {
     JumpToAddress,
     /// Disassembly line-number jump dialog.
     JumpToLine,
+    /// Interactive destination picker when a disassembly line exposes multiple operand targets.
+    JumpToOperand {
+        /// Canonical 6502 [`Addr`] of the source disassembly line (or external equate) that
+        /// triggered the jump.
+        source_address: Addr,
+        /// Left-to-right ordered, deduplicated [`OperandJumpTarget`] destinations (`len() >= 2`).
+        targets: Vec<OperandJumpTarget>,
+    },
     /// Keyboard shortcut reference dialog.
     KeyboardShortcuts,
     /// User label editor dialog.

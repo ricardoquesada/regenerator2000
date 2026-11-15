@@ -68,7 +68,7 @@ These shortcuts work across Windows, macOS, and Linux terminals, including `tmux
 |                                    | **Jump to Address**                                                                     | ++ctrl+g++ or ++alt+g++                                       |
 |                                    | **Jump to Line**                                                                        | ++ctrl+shift+g++ or ++alt+shift+g++                           |
 |                                    | **Jump to Line / End of File**                                                          | number + ++shift+g++                                          |
-|                                    | **Jump to Operand**                                                                     | ++enter++                                                     |
+|                                    | **Jump to Operand** (immediate on 1 target; picker on 2+ targets)                       | ++enter++                                                     |
 |                                    | **Remove Scope / Exclude External Address**                                             | ++delete++                                                    |
 |                                    | **Jump Back (History)**                                                                 | ++backspace++                                                 |
 |                                    | **Next Unexplored Block**                                                               | ++ctrl+n++                                                    |
@@ -120,3 +120,16 @@ These shortcuts work across Windows, macOS, and Linux terminals, including `tmux
 |                                    | **Select Text**                                                                         | ++shift+up++ / ++down++ / Visual Mode + ++j++ / ++k++         |
 |                                    | **Clear Selection**                                                                     | ++escape++                                                    |
 |                                    | **Drag to Select**                                                                      | Mouse Drag                                                    |
+
+## Jump to Operand Picker
+
+Press ++enter++ on an **Address**, **Lo/Hi Address**, or **Hi/Lo Address** line with two or more unique target addresses. Disassembly View then opens the **Jump to Operand** picker modal. Single-target lines (including multi-entry lines where every entry resolves to one address) jump at once without opening the modal. See [Views — Jump to Operand](views.md#jump-to-operand) for details.
+
+| Action                       | Control                                           |
+|:-----------------------------|:--------------------------------------------------|
+| **Move Selection**           | `Up` / `Down` / `j` / `k`, or Mouse Scroll        |
+| **Page Up / Page Down**      | `PageUp` / `PageDown`                             |
+| **First / Last Target**      | `Home` / `End`                                    |
+| **Quick Jump (Targets 1–9)** | `1`–`9`                                           |
+| **Jump to Selected Target**  | `Enter` or Left-Click Row                         |
+| **Cancel / Close**           | `Esc`, `[x]` Button, or Left-Click Outside Dialog |

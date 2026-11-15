@@ -856,7 +856,11 @@ impl AppState {
     /// Computes `(run_start_pc, byte_count)` for the contiguous `target_type` split-table
     /// sub-block containing byte offset `pc`.
     #[must_use]
-    fn split_table_subblock_bounds(&self, pc: usize, target_type: BlockType) -> (usize, usize) {
+    pub(crate) fn split_table_subblock_bounds(
+        &self,
+        pc: usize,
+        target_type: BlockType,
+    ) -> (usize, usize) {
         let data_len = self.raw_data.len();
         let mut run_start = pc;
         while run_start > 0 {
@@ -886,22 +890,22 @@ impl AppState {
         (run_start, count)
     }
 
-    /// Resolves `(first_addr, second_addr, raw_target)` when `addr` lies inside a valid 2-byte pair
-    /// of a [`BlockType::LoHiAddress`] or [`BlockType::HiLoAddress`] split address table.
+    /// Resolves `(first_addr, second_addr, raw_target)` for `pc` given precomputed sub-block
+    /// `(run_start, count)` bounds of `target_type` (`LoHiAddress` or `HiLoAddress`).
     #[must_use]
-    pub(crate) fn split_table_pair_at_address(&self, addr: Addr) -> Option<(Addr, Addr, Addr)> {
-        if self.is_external(addr) {
-            return None;
-        }
-        let pc = addr.offset_from(self.origin);
-        let target_type = *self.block_types.get(pc)?;
+    pub(crate) fn split_table_pair_in_bounds(
+        &self,
+        pc: usize,
+        target_type: BlockType,
+        run_start: usize,
+        count: usize,
+    ) -> Option<(Addr, Addr, Addr)> {
         if !matches!(target_type, BlockType::LoHiAddress | BlockType::HiLoAddress) {
             return None;
         }
 
-        let (run_start, count) = self.split_table_subblock_bounds(pc, target_type);
         let pair_count = count / 2;
-        let offset_in_run = pc - run_start;
+        let offset_in_run = pc.checked_sub(run_start)?;
         if pair_count == 0 || offset_in_run >= pair_count * 2 {
             return None;
         }
@@ -921,6 +925,23 @@ impl AppState {
             .wrapping_add((run_start + pair_count + pair_idx) as u16);
         let raw_target = Addr(u16::from_le_bytes([lo, hi]));
         Some((first_addr, second_addr, raw_target))
+    }
+
+    /// Resolves `(first_addr, second_addr, raw_target)` when `addr` lies inside a valid 2-byte pair
+    /// of a [`BlockType::LoHiAddress`] or [`BlockType::HiLoAddress`] split address table.
+    #[must_use]
+    pub(crate) fn split_table_pair_at_address(&self, addr: Addr) -> Option<(Addr, Addr, Addr)> {
+        if self.is_external(addr) {
+            return None;
+        }
+        let pc = addr.offset_from(self.origin);
+        let target_type = *self.block_types.get(pc)?;
+        if !matches!(target_type, BlockType::LoHiAddress | BlockType::HiLoAddress) {
+            return None;
+        }
+
+        let (run_start, count) = self.split_table_subblock_bounds(pc, target_type);
+        self.split_table_pair_in_bounds(pc, target_type, run_start, count)
     }
 
     /// Extracts [`OperandTargetSite`] records across `start_addr..=end_addr`.

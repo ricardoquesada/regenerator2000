@@ -77,10 +77,8 @@ fn jump_to_address_impl(
 ) -> Result<Value, McpError> {
     let address = get_address(args, "address")?;
 
-    let line_exists = app_state
-        .get_line_index_containing_address(address)
-        .or_else(|| app_state.get_line_index_for_address(address))
-        .is_some();
+    let line_exists =
+        crate::navigation::resolve_jump_content_line_index(app_state, address).is_some();
 
     if !line_exists {
         return Err(make_mcp_error(
@@ -233,6 +231,9 @@ mod tests {
 
     #[test]
     fn test_r2000_jump_to_address_invalid() {
+        use crate::state::{BlockType, EnumDefinition};
+        use std::collections::BTreeMap;
+
         let mut app_state = make_app_state(0x1000, 256);
         let mut view_state = make_view_state();
 
@@ -247,5 +248,54 @@ mod tests {
 
         assert_eq!(err.code, -32602);
         assert!(err.message.contains("not found in disassembly"));
+
+        // Below-origin unmapped address ($0400 at origin $1000) must return -32602 without moving cursor or pushing history.
+        view_state.cursor_index = 5;
+        let below_err = handle_call(
+            "r2000_jump_to_address",
+            &json!({ "address": 0x0400 }),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("Handler should match tool name")
+        .expect_err("Should return error for below-origin unmapped address");
+
+        assert_eq!(below_err.code, -32602);
+        assert_eq!(view_state.cursor_index, 5);
+        assert!(view_state.navigation_history.is_empty());
+
+        // Unmapped $0000 with active `; ENUMS` preamble rows at $0000 must also return -32602 without moving cursor.
+        let mut variants = BTreeMap::new();
+        variants.insert(0, "BLACK".to_string());
+        app_state.enums.insert(
+            "Colors".to_string(),
+            EnumDefinition {
+                name: "Colors".to_string(),
+                description: None,
+                variants,
+                source_file: None,
+            },
+        );
+        app_state.raw_data[0..2].copy_from_slice(&[0xA9, 0x00]);
+        app_state.block_types[0..2].fill(BlockType::Code);
+        app_state.annotations.update(Addr(0x1000), |e| {
+            e.enum_usage = Some("Colors".to_string());
+        });
+        app_state.settings.all_labels = true;
+        app_state.disassemble();
+
+        view_state.cursor_index = 5;
+        let zero_err = handle_call(
+            "r2000_jump_to_address",
+            &json!({ "address": "$0000" }),
+            &mut app_state,
+            &mut view_state,
+        )
+        .expect("Handler should match tool name")
+        .expect_err("Should return error for unmapped $0000 even with enum preamble");
+
+        assert_eq!(zero_err.code, -32602);
+        assert_eq!(view_state.cursor_index, 5);
+        assert!(view_state.navigation_history.is_empty());
     }
 }

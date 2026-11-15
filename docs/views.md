@@ -92,6 +92,29 @@ Auto-generated labels start with a prefix. The prefix shows how the code referen
 | **Go to Symbol**                            | ++ctrl+p++                        |
 | **Find Cross References**                   | ++ctrl+x++                        |
 
+### Jump to Operand
+
+Press ++enter++ (or select **Jump → Jump to Operand**) in the Disassembly View to jump to an operand address:
+
+- **Single target (`1`)**: Jumps at once and records the current line in navigation history (press ++backspace++ to return). This rule covers `Code` instructions with an address, branch, or `<`/`>` immediate label operand, plus redirected external equates. It also covers single-entry **Address** or split-table lines, and multi-entry lines where every entry resolves to one address.
+- **Multiple distinct targets (`2+`)**: Opens the **Jump to Operand** picker (`Jump to Operand from $XXXX`) when a line resolves to two or more addresses. This happens on multi-entry **Address** lines and on either half (`.byte <...` or `.byte >...`) of split address tables. Targets appear left to right and deduplicate by final address while keeping the leftmost operand text. When a symbolic offset applies (such as `(handler - 1)`), the picker shows the expression and jumps to its base.
+- **No navigable target (`0`)**: Shows `"No valid operand to jump to"` in the status bar. This happens on instructions without an address operand, numeric data blocks, text blocks, collapsed rows, orphan bytes, and unmapped equates.
+
+*(To inspect incoming `; x-ref:` callers instead of outgoing operands, press ++ctrl+x++ for **Find Cross References**.)*
+
+#### Picker Dialog Controls
+
+When the **Jump to Operand** picker opens:
+
+- **Title**: Shows `Jump to Operand from $XXXX` and a clickable `[x]` close button. When the list exceeds the modal height, the title appends `[current/total]`.
+- **Target Rows**: Each row shows a `[1]`–`[9]` hotkey badge (blank on row `10+`) and the uppercase `$XXXX` target address. It also shows the operand text (unless raw `$XXXX` hex repeats the address) and a preview after `│`. External targets without a body row show `(out of range)`.
+
+Use these controls inside the picker:
+
+- **Move Selection**: Press `Up` / `k`, `Down` / `j` (wraps at ends), `PageUp` / `PageDown` (steps by page), `Home` / `End`, or scroll the mouse wheel.
+- **Jump**: Press `1`–`9` for targets 1–9, press `Enter` on the highlighted row, or left-click any target row.
+- **Cancel**: Press `Esc`, click `[x]`, or left-click outside the dialog.
+
 ## Blocks View
 
 The Blocks View displays the structural layout of your project as a list of memory blocks, lexical scopes, and manual splitters:
