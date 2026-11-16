@@ -52,12 +52,12 @@ Every 8-bit binary is a **64 KB time capsule** of human ingenuity, tight deadlin
 
 <!-- column: 0 -->
 ### 🏺 The Archaeological Spirit
-- **Cut Features & Unused Assets**
-  - Find unfinished levels, unused sprites, and leftover sound effects still sitting in RAM
-- **Forgotten Debug Tools & Dev Clues**
-  - Uncover left-behind test routines and clues on how developers actually wrote the code
-- **Hunting for Easter Eggs**
-  - Do a full debug and disassembly of classic games to uncover hidden secrets and Easter eggs
+- **Started Modding *Commando***
+  - Began disassembling *Commando* just to make some changes, spotted **unused sprites and sound effects**, and decided to do a **full disassembly** to see what else I could learn
+- **How '80s Games Were Built**
+  - Fascinating window into how games were actually developed, debugged, and shipped in the 1980s
+- **Cut Content & Easter Eggs**
+  - Uncover unfinished features, left-behind debug tools, and possible hidden Easter eggs
 
 <!-- column: 1 -->
 ### 🔍 Field Notes from the Bytes
@@ -71,9 +71,9 @@ Every 8-bit binary is a **64 KB time capsule** of human ingenuity, tight deadlin
 <!-- reset_layout -->
 
 <!-- speaker_note:
-Why do I spend nights disassembling 40-year-old Commodore games? To me, this work is digital archaeology.
-When you do a full debug and disassembly of a game, you uncover cut features, clues on how the developers built it, and possible hidden Easter eggs nobody expected players to find.
-In Commando, I found parts of an unfinished 4th level in RAM, including unused sprites and sound effects. The team probably cut it when time ran short before the deadline.
+Why do I spend nights disassembling 40-year-old Commodore games? To me, it's digital archaeology—it's fascinating to learn how games were actually developed back in the '80s.
+It started when I began disassembling Commando just to make some changes. I spotted unused sprites and sound effects, and decided to do a full disassembly to see what else I could learn—uncovering an unfinished 4th level too, probably cut when they ran short on time before the deadline.
+Doing a full debug and disassembly like that lets you uncover cut features, clues on how developers built the game, and possible hidden Easter eggs nobody expected players to find.
 In Rambo, I found Martin Galway's hidden music test routine still inside the game.
 In Burnin' Rubber, the code uses a tangled layout. Routines jump across RAM, NOPs hide debug JSRs, and 3-byte loads hit zero page. A literal '.T0400,07FF,2C00' command sits in RAM because the developer coded live in a machine-code monitor instead of an assembler!
 -->
