@@ -44,9 +44,9 @@ pub struct UIState {
     /// Cached [`TerminalImageProtocol`](crate::terminal_graphics::TerminalImageProtocol) slot for
     /// `AboutDialog`.
     ///
-    /// Reusing this slot across `Help -> About` openings preserves the allocated Kitty image ID
-    /// while re-transmitting when `AboutDialog` opens (avoiding stale textures after `tmux`
-    /// reattach or terminal eviction).
+    /// Reusing this slot across `Help -> About` openings double-buffers the Kitty image ID pair
+    /// (`id` / `id ^ 1`) while re-transmitting when `AboutDialog` opens (avoiding stale textures
+    /// after `tmux` reattach or terminal eviction).
     pub about_logo_protocol: Option<crate::terminal_graphics::TerminalImageProtocol>,
     pub dismiss_logo: bool,
     pub input_buffer: String,
@@ -62,8 +62,8 @@ pub struct UIState {
     /// Cached [`TerminalImageProtocol`](crate::terminal_graphics::TerminalImageProtocol) slot for
     /// `BitmapView`, tagged with `Some(BitmapCacheKey)` when populated.
     ///
-    /// Reusing this slot preserves the allocated Kitty image ID across bitmap, Screen RAM,
-    /// theme, origin, and project-reload transitions.
+    /// Reusing this slot double-buffers the Kitty image ID pair (`id` / `id ^ 1`) across bitmap,
+    /// Screen RAM, theme, origin, and project-reload transitions without leaking GPU IDs.
     pub bitmap_protocol: Option<(
         Option<BitmapCacheKey>,
         crate::terminal_graphics::TerminalImageProtocol,

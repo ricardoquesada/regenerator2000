@@ -59,9 +59,9 @@ pub struct AboutDialog {
 
 /// Rebuilds [`UIState::about_logo_protocol`] for the current logo, picker, and `dialog_bg`.
 ///
-/// Reuses any existing slot so `StatefulKitty` keeps its allocated image ID while resetting
-/// its transmit hash so opening `Help -> About` re-sends the texture cleanly (e.g. after `tmux`
-/// reattach or terminal eviction).
+/// Reuses any existing slot so `Kitty` double-buffers its image ID pair (`id` / `id ^ 1`) while
+/// resetting its transmit hash so opening `Help -> About` re-sends the texture cleanly (e.g.
+/// after `tmux` reattach or terminal eviction).
 fn rebuild_logo_protocol(ui_state: &mut UIState) {
     let (Some(logo), Some(picker)) = (&ui_state.logo, &ui_state.picker) else {
         ui_state.about_logo_protocol = None;
@@ -97,7 +97,7 @@ impl AboutDialog {
     const LOGO_RESIZE: Resize = Resize::Fit(Some(FilterType::Lanczos3));
 
     /// Creates a new [`AboutDialog`] and re-arms the cached logo protocol for transmission while
-    /// preserving any existing Kitty image ID.
+    /// preserving its bounded Kitty double-buffer ID pair.
     #[must_use]
     pub fn new(ui_state: &mut UIState, event_tx: mpsc::Sender<AppEvent>) -> Self {
         rebuild_logo_protocol(ui_state);
@@ -747,8 +747,8 @@ mod tests {
         );
         drop(dialog1);
 
-        // Second open with identical theme re-transmits under the exact same Kitty image ID so
-        // tmux reattaches and evicted terminal textures still display the logo.
+        // Second open with identical theme flips to `id1 ^ 1` so `Buffer::diff` updates all rows,
+        // while keeping GPU storage bounded to the 2-slot double-buffer pair.
         let (tx2, _rx2) = mpsc::channel();
         let dialog2 = AboutDialog::new(&mut ui_state, tx2);
         let mut term2 = Terminal::new(TestBackend::new(100, 30)).unwrap();
@@ -762,12 +762,12 @@ mod tests {
         let sym2 = buf2[(logo_area.x, logo_area.y)].symbol();
         assert!(sym2.contains('\u{10EEEE}'));
         let id2 = extract_kitty_transmit_id(sym2)
-            .expect("reopening AboutDialog should re-transmit logo under reused Kitty ID");
-        assert_eq!(id2, id1);
-        assert_eq!(buf2[(logo_area.x, logo_area.y)].fg, fg1);
+            .expect("reopening AboutDialog should re-transmit logo under flipped Kitty ID");
+        assert_eq!(id2, id1 ^ 1);
+        assert_ne!(buf2[(logo_area.x, logo_area.y)].fg, fg1);
         drop(dialog2);
 
-        // Switching theme invalidates background_color and re-uploads under the exact same Kitty ID.
+        // Switching theme invalidates background_color and cycles back to `id1` (zero ID leak).
         ui_state.theme = Theme::from_name("Solarized Light");
         let (tx3, _rx3) = mpsc::channel();
         let dialog3 = AboutDialog::new(&mut ui_state, tx3);

@@ -768,7 +768,7 @@ mod tests {
             .unwrap();
 
         let available = Rect::new(1, 3, 78, 23);
-        let (rx, ry, id1, fg1) = {
+        let (render_area, id1, fg1) = {
             let proto = &ui_state
                 .bitmap_protocol
                 .as_ref()
@@ -780,15 +780,12 @@ mod tests {
             let sym1 = buf1[(render_area.x, render_area.y)].symbol();
             let id1 = extract_kitty_transmit_id(sym1)
                 .expect("initial Kitty render should emit transmission escape");
-            (
-                render_area.x,
-                render_area.y,
-                id1,
-                buf1[(render_area.x, render_area.y)].fg,
-            )
+            (render_area, id1, buf1[(render_area.x, render_area.y)].fg)
         };
+        let (rx, ry) = (render_area.x, render_area.y);
+        assert!(render_area.height > 1);
 
-        // Live theme switch without clearing bitmap_cache or bitmap_protocol.
+        // Live theme switch flips to `id1 ^ 1`, invalidating all rows in `Buffer::diff`.
         ui_state.theme = Theme::from_name("Solarized Light");
         let mut term2 = Terminal::new(TestBackend::new(80, 30)).unwrap();
         term2
@@ -808,10 +805,19 @@ mod tests {
         let buf2 = term2.backend().buffer();
         let id2 = extract_kitty_transmit_id(buf2[(rx, ry)].symbol())
             .expect("rebuilt Kitty protocol should emit updated transmission");
-        assert_eq!(buf2[(rx, ry)].fg, fg1);
-        assert_eq!(id2, id1);
+        assert_ne!(buf2[(rx, ry)].fg, fg1);
+        assert_eq!(id2, id1 ^ 1);
+        let diff12 = term1.backend().buffer().diff(buf2);
+        for y in render_area.top()..render_area.bottom() {
+            for x in render_area.left()..render_area.right() {
+                assert!(
+                    diff12.iter().any(|(dx, dy, _)| *dx == x && *dy == y),
+                    "cell ({x}, {y}) must diff after Kitty ID flip"
+                );
+            }
+        }
 
-        // Toggle multicolor + Screen RAM offset: cache grows to 2 while Kitty ID remains identical.
+        // Toggle multicolor + Screen RAM offset: cache grows to 2 while flipping back to `id1`.
         ui_state.bitmap_multicolor_mode = true;
         ui_state.bitmap_screen_ram_mode = ScreenRamMode::BankOffset(2);
         let mut term3 = Terminal::new(TestBackend::new(80, 30)).unwrap();
@@ -822,9 +828,18 @@ mod tests {
         assert_eq!(ui_state.bitmap_cache.len(), 2);
         let buf3 = term3.backend().buffer();
         let id3 = extract_kitty_transmit_id(buf3[(rx, ry)].symbol())
-            .expect("mode switch should reuse Kitty ID");
+            .expect("mode switch should reuse bounded Kitty ID pair");
         assert_eq!(buf3[(rx, ry)].fg, fg1);
         assert_eq!(id3, id1);
+        let diff23 = term2.backend().buffer().diff(buf3);
+        for y in render_area.top()..render_area.bottom() {
+            for x in render_area.left()..render_area.right() {
+                assert!(
+                    diff23.iter().any(|(dx, dy, _)| *dx == x && *dy == y),
+                    "cell ({x}, {y}) must diff on bounded Kitty ID cycle back"
+                );
+            }
+        }
     }
 
     #[test]
@@ -857,7 +872,7 @@ mod tests {
         let fg1 = buf1[(rx, ry)].fg;
 
         // Changing origin directly (as Undo/Redo or MCP does) keeps the same $2000 bucket key
-        // prefix while differentiating cache_key by origin, re-encoding under the same Kitty ID.
+        // prefix while differentiating cache_key by origin, re-encoding under `id1 ^ 1`.
         app_state.origin = Addr(0x1F50);
         let mut term2 = Terminal::new(TestBackend::new(80, 30)).unwrap();
         term2
@@ -867,11 +882,11 @@ mod tests {
         let buf2 = term2.backend().buffer();
         let id2 = extract_kitty_transmit_id(buf2[(rx, ry)].symbol())
             .expect("origin change must invalidate and transmit updated Kitty image");
-        assert_eq!(buf2[(rx, ry)].fg, fg1);
-        assert_eq!(id2, id1);
+        assert_ne!(buf2[(rx, ry)].fg, fg1);
+        assert_eq!(id2, id1 ^ 1);
 
         // Mutating raw_data at the same key and calling `invalidate_bitmap_cache()` forces
-        // re-encoding without dropping `StatefulProtocol`, preserving the exact Kitty ID.
+        // re-encoding and cycles back to `id1` without leaking GPU IDs.
         app_state.raw_data[0] = 0xFF;
         ui_state.invalidate_bitmap_cache();
         assert!(ui_state.bitmap_cache.is_empty());
@@ -892,6 +907,76 @@ mod tests {
             .expect("invalidation must transmit re-encoded Kitty image");
         assert_eq!(buf3[(rx, ry)].fg, fg1);
         assert_eq!(id3, id1);
+    }
+
+    #[test]
+    fn test_bitmap_view_multicolor_toggle_kitty_diffs_all_rows() {
+        let app_state = make_bitmap_app_state(0x2000, |i| if i < 8000 { 0xA5 } else { 0x36 });
+        let mut picker = create_headless_picker();
+        picker.set_protocol_type(ProtocolType::Kitty);
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_pane = ActivePane::Bitmap;
+        ui_state.right_pane = RightPane::Bitmap;
+        ui_state.picker = Some(picker);
+
+        let view = BitmapView;
+        let area = Rect::new(0, 0, 120, 40);
+        let available = Rect::new(1, 3, 118, 33);
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
+
+        // 1. Frame 1 (High-Res).
+        terminal
+            .draw(|f| view.render(f, area, &app_state, &mut ui_state))
+            .unwrap();
+        let render_area = centered_image_rect(
+            &ui_state.bitmap_protocol.as_ref().unwrap().1,
+            &BitmapView::BITMAP_RESIZE,
+            available,
+        );
+        assert!(render_area.height > 1);
+        let buf_hires = terminal.backend().buffer().clone();
+        let id1 = extract_kitty_transmit_id(buf_hires[(render_area.x, render_area.y)].symbol())
+            .expect("High-Res frame must emit initial Kitty transmission");
+
+        // 2. Toggle Multicolor ('m') on the same persistent Terminal: every row/col must diff.
+        ui_state.bitmap_multicolor_mode = true;
+        terminal
+            .draw(|f| view.render(f, area, &app_state, &mut ui_state))
+            .unwrap();
+        let buf_multi = terminal.backend().buffer().clone();
+        let id2 = extract_kitty_transmit_id(buf_multi[(render_area.x, render_area.y)].symbol())
+            .expect("Multicolor frame must emit Kitty transmission");
+        assert_eq!(id2, id1 ^ 1);
+        let diff1 = buf_hires.diff(&buf_multi);
+        for y in render_area.top()..render_area.bottom() {
+            for x in render_area.left()..render_area.right() {
+                assert!(
+                    diff1.iter().any(|(dx, dy, _)| *dx == x && *dy == y),
+                    "High-Res -> Multicolor diff missing cell ({x}, {y})"
+                );
+            }
+        }
+
+        // 3. Toggle back to High-Res ('m' again): cycles back to `id1` and diffs every cell.
+        ui_state.bitmap_multicolor_mode = false;
+        terminal
+            .draw(|f| view.render(f, area, &app_state, &mut ui_state))
+            .unwrap();
+        let buf_hires_again = terminal.backend().buffer();
+        let id3 =
+            extract_kitty_transmit_id(buf_hires_again[(render_area.x, render_area.y)].symbol())
+                .expect("High-Res toggle back must emit Kitty transmission");
+        assert_eq!(id3, id1);
+        let diff2 = buf_multi.diff(buf_hires_again);
+        for y in render_area.top()..render_area.bottom() {
+            for x in render_area.left()..render_area.right() {
+                assert!(
+                    diff2.iter().any(|(dx, dy, _)| *dx == x && *dy == y),
+                    "Multicolor -> High-Res diff missing cell ({x}, {y})"
+                );
+            }
+        }
     }
 
     #[test]

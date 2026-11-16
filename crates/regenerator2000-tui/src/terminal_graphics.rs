@@ -10,14 +10,17 @@ use image::{DynamicImage, ImageBuffer, ImageFormat, Rgba, imageops};
 use ratatui::buffer::{Buffer, CellDiffOption};
 use ratatui::layout::{Rect, Size};
 use ratatui::style::Color;
+use ratatui_image::picker::Capability;
 use ratatui_image::picker::cap_parser::{Parser, QueryStdioOptions};
 pub use ratatui_image::picker::{Picker, ProtocolType};
-use ratatui_image::protocol::StatefulProtocol;
+use ratatui_image::protocol::kitty::StatefulKitty;
+use ratatui_image::protocol::{StatefulProtocol, StatefulProtocolType};
 use ratatui_image::{FilterType, FontSize, Resize, ResizeEncodeRender};
 use std::cmp::min;
 use std::fmt::Write as _;
 use std::io::{Cursor, IsTerminal};
 use std::num::NonZeroU16;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 /// Timeout for terminal stdio capability probing (`_Gi=31`, `CSI c`, `CSI 16 t`, `CSI 5 n`).
@@ -313,23 +316,111 @@ const MAX_ITERM2_CANVAS_PX: u32 = 3840;
 const BASE64_ALPHABET: &[u8; 64] =
     b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-/// Stateful rendering backend supporting cell-sized `OSC 1337` for `Iterm2` alongside
-/// `ratatui-image` protocols for `Kitty`, `Sixel`, and `Halfblocks`.
+/// Next 1-based Kitty image ID pair index (`k` -> even `2*k` and odd `2*k + 1`).
+static NEXT_KITTY_ID_PAIR: AtomicU32 = AtomicU32::new(1);
+
+/// Allocates the even base ID of a non-zero 24-bit Kitty double-buffer pair `(id, id ^ 1)`.
+#[must_use]
+fn allocate_kitty_base_id() -> u32 {
+    let pair = NEXT_KITTY_ID_PAIR.fetch_add(1, Ordering::Relaxed);
+    let wrapped = (pair % 0x007F_FFFF).saturating_add(1);
+    wrapped * 2
+}
+
+/// Stateful rendering backend supporting cell-sized `OSC 1337` for `Iterm2`, double-buffered
+/// Unicode placeholders for `Kitty`, and `ratatui-image` protocols for `Sixel` and `Halfblocks`.
 ///
 /// `ratatui-image`'s built-in `Iterm2` encoder emits `width={W}px;height={H}px` derived from
 /// `CSI 16 t` logical points, which causes Retina iTerm2 displays (`Show inline images at
 /// Retina resolution` enabled by default) to draw images at half width and half height in the
 /// top-left corner of the target rect. Emitting cell counts (`width={cols};height={rows}`) with
 /// a Retina-scaled PNG fixes both alignment and sizing.
+///
+/// For `Kitty`, [`TerminalImageProtocol`] alternates between a bounded pair of image IDs (`id` and
+/// `id ^ 1`) whenever a previously rendered texture is replaced or resized. Flipping bit 0 of the
+/// ID changes the placeholder foreground color (`cell.fg`) across every row so Ratatui's buffer
+/// diff refreshes all rows instead of transmitting only row 0 after Kitty deletes the prior ID.
 pub struct TerminalImageProtocol {
     inner: InnerProtocol,
 }
 
 enum InnerProtocol {
-    /// Delegates `Halfblocks`, `Kitty`, and `Sixel` directly to `ratatui-image`.
+    /// Delegates `Halfblocks` and `Sixel` directly to `ratatui-image`.
     Ratatui(ProtocolType, StatefulProtocol),
+    /// Double-buffers two Kitty image IDs (`id` and `id ^ 1`) so Ratatui's buffer diff
+    /// refreshes all placeholder rows when replacing an image without leaking GPU IDs.
+    Kitty(KittyDoubleBufferProtocol),
     /// Uses cell-unit `OSC 1337` escape sequences for `Iterm2`.
     Iterm2(Iterm2CellProtocol),
+}
+
+struct KittyDoubleBufferProtocol {
+    image: DynamicImage,
+    font_size: FontSize,
+    background_color: Option<Rgba<u8>>,
+    is_tmux: bool,
+    compress: bool,
+    active_id: u32,
+    has_rendered: bool,
+    stateful: StatefulProtocol,
+}
+
+impl KittyDoubleBufferProtocol {
+    #[must_use]
+    fn new(
+        image: DynamicImage,
+        font_size: FontSize,
+        background_color: Option<Rgba<u8>>,
+        is_tmux: bool,
+        compress: bool,
+        active_id: u32,
+    ) -> Self {
+        let stateful = StatefulProtocol::new(
+            image.clone(),
+            font_size,
+            background_color,
+            StatefulProtocolType::Kitty(StatefulKitty::new(active_id, is_tmux, compress)),
+        );
+        Self {
+            image,
+            font_size,
+            background_color,
+            is_tmux,
+            compress,
+            active_id,
+            has_rendered: false,
+            stateful,
+        }
+    }
+
+    fn resize_encode(&mut self, resize: &Resize, size: Size) {
+        if size.width == 0 || size.height == 0 {
+            return;
+        }
+        if self.has_rendered {
+            self.active_id ^= 1;
+            self.has_rendered = false;
+            self.stateful = StatefulProtocol::new(
+                self.image.clone(),
+                self.font_size,
+                self.background_color,
+                StatefulProtocolType::Kitty(StatefulKitty::new(
+                    self.active_id,
+                    self.is_tmux,
+                    self.compress,
+                )),
+            );
+        }
+        self.stateful.resize_encode(resize, size);
+    }
+
+    fn render(&mut self, area: Rect, buf: &mut Buffer) {
+        if area.width == 0 || area.height == 0 {
+            return;
+        }
+        self.stateful.render(area, buf);
+        self.has_rendered = true;
+    }
 }
 
 struct Iterm2CellProtocol {
@@ -346,6 +437,7 @@ impl TerminalImageProtocol {
     pub fn background_color(&self) -> Option<Rgba<u8>> {
         match &self.inner {
             InnerProtocol::Ratatui(_, proto) => proto.background_color(),
+            InnerProtocol::Kitty(kitty) => kitty.background_color,
             InnerProtocol::Iterm2(iterm2) => iterm2.background_color,
         }
     }
@@ -355,6 +447,7 @@ impl TerminalImageProtocol {
     pub fn protocol_kind(&self) -> ProtocolType {
         match &self.inner {
             InnerProtocol::Ratatui(kind, _) => *kind,
+            InnerProtocol::Kitty(_) => ProtocolType::Kitty,
             InnerProtocol::Iterm2(_) => ProtocolType::Iterm2,
         }
     }
@@ -364,6 +457,7 @@ impl TerminalImageProtocol {
     pub fn size_for(&self, resize: &Resize, available: Size) -> Size {
         match &self.inner {
             InnerProtocol::Ratatui(_, proto) => proto.size_for(resize.clone(), available),
+            InnerProtocol::Kitty(kitty) => kitty.stateful.size_for(resize.clone(), available),
             InnerProtocol::Iterm2(iterm2) => iterm2.size_for(resize, available),
         }
     }
@@ -416,6 +510,7 @@ impl ResizeEncodeRender for TerminalImageProtocol {
     fn resize_encode(&mut self, resize: &Resize, size: Size) {
         match &mut self.inner {
             InnerProtocol::Ratatui(_, proto) => proto.resize_encode(resize, size),
+            InnerProtocol::Kitty(kitty) => kitty.resize_encode(resize, size),
             InnerProtocol::Iterm2(iterm2) => iterm2.resize_encode(resize, size),
         }
     }
@@ -423,6 +518,7 @@ impl ResizeEncodeRender for TerminalImageProtocol {
     fn render(&mut self, area: Rect, buf: &mut Buffer) {
         match &mut self.inner {
             InnerProtocol::Ratatui(_, proto) => proto.render(area, buf),
+            InnerProtocol::Kitty(kitty) => kitty.render(area, buf),
             InnerProtocol::Iterm2(iterm2) => iterm2.render(area, buf),
         }
     }
@@ -430,6 +526,7 @@ impl ResizeEncodeRender for TerminalImageProtocol {
     fn needs_resize(&self, resize: &Resize, size: Size) -> Option<Size> {
         match &self.inner {
             InnerProtocol::Ratatui(_, proto) => proto.needs_resize(resize, size),
+            InnerProtocol::Kitty(kitty) => kitty.stateful.needs_resize(resize, size),
             InnerProtocol::Iterm2(iterm2) => iterm2.needs_resize(resize, size),
         }
     }
@@ -687,9 +784,9 @@ pub(crate) fn extract_kitty_transmit_id(symbol: &str) -> Option<u32> {
 
 /// Builds a [`TerminalImageProtocol`] for `image` and reuses any compatible `existing` slot.
 ///
-/// Reusing `existing` preserves the allocated Kitty image ID inside `StatefulKitty`. Rapid
-/// bitmap, Screen RAM, or theme updates overwrite one GPU texture slot in place instead of
-/// leaking new Kitty image IDs.
+/// For `Kitty`, this double-buffers a pair of image IDs (`id` and `id ^ 1`), flipping to the
+/// inactive ID only when `existing` has already rendered. That forces Ratatui's buffer diff to
+/// update every placeholder row while keeping GPU texture storage bounded to two slots per widget.
 #[must_use]
 pub fn new_or_reused_protocol(
     picker: &Picker,
@@ -708,12 +805,38 @@ pub fn new_or_reused_protocol(
         };
     }
 
+    if picker.protocol_type() == ProtocolType::Kitty {
+        let compress = picker
+            .capabilities()
+            .contains(&Capability::KittyCompression);
+        let active_id = match existing {
+            Some(TerminalImageProtocol {
+                inner: InnerProtocol::Kitty(prev),
+            }) => {
+                if prev.has_rendered {
+                    prev.active_id ^ 1
+                } else {
+                    prev.active_id
+                }
+            }
+            _ => allocate_kitty_base_id(),
+        };
+        return TerminalImageProtocol {
+            inner: InnerProtocol::Kitty(KittyDoubleBufferProtocol::new(
+                image,
+                picker.font_size(),
+                background_color,
+                picker.tmux_detected(),
+                compress,
+                active_id,
+            )),
+        };
+    }
+
     if let Some(prev) = existing
         && let InnerProtocol::Ratatui(kind, prev_proto) = prev.inner
         && kind == picker.protocol_type()
     {
-        // Reuse `proto_type` to keep the existing Kitty ID and reset the protocol hash
-        // so the next unoccluded frame uploads the new pixels.
         let proto_type = prev_proto.protocol_type_owned();
         return TerminalImageProtocol {
             inner: InnerProtocol::Ratatui(
@@ -1054,49 +1177,93 @@ mod tests {
             ImageBuffer::from_pixel(20, 20, Rgba::<u8>([40, 80, 120, 255])).into();
         let img4: DynamicImage =
             ImageBuffer::from_pixel(20, 20, Rgba::<u8>([90, 180, 210, 255])).into();
+        let img5: DynamicImage =
+            ImageBuffer::from_pixel(20, 20, Rgba::<u8>([15, 25, 35, 255])).into();
 
         let area = Rect::new(0, 0, 10, 5);
+        let resize = Resize::Scale(None);
 
+        // 1. Frame 1 allocates an even 24-bit base ID (>= 2) and renders all 50 cells.
         let mut proto1 = new_or_reused_protocol(&picker, None, img1, None);
         let mut buf1 = Buffer::empty(area);
-        StatefulImage::new().render(area, &mut buf1, &mut proto1);
+        StatefulImage::new()
+            .resize(resize.clone())
+            .render(area, &mut buf1, &mut proto1);
 
         let sym1 = buf1[(0, 0)].symbol();
         assert!(sym1.contains('\u{10EEEE}'));
         assert!(sym1.contains(",a=T,U=1"));
         let id1 = extract_kitty_transmit_id(sym1)
             .expect("first Kitty frame should include i=<id>,a=T,U=1 transmission sequence");
+        assert!(id1 >= 2 && id1.is_multiple_of(2));
         assert_eq!(
             buf1[(0, 0)].fg,
             Color::Rgb((id1 >> 16) as u8, (id1 >> 8) as u8, id1 as u8)
         );
 
+        // 2. Rebuilding after render flips to `id1 ^ 1`, forcing `Buffer::diff` across all rows.
         let bg = Some(Rgba([253, 246, 227, 255]));
         let mut proto2 = new_or_reused_protocol(&picker, Some(proto1), img2, bg);
         assert_eq!(proto2.background_color(), bg);
         assert_eq!(proto2.protocol_kind(), ProtocolType::Kitty);
 
         let mut buf2 = Buffer::empty(area);
-        StatefulImage::new().render(area, &mut buf2, &mut proto2);
+        StatefulImage::new()
+            .resize(resize.clone())
+            .render(area, &mut buf2, &mut proto2);
         let sym2 = buf2[(0, 0)].symbol();
         assert!(sym2.contains('\u{10EEEE}'));
-        assert_eq!(buf2[(0, 0)].fg, buf1[(0, 0)].fg);
+        assert_ne!(buf2[(0, 0)].fg, buf1[(0, 0)].fg);
         let id2 = extract_kitty_transmit_id(sym2)
             .expect("reused Kitty protocol with updated image should emit new frame");
-        assert_eq!(id2, id1);
+        assert_eq!(id2, id1 ^ 1);
 
+        let diff12 = buf1.diff(&buf2);
+        assert_eq!(diff12.len(), usize::from(area.width * area.height));
+
+        // 3. Multiple rebuilds while unrendered keep `id1` (do not flip back to `id2`), and once
+        //    rendered into `buf3` flip `Buffer::diff` across all 50 cells again.
+        let proto_unrendered1 = new_or_reused_protocol(&picker, Some(proto2), img3.clone(), bg);
+        let mut proto_unrendered2 =
+            new_or_reused_protocol(&picker, Some(proto_unrendered1), img4.clone(), bg);
+        let mut buf3 = Buffer::empty(area);
+        StatefulImage::new()
+            .resize(resize.clone())
+            .render(area, &mut buf3, &mut proto_unrendered2);
+        let id3 = extract_kitty_transmit_id(buf3[(0, 0)].symbol())
+            .expect("unrendered rebuild chain must still transmit on first render");
+        assert_eq!(id3, id1);
+        assert_eq!(
+            buf2.diff(&buf3).len(),
+            usize::from(area.width * area.height)
+        );
+
+        // 4. In-place `resize_encode` on an already-rendered Kitty protocol also flips `active_id`.
+        let larger_area = Rect::new(0, 0, 12, 6);
+        let mut buf_resized = Buffer::empty(larger_area);
+        StatefulImage::new().resize(resize).render(
+            larger_area,
+            &mut buf_resized,
+            &mut proto_unrendered2,
+        );
+        let id_resized = extract_kitty_transmit_id(buf_resized[(0, 0)].symbol())
+            .expect("in-place resize_encode must transmit with flipped Kitty ID");
+        assert_eq!(id_resized, id1 ^ 1);
+
+        // 5. Protocol mismatch allocates a fresh pair.
         picker.set_protocol_type(ProtocolType::Sixel);
-        assert_ne!(proto2.protocol_kind(), picker.protocol_type());
-        let proto_sixel = new_or_reused_protocol(&picker, Some(proto2), img3, None);
+        assert_ne!(proto_unrendered2.protocol_kind(), picker.protocol_type());
+        let proto_sixel = new_or_reused_protocol(&picker, Some(proto_unrendered2), img3, None);
         assert_eq!(proto_sixel.protocol_kind(), ProtocolType::Sixel);
 
         picker.set_protocol_type(ProtocolType::Kitty);
-        let mut proto3 = new_or_reused_protocol(&picker, Some(proto_sixel), img4, None);
-        let mut buf3 = Buffer::empty(area);
-        StatefulImage::new().render(area, &mut buf3, &mut proto3);
-        let id3 = extract_kitty_transmit_id(buf3[(0, 0)].symbol())
+        let mut proto_fresh = new_or_reused_protocol(&picker, Some(proto_sixel), img5, None);
+        let mut buf_fresh = Buffer::empty(area);
+        StatefulImage::new().render(area, &mut buf_fresh, &mut proto_fresh);
+        let id_fresh = extract_kitty_transmit_id(buf_fresh[(0, 0)].symbol())
             .expect("re-creating Kitty protocol after mismatch should transmit new ID");
-        assert_ne!(id3, id1);
+        assert_ne!(id_fresh, id1);
+        assert_ne!(id_fresh, id2);
     }
 
     #[test]
