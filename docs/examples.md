@@ -15,7 +15,7 @@ Regenerator 2000 exports every `.html` disassembly below directly from its `.reg
 
 -   [![Frogger 8K Cartridge gameplay screenshot](examples/c64_frogger_screenshot.png){ width="100%" loading=lazy }](examples/c64_frogger_8k.html)
 
--   Parker Brothers' 1983 8 KB cartridge port of [Frogger](https://www.c64-wiki.com/wiki/Frogger_%28Parker_Brothers%29), with 9 typed enums, sprite/charset annotations, and an IRQ-driven game loop.
+-   Parker Brothers' 1983 cartridge port of [Frogger](https://www.c64-wiki.com/wiki/Frogger_%28Parker_Brothers%29).
 
     ---
 
@@ -38,7 +38,7 @@ Regenerator 2000 exports every `.html` disassembly below directly from its `.reg
 
 -   [![Moving Tubes C64 demo screenshot](examples/c64_moving_tubes_screenshot.png){ width="100%" loading=lazy }](examples/c64_moving_tubes_lxt.html)
 
--   Classic C64 demoscene intro [Moving Tubes](https://csdb.dk/release/?id=259330) by Laxity, with self-modifying 6502 code, raster IRQs, and a documented SID player.
+-   Classic C64 demoscene intro [Moving Tubes](https://csdb.dk/release/?id=259330) by Laxity.
 
     ---
 
@@ -61,7 +61,7 @@ Regenerator 2000 exports every `.html` disassembly below directly from its `.reg
 
 -   [![Burnin' Rubber C64 gameplay screenshot](examples/c64_burnin_rubber_screenshot.png){ width="100%" loading=lazy }](examples/c64_burnin_rubber.html)
 
--   1983 C64 arcade racer [Burnin' Rubber](https://www.c64-wiki.com/wiki/Burnin_Rubber), extracted from an encrypted TAP image and originally written in a machine code monitor.
+-   1983 C64 arcade racer [Burnin' Rubber](https://www.c64-wiki.com/wiki/Burnin_Rubber).
 
     ---
 
@@ -88,7 +88,7 @@ Regenerator 2000 exports every `.html` disassembly below directly from its `.reg
 
 -   [![H.E.R.O. Is Back C128 screenshot](examples/c128_hero_is_back_screenshot.png){ width="100%" loading=lazy }](examples/c128_hero_is_back.html)
 
--   LC Games' Commodore 128 port [H.E.R.O. Is Back!](https://lowcarb.itch.io/hero-is-back-c64), with C128 RAM Bank 1 level loading and modular collision routines.
+-   Commodore 128 homebrew game [H.E.R.O. Is Back!](https://lowcarb.itch.io/hero-is-back-c64) by LC Games.
 
     ---
 
@@ -115,7 +115,7 @@ Regenerator 2000 exports every `.html` disassembly below directly from its `.reg
 
 -   [![Lode Runner Commodore PET screenshot](examples/pet_lode_runner_screenshot.png){ width="100%" loading=lazy }](examples/pet_loderunner.html)
 
--   Unpacked disassembly of jimbo's [Lode Runner](https://jimbo.itch.io/lode-runner-clone-for-commodore-pet) clone for Commodore PET, with 40/80-column runtime patching, VIA Timer 2 sound, and guard AI.
+-   Commodore PET clone of [Lode Runner](https://jimbo.itch.io/lode-runner-clone-for-commodore-pet) by jimbo.
 
     ---
 
@@ -142,7 +142,7 @@ Regenerator 2000 exports every `.html` disassembly below directly from its `.reg
 
 -   [![Omega Race VIC-20 cartridge screenshot](examples/vic20_omega_race_screenshot.png){ width="100%" loading=lazy }](examples/vic20_omega_race_cart_generic_a000.html)
 
--   Commodore's 1982 8 KB VIC-20 cartridge port of [Omega Race](https://en.wikipedia.org/wiki/Omega_Race), with mid-instruction labels (`=*+$02`), velocity tables, and 4-channel VIC audio.
+-   Commodore's 1982 VIC-20 cartridge port of [Omega Race](https://en.wikipedia.org/wiki/Omega_Race).
 
     ---
 
@@ -169,7 +169,7 @@ Regenerator 2000 exports every `.html` disassembly below directly from its `.reg
 
 -   [![Kikstart Commodore Plus/4 screenshot](examples/plus4_kikstart_screenshot.png){ width="100%" loading=lazy }](examples/plus4_kikstart_8192.html)
 
--   Commodore Plus/4 motorcycle stunt game [Kikstart](http://plus4world.powweb.com/software/Kikstart) for the MOS 7360/8360 TED chip, with nibble-packed dual-voice music.
+-   Commodore Plus/4 motorcycle stunt game [Kikstart](http://plus4world.powweb.com/software/Kikstart).
 
     ---
 
