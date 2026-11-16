@@ -7,6 +7,7 @@
 //!
 //! - **[`ui`]** — Widgets and views: disassembly, hex dump, sprites, charset, bitmap, blocks, debugger, and dialogs.
 //! - **[`events`]** — Event loop routing crossterm, MCP, VICE, and tick events.
+//! - **[`terminal_graphics`]** — Terminal graphics protocol probing, theme background compositing, and layout helpers.
 //! - **[`theme`]** — Color themes (Dracula, Nord, Catppuccin, Gruvbox, Solarized, Monokai, and more).
 //! - **[`ui_state`]** — Transient rendering state: cursor positions, scroll offsets, active dialog.
 //!
@@ -23,6 +24,7 @@ pub use regenerator2000_core::state;
 pub use regenerator2000_core::*;
 
 pub mod events;
+pub mod terminal_graphics;
 pub mod theme;
 pub mod theme_file;
 pub mod ui;

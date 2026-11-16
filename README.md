@@ -32,7 +32,7 @@ Regenerator 2000 provides the following features for 6502 disassembly:
 - **Bitmap**:
     - Displays a side-by-side view with the disassembly.
     - Supports high-resolution (320x200) and multicolor (160x200) modes.
-    - Uses quadrant-block rendering for full resolution in the TUI.
+    - Renders pixel graphics via Kitty, iTerm2, or Sixel protocols, with Halfblocks fallback.
 - **Charset**:
     - Displays a side-by-side view with the disassembly.
     - Supports multicolor and single-color modes.

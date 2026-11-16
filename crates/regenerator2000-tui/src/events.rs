@@ -306,8 +306,7 @@ pub fn handle_unpack_complete(
 ) {
     match result {
         Ok(result) => {
-            ui_state.bitmap_cache.clear();
-            ui_state.bitmap_protocol = None;
+            ui_state.invalidate_bitmap_cache();
             let outcome = core.state.apply_unpack_result(&result);
             regenerator2000_core::navigation::perform_jump_to_address_no_history(
                 &core.state,
@@ -986,8 +985,7 @@ fn dispatch_menu_action(
         }
     } else {
         if matches!(action, crate::state::actions::AppAction::ApplyOrigin(_)) {
-            ui_state.bitmap_cache.clear();
-            ui_state.bitmap_protocol = None;
+            ui_state.invalidate_bitmap_cache();
         }
         crate::ui::menu::handle_menu_action(core, ui_state, action, event_tx);
     }

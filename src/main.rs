@@ -3,6 +3,7 @@
 
 use regenerator2000_core::state::AppState;
 use regenerator2000_tui::events;
+use regenerator2000_tui::terminal_graphics::Picker;
 use regenerator2000_tui::ui_state::UIState;
 
 use anyhow::Result;
@@ -434,10 +435,28 @@ fn run_headless_mcp(mut app_state: AppState, use_stdio: bool) -> Result<()> {
 /// Convenience alias for the TUI terminal type.
 type Term = Terminal<CrosstermBackend<io::Stdout>>;
 
-/// Set up the terminal for TUI mode: raw mode, panic hook, alternate screen,
-/// mouse capture, and keyboard enhancement. Returns the terminal and the
-/// keyboard-enhancement result (which may have failed on some platforms).
-fn setup_terminal() -> Result<(Term, Result<(), io::Error>)> {
+/// Resources and capability probe results produced during interactive TUI startup.
+struct TerminalSetup {
+    /// Ratatui terminal backed by `stdout`.
+    terminal: Term,
+    /// Terminal graphics picker detected via stdio probing (or `Halfblocks` fallback).
+    picker: Picker,
+    /// Outcome of enabling Crossterm keyboard disambiguation flags (non-fatal if unsupported).
+    keyboard_enhancement_result: Result<(), io::Error>,
+}
+
+/// Initializes TUI terminal mode and probes graphics capabilities.
+///
+/// Probes graphics capabilities **after** `EnterAlternateScreen` so cursor queries do not
+/// pollute primary scrollback. Probes **before** `EnableMouseCapture`,
+/// `PushKeyboardEnhancementFlags`, and `spawn_input_thread` so SGR mouse events or key
+/// escapes cannot interrupt `cap_parser` mid-sequence.
+///
+/// # Errors
+///
+/// Returns an error if raw mode, alternate screen setup, mouse capture, or terminal
+/// backend creation fails.
+fn setup_terminal() -> Result<TerminalSetup> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
 
@@ -457,8 +476,16 @@ fn setup_terminal() -> Result<(Term, Result<(), io::Error>)> {
         default_hook(info);
     }));
 
-    // Critical setup: Alternate Screen & Mouse
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture,)?;
+    // Enter alternate screen before probing so cursor-position probes never
+    // pollute the user's primary scrollback buffer.
+    execute!(stdout, EnterAlternateScreen)?;
+
+    // Probe graphics capabilities and cell pixel size before enabling mouse capture,
+    // keyboard flags, or the input thread so unsolicited escapes cannot interrupt parsing.
+    let picker = regenerator2000_tui::terminal_graphics::probe_terminal_picker();
+
+    // Enable mouse capture after probing so SGR mouse motion cannot interrupt `cap_parser`.
+    execute!(stdout, EnableMouseCapture)?;
 
     // Optional setup: Keyboard Enhancement (might fail on legacy Windows)
     let keyboard_enhancement_result = execute!(
@@ -469,7 +496,11 @@ fn setup_terminal() -> Result<(Term, Result<(), io::Error>)> {
     let backend = CrosstermBackend::new(stdout);
     let terminal = Terminal::new(backend)?;
 
-    Ok((terminal, keyboard_enhancement_result))
+    Ok(TerminalSetup {
+        terminal,
+        picker,
+        keyboard_enhancement_result,
+    })
 }
 
 /// Restore the terminal to its original state after TUI mode.
@@ -832,10 +863,17 @@ fn main() -> Result<()> {
 
     // --- TUI mode ---
 
-    let (mut terminal, keyboard_enhancement_result) = setup_terminal()?;
+    // Probe terminal graphics only in interactive TUI mode after headless/MCP exits.
+    let TerminalSetup {
+        mut terminal,
+        picker,
+        keyboard_enhancement_result,
+    } = setup_terminal()?;
 
     let theme = regenerator2000_tui::theme::Theme::from_name(&core.state.system_config.theme);
     let mut ui_state = UIState::new(theme);
+    // Replace the headless Halfblocks picker with the probed interactive terminal picker.
+    ui_state.picker = Some(picker);
 
     // Open an image picker dialog if we loaded a container image
     open_image_picker_dialog(

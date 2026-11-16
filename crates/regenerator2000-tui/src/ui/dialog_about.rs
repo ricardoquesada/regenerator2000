@@ -1,14 +1,15 @@
 use crate::events::AppEvent;
 use crate::state::AppState;
+use crate::terminal_graphics::{centered_image_rect, new_or_reused_protocol, theme_color_to_rgba};
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, MouseButton, MouseEventKind};
 use ratatui::Frame;
-use ratatui::layout::Rect;
+use ratatui::layout::{Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Paragraph};
-use ratatui_image::StatefulImage;
+use ratatui_image::{FilterType, Resize, StatefulImage};
 use std::cell::RefCell;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -44,8 +45,8 @@ const C64_HEADER: &str =
 
 // ── Widget ────────────────────────────────────────────────────────────────────
 
+/// Modal "About" dialog displaying the application logo, version info, and credits.
 pub struct AboutDialog {
-    protocol: RefCell<Option<ratatui_image::protocol::StatefulProtocol>>,
     /// Sends `AppEvent::Tick` to drive animation re-renders.
     event_tx: mpsc::Sender<AppEvent>,
     /// Tracks left-click count on the logo area.
@@ -56,19 +57,51 @@ pub struct AboutDialog {
     logo_area: RefCell<Rect>,
 }
 
+/// Rebuilds [`UIState::about_logo_protocol`] for the current logo, picker, and `dialog_bg`.
+///
+/// Reuses any existing slot so `StatefulKitty` keeps its allocated image ID while resetting
+/// its transmit hash so opening `Help -> About` re-sends the texture cleanly (e.g. after `tmux`
+/// reattach or terminal eviction).
+fn rebuild_logo_protocol(ui_state: &mut UIState) {
+    let (Some(logo), Some(picker)) = (&ui_state.logo, &ui_state.picker) else {
+        ui_state.about_logo_protocol = None;
+        return;
+    };
+
+    // Pre-composite transparent PNG pixels onto `dialog_bg` before downsampling to
+    // prevent `#000000` boxes in Halfblocks and dark edge halos in Kitty/Iterm2/Sixel.
+    let bg = theme_color_to_rgba(ui_state.theme.dialog_bg);
+    let prev = ui_state.about_logo_protocol.take();
+    ui_state.about_logo_protocol = Some(new_or_reused_protocol(picker, prev, logo.clone(), bg));
+}
+
+/// Synchronizes [`UIState::about_logo_protocol`] with the current logo, picker, and `dialog_bg`.
+fn sync_logo_protocol(ui_state: &mut UIState) {
+    let (Some(_), Some(picker)) = (&ui_state.logo, &ui_state.picker) else {
+        ui_state.about_logo_protocol = None;
+        return;
+    };
+
+    let bg = theme_color_to_rgba(ui_state.theme.dialog_bg);
+    let needs_rebuild = ui_state.about_logo_protocol.as_ref().is_none_or(|proto| {
+        proto.background_color() != bg || proto.protocol_kind() != picker.protocol_type()
+    });
+    if needs_rebuild {
+        rebuild_logo_protocol(ui_state);
+    }
+}
+
 impl AboutDialog {
-    /// Creates a new `AboutDialog`.
+    /// Uses `Lanczos3` downsampling because `StatefulImage::new()` defaults to `Nearest`,
+    /// which creates jagged edges on the anti-aliased 869x553 logo.
+    const LOGO_RESIZE: Resize = Resize::Fit(Some(FilterType::Lanczos3));
+
+    /// Creates a new [`AboutDialog`] and re-arms the cached logo protocol for transmission while
+    /// preserving any existing Kitty image ID.
     #[must_use]
     pub fn new(ui_state: &mut UIState, event_tx: mpsc::Sender<AppEvent>) -> Self {
-        let protocol = if let Some(logo) = &ui_state.logo
-            && let Some(picker) = &ui_state.picker
-        {
-            Some(picker.new_resize_protocol(logo.clone()))
-        } else {
-            None
-        };
+        rebuild_logo_protocol(ui_state);
         Self {
-            protocol: RefCell::new(protocol),
             event_tx,
             logo_click_count: 0,
             egg_start: None,
@@ -226,27 +259,23 @@ impl Widget for AboutDialog {
             ])
             .split(inner);
 
-        if let Some(logo) = &ui_state.logo
-            && let Some(_picker) = &ui_state.picker
+        let img_area = chunks[0];
+        sync_logo_protocol(ui_state);
+        if let Some(protocol) = ui_state.about_logo_protocol.as_mut()
+            && img_area.width > 0
+            && img_area.height > 0
         {
-            let img_area = chunks[0];
-            let font_width = 8.0_f64;
-            let font_height = 16.0_f64;
-            let native_width_cells = f64::from(logo.width()) / font_width;
-            let native_height_cells = f64::from(logo.height()) / font_height;
-            let scale_w = f64::from(img_area.width) / native_width_cells;
-            let scale_h = f64::from(img_area.height) / native_height_cells;
-            let scale = scale_w.min(scale_h).min(1.0);
-            let render_width = (native_width_cells * scale).max(1.0) as u16;
-            let render_height = (native_height_cells * scale).max(1.0) as u16;
-            let x = img_area.x + (img_area.width.saturating_sub(render_width)) / 2;
-            let y = img_area.y + (img_area.height.saturating_sub(render_height)) / 2;
-            let centered_area = Rect::new(x, y, render_width, render_height);
+            // Compute bounds with `picker` cell metrics so `logo_area` matches on Retina displays.
+            let centered_area = centered_image_rect(protocol, &Self::LOGO_RESIZE, img_area);
             *self.logo_area.borrow_mut() = centered_area;
-
-            if let Some(protocol) = self.protocol.borrow_mut().as_mut() {
-                f.render_stateful_widget(StatefulImage::new(), centered_area, protocol);
-            }
+            f.render_stateful_widget(
+                StatefulImage::new().resize(Self::LOGO_RESIZE),
+                centered_area,
+                protocol,
+            );
+        } else {
+            // Clear stale bounds so hidden or tiny terminals ignore old logo coordinates.
+            *self.logo_area.borrow_mut() = Rect::default();
         }
 
         let text_area = chunks[1];
@@ -312,12 +341,7 @@ impl Widget for AboutDialog {
 
         // Hit-test against the logo area.
         let area = *self.logo_area.borrow();
-        let col = mouse.column;
-        let row = mouse.row;
-        let on_logo = col >= area.x
-            && col < area.x + area.width
-            && row >= area.y
-            && row < area.y + area.height;
+        let on_logo = area.contains(Position::new(mouse.column, mouse.row));
 
         if on_logo {
             self.logo_click_count += 1;
@@ -342,14 +366,48 @@ impl Widget for AboutDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crossterm::event::{KeyEvent, KeyModifiers};
+    use crate::terminal_graphics::{
+        TerminalImageProtocol, create_headless_picker, extract_kitty_transmit_id,
+    };
+    use crate::theme::Theme;
+    use crossterm::event::{KeyEvent, KeyModifiers, MouseEvent};
+    use image::Rgba;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
+    use ratatui_image::FontSize;
+    use ratatui_image::picker::ProtocolType;
+
+    fn about_dialog_chunks(area: Rect, theme: &Theme) -> Vec<Rect> {
+        let popup_width = area.width * 60 / 100;
+        let popup_height = area.height * 75 / 100;
+        let x = area.x + (area.width.saturating_sub(popup_width)) / 2;
+        let y = area.y + (area.height.saturating_sub(popup_height)) / 2;
+        let popup_area = Rect::new(x, y, popup_width, popup_height);
+        let block = crate::ui::widget::create_dialog_block(" About ", theme);
+        let inner = block.inner(popup_area);
+        ratatui::layout::Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints([
+                ratatui::layout::Constraint::Min(0),
+                ratatui::layout::Constraint::Length(6),
+            ])
+            .split(inner)
+            .to_vec()
+    }
+
+    fn left_click(column: u16, row: u16) -> MouseEvent {
+        MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column,
+            row,
+            modifiers: KeyModifiers::NONE,
+        }
+    }
 
     #[test]
     fn test_about_dialog_renders_text_when_logo_is_none() {
         let app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.logo = None;
         ui_state.picker = None;
         let (tx, _rx) = mpsc::channel();
@@ -373,12 +431,13 @@ mod tests {
             .collect();
         assert!(rendered.contains("Regenerator 2000"));
         assert!(ui_state.active_dialog_area.width > 0);
+        assert_eq!(*dialog.logo_area.borrow(), Rect::default());
     }
 
     #[test]
     fn test_about_dialog_esc_closes_during_easter_egg() {
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let (tx, _rx) = mpsc::channel();
         let mut dialog = AboutDialog::new(&mut ui_state, tx);
         dialog.egg_start = Some(Instant::now());
@@ -396,5 +455,341 @@ mod tests {
             &mut ui_state,
         );
         assert_eq!(esc_res, WidgetResult::Close);
+    }
+
+    #[test]
+    fn test_about_dialog_renders_logo_into_non_empty_hit_area() {
+        let mut app_state = AppState::new();
+        let theme = Theme::from_name("Solarized Light");
+        let mut ui_state = UIState::new(theme.clone());
+        assert!(ui_state.logo.is_some());
+        assert!(ui_state.picker.is_some());
+
+        let (tx, _rx) = mpsc::channel();
+        let mut dialog = AboutDialog::new(&mut ui_state, tx);
+
+        let expected_bg = theme_color_to_rgba(theme.dialog_bg);
+        assert_eq!(expected_bg, Some(Rgba([238, 232, 213, 255])));
+        assert_eq!(
+            ui_state
+                .about_logo_protocol
+                .as_ref()
+                .expect("about_logo_protocol should be initialized")
+                .background_color(),
+            expected_bg
+        );
+
+        let backend = TestBackend::new(100, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let chunks = about_dialog_chunks(Rect::new(0, 0, 100, 30), &theme);
+        let img_area = chunks[0];
+        let text_area = chunks[1];
+        let logo_area = *dialog.logo_area.borrow();
+
+        assert!(logo_area.width > 0 && logo_area.height > 0);
+        assert!(logo_area.x >= img_area.x);
+        assert!(logo_area.y >= img_area.y);
+        assert!(logo_area.right() <= img_area.right());
+        assert!(logo_area.bottom() <= img_area.bottom());
+
+        let expected_logo_area = centered_image_rect(
+            ui_state.about_logo_protocol.as_ref().unwrap(),
+            &AboutDialog::LOGO_RESIZE,
+            img_area,
+        );
+        assert_eq!(logo_area, expected_logo_area);
+
+        // Click outside the logo area (on the footer text row) does not increment count.
+        assert_eq!(
+            dialog.handle_mouse(
+                left_click(text_area.x, text_area.y),
+                &mut app_state,
+                &mut ui_state
+            ),
+            WidgetResult::Handled
+        );
+        assert_eq!(dialog.logo_click_count, 0);
+        assert!(dialog.egg_start.is_none());
+
+        // Five clicks inside logo_area trigger the easter egg.
+        for expected_clicks in 1..EASTER_EGG_CLICKS {
+            assert_eq!(
+                dialog.handle_mouse(
+                    left_click(logo_area.x, logo_area.y),
+                    &mut app_state,
+                    &mut ui_state
+                ),
+                WidgetResult::Handled
+            );
+            assert_eq!(dialog.logo_click_count, expected_clicks);
+            assert!(dialog.egg_start.is_none());
+        }
+
+        assert_eq!(
+            dialog.handle_mouse(
+                left_click(logo_area.x, logo_area.y),
+                &mut app_state,
+                &mut ui_state
+            ),
+            WidgetResult::Handled
+        );
+        assert_eq!(dialog.logo_click_count, 0);
+        assert!(dialog.egg_start.is_some());
+    }
+
+    #[test]
+    fn test_about_dialog_respects_retina_font_size_for_logo_area() {
+        let app_state = AppState::new();
+        let theme = Theme::default();
+        let mut ui_state = UIState::new(theme.clone());
+        let logo = ui_state.logo.clone().expect("logo should load");
+        let bg = theme_color_to_rgba(ui_state.theme.dialog_bg);
+
+        let (tx, _rx) = mpsc::channel();
+        let dialog = AboutDialog::new(&mut ui_state, tx);
+        ui_state.about_logo_protocol = Some(TerminalImageProtocol::new_halfblocks_with_font_size(
+            logo.clone(),
+            FontSize::new(18, 40),
+            bg,
+        ));
+
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let img_area = about_dialog_chunks(Rect::new(0, 0, 120, 40), &theme)[0];
+        let expected_retina = centered_image_rect(
+            ui_state.about_logo_protocol.as_ref().unwrap(),
+            &AboutDialog::LOGO_RESIZE,
+            img_area,
+        );
+        let legacy_8x16_proto =
+            TerminalImageProtocol::new_halfblocks_with_font_size(logo, FontSize::new(8, 16), bg);
+        let legacy_8x16_rect =
+            centered_image_rect(&legacy_8x16_proto, &AboutDialog::LOGO_RESIZE, img_area);
+
+        let rendered_logo_area = *dialog.logo_area.borrow();
+        assert_eq!(rendered_logo_area, expected_retina);
+        assert_ne!(rendered_logo_area, legacy_8x16_rect);
+    }
+
+    #[test]
+    fn test_about_dialog_iterm2_uses_centered_cell_dimensions() {
+        let app_state = AppState::new();
+        let theme = Theme::from_name("Catppuccin Mocha");
+        let mut picker = create_headless_picker();
+        picker.set_protocol_type(ProtocolType::Iterm2);
+
+        let mut ui_state = UIState::new(theme.clone());
+        ui_state.picker = Some(picker);
+        let logo = ui_state.logo.clone().expect("logo should load");
+        let bg = theme_color_to_rgba(ui_state.theme.dialog_bg);
+
+        let (tx, _rx) = mpsc::channel();
+        let dialog = AboutDialog::new(&mut ui_state, tx);
+        ui_state.about_logo_protocol = Some(TerminalImageProtocol::new_iterm2_with_font_size(
+            logo,
+            FontSize::new(7, 17),
+            bg,
+            false,
+        ));
+
+        let mut terminal = Terminal::new(TestBackend::new(210, 50)).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let img_area = about_dialog_chunks(Rect::new(0, 0, 210, 50), &theme)[0];
+        let logo_area = *dialog.logo_area.borrow();
+        let expected = centered_image_rect(
+            ui_state.about_logo_protocol.as_ref().unwrap(),
+            &AboutDialog::LOGO_RESIZE,
+            img_area,
+        );
+        assert_eq!(logo_area, expected);
+
+        let left_margin = logo_area.x - img_area.x;
+        let right_margin = img_area.right() - logo_area.right();
+        assert!(left_margin.abs_diff(right_margin) <= 1);
+
+        let sym = terminal.backend().buffer()[(logo_area.x, logo_area.y)].symbol();
+        assert!(!sym.contains("px;"));
+        assert!(sym.contains(&format!(
+            ";width={};height={};preserveAspectRatio=0;doNotMoveCursor=1:",
+            logo_area.width, logo_area.height
+        )));
+    }
+
+    #[test]
+    fn test_about_dialog_resets_logo_area_when_unavailable_or_empty() {
+        let mut app_state = AppState::new();
+        let theme = Theme::default();
+        let mut ui_state = UIState::new(theme.clone());
+        assert!(ui_state.logo.is_some());
+        assert!(ui_state.picker.is_some());
+
+        let (tx, _rx) = mpsc::channel();
+        let mut dialog = AboutDialog::new(&mut ui_state, tx);
+
+        // Initial render populates a non-empty logo_area.
+        let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+        let initial_logo_area = *dialog.logo_area.borrow();
+        assert!(initial_logo_area.width > 0 && initial_logo_area.height > 0);
+
+        // (a) Shrinking terminal so chunks[0].height == 0 resets logo_area without clamping panic.
+        let tiny_chunks = about_dialog_chunks(Rect::new(0, 0, 60, 8), &theme);
+        assert_eq!(tiny_chunks[0].height, 0);
+        let mut tiny_terminal = Terminal::new(TestBackend::new(60, 8)).unwrap();
+        tiny_terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+        assert_eq!(*dialog.logo_area.borrow(), Rect::default());
+
+        // Restore a populated logo_area first so (b) also verifies clearing from non-empty.
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+        assert_eq!(*dialog.logo_area.borrow(), initial_logo_area);
+
+        // (b) Clearing picker and re-rendering drops about_logo_protocol, resets logo_area, and
+        // ignores stale clicks.
+        ui_state.picker = None;
+        terminal
+            .draw(|f| {
+                let area = f.area();
+                dialog.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+        assert!(ui_state.about_logo_protocol.is_none());
+        assert_eq!(*dialog.logo_area.borrow(), Rect::default());
+
+        assert_eq!(
+            dialog.handle_mouse(
+                left_click(initial_logo_area.x, initial_logo_area.y),
+                &mut app_state,
+                &mut ui_state
+            ),
+            WidgetResult::Handled
+        );
+        assert_eq!(dialog.logo_click_count, 0);
+        assert!(dialog.egg_start.is_none());
+    }
+
+    #[test]
+    fn test_about_dialog_reopening_reuses_cached_protocol_and_kitty_id() {
+        let app_state = AppState::new();
+        let mut picker = create_headless_picker();
+        picker.set_protocol_type(ProtocolType::Kitty);
+
+        let mut ui_state = UIState::new(Theme::from_name("Dracula"));
+        ui_state.picker = Some(picker);
+
+        let (tx1, _rx1) = mpsc::channel();
+        let dialog1 = AboutDialog::new(&mut ui_state, tx1);
+        let mut term1 = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        term1
+            .draw(|f| {
+                let area = f.area();
+                dialog1.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let logo_area = *dialog1.logo_area.borrow();
+        let sym1 = term1.backend().buffer()[(logo_area.x, logo_area.y)].symbol();
+        let id1 = extract_kitty_transmit_id(sym1)
+            .expect("first AboutDialog Kitty render should emit transmission escape");
+        let fg1 = term1.backend().buffer()[(logo_area.x, logo_area.y)].fg;
+
+        // A second render while the same dialog stays open does not re-transmit.
+        let mut term1_again = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        term1_again
+            .draw(|f| {
+                let area = f.area();
+                dialog1.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+        let sym1_again = term1_again.backend().buffer()[(logo_area.x, logo_area.y)].symbol();
+        assert!(sym1_again.contains('\u{10EEEE}'));
+        assert!(
+            !sym1_again.contains(",a=T,U=1"),
+            "subsequent frame of same open dialog should reuse transmitted Kitty texture"
+        );
+        assert_eq!(
+            term1_again.backend().buffer()[(logo_area.x, logo_area.y)].fg,
+            fg1
+        );
+        drop(dialog1);
+
+        // Second open with identical theme re-transmits under the exact same Kitty image ID so
+        // tmux reattaches and evicted terminal textures still display the logo.
+        let (tx2, _rx2) = mpsc::channel();
+        let dialog2 = AboutDialog::new(&mut ui_state, tx2);
+        let mut term2 = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        term2
+            .draw(|f| {
+                let area = f.area();
+                dialog2.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+        let buf2 = term2.backend().buffer();
+        let sym2 = buf2[(logo_area.x, logo_area.y)].symbol();
+        assert!(sym2.contains('\u{10EEEE}'));
+        let id2 = extract_kitty_transmit_id(sym2)
+            .expect("reopening AboutDialog should re-transmit logo under reused Kitty ID");
+        assert_eq!(id2, id1);
+        assert_eq!(buf2[(logo_area.x, logo_area.y)].fg, fg1);
+        drop(dialog2);
+
+        // Switching theme invalidates background_color and re-uploads under the exact same Kitty ID.
+        ui_state.theme = Theme::from_name("Solarized Light");
+        let (tx3, _rx3) = mpsc::channel();
+        let dialog3 = AboutDialog::new(&mut ui_state, tx3);
+        assert_eq!(
+            ui_state
+                .about_logo_protocol
+                .as_ref()
+                .expect("about_logo_protocol should remain populated")
+                .background_color(),
+            Some(Rgba([238, 232, 213, 255]))
+        );
+        let mut term3 = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        term3
+            .draw(|f| {
+                let area = f.area();
+                dialog3.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+        let buf3 = term3.backend().buffer();
+        let id3 = extract_kitty_transmit_id(buf3[(logo_area.x, logo_area.y)].symbol())
+            .expect("theme switch reopen should emit updated Kitty transmission");
+        assert_eq!(buf3[(logo_area.x, logo_area.y)].fg, fg1);
+        assert_eq!(id3, id1);
     }
 }

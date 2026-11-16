@@ -245,13 +245,13 @@ The Bitmap View renders memory as a full-screen bitmap image. Press ++alt+5++ (o
 
 ![Bitmap View](regenerator2000_bitmap_screenshot.png)
 
-!!! warning
+!!! note
 
-    The Bitmap View uses significant CPU resources. Hide the Bitmap View (++alt+5++ or ++ctrl+5++) after you inspect the bitmaps.
+    Regenerator 2000 automatically detects your terminal's pixel graphics protocol (Kitty, iTerm2, or Sixel) at startup and falls back to Halfblocks on terminals without pixel graphics. Press ++alt+5++ (or ++ctrl+5++) to hide the Bitmap View when not needed.
 
 The Bitmap View contains these elements:
 
-- **a**: Bitmap mode (Multicolor or High-Res) and terminal renderer (HalfBlocks or iTerm2).
+- **a**: Bitmap mode (Multicolor or High-Res) and terminal renderer (Kitty, iTerm2, Sixel, or Halfblocks).
 - **b**: Bitmap address and Screen RAM address.
 - **c**: Rendered bitmap canvas.
 - **d**: Screen RAM position indicator.

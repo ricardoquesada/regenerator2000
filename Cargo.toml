@@ -70,3 +70,9 @@ opt-level = 3
 
 [profile.dev.package.mos6502]
 opt-level = 3
+
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package.ratatui-image]
+opt-level = 3

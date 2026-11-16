@@ -4,7 +4,6 @@ pub use regenerator2000_core::utils::*;
 
 use image::DynamicImage;
 use ratatui::layout::Rect;
-use ratatui_image::picker::Picker;
 
 #[must_use]
 pub fn centered_rect_adaptive(
@@ -31,14 +30,6 @@ pub fn centered_rect_adaptive(
 pub fn load_logo() -> Option<DynamicImage> {
     let logo_bytes = include_bytes!("../assets/regenerator2000_logo.png");
     image::load_from_memory(logo_bytes).ok()
-}
-
-#[must_use]
-pub fn create_picker() -> Option<Picker> {
-    let font_size = (8, 16);
-    #[allow(deprecated)]
-    let picker = Picker::from_fontsize(font_size.into());
-    Some(picker)
 }
 
 #[cfg(test)]

@@ -13,6 +13,9 @@ pub use regenerator2000_core::view_state::{
     ActivePane, CoreViewState, NavigationTarget, RightPane, ScreenRamMode,
 };
 
+/// Cache key `(origin, bitmap_address, multicolor_mode, screen_ram_address)` for decoded C64 bitmaps.
+pub type BitmapCacheKey = (usize, usize, bool, usize);
+
 pub struct UIState {
     /// Frontend-agnostic state (cursors, selections, panes, modes).
     /// Accessible directly via `Deref`/`DerefMut`.
@@ -33,7 +36,18 @@ pub struct UIState {
     pub status_bar: crate::ui::statusbar::StatusBarState,
 
     pub logo: Option<DynamicImage>,
+    /// Active graphics protocol picker.
+    ///
+    /// [`UIState::new`] initializes this field to a headless `Halfblocks` picker so tests avoid
+    /// stdio I/O. Interactive startup replaces it with the probed terminal [`Picker`].
     pub picker: Option<Picker>,
+    /// Cached [`TerminalImageProtocol`](crate::terminal_graphics::TerminalImageProtocol) slot for
+    /// `AboutDialog`.
+    ///
+    /// Reusing this slot across `Help -> About` openings preserves the allocated Kitty image ID
+    /// while re-transmitting when `AboutDialog` opens (avoiding stale textures after `tmux`
+    /// reattach or terminal eviction).
+    pub about_logo_protocol: Option<crate::terminal_graphics::TerminalImageProtocol>,
     pub dismiss_logo: bool,
     pub input_buffer: String,
 
@@ -43,11 +57,16 @@ pub struct UIState {
     pub vim_search_active: bool,
     pub vim_search_input: String,
 
-    // Bitmap cache: key is (bitmap_address, multicolor_mode, screen_ram_address)
-    pub bitmap_cache: HashMap<(usize, bool, usize), DynamicImage>,
+    /// Cached native `320x200` decoded bitmaps keyed by [`BitmapCacheKey`].
+    pub bitmap_cache: HashMap<BitmapCacheKey, DynamicImage>,
+    /// Cached [`TerminalImageProtocol`](crate::terminal_graphics::TerminalImageProtocol) slot for
+    /// `BitmapView`, tagged with `Some(BitmapCacheKey)` when populated.
+    ///
+    /// Reusing this slot preserves the allocated Kitty image ID across bitmap, Screen RAM,
+    /// theme, origin, and project-reload transitions.
     pub bitmap_protocol: Option<(
-        (usize, bool, usize),
-        ratatui_image::protocol::StatefulProtocol,
+        Option<BitmapCacheKey>,
+        crate::terminal_graphics::TerminalImageProtocol,
     )>,
 
     // Version update notification
@@ -96,6 +115,11 @@ impl std::ops::DerefMut for UIState {
 }
 
 impl UIState {
+    /// Creates transient UI state with a deterministic headless
+    /// [`Halfblocks`](ratatui_image::picker::ProtocolType::Halfblocks) picker.
+    ///
+    /// Interactive callers overwrite `picker` with the result of
+    /// [`probe_terminal_picker`](crate::terminal_graphics::probe_terminal_picker).
     #[must_use]
     pub fn new(theme: Theme) -> Self {
         Self {
@@ -112,7 +136,9 @@ impl UIState {
             should_quit: false,
             status_bar: crate::ui::statusbar::StatusBarState::new(),
             logo: crate::utils::load_logo(),
-            picker: crate::utils::create_picker(),
+            // Avoid stdio probing here so headless `TestBackend` tests stay deterministic and fast.
+            picker: Some(crate::terminal_graphics::create_headless_picker()),
+            about_logo_protocol: None,
             dismiss_logo: false,
             input_buffer: String::new(),
             vim_search_active: false,
@@ -212,6 +238,15 @@ impl UIState {
         ratatui::layout::Rect::new(0, 0, width, height)
     }
 
+    /// Clears cached decoded bitmaps and marks any existing [`UIState::bitmap_protocol`] as
+    /// stale (`None` key) so the next render re-encodes in place without leaking Kitty IDs.
+    pub fn invalidate_bitmap_cache(&mut self) {
+        self.bitmap_cache.clear();
+        if let Some((cached_key, _)) = &mut self.bitmap_protocol {
+            *cached_key = None;
+        }
+    }
+
     pub fn restore_session(
         &mut self,
         loaded_data: &crate::state::LoadedProjectData,
@@ -219,8 +254,7 @@ impl UIState {
     ) {
         use crate::ui::navigable::AlignedGridRange;
 
-        self.bitmap_cache.clear();
-        self.bitmap_protocol = None;
+        self.invalidate_bitmap_cache();
         self.cached_blocks_items = None;
         self.navigation_history.clear();
         self.active_pane = ActivePane::Disassembly;
