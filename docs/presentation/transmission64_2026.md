@@ -1,7 +1,4 @@
 ---
-title: "Regenerator 2000"
-sub_title: "Blazing-Fast, Keyboard-First 6502 Disassembler for Commodore 8-Bit Machines"
-author: "Ricardo Quesada"
 theme:
   name: catppuccin-mocha
   override:
@@ -13,13 +10,28 @@ theme:
 options:
   implicit_slide_ends: true
   end_slide_shorthand: true
+  image_attributes_prefix: "image:"
 ---
 
+<!-- no_footer -->
 <!-- alignment: center -->
+<!-- new_lines: 2 -->
 
-![Regenerator 2000 Logo](../regenerator2000_logo.png)
+![image:width:45%](../regenerator2000_logo.png)
 
-<!-- alignment: left -->
+<!-- new_lines: 1 -->
+
+**Blazing-Fast, Keyboard-First 6502 Disassembler for Commodore 8-Bit Machines**
+
+Ricardo Quesada — Transmission64 2026
+
+<!-- speaker_note:
+Welcome everyone! Today I'm excited to show you Regenerator 2000 — a blazing-fast, keyboard-first 6502 disassembler built for Commodore 8-bit machines.
+-->
+
+---
+
+# What Is Regenerator 2000?
 
 <!-- column_layout: [1, 1] -->
 
@@ -37,8 +49,8 @@ options:
 <!-- reset_layout -->
 
 <!-- speaker_note:
-Welcome everyone! Today I'm excited to show you Regenerator 2000 — an interactive 6502 disassembler built specifically for the Commodore 8-bit scene.
-If you've ever used Tom-Cat's original Regenerator, you know how great interactive disassembly feels—but it was a Windows-only binary, and running it in Wine under Linux had some important bugs. That's why I built Regenerator 2000 as a native, cross-platform TUI for macOS, Linux, and Windows with modern superpowers.
+If you've ever used Tom-Cat's original Regenerator, you know how great interactive disassembly feels—but it was a Windows-only binary, and running it in Wine under Linux had some important bugs.
+That's why I built Regenerator 2000 as a native, cross-platform TUI for macOS, Linux, and Windows, supporting the full Commodore 8-bit family and modern workflows.
 Before we start the live demo, I want to share *why* I love disassembling old games.
 -->
 
@@ -62,7 +74,7 @@ Every 8-bit binary is a **64 KB time capsule** of human ingenuity, tight deadlin
 <!-- column: 1 -->
 ### 🔍 Field Notes from the Bytes
 - ***Commando* (C64, 1985)**
-  - Found an **unfinished 4th level** (plus unused sprites & SFX) in RAM — *were they short on time?*
+  - Found an **unfinished 4th level** (plus unused sprites & SFX) — *were they short on time?*
 - ***Rambo: First Blood Part II* (C64, 1985)**
   - Uncovered **Martin Galway's test music routine** still inside the game!
 - ***Burnin' Rubber* (C64, 1983)**
@@ -80,20 +92,20 @@ In Burnin' Rubber, the code uses a tangled layout. Routines jump across RAM, NOP
 
 ---
 
-# Core Pillars: Blazing Speed & Keyboard Mastery
+# Core Pillars: Fast, Non-Destructive & Keyboard-First
 
 <!-- column_layout: [1, 1] -->
 
 <!-- column: 0 -->
-### ⚡ Extremely Fast
+### ⚡ Fast & Non-Destructive
 - **Instant Startup (`< 10 ms`)**
-  - Native binary for **macOS, Linux, and Windows**
-  - Minimal memory footprint — opens binaries and project files immediately
+  - Native binary for **macOS, Linux, and Windows** with minimal memory footprint
 - **Zero-Latency Navigation**
   - Smooth 60+ fps scrolling through full 64 KB programs
 - **Instant Flow & X-Ref Re-Analysis**
   - Real-time typed cross-references (`Call`, `Jump`, `Read`, `Write`, `RMW`)
-  - Full **Undo / Redo** history (`u` / `Ctrl+R`) for every action
+- **Non-Destructive Editing**
+  - Nothing is destructive — **every action** can be undone/redone (`u` / `Ctrl+R`)
 
 <!-- column: 1 -->
 ### ⌨️ Keyboard-First (Mouse-Friendly)
@@ -110,9 +122,10 @@ In Burnin' Rubber, the code uses a tangled layout. Routines jump across RAM, NOP
 <!-- reset_layout -->
 
 <!-- speaker_note:
-Two things define the daily experience in Regenerator 2000:
-First, it is *fast*. It launches instantaneously, and every time you reclassify a block or table, cross-references and flow arrows recompute in microseconds. And because every edit is a command on an undo stack, you can experiment fearlessly and press 'u' to undo.
-Second, it is unapologetically keyboard-driven. Your hands never have to leave the home row—though if you want to scroll with the mouse wheel or click the minimap bar at the top, the mouse works right out of the box too.
+Three things define the daily experience in Regenerator 2000:
+First, it is *fast*: it launches instantaneously, and every time you reclassify a block or table, cross-references and flow arrows recompute in microseconds.
+Second, *nothing is destructive*: every single action—converting code to bytes, splitting tables, renaming labels—can be undone with 'u' and redone with Ctrl+R, so you can experiment fearlessly without ever worrying about messing up your disassembly.
+Third, it is unapologetically keyboard-driven, while keeping pragmatic mouse support right out of the box.
 -->
 
 ---
@@ -134,6 +147,7 @@ Second, it is unapologetically keyboard-driven. Your hands never have to leave t
 | `i` / `e` | Cycle **Hex/Dec/Bin** / Apply **Enum** |
 | `r` / `\|` | Lexical **Scope** / Toggle **Splitter** |
 | `Enter` / `Bksp` | **Follow** operand / **Jump back** in history |
+| `u` / `Ctrl+R` | **Undo** / **Redo** any action |
 
 <!-- column: 1 -->
 ```ca65
@@ -291,25 +305,22 @@ Even better, pass the --verify flag and Regenerator 2000 will export your projec
 
 # 4. Built-in 6502 Emulation Unpacker
 
-Demoscene releases are almost always crunched — Regenerator 2000 unpacks them **automatically on load**:
+Most C64 games, demos, and intros are crunched — Regenerator 2000 unpacks them **automatically on load**:
 
 ```
-┌───────────────────────────┐    ┌───────────────────────────┐    ┌───────────────────────────┐
-│  Phase 1: FindDepacker    │    │  Phase 2: Decompress      │    │  Extract & Disassemble    │
-│  • Resolves BASIC SYS     │───▶│  • Cycle-accurate 6502    │───▶│  • Diffs RAM & write map  │
-│  • Matches PackerSpec     │    │  • Tracks RAM write map   │    │  • Trims depacker stub    │
-│  • Steps to decruncher    │    │  • Traps jump to payload  │    │  • Jump to unpacked entry │
-└───────────────────────────┘    └───────────────────────────┘    └───────────────────────────┘
+┌───────────────────┐      ┌─────────────────────────┐      ┌────────────────────────────┐
+│   Packed Binary   │ ───▶ │   Run in 6502 Sandbox   │ ───▶ │   Unpacked @ Entry Point   │
+└───────────────────┘      └─────────────────────────┘      └────────────────────────────┘
 ```
 
-- **Inspired by iAN CooG's `unp64`**: Built-in 2-phase 6502 + CIA + `$01` PLA banking sandbox
-- **21+ Packers Supported Out of the Box**:
-  - *Exomizer, Dali, ByteBoozer, TSCrunch, PuCrunch, CruelCrunch, TimeCruncher, Action Replay, MasterCompressor, MegaByte, ABCompactor, ECA...*
-- **Provenance Tracking**: Reports exact unpacked bounds (`start_addr..=end_addr`) and real `entry_point`
+- **Inspired by iAN CooG's `unp64`**: Built-in 6502 sandbox — no need to run `unp64` externally and load its output
+- **21 Packers Detected Out of the Box** *(+ generic RAM-write fallback for custom crunchers)*:
+  - *Exomizer, Dali, ByteBoozer, TSCrunch, PuCrunch, Cruel Cruncher, Time Cruncher, Action Replay, Final Cartridge III, ALZ64, TinyCrunch, ECA...*
+- **Ready to Disassemble**: Strips the depacker stub and drops your cursor right at the real entry point
 
 <!-- speaker_note:
-If you grab a .prg from CSDb, 9 times out of 10 it's packed with Exomizer, Dali, ByteBoozer, TSCrunch, or an old-school cruncher.
-Instead of manually dumping memory in an emulator first, Regenerator 2000 has a built-in 2-phase 6502 emulation sandbox inspired by iAN CooG's unp64.
+If you grab a C64 game, demo, or intro, 9 times out of 10 it's packed with Exomizer, Dali, ByteBoozer, TSCrunch, or an old-school cruncher.
+Instead of running iAN CooG's unp64 from the command line first and then loading its unpacked output file, Regenerator 2000 has a built-in 6502 sandbox inspired by unp64 so you skip that extra step completely.
 When you open a packed binary, it detects the cruncher, emulates the decruncher in milliseconds while tracking every RAM write, strips away the depacker workspace, and drops you right at the unpacked entry point.
 -->
 
