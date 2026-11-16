@@ -36,22 +36,25 @@ Welcome everyone! Today I'm excited to show you Regenerator 2000 — a blazing-f
 <!-- column_layout: [1, 1] -->
 
 <!-- column: 0 -->
-### Heritage & Goal
+### Heritage & Philosophy
 - Inspired by Tom-Cat / Nostalgia's classic **Regenerator**
 - **Goal**: Turn raw binaries into **clean, documented, byte-exact source** — fast & non-destructively
-- Native, cross-platform TUI (**macOS, Linux, and Windows**)
+- **Opinionated**: Built first for my own reverse-engineering needs and workflow
+- **Old-school look, modern features**: Intentional retro TUI (**macOS, Linux, Windows**) with modern tooling under the hood
 
 <!-- column: 1 -->
 ### 6502 & Commodore Support
 - **CPU**: Full **MOS 6502** + **undocumented opcodes** (`lax`, `sax`, `dcp`, `isc`, `slo`, `rla`...)
-- **Machines**: C64, C128, VIC-20, Plus/4, C16, PET (2.0/4.0), 1541/1571/1581
+- **Computers**: C64, C128, VIC-20, Plus/4, C16, PET (2.0/4.0)
+- **Drives**: 1541, 1571, 1581
 - **Formats**: `.prg`, `.d64`/`.d71`/`.d81`, `.t64`, `.crt`, `.vsf` (VICE), `.dis65` (6502bench), `.raw`
 
 <!-- reset_layout -->
 
 <!-- speaker_note:
 Regenerator 2000 is inspired by Tom-Cat's classic Regenerator, with a clear goal: turn raw 8-bit binaries back into clean, documented, byte-exact source code—fast and non-destructively.
-The original Regenerator was Windows-only and had important bugs under Wine on Linux, so Regenerator 2000 runs natively as a terminal UI on macOS, Linux, and Windows across the full Commodore 8-bit family.
+I built it first and foremost for my own needs, so it's deliberately opinionated about workflow.
+And yes—it looks old-school on purpose! I love classic terminal UIs on macOS, Linux, and Windows, even though under the hood it packs modern features like a built-in 6502 unpacker, live VICE debugging, byte-exact assembler verification, and headless scripting.
 Before we start the live demo, I want to share *why* I love disassembling old games.
 -->
 
