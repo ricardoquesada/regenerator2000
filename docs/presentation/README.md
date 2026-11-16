@@ -43,7 +43,7 @@ presenterm -l docs/presentation/transmission64_2026.md
 
 ## 20-Minute Live Demo Playbook
 
-After Slide 9 (**Live Demo Time!**), switch to a pre-sized terminal window (`120x35` or larger with a crisp retro-friendly font) to walk through these 5 acts.
+After Slide 11 (**Live Demo Time!**), open a pre-sized terminal window (`120x35` or larger, retro font). Run these 5 acts in order.
 
 ### Act 1: Instant Startup, Unpacking & Orientation (`~3 mins`)
 

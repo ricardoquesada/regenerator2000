@@ -431,6 +431,12 @@ flowchart TB
     -   `spec.rs`: Defines `PackerSpec` with declarative `Signature` patterns (`Anchor`, `Pat`, `sig!`), `Hints` (`AddrSource`: `Const`, `BasicStart(i16)`, `OperandLe`, `AbsoluteLe`, `PointerAfterRun` with `PointerGuard`), `MemoryPatch` (`PatchAddr`), optional `resolve` escape hatches (`ResolvedSpec`), and stateful `PackerHooks` (`StepContext`, `RefineContext`, `Bounds`).
     -   `registry.rs`: Evaluates `registry::detect(&LoadedImage)` across all **21 packer families** in deterministic `priority` order in `REGISTRY` (`eca`, `action_replay`, `cruel_cruncher`, `pucrunch`, `time_cruncher`, `card_cruncher`, `mc_cracken`, `tbc`, `byteboozer`, `alz64`, `tscrunch`, `dali`, `tiny_crunch`, `super_cruncher`, `final_cartridge`, `exomizer`, `ccs`, `triad`, `eagle`, `antiram`, and `turbo_cruncher`).
 -   **Corpus Oracle & Benchmarking CLI (`src/bin/unpacker_compare_all/`)**: Compares Regenerator 2000 unpacker output against `unp64` across the `tests/6502/unpack_corpus.toml` manifest (`main.rs`, `cli.rs`, `check.rs`, `update.rs`, `record.rs`, `observation.rs`, `markdown.rs`, `unp64/`, and `corpus/`), supporting `--update` (record `unp64` reference expectations), `--check` (CI drift gate), and `--markdown` (classified comparison report).
+-   **Adding a New `PackerSpec`**:
+
+    1. Define `pub static SPEC: PackerSpec` in `crates/regenerator2000-core/src/packers/<name>.rs` with `Anchor::BasicStart` and `AddrSource::BasicStart`.
+    2. Export `pub mod <name>;` in `packers/mod.rs` and insert `&<name>::SPEC` into `REGISTRY` (`packers/registry.rs`) in ascending `priority` order.
+    3. Add a `.prg` fixture to `tests/6502/unpack_corpus.toml` and record its `unp64` output via `cargo run -p regenerator2000-core --bin unpacker_compare_all -- --update`.
+    4. Update `tests/6502/unpack_baseline.toml` with `UPDATE_UNPACK_BASELINE=1 cargo test -p regenerator2000-core --test unpack_corpus`.
 
 ---
 

@@ -14,6 +14,10 @@ copyright: Copyright &copy; 2026 Ricardo Quesada & contributors
 
 edit_uri: edit/main/docs/
 
+exclude_docs: |
+  venv/
+  presentation/
+
 watch:
   - README.md
   - CHANGELOG.md
@@ -45,10 +49,15 @@ theme:
     code: Roboto Mono
   features:
     - navigation.tabs
-    - content.code.copy
     - navigation.top
     - navigation.tracking
+    - navigation.footer
+    - content.code.copy
+    - content.code.annotate
     - content.tabs.link
+    - content.tooltips
+    - search.suggest
+    - search.highlight
 
 nav:
   - Home: index.md
@@ -80,18 +89,30 @@ nav:
       - Changelog: changelog.md
 
 markdown_extensions:
+  - attr_list
+  - md_in_html
+  - def_list
+  - tables
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.inlinehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
-  - pymdownx.details
-  - pymdownx.keys
-  - pymdownx.highlight:
-      anchor_linenums: true
   - pymdownx.tabbed:
       alternate_style: true
-  - admonition
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 plugins:
   - include-markdown

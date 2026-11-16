@@ -39,7 +39,44 @@ options:
 <!-- speaker_note:
 Welcome everyone! Today I'm excited to show you Regenerator 2000 — an interactive 6502 disassembler built specifically for the Commodore 8-bit scene.
 If you've ever used Tom-Cat's original Regenerator on Windows, you know how great interactive disassembly feels. Regenerator 2000 takes that spirit and brings it natively to macOS, Linux, and Windows terminals with modern superpowers.
-I'll spend just 5 minutes on slides covering the core highlights, and then we'll jump straight into a 20-minute live reverse-engineering session.
+Before we start the live demo, I want to explain *why* I disassemble old games and how that shaped Regenerator 2000.
+-->
+
+---
+
+# Why Disassemble Old Games? Digital Archaeology
+
+Every 8-bit binary is a **64 KB time capsule** of human ingenuity, tight deadlines, and 1980s tooling:
+
+<!-- column_layout: [4, 5] -->
+
+<!-- column: 0 -->
+### 🏺 The Archaeological Spirit
+- **How Did They Build It?**
+  - Inspect raw bytes to see how developers designed classic games under 1 MHz & 64 KB limits
+- **Learn Era Best Practices**
+  - Study raster tricks, memory layouts, and cycle-craft directly from 1980s masters
+- **Uncover Hidden History**
+  - Find cut features, forgotten debug tools, and clues on how developers wrote the code
+
+<!-- column: 1 -->
+### 🔍 Field Notes from the Bytes
+- ***Commando* (C64, 1985)**
+  - Found an **unfinished 4th level** in RAM — *were they short on time?*
+- ***Rambo: First Blood Part II* (C64, 1985)**
+  - Uncovered **Martin Galway's test music routine** still inside the intro!
+- ***Burnin' Rubber* (C64, 1983)**
+  - Heavy **spaghetti code** (`JMP`-split routines, 3-byte ZP ops, `.T0400,07FF,2C00` in RAM) — *coded directly in a **monitor** instead of an assembler?*
+
+<!-- reset_layout -->
+
+<!-- speaker_note:
+Why do I spend nights disassembling 40-year-old Commodore games? To me, this work is digital archaeology.
+You look over the shoulders of 1980s developers and study their engines, hardware tricks, and era techniques. You also find details that nobody expected players to see.
+In Commando, I found parts of an unfinished 4th level in RAM. The team probably cut it when time ran short before the deadline.
+In Rambo, I found Martin Galway's hidden music test routine still inside the intro screen.
+In Burnin' Rubber, the code uses a tangled layout. Routines jump across RAM, NOPs hide debug JSRs, and 3-byte loads hit zero page. A literal '.T0400,07FF,2C00' command sits in RAM because the developer coded live in a machine-code monitor instead of an assembler!
+I built Regenerator 2000 to make this exploration fast and clear.
 -->
 
 ---
@@ -132,31 +169,58 @@ In Regenerator 2000, you highlight a split table, press '<', and it automaticall
 
 ---
 
-# 1. Synchronized Side-by-Side Views
+# 1. Synchronized Views: Sprites & Bitmaps
 
-Inspect code alongside live-decoded Commodore assets (`Alt+1` .. `Alt+5`, `Tab` to focus, `Enter` to sync):
+Inspect code alongside live-decoded graphics (`Alt+1` .. `Alt+5`, `Tab` to focus, `Enter` to sync):
 
 <!-- column_layout: [1, 1] -->
 
 <!-- column: 0 -->
 ![Sprites View](../regenerator2000_sprites_screenshot.png)
 
-- **Sprites (`Alt+3`)**: 24×21 hi-res & multicolor (`m`)
-- **Hex Dump (`Alt+2`)**: Value-colored bytes + live PETSCII & Screencode decoding (`m`)
-- **Blocks (`Alt+1`)**: Structural map of Code vs. Data
+- **Sprites (`Alt+3`)**: 24×21 hi-res & multicolor (`m`), 2- or 1-column layout
+- **Instant Sync**: Press `Enter` on any sprite to jump disassembly straight to its address
 
 <!-- column: 1 -->
 ![Bitmap View](../regenerator2000_bitmap_screenshot.png)
 
-- **Bitmap (`Alt+5`)**: Full 320×200 hi-res & 160×200 multicolor rendered in-terminal
-- **Charset (`Alt+4`)**: 8×8 single & multicolor fonts
+- **Bitmap (`Alt+5`)**: Full 320×200 hi-res & 160×200 multicolor (`m`) inside the terminal
+- **Screen RAM Overlay**: Cycle color RAM (`s`) or pair `+8000` bytes (`x`)
 
 <!-- reset_layout -->
 
 <!-- speaker_note:
-Reverse engineering a demo or game isn't just about instructions—it's about finding where the sprites, charsets, bitmaps, and scroll texts live in memory.
+Software archaeology isn't just about instructions—it's about spotting where the sprites, bitmaps, charsets, and data tables hide in memory.
 With Alt+1 through Alt+5, you open synchronized side-by-side views right next to your disassembly.
-When you spot a sprite or font in the right pane, press Enter and your disassembly cursor jumps straight to that address so you can see every piece of code that reads or modifies it.
+View sprites in multicolor mode and the full 320x200 or 160x200 bitmap inside the terminal. Spot an unused enemy sprite or title graphic, press Enter, and jump straight to its address.
+-->
+
+---
+
+# 1. Synchronized Views: Charset & Hex View
+
+Spot custom fonts, tile maps, strings, and data tables right next to your disassembly:
+
+<!-- column_layout: [1, 1] -->
+
+<!-- column: 0 -->
+![Charset View](../regenerator2000_charset_screenshot.png)
+
+- **Charset (`Alt+4`)**: 8×8 hi-res & multicolor (`m`) fonts and level tiles (`8`- or `4`-char grid)
+- **Blocks (`Alt+1`)**: Structural map of **Code**, **Data**, **Scopes**, and **Splitters**
+
+<!-- column: 1 -->
+![Hex View](../regenerator2000_hexdump_screenshot.png)
+
+- **Hex View (`Alt+2`)**: Value-colored bytes (`16`- or `8`-byte rows) highlight tables & padding
+- **Live Text Decoding**: Press `m` to cycle **PETSCII** and **Screencode** (shifted / unshifted)
+
+<!-- reset_layout -->
+
+<!-- speaker_note:
+The same synchronized workflow applies to character sets and raw memory.
+Alt+4 opens the Charset view. Find custom 8x8 fonts and level tile sets in single-color or multicolor mode.
+Alt+2 opens the Hex View. Color-coded bytes show lookup tables, zero-padding, and leftover monitor artifacts. Press 'm' to cycle live between PETSCII and Screencode text.
 -->
 
 ---
