@@ -36,29 +36,28 @@ Welcome everyone! Today I'm excited to show you Regenerator 2000 — a blazing-f
 <!-- column_layout: [1, 1] -->
 
 <!-- column: 0 -->
-### Heritage & Mission
+### Heritage & Goal
 - Inspired by Tom-Cat / Nostalgia's classic **Regenerator**
-- Native, cross-platform TUI for **macOS, Linux, and Windows**
-- Full **MOS 6502** instruction set + **undocumented opcodes** (`lax`, `sax`, `dcp`, `isc`, `slo`, `rla`...)
+- **Goal**: Turn raw binaries into **clean, documented, byte-exact source** — fast & non-destructively
+- Native, cross-platform TUI (**macOS, Linux, and Windows**)
 
 <!-- column: 1 -->
-### Commodore 8-Bit Ecosystem
+### 6502 & Commodore Support
+- **CPU**: Full **MOS 6502** + **undocumented opcodes** (`lax`, `sax`, `dcp`, `isc`, `slo`, `rla`...)
 - **Machines**: C64, C128, VIC-20, Plus/4, C16, PET (2.0/4.0), 1541/1571/1581
-- **Formats**: `.prg`, `.d64`/`.d71`/`.d81`, `.t64`, `.crt`, `.vsf` (VICE snapshots), `.dis65` (6502bench), `.raw`
+- **Formats**: `.prg`, `.d64`/`.d71`/`.d81`, `.t64`, `.crt`, `.vsf` (VICE), `.dis65` (6502bench), `.raw`
 
 <!-- reset_layout -->
 
 <!-- speaker_note:
-If you've ever used Tom-Cat's original Regenerator, you know how great interactive disassembly feels—but it was a Windows-only binary, and running it in Wine under Linux had some important bugs.
-That's why I built Regenerator 2000 as a native, cross-platform TUI for macOS, Linux, and Windows, supporting the full Commodore 8-bit family and modern workflows.
+Regenerator 2000 is inspired by Tom-Cat's classic Regenerator, with a clear goal: turn raw 8-bit binaries back into clean, documented, byte-exact source code—fast and non-destructively.
+The original Regenerator was Windows-only and had important bugs under Wine on Linux, so Regenerator 2000 runs natively as a terminal UI on macOS, Linux, and Windows across the full Commodore 8-bit family.
 Before we start the live demo, I want to share *why* I love disassembling old games.
 -->
 
 ---
 
 # Why Disassemble Old Games? Digital Archaeology
-
-Every 8-bit binary is a **64 KB time capsule** of human ingenuity, tight deadlines, and 1980s tooling:
 
 <!-- column_layout: [4, 5] -->
 
@@ -99,7 +98,7 @@ In Burnin' Rubber, the code uses a tangled layout. Routines jump across RAM, NOP
 <!-- column: 0 -->
 ### ⚡ Fast & Non-Destructive
 - **Instant Startup (`< 10 ms`)**
-  - Native binary for **macOS, Linux, and Windows** with minimal memory footprint
+  - Native binary with minimal memory footprint — opens 64 KB projects immediately
 - **Zero-Latency Navigation**
   - Smooth 60+ fps scrolling through full 64 KB programs
 - **Instant Flow & X-Ref Re-Analysis**
