@@ -33,7 +33,7 @@ The Settings dialog configures global application preferences. Select `File -> S
 
 #### Sync View Options
 
-These options synchronize the secondary view cursors with the main Disassembly View. If you enable an option, cursor movement in the Disassembly View updates the active secondary view to the same memory address. The options appear in keyboard shortcut order (++ctrl+1++ through ++ctrl+5++):
+Navigating inside **Hex Dump**, **Sprites**, **Charset**, or **Bitmap** always updates the **Disassembly View** cursor to the selected item's address. Enabling a **Sync &lt;X&gt; View** option also synchronizes that secondary view when moving the cursor in the **Disassembly View** or when opening the secondary view. The options appear in keyboard shortcut order (++ctrl+1++ through ++ctrl+5++):
 
 1.  **Sync Blocks View** (++ctrl+1++): Synchronizes the Blocks view.
 2.  **Sync Hex Dump View** (++ctrl+2++): Synchronizes the Hex Dump view.

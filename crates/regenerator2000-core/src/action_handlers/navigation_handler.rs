@@ -19,57 +19,47 @@ impl NavigationActionHandler {
     }
 }
 
-/// Synchronizes the active right-pane cursor with the current disassembly cursor address.
+/// Synchronizes the active right-pane cursor with the current disassembly cursor address
+/// when the corresponding `sync_*` option in `system_config` is enabled.
 fn sync_pane_cursor_to_disassembly(ctx: &mut ActionContext<'_>) {
+    use crate::navigation::AlignedGridRange;
+
     let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) else {
         return;
     };
+    if line.external_label_address.is_some() {
+        return;
+    }
     let addr = line.address;
+    let addr_usize = addr.0 as usize;
     let is_splitter = line.is_splitter();
     match ctx.view.active_pane {
-        ActivePane::HexDump => {
-            let origin = ctx.state.origin.0 as usize;
-            let addr_val = addr.0 as usize;
-            if addr_val >= origin {
-                let offset = addr_val - origin;
-                if offset < ctx.state.raw_data.len() {
-                    let bytes_per_row =
-                        if ctx.view.right_pane == crate::view_state::RightPane::HexDump8 {
-                            8
-                        } else {
-                            16
-                        };
-                    let alignment_padding = origin % bytes_per_row;
-                    ctx.view.hex_cursor_index = (offset + alignment_padding) / bytes_per_row;
-                }
+        ActivePane::HexDump if ctx.state.system_config.sync_hex_dump => {
+            let grid = AlignedGridRange::hex_dump(ctx.state, ctx.view.right_pane);
+            if let Some(row) = grid.index_for_addr(addr_usize) {
+                ctx.view.hex_cursor_index = row;
+                ctx.view.hex_col_cursor = (addr_usize - grid.aligned_origin) % grid.stride;
             }
         }
-        ActivePane::Sprites => {
-            let origin = ctx.state.origin.0;
-            let padding = (64 - (origin % 64)) % 64;
-            let first_aligned = origin.wrapping_add(padding);
-            if addr.0 >= first_aligned {
-                let offset = (addr.0 - first_aligned) as usize;
-                ctx.view.sprites_cursor_index = offset / 64;
+        ActivePane::Sprites if ctx.state.system_config.sync_sprites_view => {
+            let grid = AlignedGridRange::sprites(ctx.state);
+            if let Some(idx) = grid.index_for_addr(addr_usize) {
+                ctx.view.sprites_cursor_index = idx;
             }
         }
-        ActivePane::Charset => {
-            let origin = ctx.state.origin.0;
-            let aligned_start = (origin / 1024) * 1024;
-            if addr.0 >= aligned_start {
-                let offset = (addr.0 - aligned_start) as usize;
-                ctx.view.charset_cursor_index = offset / 8;
+        ActivePane::Charset if ctx.state.system_config.sync_charset_view => {
+            let grid = AlignedGridRange::charset(ctx.state);
+            if let Some(idx) = grid.index_for_addr(addr_usize) {
+                ctx.view.charset_cursor_index = idx;
             }
         }
-        ActivePane::Bitmap => {
-            let origin = ctx.state.origin.0 as usize;
-            let first_aligned = origin.div_ceil(8192) * 8192;
-            if (addr.0 as usize) >= first_aligned {
-                let offset = (addr.0 as usize) - first_aligned;
-                ctx.view.bitmap_cursor_index = offset / 8192;
+        ActivePane::Bitmap if ctx.state.system_config.sync_bitmap_view => {
+            let grid = AlignedGridRange::bitmap(ctx.state);
+            if let Some(idx) = grid.index_for_addr(addr_usize) {
+                ctx.view.bitmap_cursor_index = idx;
             }
         }
-        ActivePane::Blocks => {
+        ActivePane::Blocks if ctx.state.system_config.sync_blocks_view => {
             if let Some(pos) = ctx.state.get_block_index_for_address(addr, is_splitter) {
                 ctx.view.blocks_selected_index = Some(pos);
             }
@@ -90,13 +80,31 @@ fn toggle_two_column_pane(
     narrow_msg: &str,
     hidden_msg: &str,
 ) {
+    use crate::navigation::AlignedGridRange;
     use crate::view_state::RightPane;
     match ctx.view.right_pane {
         p if p == wide => {
+            // Preserve the exact byte address when cycling HexDump16 -> HexDump8 with sync disabled.
+            let old_byte_addr = (active_pane == ActivePane::HexDump
+                && !ctx.state.system_config.sync_hex_dump)
+                .then(|| {
+                    let old_grid = AlignedGridRange::hex_dump(ctx.state, p);
+                    old_grid.item_addr(ctx.view.hex_cursor_index)
+                        + ctx.view.hex_col_cursor.min(old_grid.stride - 1)
+                });
             ctx.view.right_pane = narrow;
             *last_pane(ctx.view) = narrow;
             ctx.view.active_pane = active_pane;
-            sync_pane_cursor_to_disassembly(ctx);
+            if let Some(byte_addr) = old_byte_addr {
+                let new_grid = AlignedGridRange::hex_dump(ctx.state, narrow);
+                if let Some(row) = new_grid.index_for_addr(byte_addr) {
+                    ctx.view.hex_cursor_index = row;
+                    ctx.view.hex_col_cursor =
+                        (byte_addr - new_grid.aligned_origin) % new_grid.stride;
+                }
+            } else {
+                sync_pane_cursor_to_disassembly(ctx);
+            }
             ctx.events
                 .push(CoreEvent::StatusMessage(narrow_msg.to_string()));
         }
@@ -173,33 +181,21 @@ fn handle_navigate_to_address(ctx: &mut ActionContext<'_>, target_addr: Addr) {
 /// opening the multi-target operand picker.
 #[must_use]
 fn resolve_non_disassembly_jump_target(ctx: &ActionContext<'_>) -> Option<Addr> {
+    use crate::navigation::AlignedGridRange;
+
     match ctx.view.active_pane {
         ActivePane::HexDump => {
-            let origin = ctx.state.origin.0 as usize;
-            let bytes_per_row = if ctx.view.right_pane == crate::view_state::RightPane::HexDump8 {
-                8
-            } else {
-                16
-            };
-            let alignment_padding = origin % bytes_per_row;
-            let aligned_origin = origin - alignment_padding;
-            let row_addr = (aligned_origin + ctx.view.hex_cursor_index * bytes_per_row).max(origin);
-            Some(Addr(row_addr as u16))
+            let grid = AlignedGridRange::hex_dump(ctx.state, ctx.view.right_pane);
+            grid.clamped_addr(
+                grid.item_addr(ctx.view.hex_cursor_index)
+                    + ctx.view.hex_col_cursor.min(grid.stride - 1),
+            )
         }
         ActivePane::Sprites => {
-            let origin = ctx.state.origin.0 as usize;
-            let padding = (64 - (origin % 64)) % 64;
-            Some(Addr(
-                (origin + padding + ctx.view.sprites_cursor_index * 64) as u16,
-            ))
+            AlignedGridRange::sprites(ctx.state).clamped_item_addr(ctx.view.sprites_cursor_index)
         }
         ActivePane::Charset => {
-            let origin = ctx.state.origin.0 as usize;
-            let base_alignment = 0x400;
-            let aligned_start_addr = (origin / base_alignment) * base_alignment;
-            Some(Addr(
-                (aligned_start_addr + ctx.view.charset_cursor_index * 8) as u16,
-            ))
+            AlignedGridRange::charset(ctx.state).clamped_item_addr(ctx.view.charset_cursor_index)
         }
         ActivePane::Blocks => {
             let blocks = ctx.state.get_blocks_view_items();
@@ -211,10 +207,7 @@ fn resolve_non_disassembly_jump_target(ctx: &ActionContext<'_>) -> Option<Addr> 
             })
         }
         ActivePane::Bitmap => {
-            let origin = ctx.state.origin.0 as usize;
-            let first_aligned_addr = origin.div_ceil(8192) * 8192;
-            let bitmap_addr = first_aligned_addr + (ctx.view.bitmap_cursor_index * 8192);
-            Some(Addr(bitmap_addr as u16))
+            AlignedGridRange::bitmap(ctx.state).clamped_item_addr(ctx.view.bitmap_cursor_index)
         }
         ActivePane::Disassembly | ActivePane::Debugger => None,
     }
@@ -2123,5 +2116,184 @@ mod tests {
         assert!(ctx.events.contains(&CoreEvent::StatusMessage(
             "Address $FFD2 out of range ($1000-$1007)".to_string()
         )));
+    }
+
+    #[test]
+    fn test_toggle_views_respect_sync_config_and_floor_alignment() {
+        use crate::state::BlockType;
+        use crate::view_state::RightPane;
+
+        let mut state = AppState::new();
+        state.origin = Addr(0x0801);
+        state.raw_data = vec![0xEA; 0x6000 - 0x0801];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
+        state.disassemble();
+
+        let handler = NavigationActionHandler;
+        let idx_0801 = state
+            .get_line_index_containing_address(Addr(0x0801))
+            .unwrap();
+        let idx_0815 = state
+            .get_line_index_containing_address(Addr(0x0815))
+            .unwrap();
+        let idx_0840 = state
+            .get_line_index_containing_address(Addr(0x0840))
+            .unwrap();
+        let idx_0900 = state
+            .get_line_index_containing_address(Addr(0x0900))
+            .unwrap();
+        let idx_2000 = state
+            .get_line_index_containing_address(Addr(0x2000))
+            .unwrap();
+
+        // 1. ToggleBitmapView respects sync_bitmap_view and uses floor alignment.
+        let mut view = CoreViewState::new();
+        view.bitmap_cursor_index = 2;
+        view.cursor_index = idx_2000;
+        state.system_config.sync_bitmap_view = false;
+        let mut events = Vec::new();
+        {
+            let mut ctx = ActionContext {
+                state: &mut state,
+                view: &mut view,
+                events: &mut events,
+            };
+            handler
+                .handle_action(&AppAction::ToggleBitmapView, &mut ctx)
+                .unwrap();
+        }
+        assert_eq!(view.right_pane, RightPane::Bitmap);
+        assert_eq!(view.bitmap_cursor_index, 2);
+
+        // Toggle off, enable sync_bitmap_view, and reopen at $2000 -> slot 1; at $0900 -> slot 0.
+        state.system_config.sync_bitmap_view = true;
+        {
+            let mut ctx = ActionContext {
+                state: &mut state,
+                view: &mut view,
+                events: &mut events,
+            };
+            handler
+                .handle_action(&AppAction::ToggleBitmapView, &mut ctx)
+                .unwrap();
+            assert_eq!(ctx.view.right_pane, RightPane::None);
+            handler
+                .handle_action(&AppAction::ToggleBitmapView, &mut ctx)
+                .unwrap();
+            assert_eq!(ctx.view.bitmap_cursor_index, 1);
+
+            handler
+                .handle_action(&AppAction::ToggleBitmapView, &mut ctx)
+                .unwrap();
+            ctx.view.cursor_index = idx_0900;
+            handler
+                .handle_action(&AppAction::ToggleBitmapView, &mut ctx)
+                .unwrap();
+            assert_eq!(ctx.view.bitmap_cursor_index, 0);
+        }
+
+        // 2. ToggleSpritesView respects sync_sprites_view and uses floor alignment ($0800 base).
+        view.right_pane = RightPane::None;
+        view.sprites_cursor_index = 5;
+        view.cursor_index = idx_0840;
+        state.system_config.sync_sprites_view = false;
+        {
+            let mut ctx = ActionContext {
+                state: &mut state,
+                view: &mut view,
+                events: &mut events,
+            };
+            handler
+                .handle_action(&AppAction::ToggleSpritesView, &mut ctx)
+                .unwrap();
+            assert_eq!(ctx.view.sprites_cursor_index, 5);
+        }
+        view.right_pane = RightPane::None;
+        state.system_config.sync_sprites_view = true;
+        {
+            let mut ctx = ActionContext {
+                state: &mut state,
+                view: &mut view,
+                events: &mut events,
+            };
+            ctx.view.cursor_index = idx_0801;
+            handler
+                .handle_action(&AppAction::ToggleSpritesView, &mut ctx)
+                .unwrap();
+            assert_eq!(ctx.view.sprites_cursor_index, 0);
+
+            ctx.view.right_pane = RightPane::None;
+            ctx.view.cursor_index = idx_0840;
+            handler
+                .handle_action(&AppAction::ToggleSpritesView, &mut ctx)
+                .unwrap();
+            assert_eq!(ctx.view.sprites_cursor_index, 1);
+        }
+
+        // 3. ToggleHexDump updates hex_col_cursor when synced, and preserves byte addr when unsynced.
+        state.system_config.sync_hex_dump = true;
+        view.right_pane = RightPane::HexDump16;
+        view.cursor_index = idx_0815; // $0815 -> in HexDump8: row 2 ($0810), col 5
+        {
+            let mut ctx = ActionContext {
+                state: &mut state,
+                view: &mut view,
+                events: &mut events,
+            };
+            handler
+                .handle_action(&AppAction::ToggleHexDump, &mut ctx)
+                .unwrap();
+            assert_eq!(ctx.view.right_pane, RightPane::HexDump8);
+            assert_eq!(ctx.view.hex_cursor_index, 2);
+            assert_eq!(ctx.view.hex_col_cursor, 5);
+        }
+
+        state.system_config.sync_hex_dump = false;
+        view.right_pane = RightPane::HexDump16;
+        view.active_pane = ActivePane::HexDump;
+        view.hex_cursor_index = 1; // $0810 + 11 = $081B
+        view.hex_col_cursor = 11;
+        view.cursor_index = idx_0801;
+        {
+            let mut ctx = ActionContext {
+                state: &mut state,
+                view: &mut view,
+                events: &mut events,
+            };
+            handler
+                .handle_action(&AppAction::ToggleHexDump, &mut ctx)
+                .unwrap();
+            assert_eq!(ctx.view.right_pane, RightPane::HexDump8);
+            assert_eq!(ctx.view.hex_cursor_index, 3); // $0818
+            assert_eq!(ctx.view.hex_col_cursor, 3); // $0818 + 3 = $081B
+        }
+
+        // 4. JumpToOperand from Bitmap and Sprites on unaligned origin $0801 uses floor alignment + clamping.
+        let jump_cases = [
+            (ActivePane::Bitmap, 0, Addr(0x0801)),
+            (ActivePane::Bitmap, 1, Addr(0x2000)),
+            (ActivePane::Sprites, 0, Addr(0x0801)),
+            (ActivePane::Sprites, 1, Addr(0x0840)),
+        ];
+        for (pane, idx, expected) in jump_cases {
+            let mut jump_view = CoreViewState {
+                active_pane: pane,
+                bitmap_cursor_index: idx,
+                sprites_cursor_index: idx,
+                ..CoreViewState::new()
+            };
+            let mut ctx = ActionContext {
+                state: &mut state,
+                view: &mut jump_view,
+                events: &mut events,
+            };
+            handler
+                .handle_action(&AppAction::JumpToOperand, &mut ctx)
+                .unwrap();
+            assert_eq!(
+                ctx.state.disassembly[ctx.view.cursor_index].address,
+                expected
+            );
+        }
     }
 }

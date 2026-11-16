@@ -14,16 +14,27 @@ use ratatui_image::{FilterType, Resize, StatefulImage, picker::ProtocolType};
 
 use crate::ui::navigable::{
     AlignedGridRange, Navigable, handle_nav_input, jump_to_disassembly_at_address,
-    right_pane_mouse_inner_area,
+    right_pane_mouse_inner_area, sync_grid_item_to_disassembly,
 };
 use crate::ui::widget::{Widget, WidgetResult};
+
+/// Immediately mirrors the bitmap cursor into the disassembly view's `cursor_index` and
+/// clears any active disassembly selection so both views stay consistent within the same frame.
+fn sync_bitmap_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
+    let grid = BitmapView::grid_range(app_state);
+    sync_grid_item_to_disassembly(
+        app_state,
+        ui_state,
+        &grid,
+        ui_state.bitmap_cursor_index,
+        None,
+    );
+}
 
 /// Right-pane widget rendering C64 High-Res (320×200) and Multicolor (160×200) bitmaps.
 pub struct BitmapView;
 
 impl BitmapView {
-    /// Bitmaps are aligned to 8,192-byte (`$2000`) boundaries with an 8,000-byte active payload.
-    const ALIGNMENT: usize = 8192;
     /// Active C64 bitmap data size in bytes (40×25 character cells × 8 bytes).
     const PAYLOAD_BYTES: usize = 8000;
     /// Scales `320×200` pixel art up to Retina pane dimensions with sharp pixel edges.
@@ -34,12 +45,7 @@ impl BitmapView {
 
     #[must_use]
     fn grid_range(app_state: &AppState) -> AlignedGridRange {
-        AlignedGridRange::new(
-            app_state,
-            Self::ALIGNMENT,
-            Self::ALIGNMENT,
-            Self::PAYLOAD_BYTES,
-        )
+        AlignedGridRange::bitmap(app_state)
     }
 }
 
@@ -141,10 +147,12 @@ impl Widget for BitmapView {
         match mouse.kind {
             MouseEventKind::ScrollDown => {
                 self.move_down(app_state, ui_state, 3);
+                sync_bitmap_to_disassembly(app_state, ui_state);
                 WidgetResult::Handled
             }
             MouseEventKind::ScrollUp => {
                 self.move_up(app_state, ui_state, 3);
+                sync_bitmap_to_disassembly(app_state, ui_state);
                 WidgetResult::Handled
             }
             _ => WidgetResult::Ignored,
@@ -341,6 +349,9 @@ impl Widget for BitmapView {
         ui_state: &mut UIState,
     ) -> WidgetResult {
         if let WidgetResult::Handled = handle_nav_input(self, key, app_state, ui_state) {
+            if !matches!(key.code, KeyCode::Char(c) if c.is_ascii_digit()) {
+                sync_bitmap_to_disassembly(app_state, ui_state);
+            }
             return WidgetResult::Handled;
         }
 
@@ -1132,5 +1143,107 @@ mod tests {
         assert!(area_contains_any_cell(hb_full_buf, unoccluded_right, |s| s
             == "▀"
             || s == "▄"));
+    }
+
+    #[test]
+    fn test_bitmap_view_navigation_and_scroll_sync_disassembly() {
+        let mut app_state = AppState::new();
+        app_state
+            .load_binary(Addr(0x0801), vec![0xEA; 0x5000])
+            .unwrap();
+
+        for sync_enabled in [false, true] {
+            app_state.system_config.sync_bitmap_view = sync_enabled;
+
+            let mut ui_state = UIState::new(Theme::default());
+            ui_state.active_pane = ActivePane::Bitmap;
+            ui_state.right_pane = RightPane::Bitmap;
+            ui_state.right_pane_area = Rect::new(0, 0, 80, 30);
+
+            let mut view = BitmapView;
+            let press =
+                |view: &mut BitmapView, code: KeyCode, app: &mut AppState, ui: &mut UIState| {
+                    let res = view.handle_input(KeyEvent::new(code, KeyModifiers::NONE), app, ui);
+                    assert_eq!(res, WidgetResult::Handled);
+                };
+            let disasm_addr =
+                |app: &AppState, ui: &UIState| -> Addr { app.disassembly[ui.cursor_index].address };
+
+            // Start at slot 0 ($0000 clamped to $0801); verify selection_start clears on nav.
+            ui_state.selection_start = Some(5);
+            press(&mut view, KeyCode::Down, &mut app_state, &mut ui_state);
+            assert_eq!(ui_state.bitmap_cursor_index, 1);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x2000));
+            assert_eq!(ui_state.selection_start, None);
+
+            press(&mut view, KeyCode::Char('j'), &mut app_state, &mut ui_state);
+            assert_eq!(ui_state.bitmap_cursor_index, 2);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x4000));
+
+            press(&mut view, KeyCode::Up, &mut app_state, &mut ui_state);
+            assert_eq!(ui_state.bitmap_cursor_index, 1);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x2000));
+
+            press(&mut view, KeyCode::Char('k'), &mut app_state, &mut ui_state);
+            assert_eq!(ui_state.bitmap_cursor_index, 0);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x0801));
+
+            press(&mut view, KeyCode::PageDown, &mut app_state, &mut ui_state);
+            assert_eq!(ui_state.bitmap_cursor_index, 2);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x4000));
+
+            press(&mut view, KeyCode::PageUp, &mut app_state, &mut ui_state);
+            assert_eq!(ui_state.bitmap_cursor_index, 0);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x0801));
+
+            press(&mut view, KeyCode::End, &mut app_state, &mut ui_state);
+            assert_eq!(ui_state.bitmap_cursor_index, 2);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x4000));
+
+            press(&mut view, KeyCode::Home, &mut app_state, &mut ui_state);
+            assert_eq!(ui_state.bitmap_cursor_index, 0);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x0801));
+
+            // Typing numeric prefix '2' must NOT move Disassembly before 'G' is pressed.
+            ui_state.cursor_index = app_state
+                .get_line_index_containing_address(Addr(0x4000))
+                .unwrap();
+            press(&mut view, KeyCode::Char('2'), &mut app_state, &mut ui_state);
+            assert_eq!(ui_state.input_buffer, "2");
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x4000));
+
+            // Pressing 'G' completes "2G" -> slot 1 ($2000) and syncs Disassembly.
+            press(&mut view, KeyCode::Char('G'), &mut app_state, &mut ui_state);
+            assert_eq!(ui_state.bitmap_cursor_index, 1);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x2000));
+
+            // Mouse wheel ScrollUp / ScrollDown syncs Disassembly as well.
+            ui_state.bitmap_cursor_index = 0;
+            let scroll_down = MouseEvent {
+                kind: MouseEventKind::ScrollDown,
+                column: 10,
+                row: 10,
+                modifiers: KeyModifiers::empty(),
+            };
+            assert_eq!(
+                view.handle_mouse(scroll_down, &mut app_state, &mut ui_state),
+                WidgetResult::Handled
+            );
+            assert_eq!(ui_state.bitmap_cursor_index, 2);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x4000));
+
+            let scroll_up = MouseEvent {
+                kind: MouseEventKind::ScrollUp,
+                column: 10,
+                row: 10,
+                modifiers: KeyModifiers::empty(),
+            };
+            assert_eq!(
+                view.handle_mouse(scroll_up, &mut app_state, &mut ui_state),
+                WidgetResult::Handled
+            );
+            assert_eq!(ui_state.bitmap_cursor_index, 0);
+            assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x0801));
+        }
     }
 }

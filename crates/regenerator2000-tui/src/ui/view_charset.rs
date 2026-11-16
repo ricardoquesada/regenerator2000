@@ -86,7 +86,6 @@ fn charset_grid_cols(ui_state: &UIState) -> usize {
 }
 
 impl CharsetView {
-    const BASE_ALIGNMENT: usize = 0x400;
     const CHAR_BYTES: usize = 8;
 
     /// Grid layout constants (must stay in sync with `render`).
@@ -99,12 +98,7 @@ impl CharsetView {
 
     #[must_use]
     fn grid_range(app_state: &AppState) -> AlignedGridRange {
-        AlignedGridRange::new(
-            app_state,
-            Self::BASE_ALIGNMENT,
-            Self::CHAR_BYTES,
-            Self::CHAR_BYTES,
-        )
+        AlignedGridRange::charset(app_state)
     }
 
     /// Map a mouse position (column, row) inside `inner_area` to a character index,
@@ -474,7 +468,9 @@ impl Widget for CharsetView {
         ui_state: &mut UIState,
     ) -> WidgetResult {
         if let WidgetResult::Handled = handle_nav_input(self, key, app_state, ui_state) {
-            sync_charset_to_disassembly(app_state, ui_state);
+            if !matches!(key.code, KeyCode::Char(c) if c.is_ascii_digit()) {
+                sync_charset_to_disassembly(app_state, ui_state);
+            }
             return WidgetResult::Handled;
         }
         if key.code == KeyCode::Char('m') && key.modifiers.is_empty() {

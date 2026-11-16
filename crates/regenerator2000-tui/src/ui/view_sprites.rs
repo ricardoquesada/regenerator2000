@@ -243,7 +243,7 @@ impl SpritesView {
 
     #[must_use]
     fn grid_range(app_state: &AppState) -> AlignedGridRange {
-        AlignedGridRange::uniform(app_state, Self::SPRITE_BYTES)
+        AlignedGridRange::sprites(app_state)
     }
 
     #[must_use]
@@ -412,7 +412,9 @@ impl Widget for SpritesView {
         ui_state: &mut UIState,
     ) -> WidgetResult {
         if let WidgetResult::Handled = handle_nav_input(self, key, app_state, ui_state) {
-            sync_sprites_to_disassembly(app_state, ui_state);
+            if !matches!(key.code, KeyCode::Char(c) if c.is_ascii_digit()) {
+                sync_sprites_to_disassembly(app_state, ui_state);
+            }
             return WidgetResult::Handled;
         }
         if key.code == KeyCode::Char('m') && key.modifiers.is_empty() {

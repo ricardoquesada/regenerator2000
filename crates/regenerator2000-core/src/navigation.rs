@@ -378,6 +378,157 @@ fn report_out_of_range(app_state: &AppState, view_state: &mut CoreViewState, tar
     }
 }
 
+/// Floor-aligned memory grid geometry for right-pane views (`HexDump`, `Sprites`, `Charset`,
+/// and `Bitmap`).
+///
+/// Each view aligns its first grid slot to the floor multiple of `alignment` at or below
+/// `app_state.origin`. It pads bytes before `origin` with zeros to preserve hardware boundaries
+/// (`$2000` bitmaps, `$0400` charsets, `$0040` sprites, and `$0008`/`$0010` hex rows).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlignedGridRange {
+    /// First loaded byte address (`app_state.origin`).
+    pub origin: usize,
+    /// Floor-aligned address of grid item `0`.
+    pub aligned_origin: usize,
+    /// Exclusive upper byte bound (`min(origin + raw_data.len(), 0x10000)`).
+    pub end_address: usize,
+    /// Address spacing between consecutive grid items.
+    pub stride: usize,
+    /// Active payload size in bytes for each grid item.
+    pub item_bytes: usize,
+}
+
+impl AlignedGridRange {
+    /// Computes the floor-aligned grid range for `app_state` with explicit `alignment`,
+    /// per-item address `stride`, and per-item payload size `item_bytes`.
+    #[must_use]
+    pub fn new(app_state: &AppState, alignment: usize, stride: usize, item_bytes: usize) -> Self {
+        let origin = app_state.origin.0 as usize;
+        let aligned_origin = (origin / alignment) * alignment;
+        let end_address = (origin + app_state.raw_data.len()).min(0x10000);
+        Self {
+            origin,
+            aligned_origin,
+            end_address,
+            stride,
+            item_bytes,
+        }
+    }
+
+    /// Computes a uniform floor-aligned grid range where `alignment == stride == item_bytes`.
+    #[must_use]
+    pub fn uniform(app_state: &AppState, stride: usize) -> Self {
+        Self::new(app_state, stride, stride, stride)
+    }
+
+    /// Computes the canonical hex dump grid range (`8` bytes per row for [`RightPane::HexDump8`],
+    /// `16` bytes per row otherwise).
+    #[must_use]
+    pub fn hex_dump(app_state: &AppState, right_pane: RightPane) -> Self {
+        let bytes_per_row = match right_pane {
+            RightPane::HexDump8 => 8,
+            _ => 16,
+        };
+        Self::uniform(app_state, bytes_per_row)
+    }
+
+    /// Computes the canonical sprites grid range (64-byte hardware sprite slots).
+    #[must_use]
+    pub fn sprites(app_state: &AppState) -> Self {
+        Self::uniform(app_state, 64)
+    }
+
+    /// Computes the canonical charset grid range (`$0400`-aligned 8-byte character tiles).
+    #[must_use]
+    pub fn charset(app_state: &AppState) -> Self {
+        Self::new(app_state, 0x400, 8, 8)
+    }
+
+    /// Computes the canonical bitmap grid range (`$2000`-aligned 8,000-byte bitmaps).
+    #[must_use]
+    pub fn bitmap(app_state: &AppState) -> Self {
+        Self::new(app_state, 8192, 8192, 8000)
+    }
+
+    /// Returns the total number of grid items spanning `[aligned_origin, end_address)`.
+    #[must_use]
+    pub fn item_count(&self) -> usize {
+        self.end_address
+            .saturating_sub(self.aligned_origin)
+            .div_ceil(self.stride)
+    }
+
+    /// Returns the starting 16-bit memory address of grid item `index`.
+    #[must_use]
+    pub fn item_addr(&self, index: usize) -> usize {
+        self.aligned_origin + index * self.stride
+    }
+
+    /// Returns the grid item index containing `addr`, or `None` when `addr < aligned_origin`
+    /// or the resulting index is outside `0..self.item_count()`.
+    #[must_use]
+    pub fn index_for_addr(&self, addr: usize) -> Option<usize> {
+        let idx = addr.checked_sub(self.aligned_origin)? / self.stride;
+        (idx < self.item_count()).then_some(idx)
+    }
+
+    /// Reads the byte at `addr` from `raw_data`, returning `0` when `addr` falls in floor-alignment
+    /// padding (`< origin`) or beyond `end_address`.
+    #[inline]
+    #[must_use]
+    pub fn byte_at(&self, raw_data: &[u8], addr: usize) -> u8 {
+        if addr >= self.origin && addr < self.end_address {
+            raw_data.get(addr - self.origin).copied().unwrap_or(0)
+        } else {
+            0
+        }
+    }
+
+    /// Clamps `raw_addr` to the loaded binary range `[origin, end_address - 1]`, returning `None`
+    /// when `raw_data` is empty.
+    #[must_use]
+    pub fn clamped_addr(&self, raw_addr: usize) -> Option<Addr> {
+        (self.end_address > self.origin)
+            .then(|| Addr(raw_addr.max(self.origin).min(self.end_address - 1) as u16))
+    }
+
+    /// Returns the clamped starting address of grid item `index` within `[origin, end_address - 1]`.
+    #[must_use]
+    pub fn clamped_item_addr(&self, index: usize) -> Option<Addr> {
+        self.clamped_addr(self.item_addr(index))
+    }
+
+    /// Converts an inclusive `[start_addr, end_addr]` address range into a clamped
+    /// `(start_offset, end_offset)` byte-offset pair within `raw_data`. Returns `None` when the
+    /// range lies outside `[origin, end_address)`.
+    #[must_use]
+    pub fn clamped_byte_offsets(
+        &self,
+        start_addr: usize,
+        end_addr: usize,
+    ) -> Option<(usize, usize)> {
+        if self.end_address <= self.origin
+            || end_addr < self.origin
+            || start_addr >= self.end_address
+        {
+            return None;
+        }
+        let clamped_start = start_addr.max(self.origin) - self.origin;
+        let clamped_end = end_addr.min(self.end_address - 1) - self.origin;
+        (clamped_start <= clamped_end).then_some((clamped_start, clamped_end))
+    }
+
+    /// Converts an inclusive `(first_item, last_item)` grid index range (in either order) into a
+    /// clamped `(start_offset, end_offset)` byte-offset pair within `raw_data`.
+    #[must_use]
+    pub fn item_range_byte_offsets(&self, a: usize, b: usize) -> Option<(usize, usize)> {
+        let (first, last) = if a <= b { (a, b) } else { (b, a) };
+        let start_addr = self.item_addr(first);
+        let end_addr = self.item_addr(last) + self.item_bytes.saturating_sub(1);
+        self.clamped_byte_offsets(start_addr, end_addr)
+    }
+}
+
 /// Builds a [`ProjectSaveContext`] from the current application state and view state.
 #[must_use]
 pub fn create_save_context(app_state: &AppState, view_state: &CoreViewState) -> ProjectSaveContext {
@@ -386,31 +537,26 @@ pub fn create_save_context(app_state: &AppState, view_state: &CoreViewState) -> 
         .get(view_state.cursor_index)
         .map(|l| l.external_label_address.unwrap_or(l.address));
 
-    let origin = app_state.origin.0 as usize;
     let has_data = !app_state.raw_data.is_empty();
 
     let hex_addr = has_data.then(|| {
-        let bytes_per_row = match view_state.right_pane {
-            RightPane::HexDump8 => 8usize,
-            _ => 16usize,
-        };
-        let aligned_origin = (origin / bytes_per_row) * bytes_per_row;
-        Addr((aligned_origin + view_state.hex_cursor_index * bytes_per_row) as u16)
+        let grid = AlignedGridRange::hex_dump(app_state, view_state.right_pane);
+        Addr(grid.item_addr(view_state.hex_cursor_index) as u16)
     });
 
     let sprites_addr = has_data.then(|| {
-        let aligned_origin = (origin / 64) * 64;
-        Addr((aligned_origin + view_state.sprites_cursor_index * 64) as u16)
+        let grid = AlignedGridRange::sprites(app_state);
+        Addr(grid.item_addr(view_state.sprites_cursor_index) as u16)
     });
 
     let charset_addr = has_data.then(|| {
-        let aligned_origin = (origin / 0x400) * 0x400;
-        Addr((aligned_origin + view_state.charset_cursor_index * 8) as u16)
+        let grid = AlignedGridRange::charset(app_state);
+        Addr(grid.item_addr(view_state.charset_cursor_index) as u16)
     });
 
     let bitmap_addr = has_data.then(|| {
-        let aligned_origin = (origin / 8192) * 8192;
-        Addr((aligned_origin + view_state.bitmap_cursor_index * 8192) as u16)
+        let grid = AlignedGridRange::bitmap(app_state);
+        Addr(grid.item_addr(view_state.bitmap_cursor_index) as u16)
     });
 
     ProjectSaveContext {

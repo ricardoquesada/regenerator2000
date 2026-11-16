@@ -1048,6 +1048,9 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     let Some(line) = app_state.disassembly.get(ui_state.cursor_index) else {
         return;
     };
+    if line.external_label_address.is_some() {
+        return;
+    }
     let target_addr = line.address;
 
     // Sync Blocks view and retain `items` for `BlocksView::render` in the same frame.
@@ -1069,13 +1072,11 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
         crate::ui_state::RightPane::HexDump16 | crate::ui_state::RightPane::HexDump8
     ) && app_state.system_config.sync_hex_dump
     {
-        let bytes_per_row: usize = match ui_state.right_pane {
-            crate::ui_state::RightPane::HexDump8 => 8,
-            _ => 16,
-        };
-        let grid = AlignedGridRange::uniform(app_state, bytes_per_row);
-        if let Some(row) = grid.index_for_addr(target_addr.0 as usize) {
+        let grid = AlignedGridRange::hex_dump(app_state, ui_state.right_pane);
+        let addr_usize = target_addr.0 as usize;
+        if let Some(row) = grid.index_for_addr(addr_usize) {
             ui_state.hex_cursor_index = row;
+            ui_state.hex_col_cursor = (addr_usize - grid.aligned_origin) % grid.stride;
         }
     }
 
@@ -1085,7 +1086,7 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
         crate::ui_state::RightPane::Charset8Col | crate::ui_state::RightPane::Charset4Col
     ) && app_state.system_config.sync_charset_view
     {
-        let grid = AlignedGridRange::new(app_state, 0x400, 8, 8);
+        let grid = AlignedGridRange::charset(app_state);
         if let Some(idx) = grid.index_for_addr(target_addr.0 as usize) {
             ui_state.charset_cursor_index = idx;
         }
@@ -1110,7 +1111,7 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
         crate::ui_state::RightPane::Sprites2Col | crate::ui_state::RightPane::Sprites1Col
     ) && app_state.system_config.sync_sprites_view
     {
-        let grid = AlignedGridRange::new(app_state, 64, 64, 63);
+        let grid = AlignedGridRange::sprites(app_state);
         if let Some(idx) = grid.index_for_addr(target_addr.0 as usize) {
             ui_state.sprites_cursor_index = idx;
         }
@@ -1133,7 +1134,7 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.right_pane == crate::ui_state::RightPane::Bitmap
         && app_state.system_config.sync_bitmap_view
     {
-        let grid = AlignedGridRange::new(app_state, 8192, 8192, 8000);
+        let grid = AlignedGridRange::bitmap(app_state);
         if let Some(idx) = grid.index_for_addr(target_addr.0 as usize) {
             ui_state.bitmap_cursor_index = idx;
         }
@@ -1429,12 +1430,21 @@ mod tests {
     #[test]
     fn sync_views_before_render_mirrors_cursor_and_selection_across_panes() {
         use crate::ui_state::RightPane;
-        use regenerator2000_core::state::{Addr, BlockType};
+        use regenerator2000_core::state::{Addr, BlockType, Label, LabelKind, LabelType};
 
         let mut app_state = AppState::new();
         app_state.origin = Addr(0x2000);
         app_state.raw_data = vec![0xEA; 0x2040];
         app_state.block_types = vec![BlockType::Code; app_state.raw_data.len()];
+        app_state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::ExternalJump,
+            }],
+        );
+        app_state.settings.all_labels = true;
         app_state.system_config.sync_charset_view = true;
         app_state.system_config.sync_sprites_view = true;
         app_state.system_config.sync_bitmap_view = true;
@@ -1454,6 +1464,13 @@ mod tests {
         sync_views_before_render(&app_state, &mut ui_state);
         assert_eq!(ui_state.bitmap_cursor_index, 1);
 
+        // When sync_bitmap_view is false, Disassembly cursor movement leaves bitmap_cursor_index alone.
+        app_state.system_config.sync_bitmap_view = false;
+        ui_state.bitmap_cursor_index = 0;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.bitmap_cursor_index, 0);
+        app_state.system_config.sync_bitmap_view = true;
+
         let sel_start_idx = app_state
             .get_line_index_containing_address(Addr(0x2008))
             .expect("line at $2008");
@@ -1472,6 +1489,34 @@ mod tests {
         ui_state.selection_start = None;
         sync_views_before_render(&app_state, &mut ui_state);
         assert_eq!(ui_state.sprites_selection_start, None);
+
+        // External equate preamble lines must not overwrite right-pane cursors.
+        let ext_idx = app_state
+            .disassembly
+            .iter()
+            .position(|l| l.external_label_address == Some(Addr(0xD020)))
+            .expect("external label line at $D020");
+        ui_state.cursor_index = ext_idx;
+
+        ui_state.hex_cursor_index = 2;
+        ui_state.right_pane = RightPane::HexDump16;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.hex_cursor_index, 2);
+
+        ui_state.charset_cursor_index = 3;
+        ui_state.right_pane = RightPane::Charset8Col;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.charset_cursor_index, 3);
+
+        ui_state.sprites_cursor_index = 4;
+        ui_state.right_pane = RightPane::Sprites2Col;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_cursor_index, 4);
+
+        ui_state.bitmap_cursor_index = 1;
+        ui_state.right_pane = RightPane::Bitmap;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.bitmap_cursor_index, 1);
     }
 
     #[test]

@@ -347,35 +347,30 @@ impl UIState {
         }
 
         if !app_state.raw_data.is_empty() {
-            if let Some(hex_addr) = loaded_hex_cursor {
-                let bytes_per_row = match self.right_pane {
-                    RightPane::HexDump8 => 8,
-                    _ => 16,
-                };
-                if let Some(row) = AlignedGridRange::uniform(app_state, bytes_per_row)
+            if let Some(hex_addr) = loaded_hex_cursor
+                && let Some(row) = AlignedGridRange::hex_dump(app_state, self.right_pane)
                     .index_for_addr(hex_addr.0 as usize)
-                {
-                    self.hex_cursor_index = row;
-                }
+            {
+                self.hex_cursor_index = row;
             }
 
             if let Some(sprites_addr) = loaded_sprites_cursor
                 && let Some(idx) =
-                    AlignedGridRange::uniform(app_state, 64).index_for_addr(sprites_addr.0 as usize)
+                    AlignedGridRange::sprites(app_state).index_for_addr(sprites_addr.0 as usize)
             {
                 self.sprites_cursor_index = idx;
             }
 
             if let Some(charset_addr) = loaded_charset_cursor
-                && let Some(idx) = AlignedGridRange::new(app_state, 0x400, 8, 8)
-                    .index_for_addr(charset_addr.0 as usize)
+                && let Some(idx) =
+                    AlignedGridRange::charset(app_state).index_for_addr(charset_addr.0 as usize)
             {
                 self.charset_cursor_index = idx;
             }
 
             if let Some(bitmap_addr) = loaded_data.bitmap_cursor_address
-                && let Some(idx) = AlignedGridRange::new(app_state, 8192, 8192, 8000)
-                    .index_for_addr(bitmap_addr.0 as usize)
+                && let Some(idx) =
+                    AlignedGridRange::bitmap(app_state).index_for_addr(bitmap_addr.0 as usize)
             {
                 self.bitmap_cursor_index = idx;
             }

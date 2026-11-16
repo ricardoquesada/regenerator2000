@@ -52,7 +52,7 @@ pub struct HexDumpView;
 impl HexDumpView {
     #[must_use]
     fn grid_range(app_state: &AppState, ui_state: &UIState) -> AlignedGridRange {
-        AlignedGridRange::uniform(app_state, hex_bytes_per_row(ui_state))
+        AlignedGridRange::hex_dump(app_state, ui_state.right_pane)
     }
 
     fn prepare_selection(ui_state: &mut UIState, extend: bool) {
@@ -410,7 +410,9 @@ impl Widget for HexDumpView {
         ui_state: &mut UIState,
     ) -> WidgetResult {
         if let WidgetResult::Handled = handle_nav_input(self, key, app_state, ui_state) {
-            sync_hex_to_disassembly(app_state, ui_state);
+            if !matches!(key.code, KeyCode::Char(c) if c.is_ascii_digit()) {
+                sync_hex_to_disassembly(app_state, ui_state);
+            }
             return WidgetResult::Handled;
         }
 
