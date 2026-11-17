@@ -1,54 +1,78 @@
 ---
 name: bump-version
-description: Automates the process of bumping the version and updating the changelog.
+description: >-
+  Bumps workspace crate versions and writes user-facing CHANGELOG.md release
+  notes in Simplified Technical English (ASD-STE100). Use when the user asks to
+  bump the version or prepare a release (for example, /bump-version v0.9.26).
+  Don't use for git commits or tags unless explicitly requested.
 ---
 
 # Bump Version Skill
 
-Use this skill when the user requests to bump the project version (e.g., "bump version to v0.8.0" or "prepare release x.y.z").
-
 ## 1. Verify the New Version
 
-Ensure the user provided a valid semantic version (e.g., `0.8.0`). If they didn't specify one, determine the correct next version based on recent changes (major/minor/patch) or ask the user for clarification.
+Check that the user provided a valid semantic version (strip any leading `v`,
+such as `v0.9.26` -> `0.9.26`). If the user omitted the version, ask for
+clarification first.
 
-## 2. Update Cargo.toml files
+## 2. Update Cargo.toml and Cargo.lock
 
-Update the `version` field in the following files:
+Update the `version` field in all three workspace manifests:
 
 - Root `Cargo.toml`:
   - Update `[package].version`.
-  - Update `regenerator2000-core` and `regenerator2000-tui` versions in the `[dependencies]` section.
+  - Update `regenerator2000-core` and `regenerator2000-tui` in `[dependencies]`.
 - `crates/regenerator2000-core/Cargo.toml`:
   - Update `[package].version`.
 - `crates/regenerator2000-tui/Cargo.toml`:
   - Update `[package].version`.
-  - Update `regenerator2000-core` version in the `[dependencies]` section.
+  - Update `regenerator2000-core` in `[dependencies]`.
+
+Run `cargo check --workspace` so `Cargo.lock` updates to the new version.
 
 ## 3. Review Recent Changes
 
-Run the following command to get a list of commits since the last tag:
+List all commits since the previous release tag:
 
 ```bash
-git log $(git describe --tags --abbrev=0)..HEAD --oneline
+git log $(git describe --tags --abbrev=0)..HEAD --format='=== %h %s ===%n%b'
 ```
 
-Review the commit messages to understand the scope of what features, fixes, and other changes are included in this release.
+Group the changes by user impact rather than one bullet per commit. Omit fixes
+for bugs introduced in the same unreleased cycle.
 
-## 4. Update CHANGELOG.md
+## 4. Update CHANGELOG.md (User-Facing "What" + ASD-STE100)
 
-In `CHANGELOG.md`:
+Insert `## [x.y.z] - YYYY-MM-DD` (with the current date) above the previous
+release header in `CHANGELOG.md`. Group entries under `### Features`,
+`### Fixes`, `### Performance`, or `### Documentation`.
 
-- Create a new header section for the new version directly below the project headers or the `[Unreleased]` section.
-- Use the format: `## [x.y.z] - YYYY-MM-DD` using the current date.
-- Categorize the changes based on the commit history into the appropriate sections, such as:
-  - `### Features`
-  - `### Fixes`
-  - `### Changes`
-  - `### Refactor / Internal`
-  - `### Documentation`
-  - etc.
-- Ensure the descriptions are concise and match the existing changelog formatting conventions.
+Apply the `asd-ste100` skill (when available) and enforce both rules below:
+
+1. **Focus on "What", Not "How"**: `CHANGELOG.md` serves users of Regenerator
+   2000, not maintainers who read `git log`. State user-visible capabilities,
+   supported formats or protocols, UI behavior, keyboard shortcuts, MCP tools,
+   and fixed symptoms. Omit internal Rust struct names, helper functions,
+   module paths, and implementation mechanics.
+2. **Use ASD-STE100 Simplified Technical English**:
+   - Start entries with active imperative verbs (`Support`, `Add`, `Sync`,
+     `Fix`, `Keep`).
+   - Keep sentences short (`<= 20` words for actions, `<= 25` words for
+     descriptions), with one main idea per sentence.
+   - Use simple tenses only. Avoid `-ing` participles, passive voice, phrasal
+     verbs (`fall back`, `spin up`), prose semicolons, and filler adjectives
+     (`comprehensive`, `seamless`, `robust`).
+
+### Example
+
+- **Avoid ("how" + internal symbols)**:
+  `Add startup probing in terminal_graphics with Iterm2CellProtocol Retina 2x
+  OSC 1337 PNGs and KittyDoubleBufferProtocol ID flips.`
+- **Prefer ("what" + ASD-STE100)**:
+  `Support Kitty, iTerm2, and Sixel terminal graphics so the About dialog and
+  Bitmap pane display high-resolution images.`
 
 ## 5. Verify and Notify User
 
-Summarize the updates made and notify the user that `Cargo.toml` and `CHANGELOG.md` have been successfully updated for the new version.
+Verify that no previous version strings remain in `Cargo.toml` or `Cargo.lock`.
+Summarize the updated files, and do not commit or tag unless asked.

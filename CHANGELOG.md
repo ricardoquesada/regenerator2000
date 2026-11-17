@@ -6,6 +6,32 @@ The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.26] - 2026-11-17
+
+### Features
+
+- **TUI**: Support Kitty, iTerm2, and Sixel terminal graphics so the About
+  dialog and Bitmap pane display high-resolution images. Terminals without pixel
+  graphics use half-block characters.
+- **TUI**: Sync the Disassembly cursor when you navigate or scroll in the Bitmap
+  pane.
+- **Unpacker**: Add `ZX02`, `Compress64k/Hermit`, `Fast Packer`, `6Pack/G*P`,
+  and `Spark Packer` (`26` packer families total). Expand `ByteBoozer`, `Dali`,
+  and `Time Cruncher` variant detection to match `unp64` v2.42.
+
+### Fixes
+
+- **Unpacker**: Detect custom depacker addresses in high RAM. Compute exact
+  start and end addresses from post-run pointers.
+- **Navigation & TUI**: Honor cursor-sync settings on pane jumps and ignore
+  `0`-`9` prefixes before `G`. Keep the exact byte address on Hex Dump 16-byte
+  to 8-byte switches when sync is off.
+
+### Documentation
+
+- **Docs**: Simplify the architecture, unpacker, and examples guides. Update the
+  views and settings docs and expand the Transmission64 2026 presentation.
+
 ## [0.9.25] - 2026-11-15
 
 ### Features
