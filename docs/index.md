@@ -6,7 +6,19 @@
 
 # The Modern 6502 Disassembler
 
-**Regenerator 2000** is an interactive disassembler for the Commodore 64 and other 6502-based systems. It supports two primary workflows:
+**Regenerator 2000** is an interactive disassembler for the Commodore 64 and other 6502-based systems.
+
+## Core Pillars
+
+Three core pillars define Regenerator 2000:
+
+- **⚡ Fast** — Starts immediately, navigates large binaries with zero lag, and updates control flow and cross-references in real time.
+- **⏪ Non-Destructive** — Tracks every edit in the undo history so you can experiment with code, data, and labels without risk.
+- **⌨️ Keyboard-First** — Navigate and edit with single-key shortcuts, arrow or Vim keys, and optional mouse support.
+
+## Workflows
+
+Regenerator 2000 supports two primary workflows:
 
 - **🕹️ Manual Analysis** — Use the keyboard-centric terminal interface to navigate code, define data regions, label subroutines, add comments, and refine your disassembly.
 - **🤖 Automated Analysis** — Use the built-in [MCP Server](mcp.md) and [skills](https://github.com/ricardoquesada/regenerator2000/tree/main/.agent/skills) so AI assistants classify blocks, trace routines, and name symbols automatically.
