@@ -96,8 +96,6 @@ Specialized agents (`.agent/agents/`) and skills (`.agent/skills/`) are availabl
 - `compare-unpacker`: Benchmark Regenerator 2000 unpacker against unp64 and generate comparison reports.
 - `add-mcp-tool`: Templates for adding new programmatic tools to the MCP server.
 - `bump-version`: Automate version bumping and changelog updates.
-- `coding`: General Rust coding assistance with project context.
-- `code-review`: Review changes for idiomatic Rust and project conventions.
 - `update-keyboard-shortcuts`: Sync keyboard shortcuts across docs and source files.
 - `update-mcp-docs`: Sync `docs/mcp.md` with the actual MCP tools.
 - `verify-mcp`: Run MCP integration test suite to verify server functionality.

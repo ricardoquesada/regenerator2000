@@ -15,3 +15,5 @@ site/
 .antigravitycli/
 
 __pycache__/
+.venv/
+venv/

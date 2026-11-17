@@ -1,157 +1,112 @@
 ---
 name: update-keyboard-shortcuts
-description: Audits and synchronizes keyboard shortcuts across docs/keyboard_shortcuts.md, docs/views.md, crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs, crates/regenerator2000-tui/src/ui/menu/menu_model.rs, and the view files (view_disassembly/mod.rs, view_hexdump.rs, view_charset.rs, view_bitmap.rs, view_blocks.rs, view_sprites.rs, view_debugger.rs).
+description: >-
+  Audits and synchronizes keyboard shortcuts across live TUI input handlers,
+  MenuState::new, ShortcutsDialog::get_shortcuts, docs/keyboard_shortcuts.md,
+  docs/views.md, and keyboard_shortcuts_tests.rs. Use when adding, changing, or
+  auditing TUI keyboard shortcuts. Don't use for non-shortcut TUI styling or
+  MCP tool schemas.
 ---
 
 # Update Keyboard Shortcuts Workflow
 
-Use this skill when the user asks to:
+Keep all four shortcut layers and the 3-pillar contract test synchronized
+whenever you add, modify, or audit a keyboard shortcut.
 
-- "check keyboard shortcuts are in sync"
-- "add a new keyboard shortcut"
-- "update the keyboard shortcuts documentation"
-- "verify shortcuts are consistent"
+## Synchronized Files
 
-## Files to Keep in Sync
+| Layer | File | Role |
+| :--- | :--- | :--- |
+| **Layer 1 (Live Input)** | `crates/regenerator2000-tui/src/events.rs` | Top-level routing (`process_key_event` -> dialog -> menu -> Vim search -> active pane -> global fallback) |
+| **Layer 1 (Global)** | `crates/regenerator2000-tui/src/events/input.rs` | Global fallback shortcuts (`handle_global_input`, `global_action_for_key`) across all 7 panes |
+| **Layer 1 (Shared Nav)** | `crates/regenerator2000-tui/src/ui/navigable.rs` | Shared movement, paging, `[number]G`, visual selection, and search (`handle_nav_input`) |
+| **Layer 1 (Views)** | `crates/regenerator2000-tui/src/ui/view_disassembly/mod.rs`, `view_hexdump.rs`, `view_sprites.rs`, `view_charset.rs`, `view_bitmap.rs`, `view_blocks.rs`, `view_debugger.rs` | Per-pane `Widget::handle_input()` bindings |
+| **Layer 2 (Menu)** | `crates/regenerator2000-tui/src/ui/menu/menu_model.rs` (dispatch in `menu_action.rs`) | Top menu items and shortcut hints (`MenuState::new()`) |
+| **Layer 3 (Help Dialog)** | `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs` | `const SHORTCUTS` returned by `ShortcutsDialog::get_shortcuts()` |
+| **Layer 4 (Docs)** | `docs/keyboard_shortcuts.md` and `docs/views.md` | User-facing MkDocs shortcut tables (`++key++` notation) |
+| **Contract Tests** | `crates/regenerator2000-tui/src/keyboard_shortcuts_tests.rs` | Automated 3-pillar verification across all 7 panes and all 4 layers |
 
-The following files all define or document keyboard shortcuts and must be consistent with each other:
+## 1. Run the Automated 3-Pillar Contract Suite First
 
-| File                                                            | Role                                                  |
-| --------------------------------------------------------------- | ----------------------------------------------------- |
-| `docs/keyboard_shortcuts.md`                                    | User-facing documentation (MkDocs table format)       |
-| `docs/views.md`                                                 | Per-view user documentation and shortcut tables       |
-| `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs` | In-app shortcuts dialog (`get_shortcuts()` fn)        |
-| `crates/regenerator2000-tui/src/ui/menu/menu_model.rs`          | Menu items with shortcut hints (`MenuState::new()`)   |
-| `crates/regenerator2000-tui/src/events/input.rs`                | Global keyboard shortcuts (`handle_global_input()`)   |
-| `crates/regenerator2000-tui/src/ui/navigable.rs`                | Shared navigation and grid selection (`Navigable`)    |
-| `crates/regenerator2000-tui/src/ui/view_disassembly/mod.rs`     | Disassembly view `handle_input()`                     |
-| `crates/regenerator2000-tui/src/ui/view_hexdump.rs`             | Hex dump view `handle_input()`                        |
-| `crates/regenerator2000-tui/src/ui/view_charset.rs`             | Charset view `handle_input()`                         |
-| `crates/regenerator2000-tui/src/ui/view_bitmap.rs`              | Bitmap view `handle_input()`                          |
-| `crates/regenerator2000-tui/src/ui/view_blocks.rs`              | Blocks view `handle_input()`                          |
-| `crates/regenerator2000-tui/src/ui/view_sprites.rs`             | Sprites view `handle_input()`                         |
-| `crates/regenerator2000-tui/src/ui/view_debugger.rs`            | Debugger view `handle_input()`                        |
+Run the shortcut test suite to detect drift across layers immediately:
 
-## 1. Read All Relevant Files
+```bash
+cargo test -p regenerator2000-tui keyboard_shortcuts_tests
+```
 
-Read all files listed above to get the current state of shortcuts in each location.
+- **Pillar 1 (`test_global_shortcuts_across_all_panes`)**: Verifies every
+  global shortcut across all 7 `ActivePane` variants so view-local keys never
+  hijack global bindings.
+- **Pillar 2 (`test_navigable_shortcuts_all_views`, `test_*_view_shortcuts`,
+  `test_menu_and_dialog_navigation`)**: Exercises view-local, `Navigable`,
+  selection, scope-nudging, and dialog keys through `process_key_event`.
+- **Pillar 3 (`test_shortcut_layers_synchronization`)**: Checks bidirectional
+  token parity across `MenuState::new()`, `ShortcutsDialog::get_shortcuts()`,
+  `docs/keyboard_shortcuts.md`, and `docs/views.md`.
 
-## 2. Audit for Discrepancies
+## 2. Update All Four Layers
 
-Compare shortcuts across the four "declaration" layers:
+### Layer 1: View `handle_input()` or `events/input.rs`
 
-### Layer 1: `handle_input()` in view files & `events/input.rs` (ground truth)
+- **Plain keys in views**: Guard with `key.modifiers.is_empty()` so `Ctrl+*` and
+  `Alt+*` return `WidgetResult::Ignored` and reach `handle_global_input`:
 
-These are the **actual** key bindings. What the code does is what the user experiences.
+  ```rust
+  KeyCode::Char('x') if key.modifiers.is_empty() => {
+      WidgetResult::Action(AppAction::SomeAction)
+  }
+  KeyCode::Char('X') if key.modifiers == KeyModifiers::SHIFT => {
+      WidgetResult::Action(AppAction::SomeShiftAction)
+  }
+  ```
 
-### Layer 2: `menu/menu_model.rs` shortcut hints
+- **Shifted punctuation (`?`, `<`, `>`, `|`, `;`, `:`, `+`)**: Accept
+  `key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT` because
+  some terminals include `SHIFT` on punctuation characters and others omit it.
+- **`Ctrl+Shift+*` and `Alt+Shift+*` in `events/input.rs`**: Always match both
+  cases (`KeyCode::Char('g' | 'G')`) because legacy ANSI terminals report
+  lowercase + `SHIFT` while Kitty keyboard enhancement reports uppercase +
+  `SHIFT`.
 
-These are displayed in the menu UI next to menu items. They should match what `handle_input()` actually handles.
+### Layer 2: `crates/regenerator2000-tui/src/ui/menu/menu_model.rs`
 
-### Layer 3: `dialog_keyboard_shortcut.rs` → `get_shortcuts()`
+Update `MenuState::new()` (and `MenuState::update_availability()` if context-sensitive):
 
-These are shown in the in-app help dialog. They should match the actual behavior.
+```rust
+MenuItem::new("Action Label", Some("Ctrl+B"), Some(AppAction::ToggleBookmark))
+```
+
+Wire any new `AppAction` variant in `crates/regenerator2000-tui/src/ui/menu/menu_action.rs`
+and `regenerator2000-core`.
+
+### Layer 3: `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs`
+
+Add or update the `(key, description)` tuple in `const SHORTCUTS`:
+
+- `("Section Header", "")` renders a bold underlined section header.
+- `("", "")` renders a blank spacer row.
+- `("Alt+1 (Ctrl+1)", "Toggle Blocks View")` lists primary and alternate chords
+  so Pillar 3 expands and checks both tokens.
 
 ### Layer 4: `docs/keyboard_shortcuts.md` and `docs/views.md`
 
-User-facing documentation. Should match all of the above.
+Use MkDocs Material `++key++` notation:
 
-### Common Discrepancies to Look For
+- Modifiers: `++ctrl+b++`, `++alt+2++`, `++shift+e++`, `++ctrl+shift+g++`,
+  `++ctrl+comma++`, `++alt+up++` / `++alt+down++`
+- Symbols: `++open-bracket++` (`[`), `++close-bracket++` (`]`),
+  `++less-than++` (`<`), `++greater-than++` (`>`), `++pipe++` (`|`),
+  `++semicolon++` (`;`), `++colon++` (`:`), `++comma++` (`,`),
+  `++period++` (`.`), `++plus++` (`+`), `++minus++` (`-`),
+  `++slash++` (`/`), `++question-mark++` (`?`)
 
-- A shortcut exists in the code but is **missing** from the docs or dialog.
-- A shortcut is documented but **not implemented** in any view's `handle_input()`.
-- The shortcut key string is **formatted differently** across files (e.g., `"Ctrl+B"` vs `"Ctrl+b"`).
-- A shortcut is listed under the **wrong context/view** in the docs.
-- A shortcut exists in `menu.rs` but the corresponding `MenuAction` is never triggered by any key.
-- The `ToggleBlocksView` menu shows `Alt+6` but the docs say `Alt+5`.
+## 3. Add Regression Coverage and Verify
 
-## 3. Report Discrepancies
+Add assertions for new bindings in
+`crates/regenerator2000-tui/src/keyboard_shortcuts_tests.rs`, then run:
 
-List all discrepancies found, grouped by type:
-
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test -p regenerator2000-tui keyboard_shortcuts_tests
 ```
-MISSING FROM DOCS:
-  - [key] [action] (found in: view_X.rs handle_input)
-
-MISSING FROM DIALOG:
-  - [key] [action] (found in: view_X.rs handle_input)
-
-WRONG KEY IN MENU:
-  - Menu shows "[key]" but handle_input uses "[key]" for [action]
-
-WRONG KEY IN DOCS:
-  - Docs say "[key]" but handle_input uses "[key]" for [action]
-
-UNDOCUMENTED SHORTCUTS:
-  - [key] in [file] has no corresponding entry in docs or dialog
-```
-
-## 4. Fix Discrepancies
-
-For each discrepancy, update the appropriate file(s):
-
-### Updating `docs/keyboard_shortcuts.md`
-
-The file uses MkDocs Material `++key++` notation. Format examples:
-
-- `++ctrl+b++` for Ctrl+B
-- `++alt+2++` for Alt+2
-- `++shift+v++` for Shift+V
-- `++open-bracket++` for `[`
-- `++close-bracket++` for `]`
-- `++less-than++` for `<`
-- `++greater-than++` for `>`
-- `++pipe++` for `|`
-- `++semicolon++` for `;`
-- `++colon++` for `:`
-- `++comma++` for `,`
-- `++period++` for `.`
-- `++question-mark++` for `?`
-
-### Updating `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs`
-
-Edit the `get_shortcuts()` function. Each entry is a `(&str, &str)` tuple:
-
-- First element: key string (human readable, e.g. `"Ctrl+b"`, `"Alt+2 (Ctrl+2)"`)
-- Second element: action description
-- Empty `("", "")` = blank separator line
-- `("Section Header", "")` = section header (rendered bold+underlined)
-
-### Updating `crates/regenerator2000-tui/src/ui/menu.rs`
-
-Edit `MenuState::new()`. Each `MenuItem::new()` call has:
-
-- `name`: menu item label
-- `shortcut`: `Some("Ctrl+B")` or `None`
-- `action`: the `MenuAction` variant
-
-### Updating view `handle_input()` functions
-
-Add or modify `KeyCode::Char(...)` match arms. Follow the existing patterns:
-
-```rust
-KeyCode::Char('x') if key.modifiers.is_empty() => {
-    WidgetResult::Action(MenuAction::SomeAction)
-}
-KeyCode::Char('X') if key.modifiers == KeyModifiers::SHIFT => {
-    WidgetResult::Action(MenuAction::SomeOtherAction)
-}
-KeyCode::Char('x') if key.modifiers == KeyModifiers::CONTROL => {
-    WidgetResult::Action(MenuAction::SomeCtrlAction)
-}
-```
-
-## 5. Verify
-
-After making changes, do a final cross-check:
-
-1. Confirm every shortcut in `handle_input()` appears in `get_shortcuts()` and `docs/keyboard_shortcuts.md`.
-2. Confirm every shortcut in the docs is actually implemented in some `handle_input()`.
-3. Confirm menu shortcut hints match the actual key bindings.
-
-## Known Quirks
-
-- **`ToggleBlocksView`**: The menu shows `Alt+6` but the docs say `Alt+5`. The actual key handling is in the global event handler (not in a view's `handle_input()`), so check `crates/regenerator2000-tui/src/ui/menu.rs` and the main event loop for this one.
-- **Shifted characters**: Some keys like `?`, `<`, `>`, `|`, `;`, `:` are handled with `key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT` because on some terminals/OSes, pressing Shift to get these characters sends a SHIFT modifier. This is intentional.
-- **Global shortcuts** (Ctrl+O, Ctrl+S, etc.) are handled in the main event loop, not in individual view `handle_input()` functions.
-- **Navigation shortcuts** (Up/Down/j/k, PageUp/PageDown, Home/End, G) are handled by the `Navigable` trait via `handle_nav_input()`, not directly in `handle_input()`.
