@@ -14,20 +14,20 @@ Regenerator 2000 runs the stub in a 6502 sandbox and loads the unpacked program 
 
 When you open a binary, Regenerator 2000 computes its Shannon entropy and checks built-in packer signatures. Compressed files usually have high entropy (`>= 7.4`, configurable under **Entropy Warning Threshold** in Settings).
 
-When entropy is high or a signature matches, **Import Context Setup** shows a warning notice and selects **`< Unpack >`**. Press **++enter++** to unpack right away.
+If entropy is high or a signature matches, **Import Context Setup** shows a warning and selects **`< Unpack >`**. Press **++enter++** to unpack immediately.
 
 ### 2. Unpack from the Menu
 
 Run the unpacker manually from the menu bar:
 
-1. Press **++alt+f++** (or select **File**) and choose **Unpack Binary...**.
+1. Press **++alt+f++** (or select **File**). Select **Unpack Binary...**.
 2. Press **++enter++** to run with auto-detection, or set options in **Unpack Binary Options**:
 
     | Option | Default | Purpose |
     | :--- | :--- | :--- |
     | **Entry Point (Hex)** | Auto (`SYS` line) | Sets the start address when no BASIC `SYS` stub exists (for example, `0810`). |
-    | **Return Address (Hex)** | System RAM start (`$0800` C64, `$1C00` C128, `$1000` VIC-20/Plus/4, `$0400` PET) | Sets the lowest address where unpacked code runs. |
-    | **Depacker Address (Hex)** | Auto | Sets the address of the decruncher loop (for example, `033C`). |
+    | **Return Address (Hex)** | System RAM start (`$0800` C64, `$1C00` C128, `$1000` VIC-20/Plus/4/C16, `$0400` PET) | Sets the lowest address where unpacked code runs. |
+    | **Depacker Address (Hex)** | Auto | Sets the address of the depacker loop (for example, `033C`). |
     | **Max Instructions** | `50000000` | Stops emulation after this instruction count. |
 
 3. Wait for the status bar progress counter to finish.
@@ -59,18 +59,18 @@ flowchart LR
     Locate["1. Locate Depacker<br/>Run SYS or Entry Point stub"] --> Decompress["2. Decompress in Sandbox<br/>Step 6502 CPU & track RAM writes"] --> Load["3. Load & Analyze<br/>Extract unpacked bytes & entry point"]
 ```
 
-- **Phase 1 — Locate Depacker**: Starts at the BASIC `SYS` target (or **Entry Point**) and runs until execution reaches the decruncher stub.
+- **Phase 1 — Locate Depacker**: Starts at the BASIC `SYS` target (or **Entry Point**) and runs until execution reaches the depacker stub.
 - **Phase 2 — Decompress**: Runs the stub, records every RAM write, and stops when execution jumps into unpacked code.
 - **Hardware & ROM Support**: Emulates C64 `$00`/`$01` bank switching (RAM under `$A000`, `$D000`, and `$E000`). It also traps KERNAL calls so key-wait loops never hang.
-- **Target Memory Map**: Uses each system's RAM and BASIC start addresses (`$0800`/`$0801` C64, `$1C00`/`$1C01` C128, `$1000`/`$1001` VIC-20 and Plus/4, `$0400`/`$0401` PET).
+- **Target Memory Map**: Uses each system's RAM and BASIC start addresses. Defaults are `$0800`/`$0801` (C64), `$1C00`/`$1C01` (C128), `$1000`/`$1001` (VIC-20, Plus/4, C16), and `$0400`/`$0401` (PET).
 
 ---
 
 ## Supported Packers
 
-Regenerator 2000 detects **21 built-in packer families**:
+Regenerator 2000 detects **26 built-in packer families**:
 
-`1001 CardCruncher` · `Action Replay` · `ALZ64` · `Antiram Packer` · `ByteBoozer` · `Commodore Cruncher System` · `Cruel Cruncher` · `Dali` · `Eagle Cruncher` · `ECA Compactor` · `Exomizer` · `Final Cartridge III` · `McCracken Compressor` · `PUCrunch` · `Super Cruncher` · `TBC Multicompactor` · `Time Cruncher` · `TinyCrunch` · `Triad Cruncher` · `TSCrunch` · `Turbo Cruncher`
+`1001 CardCruncher` · `6Pack/G*P` · `Action Replay` · `ALZ64` · `Antiram Packer` · `ByteBoozer` · `Commodore Cruncher System` · `Compress64k/Hermit` · `Cruel Cruncher` · `Dali` · `Eagle Cruncher` · `ECA Compactor` · `Exomizer` · `Fast Packer` · `Final Cartridge III` · `McCracken Compressor` · `PUCrunch` · `Spark Packer` · `Super Cruncher` · `TBC Multicompactor` · `Time Cruncher` · `TinyCrunch` · `Triad Cruncher` · `TSCrunch` · `Turbo Cruncher` · `ZX02`
 
 !!! tip "Unlisted Packers Work Too"
 
@@ -82,4 +82,4 @@ Regenerator 2000 detects **21 built-in packer families**:
 
 - **Timeout error after 50M instructions**: Increase **Max Instructions** (for example, `100000000`) for large files or slow packers.
 - **File has no BASIC `SYS` stub**: Enter the machine-code start address in **Entry Point (Hex)** (for example, `0810`).
-- **Multi-stage or custom loader stops early**: Set **Depacker Address (Hex)** to the main decruncher loop or **Return Address (Hex)** to the unpacked code boundary.
+- **Custom loader stops early**: Set **Depacker Address (Hex)** to the depacker loop. Or set **Return Address (Hex)** to the unpacked code start.

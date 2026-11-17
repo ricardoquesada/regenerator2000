@@ -1,16 +1,18 @@
 //! Unified declarative packer registry and detection entry points.
 //!
-//! [`REGISTRY`] is the single source of truth for the packer detection order.
-//! It matches the scanner sequence in `unp64` (`_Scanners.c`).
+//! [`REGISTRY`] is the single source of truth for the packer detection order, holding all
+//! 26 [`PackerSpec`] entries in strictly ascending [`PackerSpec::priority`] order matching
+//! `unp64` (`_Scanners.c`). [`detect`] and [`detect_spec`] return the first matching entry.
 
 use super::spec::{LoadedImage, PackerSpec, SignatureMatch};
 use super::{
-    action_replay, alz64, antiram, byteboozer, card_cruncher, ccs, cruel_cruncher, dali, eagle,
-    eca, exomizer, final_cartridge, mc_cracken, pucrunch, super_cruncher, tbc, time_cruncher,
-    tiny_crunch, triad, tscrunch, turbo_cruncher,
+    action_replay, alz64, antiram, byteboozer, card_cruncher, ccs, comp64k, cruel_cruncher, dali,
+    eagle, eca, exomizer, fast_packer, final_cartridge, mc_cracken, pucrunch, sixpack_gp,
+    spark_packer, super_cruncher, tbc, time_cruncher, tiny_crunch, triad, tscrunch, turbo_cruncher,
+    zx02,
 };
 
-/// Ordered registry of all 21 [`PackerSpec`] entries in ascending `priority` order.
+/// Ordered registry of all 26 [`PackerSpec`] entries in ascending `priority` order.
 pub static REGISTRY: &[&PackerSpec] = &[
     &eca::SPEC,
     &action_replay::SPEC,
@@ -24,9 +26,14 @@ pub static REGISTRY: &[&PackerSpec] = &[
     &alz64::SPEC,
     &tscrunch::SPEC,
     &dali::SPEC,
+    &zx02::SPEC,
     &tiny_crunch::SPEC,
     &super_cruncher::SPEC,
     &final_cartridge::SPEC,
+    &comp64k::SPEC,
+    &fast_packer::SPEC,
+    &sixpack_gp::SPEC,
+    &spark_packer::SPEC,
     &exomizer::SPEC,
     &ccs::SPEC,
     &triad::SPEC,
@@ -38,12 +45,36 @@ pub static REGISTRY: &[&PackerSpec] = &[
 /// Alias for [`REGISTRY`] that exposes all registered [`PackerSpec`] entries in priority order.
 pub static PACKERS: &[&PackerSpec] = REGISTRY;
 
-/// Returns `true` if `spec` produces `packer_name`.
+/// Returns `true` if `spec` produces `packer_name` either as `spec.name`
+/// or as a variant display name from [`PackerSpec::resolve`].
 #[must_use]
 pub fn matches_packer_name(spec: &PackerSpec, packer_name: &str) -> bool {
     spec.name == packer_name
+        || (spec.id == "time_cruncher"
+            && matches!(
+                packer_name,
+                "Time Cruncher 3.1" | "Time Cruncher 3.1 / SpeedPacker"
+            ))
         || (spec.id == "card_cruncher" && packer_name == "1001 CardCruncher v4")
+        || (spec.id == "byteboozer"
+            && matches!(
+                packer_name,
+                "ByteBoozer 1.0" | "ByteBoozer 1.1" | "LamerBoozer" | "RoyalBoozer"
+            ))
         || (spec.id == "tscrunch" && packer_name == "TSCrunch v1.3+-X2")
+        || (spec.id == "dali"
+            && matches!(
+                packer_name,
+                "Dali v0.3.3 / fast"
+                    | "Dali v0.3.3 / small"
+                    | "Dali v0.3.4 / sfx"
+                    | "Dali v0.3.5 / sfx"
+            ))
+        || (spec.id == "comp64k"
+            && matches!(
+                packer_name,
+                "Compress64k/Hermit v1.1" | "Compress64k/Hermit v1.2"
+            ))
         || (spec.id == "exomizer" && matches!(packer_name, "Exomizer v3.02+" | "Exomizer 2.x"))
         || (spec.id == "alz64" && packer_name == "ALZ64/Kabuto")
         || (spec.id == "antiram" && packer_name == "Antiram Packer v1.0")
@@ -434,7 +465,7 @@ mod tests {
     /// Verifies that every spec id is unique and priorities strictly increase across the registry.
     #[test]
     fn ids_are_unique_and_priorities_strictly_increase() {
-        assert_eq!(REGISTRY.len(), 21);
+        assert_eq!(REGISTRY.len(), 26);
         check_ids_unique_and_priorities_strictly_increase_specs(REGISTRY);
         check_ids_unique_and_priorities_strictly_increase_specs(SAMPLE_SPECS);
     }
@@ -654,10 +685,10 @@ mod tests {
         assert_eq!(detect(&prod_view), all_prod.into_iter().next());
     }
 
-    /// Verifies that `REGISTRY` preserves the expected 21-packer priority order.
+    /// Verifies that `REGISTRY` preserves the expected 26-packer priority order.
     #[test]
     fn registry_order_preserves_legacy_order() {
-        const EXPECTED_FAMILIES: [&str; 21] = [
+        const EXPECTED_FAMILIES: [&str; 26] = [
             "eca",
             "action_replay",
             "cruel_cruncher",
@@ -670,9 +701,14 @@ mod tests {
             "alz64",
             "tscrunch",
             "dali",
+            "zx02",
             "tiny_crunch",
             "super_cruncher",
             "final_cartridge",
+            "comp64k",
+            "fast_packer",
+            "sixpack_gp",
+            "spark_packer",
             "exomizer",
             "ccs",
             "triad",
@@ -3439,10 +3475,9 @@ mod tests {
         assert_eq!(bounds_c128.end_addr, 0xFFFF);
     }
 
-    /// `mc_cracken::SPEC` declares `end_addr: Some(AddrSource::PointerAfterRun { ptr_addr: 0x00AE, adjust: -1, guard: PointerGuard::McCrackenEndOfProgram })`,
-    /// and the two-step end pointer order runs the generic `+512` slack guard first in `engine::finish`
-    /// step 4 (`end_addr_ptr = Some(0x00AE)`), followed by `PointerGuard::McCrackenEndOfProgram`
-    /// (`raw > start_addr && raw < 0xFFFF => raw - 1`) in step 7 on C64.
+    /// `mc_cracken::SPEC` uses `PointerGuard::McCrackenEndOfProgram` on `$00AE` (`adjust: -1`).
+    /// `engine::finish` runs the `+512` slack guard in step 5 first, then runs
+    /// `McCrackenEndOfProgram` (`raw > start_addr && raw < 0xFFFF`) in step 7 on C64.
     #[test]
     fn mc_cracken_end_pointer_two_step_order() {
         // 1. Static detection in window `$0810..=$0840` (with default `$1100` and custom `JMP` at `p + 0x61`):
@@ -3494,25 +3529,25 @@ mod tests {
         let short_view = LoadedImage::for_c64(&mem[..p + 0x40], 0x0801, (p + 0x40) as u16);
         assert!(mc_cracken::SPEC.detect(&short_view).is_none());
 
-        // 2. Two-step end-pointer order (`engine::finish` step 4 generic `+512` slack guard -> step 7 `McCrackenEndOfProgram`):
-        //    Helper simulating `engine::finish` step 4 (`end_addr_ptr`) followed by step 7 (`McCrackenEndOfProgram`).
+        // 2. Two-step end-pointer order (`engine::finish` step 5 generic `+512` slack guard -> step 7 `McCrackenEndOfProgram`):
+        //    Helper simulating `engine::finish` step 5 (`end_addr_ptr`) followed by step 7 (`McCrackenEndOfProgram`).
         let run_two_step = |raw_ptr: u16, detected_end: u16, system: &TargetSystem| -> (u16, u16) {
             let mut run_mem = vec![0u8; 0x1_0000];
             run_mem[0x00AE..=0x00AF].copy_from_slice(&raw_ptr.to_le_bytes());
             let mut range = (0x0800_u16, detected_end);
 
-            // Step 4: generic `+512` slack guard via `end_addr_ptr` (`engine.rs`):
+            // Step 5: generic `+512` slack guard via `end_addr_ptr` (`engine.rs`):
             if let Some(ptr_addr) = info_default.end_addr_ptr {
-                let step4_src = AddrSource::PointerAfterRun {
+                let step5_src = AddrSource::PointerAfterRun {
                     ptr_addr,
                     adjust: -1,
                     guard: PointerGuard::NearDetectedEnd { slack: 512 },
                 };
-                if let Some(step4_end) = step4_src.resolve_post_run(&run_mem, range.0, range.1) {
-                    range.1 = step4_end;
+                if let Some(step5_end) = step5_src.resolve_post_run(&run_mem, range.0, range.1) {
+                    range.1 = step5_end;
                 }
             }
-            let after_step4 = range.1;
+            let after_step5 = range.1;
 
             // Step 7: `PointerGuard::McCrackenEndOfProgram` on C64 (`engine.rs`):
             if system.is_c64()
@@ -3526,27 +3561,27 @@ mod tests {
             {
                 range.1 = step7_end;
             }
-            (after_step4, range.1)
+            (after_step5, range.1)
         };
 
         // Case A (`raw_ptr = $A000`, `detected_end = $9000`):
-        // - Step 4 (`NearDetectedEnd { slack: 512 }`) REJECTS `$9FFF` (`$9FFF > $9000 + 512`), leaving `$9000`.
+        // - Step 5 (`NearDetectedEnd { slack: 512 }`) REJECTS `$9FFF` (`$9FFF > $9000 + 512`), leaving `$9000`.
         // - Step 7 (`McCrackenEndOfProgram` on C64) ACCEPTS `$9FFF` (`$A000 > $0800 && $A000 < $FFFF`).
-        let (step4_a, step7_a) = run_two_step(0xA000, 0x9000, &TargetSystem::C64);
-        assert_eq!(step4_a, 0x9000);
+        let (step5_a, step7_a) = run_two_step(0xA000, 0x9000, &TargetSystem::C64);
+        assert_eq!(step5_a, 0x9000);
         assert_eq!(step7_a, 0x9FFF);
 
-        // On non-C64 (`TargetSystem::C128`), step 7 is a no-op so step 4's `$9000` stands:
-        let (step4_c128, step7_c128) = run_two_step(0xA000, 0x9000, &TargetSystem::C128);
-        assert_eq!(step4_c128, 0x9000);
+        // On non-C64 (`TargetSystem::C128`), step 7 is a no-op so step 5's `$9000` stands:
+        let (step5_c128, step7_c128) = run_two_step(0xA000, 0x9000, &TargetSystem::C128);
+        assert_eq!(step5_c128, 0x9000);
         assert_eq!(step7_c128, 0x9000);
 
         // Case B (`raw_ptr = $FFFF`, `detected_end = $FEFF`):
-        // - Step 4 (`NearDetectedEnd { slack: 512 }`) ACCEPTS `$FFFE` (`$FFFE <= $FEFF.saturating_add(512)`).
+        // - Step 5 (`NearDetectedEnd { slack: 512 }`) ACCEPTS `$FFFE` (`$FFFE <= $FEFF.saturating_add(512)`).
         // - Step 7 (`McCrackenEndOfProgram`: `raw < 0xFFFF` is false) does NOT overwrite `range.1`,
-        //   preserving step 4's `$FFFE` (proving step 4 ran before step 7).
-        let (step4_b, step7_b) = run_two_step(0xFFFF, 0xFEFF, &TargetSystem::C64);
-        assert_eq!(step4_b, 0xFFFE);
+        //   preserving step 5's `$FFFE` (proving step 5 ran before step 7).
+        let (step5_b, step7_b) = run_two_step(0xFFFF, 0xFEFF, &TargetSystem::C64);
+        assert_eq!(step5_b, 0xFFFE);
         assert_eq!(step7_b, 0xFFFE);
     }
 
@@ -4183,5 +4218,578 @@ mod tests {
         assert_eq!(result.dep_addr, 0xFF00);
         assert_eq!(result.instructions_executed, 679_862);
         assert_eq!(result.data.len(), 50_688);
+    }
+
+    // =======================================================================
+    // unp64 v2.42 Modern Scene Packers & Expanded Variants
+    // =======================================================================
+
+    /// Verifies that `find_entry_by_name` resolves every display name produced by the
+    /// newly added and expanded `unp64 v2.42` packer specifications.
+    #[test]
+    fn v242_variant_names_resolve_via_find_entry_by_name() {
+        let cases: &[(&str, &str)] = &[
+            ("ZX02", "zx02"),
+            ("Compress64k/Hermit v1.1", "comp64k"),
+            ("Compress64k/Hermit v1.2", "comp64k"),
+            ("Compress64k/Hermit v1.3 (RLE)", "comp64k"),
+            ("Fast Packer v1.0", "fast_packer"),
+            ("6Pack/G*P", "sixpack_gp"),
+            ("Spark Packer", "spark_packer"),
+            ("ByteBoozer", "byteboozer"),
+            ("ByteBoozer 1.0", "byteboozer"),
+            ("ByteBoozer 1.1", "byteboozer"),
+            ("LamerBoozer", "byteboozer"),
+            ("RoyalBoozer", "byteboozer"),
+            ("Dali", "dali"),
+            ("Dali v0.3.3 / fast", "dali"),
+            ("Dali v0.3.3 / small", "dali"),
+            ("Dali v0.3.4 / sfx", "dali"),
+            ("Dali v0.3.5 / sfx", "dali"),
+            ("Time Cruncher", "time_cruncher"),
+            ("Time Cruncher 3.1", "time_cruncher"),
+            ("Time Cruncher 3.1 / SpeedPacker", "time_cruncher"),
+        ];
+
+        for &(display_name, expected_id) in cases {
+            let spec = find_entry_by_name(display_name)
+                .unwrap_or_else(|| panic!("find_entry_by_name({display_name:?}) returned None"));
+            assert_eq!(spec.id, expected_id, "display_name={display_name:?}");
+        }
+    }
+
+    /// Verifies that `fast_packer` transitions Phase 1 -> Phase 2 at its high-RAM
+    /// `dep_addr >= $0800` (`$0900`), instead of hitting `Phase1Timeout`.
+    #[test]
+    fn fast_packer_transitions_to_high_ram_depacker_and_unpacks() {
+        let mut prg = fast_packer::build_fixture().to_vec();
+        let base = 0x0801_usize;
+
+        // `$080E..=$0811` holds the signature `[0xD8, 0xA5, 0x01, 0x85]` (`CLD; LDA $01; STA ...`).
+        // Complete `STA $00` at `$0812` and jump to the high-RAM depacker at `$0900`.
+        prg[0x0812 - base] = 0x00;
+        prg[0x0813 - base] = 0x4C;
+        prg[0x0814 - base] = 0x00;
+        prg[0x0815 - base] = 0x09;
+
+        // `$0856..=$0857` holds `dep_addr = $0900`, and `$0A88..=$0A89` holds `entry_point = $2000`.
+        // `$0A90..=$0A91` holds `len = $0010`, and `$0A92..=$0A93` holds `start = $2000`.
+        prg[0x0A90 - base..=0x0A91 - base].copy_from_slice(&0x0010_u16.to_le_bytes());
+        prg[0x0A92 - base..=0x0A93 - base].copy_from_slice(&0x2000_u16.to_le_bytes());
+
+        // High-RAM depacker routine at `$0900`: writes `0xEA` to `$2000`, then `JMP $2000`.
+        prg[0x0900 - base..=0x0907 - base]
+            .copy_from_slice(&[0xA9, 0xEA, 0x8D, 0x00, 0x20, 0x4C, 0x00, 0x20]);
+
+        let cfg = UnpackConfig {
+            max_instructions: 10_000,
+            ..UnpackConfig::default()
+        };
+        let res =
+            unpack(&prg, 0x0801, &cfg, None).expect("Fast Packer must not timeout in Phase 1");
+        assert_eq!(res.packer, Some("fast_packer"));
+        assert_eq!(res.packer_name.as_deref(), Some("Fast Packer v1.0"));
+        assert_eq!(res.dep_addr, 0x0900);
+        assert_eq!(res.start_addr, 0x2000);
+        assert_eq!(res.end_addr, 0x200F);
+        assert_eq!(res.entry_point, 0x2000);
+        assert_eq!(res.data[0], 0xEA);
+    }
+
+    /// Verifies that `sixpack_gp` and `spark_packer` unpack with `adjust: 0` inclusive end
+    /// pointers (`$00FA` and `$00FE`) and `SplitBytes` start addresses.
+    #[test]
+    fn sixpack_gp_and_spark_packer_honor_inclusive_end_ptr() {
+        let cfg = UnpackConfig {
+            max_instructions: 10_000,
+            ..UnpackConfig::default()
+        };
+
+        // 1. 6Pack/G*P: stub at `$080D` runs `JMP $0100` at `$0811..=$0813` to a tiny depacker
+        //    we write at `$0100` (`LDA #$EA; STA $2000; LDA #$10; STA $FA; LDA #$20; STA $FB; JMP $2000`).
+        let mut gp = sixpack_gp::build_fixture().to_vec();
+        let base = 0x0801_usize;
+        // Start address via SplitBytes ($084E/$0852) = $2000.
+        gp[0x084E - base] = 0x00;
+        gp[0x0852 - base] = 0x20;
+        // `$080D..=$0810` executes `LDX #$FF; TXS; SEI`, then `$0811..=$0813` jumps to `$0865`,
+        // which copies the 19-byte depacker stub (`$0880..=$0892`) to `$0100` and jumps there.
+        gp[0x0811 - base..=0x0813 - base].copy_from_slice(&[0x4C, 0x65, 0x08]);
+        gp[0x0865 - base..=0x0875 - base].copy_from_slice(&[
+            0xA2, 0x12, 0xBD, 0x80, 0x08, 0x9D, 0x00, 0x01, 0xCA, 0x10, 0xF7, 0x4C, 0x00, 0x01,
+            0x00, 0x00, 0x00,
+        ]);
+        // `$0100` payload: write `$2000..=$2010`, set `$FA/$FB = $2010`, then `JMP $2000`.
+        gp[0x0880 - base..=0x0891 - base].copy_from_slice(&[
+            0xA9, 0xEA, 0x8D, 0x00, 0x20, 0x8D, 0x10, 0x20, 0xA9, 0x10, 0x85, 0xFA, 0xA9, 0x20,
+            0x85, 0xFB, 0x4C, 0x00,
+        ]);
+        gp[0x0892 - base] = 0x20;
+        // `$08C3..=$08C4`: entry_point = `$2000`
+        gp[0x08C3 - base..=0x08C4 - base].copy_from_slice(&0x2000_u16.to_le_bytes());
+
+        let gp_res = unpack(&gp, 0x0801, &cfg, None).expect("6Pack/G*P unpacks");
+        assert_eq!(gp_res.packer, Some("sixpack_gp"));
+        assert_eq!(gp_res.start_addr, 0x2000);
+        // `adjust: 0` preserves exact `$2010` instead of truncating to `$200F`!
+        assert_eq!(gp_res.end_addr, 0x2010);
+        assert_eq!(gp_res.data.len(), 17);
+
+        // 2. Spark Packer: `SplitBytes` start = `$2000`, `$00FE` = `$2012` (`adjust: 0`).
+        let mut sp = spark_packer::build_fixture().to_vec();
+        sp.resize(0xC0, 0);
+        sp[0x0847 - base] = 0x00;
+        sp[0x0858 - base] = 0x20;
+        sp[0x0883 - base..=0x0884 - base].copy_from_slice(&0x2000_u16.to_le_bytes());
+        // `$080D..=$0811` runs `SEI; LDY #$4C; STY $02`, and `$0812..=$0814` (`4C 43 08`) jumps to `$0843`.
+        // `$0843` jumps to `$0890`, which copies the 19-byte `$0100` depacker stub from `$08A2..=$08B4`.
+        sp[0x0811 - base] = 0x02;
+        sp[0x0812 - base] = 0x4C;
+        sp[0x0843 - base..=0x0845 - base].copy_from_slice(&[0x4C, 0x90, 0x08]);
+        sp[0x0890 - base..=0x08A0 - base].copy_from_slice(&[
+            0xA2, 0x12, 0xBD, 0xA2, 0x08, 0x9D, 0x00, 0x01, 0xCA, 0x10, 0xF7, 0x4C, 0x00, 0x01,
+            0x00, 0x00, 0x00,
+        ]);
+        sp[0x08A2 - base..=0x08B4 - base].copy_from_slice(&[
+            0xA9, 0xEA, 0x8D, 0x00, 0x20, 0x8D, 0x12, 0x20, 0xA9, 0x12, 0x85, 0xFE, 0xA9, 0x20,
+            0x85, 0xFF, 0x4C, 0x00, 0x20,
+        ]);
+
+        let sp_res = unpack(&sp, 0x0801, &cfg, None).expect("Spark Packer unpacks");
+        assert_eq!(sp_res.packer, Some("spark_packer"));
+        assert_eq!(sp_res.start_addr, 0x2000);
+        assert_eq!(sp_res.end_addr, 0x2012);
+        assert_eq!(sp_res.data.len(), 19);
+    }
+
+    /// Verifies that `comp64k` v1.3 (RLE) resolves `end_addr = mem[$00FE] + X - 1` via
+    /// `AddrSource::PointerRegAfterRun`.
+    #[test]
+    fn comp64k_v13_unpacks_with_x_register_end_offset() {
+        let mut prg = comp64k::build_v13_fixture().to_vec();
+        prg.resize(0x0130, 0);
+        let base = 0x0801_usize;
+
+        // `start_addr` at `$0839` = `$2000`, `entry_point` at `$08FD` = `$2000`.
+        prg[0x0839 - base..=0x083A - base].copy_from_slice(&0x2000_u16.to_le_bytes());
+        prg[0x08FD - base..=0x08FE - base].copy_from_slice(&0x2000_u16.to_le_bytes());
+        // Signature uses `$080E..=$0811` (`A9 38 85 01`) and `$0817..=$081A` (`9D FB 00 CA`).
+        // Put `4C 00 09` (`JMP $0900`) at `$0812..=$0814` (leaving `$0817..=$081A` intact).
+        prg[0x0812 - base..=0x0814 - base].copy_from_slice(&[0x4C, 0x00, 0x09]);
+        // `$0900`: copy 21-byte routine (`$0910..=$0924`) to `$0100` and jump `$0100`.
+        prg[0x0900 - base..=0x090E - base].copy_from_slice(&[
+            0xA2, 0x14, 0xBD, 0x10, 0x09, 0x9D, 0x00, 0x01, 0xCA, 0x10, 0xF7, 0x4C, 0x00, 0x01,
+            0x00,
+        ]);
+        // `$0100`: write `$2000` and `$2006`, set `$FE/$FF = $2000`, `LDX #$07`, `JMP $2000`
+        // (`$2000 + 7 - 1 = $2006`).
+        prg[0x0910 - base..=0x0923 - base].copy_from_slice(&[
+            0xA9, 0xEA, 0x8D, 0x00, 0x20, 0x8D, 0x06, 0x20, 0xA9, 0x00, 0x85, 0xFE, 0xA9, 0x20,
+            0x85, 0xFF, 0xA2, 0x07, 0x4C, 0x00,
+        ]);
+        prg[0x0924 - base] = 0x20;
+
+        let cfg = UnpackConfig {
+            max_instructions: 10_000,
+            ..UnpackConfig::default()
+        };
+        let res = unpack(&prg, 0x0801, &cfg, None).expect("Compress64k v1.3 unpacks");
+        assert_eq!(res.packer, Some("comp64k"));
+        assert_eq!(
+            res.packer_name.as_deref(),
+            Some("Compress64k/Hermit v1.3 (RLE)")
+        );
+        assert_eq!(res.start_addr, 0x2000);
+        assert_eq!(res.end_addr, 0x2006);
+        assert_eq!(res.data.len(), 7);
+    }
+
+    /// Verifies `byteboozer` relaxed 1.0, 1.1C, 1.1E, LamerBoozer, and RoyalBoozer detection
+    /// (including `RoyalBoozer` post-run `start_addr` via `$00FA` + static `end_addr`).
+    #[test]
+    fn byteboozer_expanded_variants_and_royalboozer() {
+        // 1. Relaxed ByteBoozer 1.0 (e.g. hack with $080E..=$0811 altered to NOPs).
+        let mut bb10 = vec![0u8; 0x1_0000];
+        bb10[0x080D] = 0x78;
+        bb10[0x080E..=0x0811].fill(0xEA);
+        bb10[0x0812..=0x0815].copy_from_slice(&[0xA2, 0x3B, 0xBD, 0x1F]);
+        bb10[0x0815..=0x0818].copy_from_slice(&[0x1F, 0x08, 0x95, 0x06]);
+        bb10[0x0819..=0x081C].copy_from_slice(&[0xCA, 0x10, 0xF8, 0x4C]);
+        bb10[0x081D] = 0x08;
+        bb10[0x08D2..=0x08D5].copy_from_slice(&[0x20, 0xDD, 0x03, 0x30]);
+        bb10[0x08DD..=0x08DE].copy_from_slice(&0x2000_u16.to_le_bytes());
+        bb10[0x091C..=0x091D].copy_from_slice(&0x0801_u16.to_le_bytes());
+        let bb10_view = LoadedImage::for_c64(&bb10, 0x0801, 0x0A00);
+        let bb10_info =
+            PackerInfo::resolve(&bb10_view, &byteboozer::SPEC.detect(&bb10_view).unwrap());
+        assert_eq!(bb10_info.name, "ByteBoozer 1.0");
+        assert_eq!(bb10_info.dep_addr, Some(0x0008));
+        assert_eq!(bb10_info.start_addr, Some(0x0801));
+        assert_eq!(bb10_info.entry_point, Some(0x2000));
+        assert_eq!(bb10_info.end_addr_ptr, Some(0x0004));
+
+        // 2. RoyalBoozer end-to-end synthetic unpack with `$00FA` post-run `start_addr`.
+        let mut royal = vec![0u8; 0x0170];
+        let base = 0x0801_usize;
+        royal[0x080E - base..=0x0811 - base].copy_from_slice(&[0xA2, 0x28, 0xBD, 0x1A]);
+        royal[0x0817 - base..=0x081A - base].copy_from_slice(&[0xF8, 0x4C, 0x06, 0x00]);
+        royal[0x0841 - base..=0x0842 - base].copy_from_slice(&0x1800_u16.to_le_bytes());
+        royal[0x0860 - base..=0x0863 - base].copy_from_slice(&[0xC5, 0x02, 0x90, 0x08]);
+        royal[0x093C - base..=0x093F - base].copy_from_slice(&[0xD6, 0xFB, 0xCA, 0xCA]);
+        royal[0x0944 - base..=0x0945 - base].copy_from_slice(&0x1810_u16.to_le_bytes());
+        // `$080E..=$0812` executes `LDX #$28; LDA $001A,X`, then `$0813..=$0815` jumps to `$0948` (`4C 48 09`).
+        royal[0x0813 - base..=0x0815 - base].copy_from_slice(&[0x4C, 0x48, 0x09]);
+        // At `$0948`, install stub at `$0200` and jump `$0200` (`4C 00 02` sets `dep_addr = $0200`).
+        royal[0x0948 - base..=0x0955 - base].copy_from_slice(&[
+            0xA2, 0x12, 0xBD, 0x57, 0x09, 0x9D, 0x00, 0x02, 0xCA, 0x10, 0xF7, 0x4C, 0x00, 0x02,
+        ]);
+        royal[0x0957 - base..=0x0969 - base].copy_from_slice(&[
+            0xA9, 0xEA, 0x8D, 0x00, 0x18, 0x8D, 0x0F, 0x18, 0xA9, 0x00, 0x85, 0xFA, 0xA9, 0x18,
+            0x85, 0xFB, 0x4C, 0x00, 0x18,
+        ]);
+
+        let cfg = UnpackConfig {
+            max_instructions: 10_000,
+            ..UnpackConfig::default()
+        };
+        let royal_res = unpack(&royal, 0x0801, &cfg, None).expect("RoyalBoozer unpacks");
+        assert_eq!(royal_res.packer_name.as_deref(), Some("RoyalBoozer"));
+        assert_eq!(royal_res.dep_addr, 0x0200);
+        assert_eq!(royal_res.start_addr, 0x1800);
+        assert_eq!(royal_res.end_addr, 0x180F);
+        assert_eq!(royal_res.entry_point, 0x1800);
+        assert_eq!(
+            royal_res.report.start_source,
+            crate::unpacker::BoundSource::PointerAfterRun { addr: 0x00FA }
+        );
+
+        // RoyalBoozer `raw_end == 0 -> $FFFF`, `raw_end <= load_addr -> None`, and short buffer guard.
+        let mut royal_static = vec![0u8; 0x0946];
+        royal_static[0x080E..=0x0811].copy_from_slice(&[0xA2, 0x28, 0xBD, 0x1A]);
+        royal_static[0x0817..=0x081A].copy_from_slice(&[0xF8, 0x4C, 0x06, 0x00]);
+        royal_static[0x0841..=0x0842].copy_from_slice(&0x1800_u16.to_le_bytes());
+        royal_static[0x0860..=0x0863].copy_from_slice(&[0xC5, 0x02, 0x90, 0x08]);
+        royal_static[0x093C..=0x093F].copy_from_slice(&[0xD6, 0xFB, 0xCA, 0xCA]);
+
+        royal_static[0x0944..=0x0945].copy_from_slice(&0x0000_u16.to_le_bytes());
+        let royal_zero_end = LoadedImage::for_c64(&royal_static, 0x0801, 0x0946);
+        assert_eq!(
+            PackerInfo::resolve(
+                &royal_zero_end,
+                &byteboozer::SPEC.detect(&royal_zero_end).unwrap()
+            )
+            .end_addr,
+            Some(0xFFFF)
+        );
+        royal_static[0x0944..=0x0945].copy_from_slice(&0x0801_u16.to_le_bytes());
+        let royal_low_end = LoadedImage::for_c64(&royal_static, 0x0801, 0x0946);
+        assert_eq!(
+            PackerInfo::resolve(
+                &royal_low_end,
+                &byteboozer::SPEC.detect(&royal_low_end).unwrap()
+            )
+            .end_addr,
+            None
+        );
+        assert!(
+            byteboozer::SPEC
+                .detect(&LoadedImage::for_c64(
+                    &royal_static[..0x0945],
+                    0x0801,
+                    0x0945
+                ))
+                .is_none()
+        );
+
+        // 3. ByteBoozer 1.1C, ByteBoozer 1.1E, and LamerBoozer variants.
+        let mut bb11c = vec![0u8; 0x1_0000];
+        bb11c[0x080D..=0x081C].copy_from_slice(&[
+            0x78, 0xA9, 0x34, 0x85, 0x01, 0xA2, 0x3D, 0xBD, 0x1F, 0x08, 0x95, 0x06, 0xCA, 0x10,
+            0xF8, 0x4C,
+        ]);
+        bb11c[0x081D] = 0x08;
+        bb11c[0x08D4..=0x08D7].copy_from_slice(&[0x20, 0xD1, 0x03, 0x30]);
+        bb11c[0x08DF..=0x08E0].copy_from_slice(&0x2100_u16.to_le_bytes());
+        bb11c[0x0912..=0x0913].copy_from_slice(&0x0900_u16.to_le_bytes());
+        let bb11c_view = LoadedImage::for_c64(&bb11c, 0x0801, 0x0A00);
+        let bb11c_info =
+            PackerInfo::resolve(&bb11c_view, &byteboozer::SPEC.detect(&bb11c_view).unwrap());
+        assert_eq!(bb11c_info.name, "ByteBoozer 1.1");
+        assert_eq!(bb11c_info.dep_addr, Some(0x0008));
+        assert_eq!(bb11c_info.start_addr, Some(0x0900));
+        assert_eq!(bb11c_info.entry_point, Some(0x2100));
+
+        let mut bb11e = vec![0u8; 0x1_0000];
+        bb11e[0x080D..=0x0810].copy_from_slice(&[0x4C, 0x3C, 0x08, 0xA5]);
+        bb11e[0x0844..=0x084B].copy_from_slice(&[0x78, 0xA9, 0x34, 0x85, 0x01, 0xA2, 0x3B, 0xBD]);
+        bb11e[0x0854] = 0x08;
+        bb11e[0x0909..=0x090C].copy_from_slice(&[0x20, 0xCE, 0x03, 0x30]);
+        bb11e[0x0911..=0x0912].copy_from_slice(&0x2200_u16.to_le_bytes());
+        bb11e[0x096A..=0x096B].copy_from_slice(&0x0950_u16.to_le_bytes());
+        let bb11e_view = LoadedImage::for_c64(&bb11e, 0x0801, 0x0A00);
+        let bb11e_match = byteboozer::SPEC.detect(&bb11e_view).unwrap();
+        let bb11e_info = PackerInfo::resolve(&bb11e_view, &bb11e_match);
+        assert_eq!(bb11e_info.name, "ByteBoozer 1.1");
+        assert_eq!(bb11e_info.start_addr, Some(0x0950));
+        assert_eq!(bb11e_info.entry_point, Some(0x2200));
+        assert_eq!(
+            bb11e_match.resolved.hints.forced_entry,
+            Some(AddrSource::Const(0x0810))
+        );
+
+        let mut lamer = vec![0u8; 0x1_0000];
+        lamer[0x0817..=0x0827].copy_from_slice(&[
+            0x78, 0xA9, 0x34, 0x85, 0x01, 0xA2, 0xC6, 0xBD, 0x3C, 0x08, 0x9D, 0xF9, 0x00, 0xCA,
+            0xD0, 0xF7, 0xBD,
+        ]);
+        lamer[0x08F7..=0x08FA].copy_from_slice(&[0xCA, 0x10, 0xF2, 0x60]);
+        lamer[0x083F..=0x0840].copy_from_slice(&0x1000_u16.to_le_bytes());
+        lamer[0x08C5..=0x08C6].copy_from_slice(&0x1050_u16.to_le_bytes());
+        let lamer_view = LoadedImage::for_c64(&lamer, 0x0801, 0x0A00);
+        let lamer_match = byteboozer::SPEC.detect(&lamer_view).unwrap();
+        let lamer_info = PackerInfo::resolve(&lamer_view, &lamer_match);
+        assert_eq!(lamer_info.name, "LamerBoozer");
+        assert_eq!(lamer_info.dep_addr, Some(0x0100));
+        assert_eq!(lamer_info.start_addr, Some(0x1000));
+        assert_eq!(lamer_info.entry_point, Some(0x1050));
+        assert_eq!(lamer_info.end_addr_ptr, Some(0x00FC));
+        assert_eq!(
+            lamer_match.resolved.hints.forced_entry,
+            Some(AddrSource::Const(0x0817))
+        );
+    }
+
+    /// Verifies `dali` 0.3.3–0.3.5 sysless/SFX variants and `time_cruncher` v3.1 ("TSS GROUP"
+    /// vs standard split `EndAdr` and SpeedPacker).
+    #[test]
+    fn dali_sfx_and_time_cruncher_v31_variants() {
+        // 1. Dali 0.3.5 SFX at `$0801` (sysless)
+        let mut d035 = vec![0u8; 0x1_0000];
+        let q = 0x0801_usize;
+        d035[q..q + 4].copy_from_slice(&[0x78, 0xA2, 0x0B, 0x9A]);
+        d035[q + 0x0C..q + 0x10].copy_from_slice(&[0x96, 0x00, 0x88, 0xD0]);
+        d035[q + 0x11..q + 0x15].copy_from_slice(&[0x4C, 0x03, 0x00, 0x34]);
+        d035[q + 0x2D] = 0x06;
+        d035[q + 0x44] = 0x72;
+        d035[q + 0x104] = 0x4C;
+        d035[q + 0x105..=q + 0x106].copy_from_slice(&0x1200_u16.to_le_bytes());
+        let d035_view = LoadedImage::for_c64(&d035, 0x0801, 0x0910);
+        let d035_match = dali::SPEC
+            .detect(&d035_view)
+            .expect("Dali 0.3.5 SFX matches");
+        assert_eq!(d035_match.spec_name, "Dali v0.3.5 / sfx");
+        assert_eq!(
+            d035_match.resolved.patches[0].addr,
+            PatchAddr::FromMatch(0xFE)
+        );
+        let d035_info = PackerInfo::resolve(&d035_view, &d035_match);
+        assert_eq!(d035_info.end_addr_ptr, Some(0x0072));
+        assert_eq!(d035_info.entry_point, Some(0x1200));
+
+        // 2. Dali 0.3.4 SFX at `$0804`
+        let mut d034 = vec![0u8; 0x1_0000];
+        let q4 = 0x0804_usize;
+        d034[q4..q4 + 4].copy_from_slice(&[0x78, 0xA0, 0xBE, 0xBE]);
+        d034[q4 + 6..q4 + 10].copy_from_slice(&[0x96, 0x00, 0x88, 0xD0]);
+        d034[q4 + 0x0B..q4 + 0x0F].copy_from_slice(&[0x4C, 0x03, 0x00, 0x34]);
+        d034[q4 + 0x24] = 0x06;
+        d034[q4 + 0x32] = 0x6A;
+        d034[q4 + 0xC9] = 0x4C;
+        d034[q4 + 0xCA..=q4 + 0xCB].copy_from_slice(&0x1400_u16.to_le_bytes());
+        let d034_view = LoadedImage::for_c64(&d034, 0x0801, 0x0900);
+        let d034_match = dali::SPEC
+            .detect(&d034_view)
+            .expect("Dali 0.3.4 SFX matches");
+        assert_eq!(d034_match.spec_name, "Dali v0.3.4 / sfx");
+        assert_eq!(
+            PackerInfo::resolve(&d034_view, &d034_match).end_addr_ptr,
+            Some(0x006A)
+        );
+
+        // 3. Time Cruncher v3.1 ("TSS GROUP" variant with LDA #$lo/$hi at $082E/$0834 vs standard $0833/$0837)
+        let mut tc = vec![0u8; 0x1_0000];
+        tc[0x0818..=0x0823].copy_from_slice(&[
+            0x78, 0xA9, 0x30, 0x85, 0x01, 0xA0, 0xC4, 0xB9, 0x3C, 0x08, 0x99, 0xF8,
+        ]);
+        tc[0x0838..=0x083C].copy_from_slice(&[0x85, 0x2E, 0x4C, 0x00, 0x01]);
+        tc[0x0920..=0x0925].copy_from_slice(&[0x85, 0x01, 0x58, 0x4C, 0x00, 0x30]);
+
+        // Standard offsets $0833/$0837 = $9000 -> inclusive end $8FFF
+        tc[0x0833] = 0x00;
+        tc[0x0837] = 0x90;
+        let tc_std_view = LoadedImage::for_c64(&tc, 0x0801, 0x0A00);
+        let tc_std_info = PackerInfo::resolve(
+            &tc_std_view,
+            &time_cruncher::SPEC.detect(&tc_std_view).unwrap(),
+        );
+        assert_eq!(tc_std_info.name, "Time Cruncher 3.1");
+        assert_eq!(tc_std_info.end_addr, Some(0x8FFF));
+        assert_eq!(tc_std_info.entry_point, Some(0x3000));
+
+        // TSS GROUP offsets: $082E == $A9, $0834 == $A9 -> reads $082F/$0835 = $A500 -> $A4FF, SpeedPacker flags
+        tc[0x082E] = 0xA9;
+        tc[0x082F] = 0x00;
+        tc[0x0834] = 0xA9;
+        tc[0x0835] = 0xA5;
+        tc[0x0896] = 0x19;
+        tc[0x091D] = 0x4C;
+        let tc_tss_view = LoadedImage::for_c64(&tc, 0x0801, 0x0A00);
+        let tc_tss_info = PackerInfo::resolve(
+            &tc_tss_view,
+            &time_cruncher::SPEC.detect(&tc_tss_view).unwrap(),
+        );
+        assert_eq!(tc_tss_info.name, "Time Cruncher 3.1 / SpeedPacker");
+        assert_eq!(tc_tss_info.end_addr, Some(0xA4FF));
+        assert_eq!(tc_tss_info.start_addr, None);
+        assert_eq!(
+            time_cruncher::SPEC
+                .detect(&tc_tss_view)
+                .unwrap()
+                .resolved
+                .hints
+                .forced_entry,
+            Some(AddrSource::Const(0x0818))
+        );
+
+        // Alternate `$0818` header (`0x8578_D020`, `$081A == $78`), `$0838` (`0x004C_AF85`),
+        // `raw_end == 0 -> $FFFF`, and `BasicStart(0)` fallback when `$091A..=$0930` has no jump:
+        let mut tc_alt = vec![0u8; 0x1_0000];
+        tc_alt[0x0818..=0x0823].copy_from_slice(&[
+            0x20, 0xD0, 0x78, 0x85, 0x01, 0xA0, 0xC4, 0xB9, 0x3C, 0x08, 0x99, 0xF8,
+        ]);
+        tc_alt[0x0838..=0x083C].copy_from_slice(&[0x85, 0xAF, 0x4C, 0x00, 0x01]);
+        let tc_alt_view = LoadedImage::for_c64(&tc_alt, 0x0801, 0x0A00);
+        let tc_alt_match = time_cruncher::SPEC.detect(&tc_alt_view).unwrap();
+        let tc_alt_info = PackerInfo::resolve(&tc_alt_view, &tc_alt_match);
+        assert_eq!(tc_alt_info.name, "Time Cruncher 3.1");
+        assert_eq!(tc_alt_info.start_addr, Some(0x0801));
+        assert_eq!(tc_alt_info.end_addr, Some(0xFFFF));
+        assert_eq!(tc_alt_info.entry_point, None);
+        assert_eq!(
+            tc_alt_match.resolved.hints.forced_entry,
+            Some(AddrSource::Const(0x081A))
+        );
+
+        // With a BASIC `SYS 2072` line (`$0801..=$080C`), `forced_entry` stays `None`:
+        tc_alt[0x0801..=0x080B].copy_from_slice(&[
+            0x0B, 0x08, 0x0A, 0x00, 0x9E, b'2', b'0', b'7', b'2', 0x00, 0x00,
+        ]);
+        let tc_sys_view = LoadedImage::for_c64(&tc_alt, 0x0801, 0x0A00);
+        assert_eq!(
+            time_cruncher::SPEC
+                .detect(&tc_sys_view)
+                .unwrap()
+                .resolved
+                .hints
+                .forced_entry,
+            None
+        );
+
+        // Invalid `raw_end <= load_addr` clears `end_addr`, and `SPEC.detect` rejects short buffers `<= $0935`:
+        tc_alt[0x0833] = 0x01;
+        tc_alt[0x0837] = 0x08;
+        let tc_low_end_view = LoadedImage::for_c64(&tc_alt, 0x0801, 0x0A00);
+        assert_eq!(
+            PackerInfo::resolve(
+                &tc_low_end_view,
+                &time_cruncher::SPEC.detect(&tc_low_end_view).unwrap()
+            )
+            .end_addr,
+            None
+        );
+        assert!(
+            time_cruncher::SPEC
+                .detect(&LoadedImage::for_c64(&tc_alt[..0x0935], 0x0801, 0x0935))
+                .is_none()
+        );
+
+        // 4. Dali v0.3.3 / fast (both sysless at `$080D` without `SYS` and relocated at `$0805`),
+        //    `Dali v0.3.3 / small`, `ScanFromLoad` offset bound, and short buffer guards.
+        let mut d033f_80d = vec![0u8; 0x1_0000];
+        let qf = 0x080D_usize;
+        d033f_80d[qf..qf + 8].copy_from_slice(&[0x78, 0xA2, 0x0B, 0x9A, 0xA0, 0xEC, 0x48, 0xB7]);
+        d033f_80d[qf + 0x11..qf + 0x15].copy_from_slice(&[0x4C, 0x03, 0x00, 0x34]);
+        d033f_80d[qf + 0x44] = 0x6B;
+        d033f_80d[qf + 0xFD] = 0x4C;
+        d033f_80d[qf + 0xFE..=qf + 0xFF].copy_from_slice(&0x1800_u16.to_le_bytes());
+        let d033f_80d_view = LoadedImage::for_c64(&d033f_80d, 0x0801, 0x0A00);
+        let d033f_80d_match = dali::SPEC.detect(&d033f_80d_view).unwrap();
+        assert_eq!(d033f_80d_match.spec_name, "Dali v0.3.3 / fast");
+        assert_eq!(
+            d033f_80d_match.resolved.hints.forced_entry,
+            Some(AddrSource::Const(0x080D))
+        );
+        assert_eq!(
+            d033f_80d_match.resolved.patches[0].addr,
+            PatchAddr::FromMatch(0xF7)
+        );
+        assert_eq!(
+            PackerInfo::resolve(&d033f_80d_view, &d033f_80d_match).end_addr_ptr,
+            Some(0x006B)
+        );
+
+        // Relocated sysless `v0.3.3 / fast` at `$0805` with `ptr_byte == 0` -> `end_addr_ptr == None`:
+        let mut d033f_reloc = vec![0u8; 0x1_0000];
+        let qr = 0x0805_usize;
+        d033f_reloc[qr..qr + 8].copy_from_slice(&[0x78, 0xA2, 0x0B, 0x9A, 0xA0, 0xEC, 0x48, 0xB7]);
+        d033f_reloc[qr + 0x11..qr + 0x15].copy_from_slice(&[0x4C, 0x03, 0x00, 0x34]);
+        d033f_reloc[qr + 0xFD] = 0x4C;
+        d033f_reloc[qr + 0xFE..=qr + 0xFF].copy_from_slice(&0x1900_u16.to_le_bytes());
+        let d033f_reloc_view = LoadedImage::for_c64(&d033f_reloc, 0x0801, 0x0A00);
+        let d033f_reloc_match = dali::SPEC.detect(&d033f_reloc_view).unwrap();
+        assert_eq!(d033f_reloc_match.spec_name, "Dali v0.3.3 / fast");
+        assert_eq!(d033f_reloc_match.anchor_addr, 0x0805);
+        assert_eq!(
+            PackerInfo::resolve(&d033f_reloc_view, &d033f_reloc_match).end_addr_ptr,
+            None
+        );
+        assert!(d033f_reloc_match.resolved.patches[0].apply(&mut d033f_reloc, 0x0805));
+        assert_eq!(d033f_reloc[0x0805 + 0xF7], 0x24);
+
+        // `Dali v0.3.3 / small` at `$0805` vs beyond `ScanFromLoad { max_offset: 0x0E }` (`$0810`):
+        let mut d033s = vec![0u8; 0x1_0000];
+        let qs = 0x0805_usize;
+        d033s[qs..qs + 4].copy_from_slice(&[0x78, 0xA0, 0xB7, 0xBE]);
+        d033s[qs + 6..qs + 10].copy_from_slice(&[0x96, 0x00, 0x88, 0xD0]);
+        d033s[qs + 0x0B..qs + 0x0F].copy_from_slice(&[0x4C, 0x03, 0x00, 0x34]);
+        d033s[qs + 0x24] = 0x06;
+        d033s[qs + 0x3A] = 0x63;
+        d033s[qs + 0xC2] = 0x4C;
+        d033s[qs + 0xC3..=qs + 0xC4].copy_from_slice(&0x1500_u16.to_le_bytes());
+        let d033s_view = LoadedImage::for_c64(&d033s, 0x0801, 0x0900);
+        let d033s_match = dali::SPEC.detect(&d033s_view).unwrap();
+        assert_eq!(d033s_match.spec_name, "Dali v0.3.3 / small");
+        assert_eq!(
+            PackerInfo::resolve(&d033s_view, &d033s_match).end_addr_ptr,
+            Some(0x0063)
+        );
+        assert_eq!(
+            PackerInfo::resolve(&d033s_view, &d033s_match).entry_point,
+            Some(0x1500)
+        );
+
+        // Stub at `$0810` (`$0801 + $0F`) exceeds `ScanFromLoad { max_offset: 0x0E }`:
+        let mut d033s_far = vec![0u8; 0x1_0000];
+        let qf_far = 0x0810_usize;
+        d033s_far[qf_far..qf_far + 4].copy_from_slice(&[0x78, 0xA0, 0xB7, 0xBE]);
+        d033s_far[qf_far + 6..qf_far + 10].copy_from_slice(&[0x96, 0x00, 0x88, 0xD0]);
+        d033s_far[qf_far + 0x0B..qf_far + 0x0F].copy_from_slice(&[0x4C, 0x03, 0x00, 0x34]);
+        d033s_far[qf_far + 0x24] = 0x06;
+        d033s_far[qf_far + 0xC2] = 0x4C;
+        assert!(
+            dali::SPEC
+                .detect(&LoadedImage::for_c64(&d033s_far, 0x0801, 0x0900))
+                .is_none()
+        );
+        // Short buffer (`<= $090C`) on standard `$080D` stub (with BASIC SYS header) rejects:
+        let mut d033_short = dali::SPEC.build_fixture_memory().0;
+        d033_short[0x0801..=0x080B].copy_from_slice(&[
+            0x0B, 0x08, 0x0A, 0x00, 0x9E, b'2', b'0', b'6', b'1', 0x00, 0x00,
+        ]);
+        assert!(
+            dali::SPEC
+                .detect(&LoadedImage::for_c64(&d033_short[..0x090C], 0x0801, 0x090C))
+                .is_none()
+        );
     }
 }

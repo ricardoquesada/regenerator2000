@@ -14,6 +14,8 @@
 //!   an optional `hooks` factory, and a self-test `fixture`.
 //! - [`PackerHooks`], [`StepFilter`], [`StepContext`], [`RefineContext`], and [`Bounds`] provide an
 //!   emulation-time hook interface that hides CPU and bus internals.
+//! - [`system_matches`] gates specs by [`TargetSystem`], and [`PackerSpec::detect`] requires
+//!   all `signatures` to match before invoking `resolve`.
 
 use std::fmt::Debug;
 use std::ops::RangeInclusive;
@@ -175,7 +177,7 @@ pub use crate::sig;
 /// Search location for a [`Signature`] in a [`LoadedImage`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Anchor {
-    /// Positive offset from [`System::default_basic_start`] (for example, `$0801 + offset` on C64).
+    /// Non-negative offset from [`System::default_basic_start`] (for example, `$0801 + offset` on C64).
     BasicStart {
         /// Unsigned byte offset added to `system.default_basic_start()`.
         offset: u16,
@@ -184,7 +186,8 @@ pub enum Anchor {
     Absolute(u16),
     /// Inclusive absolute address range searched in ascending order (for example, `0x0810..=0x0840`).
     Window(RangeInclusive<u16>),
-    /// Forward (ascending) scan from `image.load_addr` up to `load_addr + max_offset`.
+    /// Forward (ascending) scan across `load_addr..=load_addr + max_offset` (inclusive),
+    /// clamped by `image.effective_load_end() - pattern_len` and `$FFFF`.
     ScanFromLoad {
         /// Maximum offset past `load_addr` to test as a signature start position.
         max_offset: usize,
@@ -338,7 +341,8 @@ impl Signature {
 // Address sources, guards, hints, and patches
 // ===========================================================================
 
-/// Acceptance policy for a post-emulation pointer read ([`AddrSource::PointerAfterRun`]).
+/// Acceptance policy for a post-emulation pointer read ([`AddrSource::PointerAfterRun`]
+/// or [`AddrSource::PointerRegAfterRun`]).
 ///
 /// Named variants keep [`AddrSource`] and [`Hints`] `PartialEq + Eq` without comparing
 /// function pointers.
@@ -354,10 +358,13 @@ pub enum PointerGuard {
     },
     /// Requires `raw > start_addr`, `raw < 0xFFFF`, and `adjusted >= start_addr`.
     McCrackenEndOfProgram,
+    /// Requires `adjusted >= 0x0200 && adjusted <= detected_end` (above zero page and stack page).
+    ValidStart,
 }
 
 impl PointerGuard {
-    /// Returns `true` if `self` accepts `raw` and `adjusted` for `start_addr` and `detected_end`.
+    /// Returns `true` if `self` accepts `raw` (word read from memory plus any [`CpuReg`] offset)
+    /// and `adjusted` (`raw.wrapping_add_signed(adjust)`) for `start_addr` and `detected_end`.
     #[must_use]
     pub const fn accepts(
         self,
@@ -376,6 +383,31 @@ impl PointerGuard {
             Self::McCrackenEndOfProgram => {
                 raw > start_addr && raw < 0xFFFF && adjusted >= start_addr
             }
+            Self::ValidStart => adjusted >= 0x0200 && adjusted <= detected_end,
+        }
+    }
+}
+
+/// 6502 8-bit CPU data/index register used as a post-emulation pointer offset
+/// (corresponds to `unp64` `EA_USE_A`, `EA_USE_X`, and `EA_USE_Y`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CpuReg {
+    /// Accumulator (`A`).
+    A,
+    /// X index register (`X`).
+    X,
+    /// Y index register (`Y`).
+    Y,
+}
+
+impl CpuReg {
+    /// Reads this register's 8-bit value from `regs`.
+    #[must_use]
+    pub const fn read(self, regs: Registers) -> u8 {
+        match self {
+            Self::A => regs.a,
+            Self::X => regs.x,
+            Self::Y => regs.y,
         }
     }
 }
@@ -390,13 +422,22 @@ pub enum AddrSource {
     /// On C64 (`default_basic_start() == $0801`), `BasicStart(0)` resolves to `$0801`
     /// and `BasicStart(-1)` resolves to `$0800`. Offsets outside `0..=$FFFF` resolve to `None`.
     BasicStart(i16),
-    /// Little-endian 16-bit word read from `mem` at `anchor_addr + from_match`.
+    /// Little-endian 16-bit word read from `mem` at `anchor_addr + from_match`
+    /// (returns `None` on negative underflow or out-of-bounds read).
     OperandLe {
         /// Signed byte offset from the primary signature match address (`anchor_addr`).
         from_match: isize,
     },
-    /// Little-endian 16-bit word read from `mem` at a fixed absolute address.
+    /// Little-endian 16-bit word read from `mem` at a fixed absolute address (no `$FFFF` wrap).
     AbsoluteLe(u16),
+    /// 16-bit word formed from separate low and high bytes relative to `anchor_addr`
+    /// (for example, `LDA #<addr` followed by `LDA #>addr`).
+    SplitBytes {
+        /// Signed byte offset from `anchor_addr` to the low byte.
+        lo_from_match: isize,
+        /// Signed byte offset from `anchor_addr` to the high byte.
+        hi_from_match: isize,
+    },
     /// Little-endian 16-bit word read from `mem[ptr_addr]` and `mem[ptr_addr.wrapping_add(1)]`
     /// after emulation finishes, adjusted by `adjust` and checked against `guard`.
     PointerAfterRun {
@@ -407,10 +448,26 @@ pub enum AddrSource {
         /// Acceptance guard checked before overriding the bound.
         guard: PointerGuard,
     },
+    /// Little-endian 16-bit word read from `mem[ptr_addr]` and `mem[ptr_addr.wrapping_add(1)]`
+    /// after emulation finishes. Adds CPU register `reg`, applies `adjust`, and checks `guard`
+    /// (`unp64` `EA_USE_A` / `EA_USE_X` / `EA_USE_Y`).
+    ///
+    /// Sums above `$1_0000` return `None`. An exact sum of `$1_0000` does not wrap to `0`, so
+    /// `adjust: -1` yields `$FFFF` before [`PointerGuard`] validation.
+    PointerRegAfterRun {
+        /// Zero-page or RAM address of the low byte (high byte at `ptr_addr.wrapping_add(1)`).
+        ptr_addr: u16,
+        /// CPU register added (`u16::from(reg)`) to the raw pointer before `adjust`.
+        reg: CpuReg,
+        /// Signed adjustment added after the register offset (for example, `-1` for inclusive end).
+        adjust: i16,
+        /// Acceptance guard checked before overriding the bound.
+        guard: PointerGuard,
+    },
 }
 
 /// Reads a little-endian `u16` from `mem` at `ptr_addr` (low byte) and
-/// `ptr_addr.wrapping_add(1)` (high byte).
+/// `ptr_addr.wrapping_add(1)` (high byte), returning `None` if either byte is out of bounds.
 #[must_use]
 pub fn read_u16_le_wrapping(mem: &[u8], ptr_addr: u16) -> Option<u16> {
     let lo = *mem.get(usize::from(ptr_addr))?;
@@ -419,9 +476,68 @@ pub fn read_u16_le_wrapping(mem: &[u8], ptr_addr: u16) -> Option<u16> {
 }
 
 impl AddrSource {
+    /// Returns the zero-page or RAM pointer address when this source is a post-run pointer
+    /// ([`Self::PointerAfterRun`] or [`Self::PointerRegAfterRun`]).
+    #[must_use]
+    pub const fn pointer_addr(self) -> Option<u16> {
+        match self {
+            Self::PointerAfterRun { ptr_addr, .. } | Self::PointerRegAfterRun { ptr_addr, .. } => {
+                Some(ptr_addr)
+            }
+            Self::Const(_)
+            | Self::BasicStart(_)
+            | Self::OperandLe { .. }
+            | Self::AbsoluteLe(_)
+            | Self::SplitBytes { .. } => None,
+        }
+    }
+
+    /// Returns the [`PointerGuard`] policy when `self` is a post-run pointer.
+    #[must_use]
+    pub const fn pointer_guard(self) -> Option<PointerGuard> {
+        match self {
+            Self::PointerAfterRun { guard, .. } | Self::PointerRegAfterRun { guard, .. } => {
+                Some(guard)
+            }
+            Self::Const(_)
+            | Self::BasicStart(_)
+            | Self::OperandLe { .. }
+            | Self::AbsoluteLe(_)
+            | Self::SplitBytes { .. } => None,
+        }
+    }
+
+    /// Returns a copy of `self` with its [`PointerGuard`] replaced by `new_guard` when
+    /// `self` is a post-run pointer, or returns `self` unchanged otherwise.
+    #[must_use]
+    pub const fn with_guard(self, new_guard: PointerGuard) -> Self {
+        match self {
+            Self::PointerAfterRun {
+                ptr_addr, adjust, ..
+            } => Self::PointerAfterRun {
+                ptr_addr,
+                adjust,
+                guard: new_guard,
+            },
+            Self::PointerRegAfterRun {
+                ptr_addr,
+                reg,
+                adjust,
+                ..
+            } => Self::PointerRegAfterRun {
+                ptr_addr,
+                reg,
+                adjust,
+                guard: new_guard,
+            },
+            other => other,
+        }
+    }
+
     /// Resolves a detection-time (static) [`AddrSource`] against `image` and `anchor_addr`.
     ///
-    /// Returns `None` for [`Self::PointerAfterRun`] or if an offset is out of bounds.
+    /// Returns `None` for [`Self::PointerAfterRun`], [`Self::PointerRegAfterRun`], or
+    /// if an offset is out of bounds.
     #[must_use]
     pub fn resolve_static(self, image: &LoadedImage<'_>, anchor_addr: u16) -> Option<u16> {
         match self {
@@ -437,14 +553,35 @@ impl AddrSource {
                 image.read_u16_le(idx)
             }
             Self::AbsoluteLe(addr) => image.read_u16_le(usize::from(addr)),
-            Self::PointerAfterRun { .. } => None,
+            Self::SplitBytes {
+                lo_from_match,
+                hi_from_match,
+            } => {
+                let base = isize::try_from(anchor_addr).ok()?;
+                let lo_idx = usize::try_from(base.checked_add(lo_from_match)?).ok()?;
+                let hi_idx = usize::try_from(base.checked_add(hi_from_match)?).ok()?;
+                let lo = image.read_u8(lo_idx)?;
+                let hi = image.read_u8(hi_idx)?;
+                Some(u16::from_le_bytes([lo, hi]))
+            }
+            Self::PointerAfterRun { .. } | Self::PointerRegAfterRun { .. } => None,
         }
     }
 
-    /// Resolves a post-emulation (runtime) [`AddrSource`] from final `mem` and
-    /// the current `(start_addr, detected_end)` bounds.
+    /// Resolves a post-emulation (runtime) [`AddrSource`] from final `mem`,
+    /// the current `(start_addr, detected_end)` bounds, and exit CPU `regs`.
+    ///
+    /// Returns `Some(addr)` unconditionally for [`Self::Const`] and `None` for static-only
+    /// variants. For [`Self::PointerRegAfterRun`], it rejects sums above `$1_0000` and keeps
+    /// an exact `$1_0000` sum unwrapped so `adjust: -1` resolves `$FFFF` before guard evaluation.
     #[must_use]
-    pub fn resolve_post_run(self, mem: &[u8], start_addr: u16, detected_end: u16) -> Option<u16> {
+    pub fn resolve_post_run_with_regs(
+        self,
+        mem: &[u8],
+        start_addr: u16,
+        detected_end: u16,
+        regs: Registers,
+    ) -> Option<u16> {
         match self {
             Self::Const(addr) => Some(addr),
             Self::PointerAfterRun {
@@ -458,15 +595,56 @@ impl AddrSource {
                     .accepts(raw, adjusted, start_addr, detected_end)
                     .then_some(adjusted)
             }
-            Self::BasicStart(_) | Self::OperandLe { .. } | Self::AbsoluteLe(_) => None,
+            Self::PointerRegAfterRun {
+                ptr_addr,
+                reg,
+                adjust,
+                guard,
+            } => {
+                let raw_u32 =
+                    u32::from(read_u16_le_wrapping(mem, ptr_addr)?) + u32::from(reg.read(regs));
+                if raw_u32 > 0x1_0000 {
+                    return None;
+                }
+                if let Ok(raw) = u16::try_from(raw_u32) {
+                    let adjusted = raw.wrapping_add_signed(adjust);
+                    return guard
+                        .accepts(raw, adjusted, start_addr, detected_end)
+                        .then_some(adjusted);
+                }
+                // `raw_u32 == 0x1_0000` (e.g., `$FFF0 + $10` ending at `$FFFF` with `adjust = -1`):
+                // apply guards without wrapping `raw` to `0x0000`.
+                let adjusted_i32 = i32::try_from(raw_u32).ok()? + i32::from(adjust);
+                let adjusted = u16::try_from(adjusted_i32).ok()?;
+                let accepted = match guard {
+                    PointerGuard::None => true,
+                    PointerGuard::NearDetectedEnd { slack } => {
+                        adjusted >= start_addr && adjusted <= detected_end.saturating_add(slack)
+                    }
+                    PointerGuard::McCrackenEndOfProgram => false,
+                    PointerGuard::ValidStart => adjusted >= 0x0200 && adjusted <= detected_end,
+                };
+                accepted.then_some(adjusted)
+            }
+            Self::BasicStart(_)
+            | Self::OperandLe { .. }
+            | Self::AbsoluteLe(_)
+            | Self::SplitBytes { .. } => None,
         }
+    }
+
+    /// Resolves a post-emulation (runtime) [`AddrSource`] from final `mem` and
+    /// the current `(start_addr, detected_end)` bounds using zeroed registers.
+    #[must_use]
+    pub fn resolve_post_run(self, mem: &[u8], start_addr: u16, detected_end: u16) -> Option<u16> {
+        self.resolve_post_run_with_regs(mem, start_addr, detected_end, Registers::default())
     }
 }
 
 /// Address and execution hints from a [`PackerSpec`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Hints {
-    /// Depacker stub start address (`Phase::FindDepacker` to `Phase::Decompress` trigger).
+    /// Depacker stub start address ([`Phase::FindDepacker`] to [`Phase::Decompress`] trigger).
     pub dep_addr: Option<AddrSource>,
     /// Unpacked output start address override.
     pub start_addr: Option<AddrSource>,
@@ -476,7 +654,7 @@ pub struct Hints {
     pub entry_point: Option<AddrSource>,
     /// Forced initial entry point overriding the BASIC `SYS` line (unp64 `Forced`).
     pub forced_entry: Option<AddrSource>,
-    /// When `true`, `Phase::Decompress` exits only when `pc == ret_addr` rather than
+    /// When `true`, [`Phase::Decompress`] exits only when `pc == ret_addr` rather than
     /// `pc >= ret_addr` (unp64 `RtAFrc`).
     pub exact_return: bool,
 }
@@ -509,7 +687,8 @@ pub enum PatchAddr {
 }
 
 impl PatchAddr {
-    /// Resolves this patch address to a 16-bit memory address from `anchor_addr`.
+    /// Resolves this patch address to a 16-bit memory address from `anchor_addr`,
+    /// returning `None` if the signed offset falls outside `0..=$FFFF`.
     #[must_use]
     pub fn resolve(self, anchor_addr: u16) -> Option<u16> {
         match self {
@@ -535,10 +714,10 @@ pub struct MemoryPatch {
 }
 
 impl MemoryPatch {
-    /// Applies this patch to `mem` when the resolved address range lies within `mem`
-    /// and `self.expected` (if any) matches the first target byte.
+    /// Applies this patch to `mem` when `self.bytes` is non-empty, the resolved range
+    /// fits within `mem` and `0..=$FFFF`, and `self.expected` (if any) matches the first byte.
     ///
-    /// Returns `true` if the patch was applied.
+    /// Returns `true` if the patch modifies `mem`.
     pub fn apply(&self, mem: &mut [u8], anchor_addr: u16) -> bool {
         if self.bytes.is_empty() {
             return false;
@@ -577,7 +756,7 @@ pub struct LoadedImage<'a> {
     pub mem: &'a [u8],
     /// Load address (origin) of the binary.
     pub load_addr: u16,
-    /// End address bound passed to packer detection.
+    /// Exclusive end address bound passed to packer detection (wraps to `0x0000` at `$FFFF`).
     pub load_end: u16,
     /// Target machine system profile.
     pub system: &'a System,
@@ -707,7 +886,8 @@ pub struct SignatureMatch {
 /// For [`TargetSystem::C64`], this function calls [`TargetSystem::is_c64`] rather than
 /// `PartialEq`. This matches [`RomTrapTable::for_system`](crate::unpacker::machine::RomTrapTable::for_system)
 /// and [`C64Bus`](crate::unpacker::C64Bus), so `TargetSystem::Custom("Commodore 64")` does
-/// not match [`TargetSystem::C64`].
+/// not match [`TargetSystem::C64`]. Two [`TargetSystem::Custom`] names compare ASCII
+/// case-insensitively.
 #[must_use]
 pub fn system_matches(allowed: &TargetSystem, actual: &TargetSystem) -> bool {
     match (allowed, actual) {
@@ -756,7 +936,7 @@ pub struct PackerSpec {
     pub hooks: Option<HooksFactory>,
     /// Minimal synthetic payload bytes placed at `fixture_load_addr` for registry self-tests.
     pub fixture: &'static [u8],
-    /// Load address at which `fixture` is placed in memory for self-tests.
+    /// Load address where self-tests place `fixture` in memory.
     pub fixture_load_addr: u16,
 }
 
@@ -766,8 +946,9 @@ impl PackerSpec {
     /// Detection checks:
     /// 1. `image.system` matches at least one entry in `self.systems` via [`system_matches`].
     /// 2. `image.load_addr <= max_load` when `self.load_addr_max` is `Some(max_load)`.
-    /// 3. Each candidate position of `self.signatures[0]` where all `self.signatures` match
-    ///    passes `self.resolve` (if present). Returning `None` from `resolve` continues the scan.
+    /// 3. If `self.signatures` is empty, calls `self.resolve` with `anchor_addr = image.load_addr`.
+    ///    Otherwise, tests each candidate position of `self.signatures[0]` where all signatures
+    ///    match, advancing if `self.resolve` returns `None`.
     #[must_use]
     pub fn detect(&self, image: &LoadedImage<'_>) -> Option<SignatureMatch> {
         if !self
@@ -879,7 +1060,7 @@ pub struct Registers {
 /// Per-instruction context passed to [`PackerHooks::on_step`].
 ///
 /// Provides a value copy of the CPU registers (`registers`), side-effect-free RAM reads
-/// ([`Self::peek`]), and phase-1 write-bitmap clearing ([`Self::forget_writes`]).
+/// ([`Self::peek`]), and combined write-bitmap clearing ([`Self::forget_writes`]).
 pub struct StepContext<'a> {
     /// Current 6502 program counter.
     pub pc: u16,
@@ -931,7 +1112,7 @@ impl<'a> StepContext<'a> {
         }
     }
 
-    /// Reads the raw RAM byte at `addr` directly from `C64Bus::mem` without calling
+    /// Reads the raw RAM byte at `addr` directly from [`UnpackerMemory`] without calling
     /// `Bus::get_byte`.
     ///
     /// Does not advance `total_cycles` or CIA timers, and reads underlying RAM at ROM
@@ -941,8 +1122,8 @@ impl<'a> StepContext<'a> {
         self.bus.mem.get(usize::from(addr)).copied().unwrap_or(0)
     }
 
-    /// Clears write-tracking flags in `C64Bus::written` for every address in `range`.
-    /// Does not modify `C64Bus::written_phase2`.
+    /// Clears combined write-tracking flags in [`UnpackerMemory`] (`written`) for every address
+    /// in `range`. Does not modify `written_phase2`.
     pub fn forget_writes(&mut self, range: RangeInclusive<u16>) {
         let start = usize::from(*range.start());
         let end = usize::from(*range.end());
@@ -1011,7 +1192,7 @@ pub trait PackerHooks: Debug + Send {
     ///
     /// Defaults to [`StepFilter::Never`] so hooks that only implement [`Self::refine`]
     /// incur zero per-instruction overhead. Any implementation that overrides
-    /// [`Self::on_step`] must also override `step_filter`.
+    /// [`Self::on_step`] must also override [`Self::step_filter`].
     #[must_use]
     fn step_filter(&self, _phase: Phase) -> StepFilter {
         StepFilter::Never
@@ -1062,7 +1243,7 @@ mod tests {
     /// `Pat::Mask` matches when `(byte & mask) == eq`, including TBC `& 0xFD == 0x84`.
     #[test]
     fn pat_mask_exhaustive() {
-        // TBC Multicompactor mask (`tbc.rs:10`) matches only 0x84 and 0x86.
+        // TBC Multicompactor mask (`tbc.rs`) matches only 0x84 and 0x86.
         let tbc = Pat::Mask {
             mask: 0xFD,
             eq: 0x84,
@@ -1785,6 +1966,198 @@ mod tests {
                 "raw={raw:#06X}, start={start_addr:#06X}"
             );
         }
+    }
+
+    /// `PointerGuard::ValidStart` requires `0x0200 <= adjusted <= detected_end`.
+    #[test]
+    fn pointer_guard_valid_start() {
+        let mut mem = vec![0u8; 0x1_0000];
+        let src = AddrSource::PointerAfterRun {
+            ptr_addr: 0x00FA,
+            adjust: 0,
+            guard: PointerGuard::ValidStart,
+        };
+
+        for (val, detected_end, expected) in [
+            (0x0000_u16, 0x3000_u16, None),
+            (0x01FF_u16, 0x3000_u16, None),
+            (0x0200_u16, 0x3000_u16, Some(0x0200)),
+            (0x0801_u16, 0x3000_u16, Some(0x0801)),
+            (0x3000_u16, 0x3000_u16, Some(0x3000)),
+            (0x3001_u16, 0x3000_u16, None),
+        ] {
+            let [lo, hi] = val.to_le_bytes();
+            mem[0x00FA] = lo;
+            mem[0x00FB] = hi;
+            assert_eq!(
+                src.resolve_post_run(&mem, 0x0800, detected_end),
+                expected,
+                "val={val:#06X}, detected_end={detected_end:#06X}"
+            );
+        }
+    }
+
+    /// `AddrSource::SplitBytes` combines separate low and high bytes relative to `anchor_addr`.
+    #[test]
+    fn split_bytes_resolves_lo_and_hi_offsets() {
+        let mut mem = vec![0u8; 0x1_0000];
+        mem[0x0847] = 0x34;
+        mem[0x0858] = 0x12;
+        let image = LoadedImage::for_c64(&mem, 0x0801, 0x0900);
+
+        let src = AddrSource::SplitBytes {
+            lo_from_match: 0x3A,
+            hi_from_match: 0x4B,
+        };
+        assert_eq!(src.resolve_static(&image, 0x080D), Some(0x1234));
+        assert_eq!(
+            src.resolve_post_run(&mem, 0x0800, 0x2000),
+            None,
+            "SplitBytes is static-only"
+        );
+        // Underflow on negative anchor offset yields None cleanly.
+        assert_eq!(
+            AddrSource::SplitBytes {
+                lo_from_match: -2,
+                hi_from_match: 0
+            }
+            .resolve_static(&image, 0x0001),
+            None
+        );
+    }
+
+    /// `AddrSource::PointerRegAfterRun` adds `CpuReg` before `adjust` and honors `guard`.
+    #[test]
+    fn pointer_reg_after_run_adds_cpu_reg_and_adjust() {
+        let mut mem = vec![0u8; 0x1_0000];
+        mem[0x00FE] = 0x00;
+        mem[0x00FF] = 0x20; // $2000
+
+        let regs = Registers {
+            a: 0x03,
+            x: 0x05,
+            y: 0x07,
+            sp: 0xF6,
+        };
+        assert_eq!(CpuReg::A.read(regs), 0x03);
+        assert_eq!(CpuReg::X.read(regs), 0x05);
+        assert_eq!(CpuReg::Y.read(regs), 0x07);
+
+        let src_x = AddrSource::PointerRegAfterRun {
+            ptr_addr: 0x00FE,
+            reg: CpuReg::X,
+            adjust: -1,
+            guard: PointerGuard::NearDetectedEnd { slack: 512 },
+        };
+        // $2000 + X(5) - 1 = $2004
+        assert_eq!(
+            src_x.resolve_post_run_with_regs(&mem, 0x0800, 0x2000, regs),
+            Some(0x2004)
+        );
+        // `CpuReg::A` and `CpuReg::Y` offsets:
+        let src_a = AddrSource::PointerRegAfterRun {
+            ptr_addr: 0x00FE,
+            reg: CpuReg::A,
+            adjust: -1,
+            guard: PointerGuard::NearDetectedEnd { slack: 512 },
+        };
+        let src_y = AddrSource::PointerRegAfterRun {
+            ptr_addr: 0x00FE,
+            reg: CpuReg::Y,
+            adjust: 0,
+            guard: PointerGuard::NearDetectedEnd { slack: 512 },
+        };
+        assert_eq!(
+            src_a.resolve_post_run_with_regs(&mem, 0x0800, 0x2000, regs),
+            Some(0x2002)
+        );
+        assert_eq!(
+            src_y.resolve_post_run_with_regs(&mem, 0x0800, 0x2000, regs),
+            Some(0x2007)
+        );
+
+        assert_eq!(src_x.pointer_addr(), Some(0x00FE));
+        assert_eq!(
+            src_x.pointer_guard(),
+            Some(PointerGuard::NearDetectedEnd { slack: 512 })
+        );
+        assert_eq!(AddrSource::Const(0x0801).pointer_guard(), None);
+        assert_eq!(
+            src_x.with_guard(PointerGuard::None),
+            AddrSource::PointerRegAfterRun {
+                ptr_addr: 0x00FE,
+                reg: CpuReg::X,
+                adjust: -1,
+                guard: PointerGuard::None,
+            }
+        );
+
+        // Pointer wrapping at `$FFFF` -> `$0000` (and `$00FF..=$0100`):
+        mem[0x00FF] = 0x10;
+        mem[0x0100] = 0x20;
+        let zp_ff = AddrSource::PointerRegAfterRun {
+            ptr_addr: 0x00FF,
+            reg: CpuReg::Y,
+            adjust: -1,
+            guard: PointerGuard::NearDetectedEnd { slack: 512 },
+        };
+        assert_eq!(
+            zp_ff.resolve_post_run_with_regs(&mem, 0x0800, 0x2000, regs),
+            Some(0x2016)
+        );
+        mem[0xFFFF] = 0x20;
+        mem[0x0000] = 0x20;
+        let top_ff = AddrSource::PointerAfterRun {
+            ptr_addr: 0xFFFF,
+            adjust: -1,
+            guard: PointerGuard::NearDetectedEnd { slack: 512 },
+        };
+        assert_eq!(top_ff.resolve_post_run(&mem, 0x0800, 0x2000), Some(0x201F));
+
+        // Exact `$1_0000` (`$FFF0 + X($10)`) with `adjust: -1` resolves `$FFFF` without wrapping `raw` to `0`.
+        // `McCrackenEndOfProgram` rejects `$1_0000` (`>= $FFFF`), and `resolve_post_run_with_regs` rejects
+        // sums above `$1_0000` (`$FFF0 + X($20)`).
+        mem[0x00FE] = 0xF0;
+        mem[0x00FF] = 0xFF; // $FFF0
+        let boundary_regs = Registers {
+            a: 0,
+            x: 0x10,
+            y: 0x20,
+            sp: 0xF6,
+        };
+        assert_eq!(
+            src_x.resolve_post_run_with_regs(&mem, 0x0800, 0xFE00, boundary_regs),
+            Some(0xFFFF)
+        );
+        assert_eq!(
+            src_x
+                .with_guard(PointerGuard::McCrackenEndOfProgram)
+                .resolve_post_run_with_regs(&mem, 0x0800, 0xFE00, boundary_regs),
+            None
+        );
+        assert_eq!(
+            AddrSource::PointerRegAfterRun {
+                ptr_addr: 0x00FE,
+                reg: CpuReg::Y,
+                adjust: -1,
+                guard: PointerGuard::NearDetectedEnd { slack: 512 },
+            }
+            .resolve_post_run_with_regs(&mem, 0x0800, 0xFE00, boundary_regs),
+            None
+        );
+
+        // `adjust: 0` resolves exact raw pointer without subtracting 1.
+        mem[0x00FE] = 0x00;
+        mem[0x00FF] = 0x20; // $2000
+        let src_zero_adjust = AddrSource::PointerAfterRun {
+            ptr_addr: 0x00FE,
+            adjust: 0,
+            guard: PointerGuard::NearDetectedEnd { slack: 512 },
+        };
+        assert_eq!(
+            src_zero_adjust.resolve_post_run(&mem, 0x0800, 0x2000),
+            Some(0x2000)
+        );
     }
 
     /// `Hints::NONE` has all `Option` fields set to `None` and `exact_return == false`.

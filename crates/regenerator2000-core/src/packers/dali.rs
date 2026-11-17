@@ -1,10 +1,18 @@
-//! Dali 0.3.3 packer specification and emulation hooks.
+//! Dali (`Dali`, `v0.3.3` fast/small, `v0.3.4 / sfx`, and `v0.3.5 / sfx`) packer specification
+//! and emulation hooks.
+//!
+//! Targets [`TargetSystem::C64`] images with `load_addr <= $0801`. Probes `$080D` first, then
+//! scans `load_addr..=load_addr + 0x0E` for sysless stubs. Checks `v0.3.5 / sfx` and sysless
+//! `v0.3.3 / fast` (without a BASIC `SYS` line) before standard `0.3.3` because all three share
+//! `78 A2 0B 9A`. [`DaliHooks`] trims residual top-of-memory payload writes across the largest
+//! unwritten gap.
 
 use crate::state::types::TargetSystem;
+use crate::unpacker::find_sys_address;
 
 use super::spec::{
-    AddrSource, Anchor, Bounds, Hints, LoadedImage, PackerHooks, PackerSpec, PointerGuard,
-    RefineContext, ResolvedSpec, Signature, SignatureMatch, sig,
+    AddrSource, Anchor, Bounds, Hints, LoadedImage, MemoryPatch, PackerHooks, PackerSpec,
+    PatchAddr, PointerGuard, RefineContext, ResolvedSpec, Signature, SignatureMatch, sig,
 };
 
 /// Dali 0.3.3 21-byte signature at `$080D`.
@@ -18,7 +26,44 @@ pub const DALI_SIGNATURE: Signature = Signature {
     ],
 };
 
-const SIGNATURES: [Signature; 1] = [DALI_SIGNATURE];
+const DALI_CANDIDATES: [Anchor; 2] = [
+    Anchor::Absolute(0x080D),
+    Anchor::ScanFromLoad { max_offset: 0x0E },
+];
+
+/// Prefilter covering `LDX #$0B` (`0.3.3` fast / `0.3.5 sfx`), `LDY #$B7` (`0.3.3` small),
+/// and `LDY #$BE` (`0.3.4 sfx`).
+const SIGNATURES: [Signature; 1] = [Signature {
+    anchor: Anchor::Candidates(&DALI_CANDIDATES),
+    pattern: sig![0x78, [0xA2, 0xA0], [0x0B, 0xB7, 0xBE]],
+}];
+
+/// Zero-page restore patch for sysless Dali 0.3.3 fast (unp64 `ZX0.c:122`: `BIT` `$24` at `q + $F7`).
+const DALI_033F_PATCHES: [MemoryPatch; 1] = [MemoryPatch {
+    addr: PatchAddr::FromMatch(0xF7),
+    expected: None,
+    bytes: &[0x24],
+}];
+
+/// Zero-page restore patch for Dali 0.3.5 SFX (unp64 `ZX0.c:198`: `BIT` `$24` at `q + $FE`).
+const DALI_035_PATCHES: [MemoryPatch; 1] = [MemoryPatch {
+    addr: PatchAddr::FromMatch(0xFE),
+    expected: None,
+    bytes: &[0x24],
+}];
+
+/// Builds a post-run zero-page `end_addr` hint when `ptr_byte != 0`, avoiding `$0000/$0001`.
+#[must_use]
+fn zp_end_source(ptr_byte: u8) -> Option<AddrSource> {
+    if ptr_byte == 0 {
+        return None;
+    }
+    Some(AddrSource::PointerAfterRun {
+        ptr_addr: u16::from(ptr_byte),
+        adjust: -1,
+        guard: PointerGuard::NearDetectedEnd { slack: 512 },
+    })
+}
 
 const BASE_HINTS: Hints = Hints {
     dep_addr: Some(AddrSource::Const(0x0003)),
@@ -30,28 +75,117 @@ const BASE_HINTS: Hints = Hints {
     ..Hints::NONE
 };
 
-/// Resolves the Dali 0.3.3 zero-page end pointer and entry point operand.
+/// Resolves Dali `0.3.3` (standard and sysless fast/small), `0.3.4 / sfx`, and `0.3.5 / sfx`.
 #[must_use]
 fn resolve_dali(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
-    let q = usize::from(sig_match.anchor_addr);
-    if image.mem.len() <= 0x090C || image.load_addr > 0x0801 || q < usize::from(image.load_addr) {
+    let q_addr = sig_match.anchor_addr;
+    let q = usize::from(q_addr);
+    if image.load_addr > 0x0801 || q < usize::from(image.load_addr) {
         return None;
     }
-    let ptr_addr = u16::from(image.read_u8(q + 0x44)?);
-    // Ensure entry_point operand at `q + 0xFE..=q + 0xFF` is readable.
-    let _ = image.read_u16_le(q + 0xFE)?;
 
-    Some(ResolvedSpec::from_hints(Hints {
-        end_addr: Some(AddrSource::PointerAfterRun {
-            ptr_addr,
-            adjust: -1,
-            guard: PointerGuard::NearDetectedEnd { slack: 512 },
-        }),
-        ..BASE_HINTS
-    }))
+    // Check Dali 0.3.5 SFX before standard 0.3.3 because both share `78 A2 0B 9A` and `4C 03 00 34` (unp64 `ZX0.c:177-201`).
+    if image.read_u32_le(q) == Some(0x9A0B_A278)
+        && image.read_u32_le(q + 0x0C) == Some(0xD088_0096)
+        && image.read_u32_le(q + 0x11) == Some(0x3400_034C)
+        && image.read_u8(q + 0x2D) == Some(0x06)
+        && image.read_u8(q + 0x104) == Some(0x4C)
+        && let Some(ptr_byte) = image.read_u8(q + 0x44)
+        && image.read_u16_le(q + 0x105).is_some()
+    {
+        return Some(ResolvedSpec::with_patches(
+            "Dali v0.3.5 / sfx",
+            Hints {
+                end_addr: zp_end_source(ptr_byte),
+                entry_point: Some(AddrSource::OperandLe { from_match: 0x105 }),
+                forced_entry: Some(AddrSource::Const(q_addr)),
+                ..BASE_HINTS
+            },
+            &DALI_035_PATCHES,
+        ));
+    }
+
+    // Sysless Dali 0.3.3 fast (unp64 `ZX0.c:104-125`). Check before standard `$080D` Dali
+    // whenever `q_addr != 0x080D` or no BASIC `SYS` line exists so stubs starting at `$080D` still
+    // receive `forced_entry` and `DALI_033F_PATCHES`.
+    if (q_addr != 0x080D
+        || find_sys_address(image.mem, image.system.default_basic_start()).is_none())
+        && image.read_u32_le(q) == Some(0x9A0B_A278)
+        && image.read_u32_le(q + 4) == Some(0xB748_ECA0)
+        && image.read_u32_le(q + 0x11) == Some(0x3400_034C)
+        && image.read_u8(q + 0xFD) == Some(0x4C)
+        && let Some(ptr_byte) = image.read_u8(q + 0x44)
+        && image.read_u16_le(q + 0xFE).is_some()
+    {
+        return Some(ResolvedSpec::with_patches(
+            "Dali v0.3.3 / fast",
+            Hints {
+                end_addr: zp_end_source(ptr_byte),
+                forced_entry: Some(AddrSource::Const(q_addr)),
+                ..BASE_HINTS
+            },
+            &DALI_033F_PATCHES,
+        ));
+    }
+
+    // Standard Dali 0.3.3 fast at `$080D` (uses BASIC `SYS` entry and needs no zero-page patch).
+    if q_addr == 0x080D && DALI_SIGNATURE.matches_at(image.mem, 0x080D) {
+        if image.mem.len() <= 0x090C {
+            return None;
+        }
+        let ptr_byte = image.read_u8(q + 0x44)?;
+        let _ = image.read_u16_le(q + 0xFE)?;
+
+        return Some(ResolvedSpec::from_hints(Hints {
+            end_addr: zp_end_source(ptr_byte),
+            ..BASE_HINTS
+        }));
+    }
+
+    // Dali 0.3.3 small (unp64 `ZX0.c:129-151`).
+    if image.read_u32_le(q) == Some(0xBEB7_A078)
+        && image.read_u32_le(q + 6) == Some(0xD088_0096)
+        && image.read_u32_le(q + 0x0B) == Some(0x3400_034C)
+        && image.read_u8(q + 0x24) == Some(0x06)
+        && image.read_u8(q + 0xC2) == Some(0x4C)
+        && let Some(ptr_byte) = image.read_u8(q + 0x3A)
+        && image.read_u16_le(q + 0xC3).is_some()
+    {
+        return Some(ResolvedSpec::named(
+            "Dali v0.3.3 / small",
+            Hints {
+                end_addr: zp_end_source(ptr_byte),
+                entry_point: Some(AddrSource::OperandLe { from_match: 0xC3 }),
+                forced_entry: Some(AddrSource::Const(q_addr)),
+                ..BASE_HINTS
+            },
+        ));
+    }
+
+    // Dali 0.3.4 SFX (unp64 `ZX0.c:153-175`).
+    if image.read_u32_le(q) == Some(0xBEBE_A078)
+        && image.read_u32_le(q + 6) == Some(0xD088_0096)
+        && image.read_u32_le(q + 0x0B) == Some(0x3400_034C)
+        && image.read_u8(q + 0x24) == Some(0x06)
+        && image.read_u8(q + 0xC9) == Some(0x4C)
+        && let Some(ptr_byte) = image.read_u8(q + 0x32)
+        && image.read_u16_le(q + 0xCA).is_some()
+    {
+        return Some(ResolvedSpec::named(
+            "Dali v0.3.4 / sfx",
+            Hints {
+                end_addr: zp_end_source(ptr_byte),
+                entry_point: Some(AddrSource::OperandLe { from_match: 0xCA }),
+                forced_entry: Some(AddrSource::Const(q_addr)),
+                ..BASE_HINTS
+            },
+        ));
+    }
+
+    None
 }
 
-/// Emulation-time hooks for Dali 0.3.3.
+/// Emulation-time hooks for the Dali packer family.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct DaliHooks;
 
@@ -138,7 +272,7 @@ const DALI_FIXTURE: [u8; 33] = [
     0x00, 0x4C, 0x03, 0x00, 0x34,
 ];
 
-/// Declarative specification for Dali 0.3.3.
+/// Declarative specification for the Dali packer family (`0.3.3`–`0.3.5`).
 pub static SPEC: PackerSpec = PackerSpec {
     id: "dali",
     name: "Dali",

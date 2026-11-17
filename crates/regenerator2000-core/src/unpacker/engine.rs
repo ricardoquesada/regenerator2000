@@ -1,4 +1,16 @@
 //! Decompression execution engine driving 2-phase MOS 6502 emulation.
+//!
+//! Drives [`UnpackEngine`] across [`Phase::FindDepacker`] and [`Phase::Decompress`], traps
+//! BASIC and KERNAL ROM vectors, and reports bound provenance via [`UnpackReport`],
+//! [`BoundSource`], and [`ExitReason`].
+//!
+//! [`System`] defines machine memory layouts, with C64 `$00`/`$01` banking and zero-page
+//! initialization guarded by `system.is_c64()`.
+//!
+//! Pre-emulation setup initializes zero page before packer detection and applies patches
+//! before capturing the snapshot. [`Phase::FindDepacker`] captures `pc` before
+//! `on_step`, whereas [`Phase::Decompress`] runs `on_step` before reading `pc` and checking
+//! written RAM flags.
 
 use mos6502::cpu::CPU;
 use mos6502::instruction::Nmos6502;
@@ -69,8 +81,8 @@ pub enum ExitReason {
         /// Program counter at exit.
         pc: u16,
     },
-    /// [`Phase::Decompress`] reached the packer's known entry point after the
-    /// initial 10-instruction guard.
+    /// [`Phase::Decompress`] reached the packer's known entry point or exact-return
+    /// target after the initial 10-instruction guard.
     KnownEntryReached {
         /// Program counter at exit.
         pc: u16,
@@ -105,33 +117,34 @@ impl fmt::Display for ExitReason {
 /// Which step of `finish` or exit resolution produced an output bound or the entry point.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BoundSource {
-    /// Generic write + snapshot-diff scan (`detect_output_range`).
+    /// Generic write and snapshot-diff scan (`detect_output_range`).
     WriteDiff,
-    /// Static [`AddrSource`] ([`AddrSource::Const`], [`AddrSource::BasicStart`],
-    /// [`AddrSource::OperandLe`], [`AddrSource::AbsoluteLe`]) or resolved hint from a [`PackerSpec`].
+    /// Static [`AddrSource`] (`Const`, `BasicStart`, `OperandLe`, `AbsoluteLe`, or
+    /// `SplitBytes`) or resolved hint from a [`PackerSpec`].
     PackerSpec {
         /// Identifier of the [`PackerSpec`] that supplied the bound.
         id: PackerId,
     },
-    /// Zero-page or RAM pointer read after Phase 2 (`AddrSource::PointerAfterRun`).
+    /// Zero-page or RAM pointer read after Phase 2 ([`AddrSource::PointerAfterRun`]
+    /// or [`AddrSource::PointerRegAfterRun`]).
     PointerAfterRun {
         /// Address of the low byte of the pointer read after Phase 2.
         addr: u16,
     },
-    /// `PackerHooks::refine` modified this bound after emulation.
+    /// [`PackerHooks::refine`] modified this bound after emulation.
     PackerRefine {
-        /// Identifier of the `PackerSpec` whose `refine` hook modified the bound.
+        /// Identifier of the [`PackerSpec`] whose `refine` hook modified the bound.
         id: PackerId,
     },
-    /// Lowered `start_addr` to `basic_start` because a BASIC `SYS` line was found.
+    /// Lowered `start_addr` to `basic_start` because memory contains a BASIC `SYS` line.
     SysLineClamp,
     /// Clamped `start_addr` or `end_addr` so `entry_point` lies inside `start_addr..=end_addr`.
     EntryClamp,
-    /// Forced via [`UnpackConfig`] or a packer's `forced_entry` hint.
+    /// Forced via [`UnpackConfig::forced_entry`] or [`Hints::forced_entry`].
     Forced,
-    /// Entry point taken directly from the CPU program counter at Phase 2 exit.
+    /// Entry point from the CPU program counter at exit (or `basic_start` on a Phase 1 `BasicRun` fallback).
     ExitPc,
-    /// Entry point recovered from the pre-emulation snapshot via `find_entry_in_snapshot`.
+    /// Entry point recovered from the pre-emulation snapshot via [`find_entry_in_snapshot`].
     SnapshotEntry,
     /// Entry point resolved from a BASIC `SYS` line at `basic_start`.
     SysLineLookup,
@@ -160,9 +173,9 @@ impl fmt::Display for BoundSource {
 pub struct UnpackReport {
     /// Why emulation stopped.
     pub exit_reason: ExitReason,
-    /// Instructions executed in `Phase::FindDepacker` (Phase 1).
+    /// Instructions executed in [`Phase::FindDepacker`] (Phase 1).
     pub find_depacker_instructions: u64,
-    /// Instructions executed in `Phase::Decompress` (Phase 2).
+    /// Instructions executed in [`Phase::Decompress`] (Phase 2).
     pub decompress_instructions: u64,
     /// Provenance of [`UnpackResult::start_addr`].
     pub start_source: BoundSource,
@@ -255,8 +268,10 @@ impl<'a> UnpackEngine<'a> {
     ///
     /// # Errors
     ///
-    /// Returns [`UnpackError`] if input is empty, no entry point is found,
-    /// or emulation times out.
+    /// Returns [`UnpackError`] if input is empty, no entry point exists, emulation exceeds
+    /// [`UnpackConfig::max_instructions`], emulation writes no RAM
+    /// ([`UnpackError::NothingWritten`]), or `entry_point` lies outside `start_addr..=end_addr`
+    /// ([`UnpackError::InvalidAddressRange`]).
     pub fn run(&self, raw_data: &[u8], load_addr: u16) -> Result<UnpackResult, UnpackError> {
         let mut state =
             EmulationState::new(self.config, self.progress_callback, raw_data, load_addr)?;
@@ -558,9 +573,14 @@ impl<'a> EmulationState<'a> {
 
         // Bus phase flag: `C64Bus::set_byte` sets `in_phase2 = true` when
         // code executing below `ram_start` writes at or above `ram_start`. Read `in_phase2`
-        // from the bus here alongside the PC threshold check.
+        // from the bus here alongside the PC threshold check, honoring `forced_dep_addr` when
+        // it targets high RAM (`>= ret_addr`).
+        let target_dep = self
+            .config
+            .forced_dep_addr
+            .or_else(|| self.hints.as_ref().and_then(|h| h.dep_addr));
         let is_dep_addr = self.cpu.memory.in_phase2
-            || (if let Some(known_dep) = self.hints.as_ref().and_then(|h| h.dep_addr)
+            || (if let Some(known_dep) = target_dep
                 && known_dep >= self.ret_addr
             {
                 pc == known_dep
@@ -638,15 +658,12 @@ impl<'a> EmulationState<'a> {
         self.cpu.memory.current_pc = pc;
 
         // Known-entry 10-instruction guard and `exact_return` (unp64 `RtAFrc`):
-        // - A packer's `known_entry` triggers a `Decompress` exit only when the global
-        //   `total_instructions` counter exceeds `MIN_INSTRUCTIONS_BEFORE_KNOWN_ENTRY` (10),
-        //   preventing premature exit during initial stub setup.
-        // - When `exact_return` is `false` (default), reaching any written RAM code at
-        //   `pc >= self.ret_addr` (`is_written_code`) or jumping outside the loaded region
-        //   (`LeftLoadedRegion`, when `known_entry.is_none()`) ends decompression.
-        // - When `exact_return` is `true`, intermediate written RAM addresses are ignored and
-        //   decompression exits on RAM code only at the exact target return address
-        //   (`known_entry.unwrap_or(self.ret_addr)`).
+        // - `known_entry` triggers exit only when `total_instructions > MIN_INSTRUCTIONS_BEFORE_KNOWN_ENTRY` (10).
+        //   This prevents premature exit during initial stub setup.
+        // - When `exact_return` is `false`, written RAM at `pc >= self.ret_addr` (`WrittenCodeReached`) or
+        //   leaving the loaded region (`LeftLoadedRegion`, when `known_entry.is_none()`) ends decompression.
+        // - When `exact_return` is `true`, `step_decompress` ignores intermediate written RAM and exits
+        //   only at `known_entry.unwrap_or(self.ret_addr)`.
         let known_entry = self.hints.as_ref().and_then(|h| h.entry_point);
         let exact_return = self.raw_hints.is_some_and(|h| h.exact_return);
         let exact_target = known_entry.unwrap_or(self.ret_addr);
@@ -852,7 +869,7 @@ fn init_zero_page(mem: &mut C64Bus, load_addr: u16, data_len: u16, basic_start: 
         mem.mem[0x01] = 0x37;
     }
 
-    // BASIC text start (dynamically using basic_start)
+    // Set BASIC text start from `basic_start`.
     mem.mem[0x2B] = (basic_start & 0xFF) as u8;
     mem.mem[0x2C] = (basic_start >> 8) as u8;
 
@@ -1104,17 +1121,19 @@ struct FinishContext<'a> {
 ///
 /// # Bound and Entry Override Order
 ///
-/// [`finish`] resolves bounds and the entry point in this 10-step sequence:
+/// [`finish`] resolves bounds and the entry point in this sequence:
 ///
 /// 1. [`detect_output_range`] over `mem`, `snapshot`, and `written` ([`UnpackError::NothingWritten`] if `None`).
-/// 2. `hints.start_addr` override.
-/// 3. `hints.end_addr` override.
-/// 4. `hints.end_addr_ptr` override. Checks the pointer against the overridden `end_addr`
-///    (`reported_end > start_addr && reported_end.saturating_sub(1) <= end_addr.saturating_add(END_PTR_SLACK)`),
-///    reading the high byte at `ea_ptr.wrapping_add(1)`.
-/// 5. `hints.entry_point` override.
-/// 6. `hints.dep_addr` override.
-/// 7. Post-emulation refinement (`PointerGuard::McCrackenEndOfProgram` and `PackerHooks::refine`).
+/// 2. Static `hints.start_addr` override.
+/// 3. Static `hints.end_addr` override.
+/// 4. Post-run `raw_hints.start_addr` override ([`AddrSource::PointerAfterRun`] or
+///    [`AddrSource::PointerRegAfterRun`]) evaluated against the current `end_addr`.
+/// 5. Post-run `raw_hints.end_addr` override honoring `adjust` and [`CpuReg`](crate::packers::CpuReg).
+///    Evaluates [`PointerGuard::McCrackenEndOfProgram`] with
+///    `NearDetectedEnd { slack: END_PTR_SLACK }` first, and defaults to `hints.end_addr_ptr`
+///    (`adjust = -1`, `END_PTR_SLACK`) when `raw_hints` is `None`.
+/// 6. `hints.entry_point` and `hints.dep_addr` overrides.
+/// 7. Post-emulation refinement (`PointerGuard::McCrackenEndOfProgram` on C64 and `PackerHooks::refine`).
 /// 8. BASIC `SYS` line clamp (`find_sys_address(mem, basic_start)`). Replaces `entry_point`
 ///    when `is_rom_entry || entry_point == basic_start`, and lowers `start_addr` to
 ///    `basic_start` when `start_addr > basic_start`.
@@ -1156,36 +1175,65 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
         .unwrap_or("");
 
     if let Some(info) = hints {
-        // 2. Packer start_addr hint override.
+        // 2. Static packer start_addr hint override.
         if let Some(sa) = info.start_addr {
             start_addr = sa;
             start_source = BoundSource::PackerSpec { id: spec_id };
         }
-        // 3. Packer end_addr hint override.
+        // 3. Static packer end_addr hint override (before post-run start/end pointer guards).
         if let Some(ea) = info.end_addr {
             end_addr = ea;
             end_source = BoundSource::PackerSpec { id: spec_id };
         }
-        // 4. Packer end_addr_ptr override, guarded against the already overridden `end_addr`.
-        // Uses `wrapping_add(1)` so a pointer at `$FFFF` wraps its high byte to `$0000`
-        // without panicking in debug builds.
-        if let Some(ea_ptr) = info.end_addr_ptr {
-            let lo = mem[usize::from(ea_ptr)];
-            let hi = mem[usize::from(ea_ptr.wrapping_add(1))];
-            let reported_end = u16::from_le_bytes([lo, hi]);
-            if reported_end > start_addr
-                && reported_end.saturating_sub(1) <= end_addr.saturating_add(END_PTR_SLACK)
+        // 4. Post-run start_addr pointer override (`fStrAf` via PointerAfterRun/PointerRegAfterRun).
+        if info.start_addr.is_none()
+            && let Some(raw_src) = raw_hints.and_then(|rh| rh.start_addr)
+            && let Some(ptr_addr) = raw_src.pointer_addr()
+            && let Some(resolved_start) =
+                raw_src.resolve_post_run_with_regs(mem, start_addr, end_addr, registers)
+        {
+            start_addr = resolved_start;
+            start_source = BoundSource::PointerAfterRun { addr: ptr_addr };
+        }
+        // 5. Post-run end_addr pointer override honoring `raw_hints` (`adjust`, `reg`, `guard`).
+        //    If `raw_hints` is `None` (synthetic `PackerInfo`-only calls), use `info.end_addr_ptr`
+        //    with `adjust = -1` and `END_PTR_SLACK`.
+        if let Some(raw_src) = raw_hints.and_then(|rh| rh.end_addr)
+            && let Some(ea_ptr) = raw_src.pointer_addr()
+        {
+            let step5_src = if raw_src.pointer_guard() == Some(PointerGuard::McCrackenEndOfProgram)
             {
-                end_addr = reported_end.saturating_sub(1);
+                raw_src.with_guard(PointerGuard::NearDetectedEnd {
+                    slack: END_PTR_SLACK,
+                })
+            } else {
+                raw_src
+            };
+            if let Some(resolved_end) =
+                step5_src.resolve_post_run_with_regs(mem, start_addr, end_addr, registers)
+            {
+                end_addr = resolved_end;
                 end_source = BoundSource::PointerAfterRun { addr: ea_ptr };
             }
+        } else if raw_hints.is_none()
+            && let Some(ea_ptr) = info.end_addr_ptr
+            && let Some(resolved_end) = (AddrSource::PointerAfterRun {
+                ptr_addr: ea_ptr,
+                adjust: -1,
+                guard: PointerGuard::NearDetectedEnd {
+                    slack: END_PTR_SLACK,
+                },
+            })
+            .resolve_post_run_with_regs(mem, start_addr, end_addr, registers)
+        {
+            end_addr = resolved_end;
+            end_source = BoundSource::PointerAfterRun { addr: ea_ptr };
         }
-        // 5. Packer entry_point hint override.
+        // 6. Packer entry_point and dep_addr hint overrides.
         if let Some(ep) = info.entry_point {
             entry_point = ep;
             entry_source = BoundSource::PackerSpec { id: spec_id };
         }
-        // 6. Packer dep_addr hint override.
         if let Some(da) = info.dep_addr {
             dep_addr = da;
         }
@@ -1194,14 +1242,11 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
     // 7. Post-emulation refinement (`PointerGuard::McCrackenEndOfProgram` + `PackerHooks::refine`).
     if system.is_c64()
         && let Some(raw_hints) = raw_hints
-        && let Some(
-            src @ AddrSource::PointerAfterRun {
-                ptr_addr,
-                guard: PointerGuard::McCrackenEndOfProgram,
-                ..
-            },
-        ) = raw_hints.end_addr
-        && let Some(resolved_end) = src.resolve_post_run(mem, start_addr, end_addr)
+        && let Some(src) = raw_hints.end_addr
+        && let Some(ptr_addr) = src.pointer_addr()
+        && src.pointer_guard() == Some(PointerGuard::McCrackenEndOfProgram)
+        && let Some(resolved_end) =
+            src.resolve_post_run_with_regs(mem, start_addr, end_addr, registers)
     {
         end_addr = resolved_end;
         end_source = BoundSource::PointerAfterRun { addr: ptr_addr };
@@ -1307,6 +1352,7 @@ mod tests {
     //! transitions, and post-emulation range finalization.
 
     use super::*;
+    use crate::packers::CpuReg;
     use crate::state::types::TargetSystem;
     use std::cell::RefCell;
 
@@ -2314,7 +2360,7 @@ mod tests {
         // Case A (TSCrunch relocation-clear pattern): PC is at `OUTPUT_ADDR`, which is marked
         // in `written` (from Phase 1 relocation) with a `NOP` (`$EA`) in memory. The Phase 2
         // hook clears `written[OUTPUT_ADDR]` via `forget_writes` before `step_decompress` checks
-        // `is_written_code` or `LeftLoadedRegion`. As a result, `step_decompress` does NOT exit
+        // `WrittenCodeReached` or `LeftLoadedRegion`. As a result, `step_decompress` does NOT exit
         // and executes the `NOP`.
         let mut state_a = EmulationState::new(&cfg, None, &raw, PRG_LOAD).unwrap();
         state_a.phase = Phase::Decompress;
@@ -2337,7 +2383,7 @@ mod tests {
         // `program_counter` is `OUTPUT_ADDR` and `written[OUTPUT_ADDR]` is initially `false`.
         // The Phase 2 hook verifies that `current_pc` was NOT yet updated to
         // `OUTPUT_ADDR`, then sets `written[OUTPUT_ADDR] = true`. Because `step_decompress`
-        // updates `current_pc` and evaluates `is_written_code` *after* the hook, it immediately
+        // updates `current_pc` and triggers `WrittenCodeReached` *after* the hook, it immediately
         // exits with `WrittenCodeReached`.
         let mut state_b = EmulationState::new(&cfg, None, &raw, PRG_LOAD).unwrap();
         state_b.phase = Phase::Decompress;
@@ -2364,7 +2410,7 @@ mod tests {
 
     /// Verifies that a packer's `known_entry` triggers an exit in [`Phase::Decompress`]
     /// only when `total_instructions > MIN_INSTRUCTIONS_BEFORE_KNOWN_ENTRY` (`10`), whereas
-    /// `is_written_code` exits regardless of the instruction count.
+    /// written-RAM execution (`WrittenCodeReached`) exits regardless of the instruction count.
     #[test]
     fn known_entry_guard_requires_more_than_ten_instructions() {
         const KNOWN_ENTRY: u16 = 0x1800;
@@ -2404,7 +2450,7 @@ mod tests {
             MIN_INSTRUCTIONS_BEFORE_KNOWN_ENTRY + 1
         );
 
-        // When `is_written_code` holds, `step_decompress` exits even at `total_instructions == 0`.
+        // When written-RAM criteria hold, `step_decompress` exits even at `total_instructions == 0`.
         state.total_instructions = 0;
         state.cpu.registers.program_counter = OUTPUT_ADDR;
         state.cpu.memory.written[usize::from(OUTPUT_ADDR)] = true;
@@ -2631,7 +2677,7 @@ mod tests {
         let hooks = MockHooks {
             step_hook: None,
             refine_hook: Some(Box::new(move |ctx, bounds| {
-                // Verify Steps 2, 3, 4, and 5 already ran before `refine`.
+                // Verify Steps 2, 3, 5, and 6 already ran before `refine`.
                 assert_eq!((bounds.start_addr, bounds.end_addr), (0x1100, 0x2100));
                 assert_eq!(bounds.entry_point, 0x1500);
                 assert_eq!(ctx.registers, expected_regs);
@@ -2839,9 +2885,8 @@ mod tests {
             (basic_run_pc, STAGE2_ADDR)
         );
 
-        // `LeftLoadedRegion`: when `ret_addr` is forced above `pc` (`$3000 > $2000`) so
-        // `is_written_code` is false, jumping outside the loaded region to `$2000` exits iff
-        // `written[$2000]` is true (not `written_phase2[$2000]` alone).
+        // `LeftLoadedRegion`: force `ret_addr` above `pc` (`$3000 > $2000`) so `WrittenCodeReached` does not fire.
+        // Jumping outside the loaded region to `$2000` exits iff `written[$2000]` is true (not `written_phase2[$2000]` alone).
         let cfg_high_ret = UnpackConfig {
             forced_entry: Some(SYS_ENTRY),
             forced_ret_addr: Some(0x3000),
@@ -3388,7 +3433,7 @@ mod tests {
         );
 
         // 3. LeftLoadedRegion { pc }: force `ret_addr = $3000` (`> OUTPUT_ADDR == $2000`) so
-        //    `is_written_code` (`pc >= ret_addr`) is false when Phase 2 jumps to written `$2000`
+        //    `WrittenCodeReached` (`pc >= ret_addr`) does not fire when Phase 2 jumps to written `$2000`
         //    outside the loaded region (`$0801..$084B`).
         let cfg_left = UnpackConfig {
             forced_ret_addr: Some(0x3000),
@@ -3745,12 +3790,12 @@ mod tests {
         // - Step 1 (`WriteDiff`): `start = $1000`, `end = $2000`, `entry = $1000` (`ExitPc`)
         // - Step 2 (`PackerSpec`): `start = $1100`
         // - Step 3 (`PackerSpec`): `end = $2050`
-        // - Step 4 (`PointerAfterRun`): `end = $2100`
-        // - Step 5 (`PackerSpec`): `entry = $1500`
+        // - Step 5 (`PointerAfterRun`): `end = $2100`
+        // - Step 6 (`PackerSpec`): `entry = $1500`
         // - Step 7 (`PackerRefine`): sets `start = $1200` (`> basic_start`), leaves `end = $2100`,
         //   sets `entry = $0801` (`== basic_start`)
         // - Step 8 (`SysLineClamp` / `SysLineLookup`): lowers `start` to `$0801` (`SysLineClamp`)
-        //   and replaces `entry` with `$080D` (`SysLineLookup`); `end` stays `$2100` (`PointerAfterRun`).
+        //   and replaces `entry` with `$080D` (`SysLineLookup`). `end` stays `$2100` (`PointerAfterRun`).
         let hints = PackerInfo {
             start_addr: Some(0x1100),
             end_addr: Some(0x2050),
@@ -3814,5 +3859,211 @@ mod tests {
             res_b.report.entry_source,
             BoundSource::PackerRefine { id: "chain_b" }
         );
+    }
+
+    /// Verifies that `finish` honors `raw_hints.end_addr`'s `adjust` (for example `adjust: 0`)
+    /// and `PointerGuard` (for example `PointerGuard::None` accepting beyond `+512` slack).
+    #[test]
+    fn finish_end_ptr_honors_adjust_zero_and_custom_guard() {
+        let (mut mem, snapshot, written) = finish_fixture();
+        // `detect_output_range` finds `$1000..=$2000`.
+        // Pointer at `$00FA` holds `$2100` (inclusive last byte).
+        mem[0x00FA..=0x00FB].copy_from_slice(&0x2100_u16.to_le_bytes());
+
+        let hints = PackerInfo {
+            name: "TestAdj0",
+            end_addr_ptr: Some(0x00FA),
+            ..empty_packer_info()
+        };
+        let raw_adj0 = Hints {
+            end_addr: Some(AddrSource::PointerAfterRun {
+                ptr_addr: 0x00FA,
+                adjust: 0,
+                guard: PointerGuard::NearDetectedEnd { slack: 512 },
+            }),
+            ..Hints::NONE
+        };
+        let res_adj0 = finish(FinishContext {
+            packer_id: Some("test_adj0"),
+            hints: Some(&hints),
+            raw_hints: Some(&raw_adj0),
+            ..test_finish_ctx(&mem, &snapshot, &written)
+        })
+        .unwrap();
+        assert_eq!(res_adj0.end_addr, 0x2100);
+        assert_eq!(
+            res_adj0.report.end_source,
+            BoundSource::PointerAfterRun { addr: 0x00FA }
+        );
+
+        // `PointerGuard::None` accepts a pointer far beyond `END_PTR_SLACK` (`$4500`).
+        mem[0x00FA..=0x00FB].copy_from_slice(&0x4500_u16.to_le_bytes());
+        let raw_none = Hints {
+            end_addr: Some(AddrSource::PointerAfterRun {
+                ptr_addr: 0x00FA,
+                adjust: 0,
+                guard: PointerGuard::None,
+            }),
+            ..Hints::NONE
+        };
+        let res_none = finish(FinishContext {
+            packer_id: Some("test_none_guard"),
+            hints: Some(&hints),
+            raw_hints: Some(&raw_none),
+            ..test_finish_ctx(&mem, &snapshot, &written)
+        })
+        .unwrap();
+        assert_eq!(res_none.end_addr, 0x4500);
+        assert_eq!(
+            res_none.report.end_source,
+            BoundSource::PointerAfterRun { addr: 0x00FA }
+        );
+    }
+
+    /// Verifies that `finish` evaluates `AddrSource::PointerRegAfterRun` using exit CPU registers.
+    #[test]
+    fn finish_end_ptr_reg_offset_adds_register() {
+        let (mut mem, snapshot, written) = finish_fixture();
+        // `detect_output_range` finds `$1000..=$2000`.
+        // `$00FE` holds `$2010`, `X = 5`, `adjust = -1` -> `$2010 + 5 - 1 = $2014`.
+        mem[0x00FE..=0x00FF].copy_from_slice(&0x2010_u16.to_le_bytes());
+
+        let hints = PackerInfo {
+            name: "TestRegPtr",
+            end_addr_ptr: Some(0x00FE),
+            ..empty_packer_info()
+        };
+        let raw_hints = Hints {
+            end_addr: Some(AddrSource::PointerRegAfterRun {
+                ptr_addr: 0x00FE,
+                reg: CpuReg::X,
+                adjust: -1,
+                guard: PointerGuard::NearDetectedEnd { slack: 512 },
+            }),
+            ..Hints::NONE
+        };
+        let mut ctx = test_finish_ctx(&mem, &snapshot, &written);
+        ctx.hints = Some(&hints);
+        ctx.raw_hints = Some(&raw_hints);
+        ctx.registers = Registers {
+            a: 0,
+            x: 5,
+            y: 0,
+            sp: 0xF6,
+        };
+        let res = finish(ctx).unwrap();
+        assert_eq!(res.end_addr, 0x2014);
+        assert_eq!(
+            res.report.end_source,
+            BoundSource::PointerAfterRun { addr: 0x00FE }
+        );
+
+        // Exact `$1_0000` boundary (`$FFF0 + X($10) - 1 == $FFFF`) with `detected_end = $FE00`
+        // (`$FE00 + 512 == $FFFF`) resolves `$FFFF` cleanly rather than wrapping `raw` to `0`.
+        let mut high_mem = vec![0u8; 0x1_0000];
+        let mut high_snapshot = vec![0u8; 0x1_0000];
+        let mut high_written = vec![false; 0x1_0000];
+        high_snapshot[0xFE00] = 0x00;
+        high_mem[0xFE00] = 0xEA;
+        high_written[0xFE00] = true;
+        high_mem[0x00FE..=0x00FF].copy_from_slice(&0xFFF0_u16.to_le_bytes());
+        let high_hints = PackerInfo {
+            name: "TestRegBoundary",
+            start_addr: Some(0x1000),
+            end_addr_ptr: Some(0x00FE),
+            ..empty_packer_info()
+        };
+        let mut high_ctx = test_finish_ctx(&high_mem, &high_snapshot, &high_written);
+        high_ctx.entry_point = 0x1000;
+        high_ctx.hints = Some(&high_hints);
+        high_ctx.raw_hints = Some(&raw_hints);
+        high_ctx.registers = Registers {
+            a: 0,
+            x: 0x10,
+            y: 0,
+            sp: 0xF6,
+        };
+        let high_res = finish(high_ctx).unwrap();
+        assert_eq!(high_res.end_addr, 0xFFFF);
+    }
+
+    /// Verifies that [`UnpackConfig::forced_dep_addr`] targeting high RAM (`>= ret_addr`)
+    /// triggers the Phase 1 -> Phase 2 transition even without a matching packer hint.
+    #[test]
+    fn forced_dep_addr_above_ret_addr_triggers_phase2() {
+        // High-RAM stub without a BASIC SYS line: `$080D` runs `JMP $0900`, and `$0900` writes `$2000` then jumps there.
+        let mut raw = vec![0u8; 0x0908 - usize::from(PRG_LOAD)];
+        raw[0x080D - usize::from(PRG_LOAD)..=0x080F - usize::from(PRG_LOAD)]
+            .copy_from_slice(&[0x4C, 0x00, 0x09]);
+        raw[0x0900 - usize::from(PRG_LOAD)..=0x0907 - usize::from(PRG_LOAD)]
+            .copy_from_slice(&[0xA9, 0xEA, 0x8D, 0x00, 0x20, 0x4C, 0x00, 0x20]);
+
+        let cfg = UnpackConfig {
+            forced_entry: Some(0x080D),
+            forced_dep_addr: Some(0x0900),
+            ..budget(SMALL_BUDGET)
+        };
+        let res = run(&raw, PRG_LOAD, &cfg).expect("high-RAM forced_dep_addr triggers Phase 2");
+        assert_eq!(res.dep_addr, 0x0900);
+        assert_eq!(res.report.find_depacker_instructions, 1);
+        assert_eq!(res.start_addr, 0x2000);
+        assert_eq!(res.end_addr, 0x2000);
+        assert_eq!(res.entry_point, 0x2000);
+        assert_eq!(res.data, vec![0xEA]);
+    }
+
+    /// Verifies that `raw_hints.start_addr` with `AddrSource::PointerAfterRun` updates
+    /// `start_addr` and sets `start_source = BoundSource::PointerAfterRun` when `ValidStart`
+    /// accepts, and leaves `start_addr` unchanged when `ValidStart` rejects (`$0000` or `> end_addr`).
+    #[test]
+    fn finish_start_ptr_after_run_sets_start_and_bound_source() {
+        let (mut mem, snapshot, written) = finish_fixture();
+        // `detect_output_range` finds `$1000..=$2000`.
+        // Set `entry_point = $1200` so Step 9 (`EntryClamp`) doesn't lower `start_addr` back down.
+        let hints = PackerInfo {
+            name: "TestStartPtr",
+            ..empty_packer_info()
+        };
+        let raw_hints = Hints {
+            start_addr: Some(AddrSource::PointerAfterRun {
+                ptr_addr: 0x00FA,
+                adjust: 0,
+                guard: PointerGuard::ValidStart,
+            }),
+            ..Hints::NONE
+        };
+
+        // 1. Valid start `$0800` (`>= $0200 && <= $2000`): accepted.
+        mem[0x00FA..=0x00FB].copy_from_slice(&0x0800_u16.to_le_bytes());
+        let mut ctx = test_finish_ctx(&mem, &snapshot, &written);
+        ctx.entry_point = 0x1200;
+        ctx.hints = Some(&hints);
+        ctx.raw_hints = Some(&raw_hints);
+        let accepted = finish(ctx).unwrap();
+        assert_eq!(accepted.start_addr, 0x0800);
+        assert_eq!(
+            accepted.report.start_source,
+            BoundSource::PointerAfterRun { addr: 0x00FA }
+        );
+
+        // 2. Zero-page value `$0000` (`< $0200`): rejected, keeps `WriteDiff` (`$1000`).
+        mem[0x00FA..=0x00FB].copy_from_slice(&0x0000_u16.to_le_bytes());
+        let mut ctx_low = test_finish_ctx(&mem, &snapshot, &written);
+        ctx_low.entry_point = 0x1200;
+        ctx_low.hints = Some(&hints);
+        ctx_low.raw_hints = Some(&raw_hints);
+        let rejected_low = finish(ctx_low).unwrap();
+        assert_eq!(rejected_low.start_addr, 0x1000);
+        assert_eq!(rejected_low.report.start_source, BoundSource::WriteDiff);
+
+        // 3. Value above `end_addr` (`$3000 > $2000`): rejected, keeps `WriteDiff` (`$1000`).
+        mem[0x00FA..=0x00FB].copy_from_slice(&0x3000_u16.to_le_bytes());
+        let mut ctx_high = test_finish_ctx(&mem, &snapshot, &written);
+        ctx_high.entry_point = 0x1200;
+        ctx_high.hints = Some(&hints);
+        ctx_high.raw_hints = Some(&raw_hints);
+        let rejected_high = finish(ctx_high).unwrap();
+        assert_eq!(rejected_high.start_addr, 0x1000);
+        assert_eq!(rejected_high.report.start_source, BoundSource::WriteDiff);
     }
 }
