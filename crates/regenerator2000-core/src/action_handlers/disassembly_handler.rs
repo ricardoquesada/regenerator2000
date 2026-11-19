@@ -2,10 +2,14 @@
 //! comments, scopes, immediate operand packing, bookmarks, and auto-analysis.
 
 use super::{ActionContext, CoreError, DomainActionHandler};
+use crate::commands::Command;
 use crate::event::CoreEvent;
-use crate::state::Addr;
+use crate::navigation::{
+    active_pane_byte_offset_range, line_byte_offset_range, slice_byte_offset_range,
+};
 use crate::state::actions::AppAction;
 use crate::state::types::CommentKind;
+use crate::state::{Addr, BlockType};
 use crate::view_state::ActivePane;
 
 /// Handler for disassembly manipulation actions.
@@ -18,57 +22,6 @@ impl DisassemblyActionHandler {
     pub fn new() -> Self {
         Self
     }
-}
-
-/// Returns the half-open binary byte offset range `start..end` covered by `line`.
-///
-/// Returns `None` for external equates, preamble headers, splitters, and scope delimiters.
-fn line_byte_offset_range(
-    state: &crate::state::AppState,
-    line: &crate::disassembler::DisassemblyLine,
-) -> Option<std::ops::Range<usize>> {
-    if line.external_label_address.is_some() || state.is_external(line.address) {
-        return None;
-    }
-    let start_offset = line.address.offset_from(state.origin);
-    if start_offset >= state.raw_data.len() {
-        return None;
-    }
-    if line.is_collapsed {
-        if let Some(&(_, end_offset)) = state
-            .collapsed_blocks
-            .iter()
-            .find(|&&(s, _)| s == start_offset)
-        {
-            let end_excl = (end_offset + 1).min(state.raw_data.len());
-            return Some(start_offset..end_excl);
-        }
-        if let Some((start_addr, end_addr)) = state.get_block_range(line.address) {
-            let s = start_addr.offset_from(state.origin);
-            let e = (end_addr.offset_from(state.origin) + 1).min(state.raw_data.len());
-            return Some(s..e);
-        }
-    }
-    if line.bytes.is_empty() {
-        return None;
-    }
-    let end_excl = (start_offset + line.bytes.len()).min(state.raw_data.len());
-    Some(start_offset..end_excl)
-}
-
-/// Returns the half-open binary byte offset range `first.start..last.end` across `slice`.
-fn slice_byte_offset_range(
-    state: &crate::state::AppState,
-    slice: &[crate::disassembler::DisassemblyLine],
-) -> Option<std::ops::Range<usize>> {
-    let first = slice
-        .iter()
-        .find_map(|l| line_byte_offset_range(state, l))?;
-    let last = slice
-        .iter()
-        .rev()
-        .find_map(|l| line_byte_offset_range(state, l))?;
-    (first.start < last.end).then_some(first.start..last.end)
 }
 
 /// Applies `block_cmd`, records the pre-command analysis snapshot, rebuilds disassembly, and pushes a batch command.
@@ -92,8 +45,10 @@ fn apply_block_command_with_analysis(
     ]));
 }
 
-/// Applies `new_type` to the active line, range selection, or selected block in `Blocks` view.
-fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockType) {
+/// Applies `new_type` to the active selection or focused item in the active pane.
+///
+/// Supports `Disassembly`, `HexDump`, `Sprites`, `Charset`, `Bitmap`, and `Blocks` views.
+fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: BlockType) {
     let selected_range = match ctx.view.active_pane {
         ActivePane::Disassembly => {
             // Support both persistent visual mode (`Shift+V`) and `Shift+Arrow` range selection.
@@ -113,6 +68,10 @@ fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockTy
                     .and_then(|line| line_byte_offset_range(ctx.state, line))
             }
         }
+        ActivePane::HexDump | ActivePane::Sprites | ActivePane::Charset | ActivePane::Bitmap => {
+            // Use shared pane byte-range math for both single-item focus and active selections.
+            active_pane_byte_offset_range(ctx.state, ctx.view)
+        }
         ActivePane::Blocks => {
             let blocks = ctx.state.get_blocks_view_items();
             let idx = ctx.view.blocks_selected_index.unwrap_or(0);
@@ -128,18 +87,18 @@ fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockTy
                 None
             }
         }
-        _ => None,
+        ActivePane::Debugger => None,
     };
 
     let Some(range) = selected_range else {
         return;
     };
 
-    if (new_type == crate::state::BlockType::LoHiAddress
-        || new_type == crate::state::BlockType::HiLoAddress
-        || new_type == crate::state::BlockType::LoHiWord
-        || new_type == crate::state::BlockType::HiLoWord)
-        && range.len() % 2 != 0
+    // Check even-byte alignment before `clear_all_selections` so failed conversions keep the selection.
+    if matches!(
+        new_type,
+        BlockType::LoHiAddress | BlockType::HiLoAddress | BlockType::LoHiWord | BlockType::HiLoWord
+    ) && range.len() % 2 != 0
     {
         ctx.events.push(CoreEvent::StatusMessage(
             "Address/Word block requires even number of bytes".to_string(),
@@ -147,8 +106,15 @@ fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockTy
         return;
     }
 
-    let old_types = ctx.state.block_types[range.clone()].to_vec();
-    let cmd1 = crate::commands::Command::SetBlockType {
+    let Some(old_types) = ctx
+        .state
+        .block_types
+        .get(range.clone())
+        .map(<[BlockType]>::to_vec)
+    else {
+        return;
+    };
+    let cmd1 = Command::SetBlockType {
         range,
         new_type,
         old_types,
@@ -156,9 +122,8 @@ fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: crate::state::BlockTy
 
     ctx.preserve_cursor(|c| {
         apply_block_command_with_analysis(c.state, cmd1);
-        // Clear both visual mode and Shift+Arrow range selection after conversion.
-        c.view.selection_start = None;
-        c.view.is_visual_mode = false;
+        // Clear visual mode and every pane selection anchor after conversion.
+        c.view.clear_all_selections();
     });
 
     ctx.events.push(CoreEvent::StatusMessage(format!(
@@ -287,8 +252,7 @@ fn handle_add_scope(ctx: &mut ActionContext<'_>) {
             let (analysis_cmd, _) = c.state.perform_analysis();
             let final_cmd = crate::commands::Command::Batch(vec![batch, analysis_cmd]);
             c.state.push_command(final_cmd);
-            c.view.selection_start = None;
-            c.view.is_visual_mode = false;
+            c.view.clear_all_selections();
         });
 
         ctx.events.push(CoreEvent::StatusMessage(format!(
@@ -1256,8 +1220,7 @@ fn handle_apply_symbolic_offset(ctx: &mut ActionContext<'_>, req: &SymbolicOffse
                 .flatten();
             ctx.preserve_cursor(|c| {
                 c.state.apply_operand_offsets(&updates);
-                c.view.selection_start = None;
-                c.view.is_visual_mode = false;
+                c.view.clear_all_selections();
             });
             if is_clear {
                 if site_count == 1 {
@@ -1294,8 +1257,7 @@ fn handle_apply_symbolic_offset(ctx: &mut ActionContext<'_>, req: &SymbolicOffse
             ctx.preserve_cursor(|c| {
                 c.state
                     .apply_address_offsets_for_sites(&updates, &site_addresses);
-                c.view.selection_start = None;
-                c.view.is_visual_mode = false;
+                c.view.clear_all_selections();
             });
             if is_clear {
                 if count == 1 {
@@ -1716,8 +1678,7 @@ fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
             let final_cmd = crate::commands::Command::Batch(vec![batch, analysis_cmd]);
             c.state.push_command(final_cmd);
 
-            c.view.selection_start = None;
-            c.view.is_visual_mode = false;
+            c.view.clear_all_selections();
         });
 
         ctx.events.push(CoreEvent::StatusMessage(format!(
@@ -1964,37 +1925,6 @@ impl DomainActionHandler for DisassemblyActionHandler {
                         "No new code found from ${:04X}",
                         addr.0
                     )));
-                }
-                Ok(true)
-            }
-            AppAction::SetBytesBlockByOffset { start, end } => {
-                if start <= end
-                    && *end < ctx.state.block_types.len()
-                    && let Some(end_plus_one) = end.checked_add(1)
-                {
-                    let range = *start..end_plus_one;
-                    let old_types = ctx.state.block_types[range.clone()].to_vec();
-                    let cmd1 = crate::commands::Command::SetBlockType {
-                        range,
-                        new_type: crate::state::BlockType::DataByte,
-                        old_types,
-                    };
-                    ctx.preserve_cursor(|c| {
-                        apply_block_command_with_analysis(c.state, cmd1);
-                    });
-
-                    let origin = ctx.state.origin.0 as usize;
-                    ctx.events.push(CoreEvent::StatusMessage(format!(
-                        "Converted to bytes from ${:04X} to ${:04X}",
-                        origin + start,
-                        origin + end
-                    )));
-                    ctx.events.push(CoreEvent::StateChanged);
-                    ctx.events.push(CoreEvent::ViewChanged);
-                } else {
-                    ctx.events.push(CoreEvent::StatusMessage(
-                        "Invalid byte range for conversion".to_string(),
-                    ));
                 }
                 Ok(true)
             }
@@ -2377,6 +2307,7 @@ mod tests {
     use crate::Core;
     use crate::state::actions::AppAction;
     use crate::state::types::Addr;
+    use crate::view_state::CoreViewState;
 
     #[test]
     fn test_pack_lo_hi_address_multi_line_selection() {
@@ -4341,5 +4272,267 @@ mod tests {
                 ..
             })
         )));
+    }
+
+    #[test]
+    fn test_apply_block_type_companion_panes_and_odd_byte_error() {
+        use crate::view_state::RightPane;
+
+        let mut core = Core::new();
+        core.state.origin = Addr(0x2000);
+        core.state.raw_data = vec![0xEA; 0x4200];
+        core.state.block_types = vec![BlockType::Undefined; 0x4200];
+        core.state.disassemble();
+
+        // 1. Sprites backward selection (2 -> 1 => offsets 64..192) -> Byte, then Undo.
+        core.view.active_pane = ActivePane::Sprites;
+        core.view.sprites_cursor_index = 1;
+        core.view.sprites_selection_start = Some(2);
+        core.view.is_visual_mode = true;
+        core.view.selection_start = Some(0);
+        let sprites_events = core.apply_action(AppAction::Byte);
+        assert!(sprites_events.contains(&CoreEvent::StateChanged));
+        assert!(sprites_events.contains(&CoreEvent::ViewChanged));
+        assert!(
+            core.state.block_types[64..192]
+                .iter()
+                .all(|&block_type| block_type == BlockType::DataByte)
+        );
+        assert!(
+            core.state.block_types[0..64]
+                .iter()
+                .all(|&block_type| block_type == BlockType::Undefined)
+        );
+        assert_eq!(core.view.sprites_selection_start, None);
+        assert!(!core.view.is_visual_mode);
+        assert_eq!(core.view.selection_start, None);
+
+        core.apply_action(AppAction::Undo);
+        assert!(
+            core.state.block_types[64..192]
+                .iter()
+                .all(|&block_type| block_type == BlockType::Undefined)
+        );
+
+        // 2. Charset passive focus (index 1 => offsets 8..16) -> Code.
+        core.view.active_pane = ActivePane::Charset;
+        core.view.charset_cursor_index = 1;
+        core.view.charset_selection_start = None;
+        let charset_events = core.apply_action(AppAction::Code);
+        assert!(charset_events.contains(&CoreEvent::StateChanged));
+        assert!(
+            core.state.block_types[8..16]
+                .iter()
+                .all(|&block_type| block_type == BlockType::Code)
+        );
+
+        // 3. Bitmap multi-item selection (0 -> 1 => offsets 0..0x3F40) -> Word.
+        core.view.active_pane = ActivePane::Bitmap;
+        core.view.bitmap_cursor_index = 1;
+        core.view.bitmap_selection_start = Some(0);
+        let bitmap_events = core.apply_action(AppAction::Word);
+        assert!(bitmap_events.contains(&CoreEvent::StateChanged));
+        assert!(
+            core.state.block_types[0..0x3F40]
+                .iter()
+                .all(|&block_type| block_type == BlockType::DataWord)
+        );
+        assert!(
+            core.state.block_types[0x3F40..0x4200]
+                .iter()
+                .all(|&block_type| block_type == BlockType::Undefined)
+        );
+        assert_eq!(core.view.bitmap_selection_start, None);
+
+        // 4. HexDump range selection (offsets 0..4, even length) -> LoHiAddress.
+        core.view.active_pane = ActivePane::HexDump;
+        core.view.right_pane = RightPane::HexDump16;
+        core.view.hex_cursor_index = 0;
+        core.view.hex_col_cursor = 3;
+        core.view.hex_selection_start = Some(0);
+        core.view.hex_selection_start_col = 0;
+        let hex_events = core.apply_action(AppAction::SetLoHiAddress);
+        assert!(hex_events.contains(&CoreEvent::StateChanged));
+        assert!(
+            core.state.block_types[0..4]
+                .iter()
+                .all(|&block_type| block_type == BlockType::LoHiAddress)
+        );
+        assert_eq!(core.view.hex_selection_start, None);
+        assert_eq!(core.view.hex_selection_start_col, 0);
+
+        // 5. Odd-byte validation failure on unaligned origin ($0801, sprite 0 = 63 bytes)
+        //    must preserve all active selection anchors.
+        let mut odd_core = Core::new();
+        odd_core.state.origin = Addr(0x0801);
+        odd_core.state.raw_data = vec![0xEA; 128];
+        odd_core.state.block_types = vec![BlockType::Undefined; 128];
+        odd_core.state.disassemble();
+        odd_core.view.active_pane = ActivePane::Sprites;
+        odd_core.view.sprites_cursor_index = 0;
+        odd_core.view.sprites_selection_start = Some(0);
+        odd_core.view.is_visual_mode = true;
+        odd_core.view.hex_selection_start = Some(1);
+        odd_core.view.hex_selection_start_col = 2;
+
+        let odd_events = odd_core.apply_action(AppAction::SetLoHiAddress);
+        assert!(odd_events.contains(&CoreEvent::StatusMessage(
+            "Address/Word block requires even number of bytes".to_string()
+        )));
+        assert!(
+            odd_core.state.block_types[0..63]
+                .iter()
+                .all(|&block_type| block_type == BlockType::Undefined)
+        );
+        assert_eq!(odd_core.view.sprites_selection_start, Some(0));
+        assert!(odd_core.view.is_visual_mode);
+        assert_eq!(odd_core.view.hex_selection_start, Some(1));
+        assert_eq!(odd_core.view.hex_selection_start_col, 2);
+
+        // 6. Pre-origin alignment padding only (`origin = $0809`, Charset slot 0) is a no-op.
+        let mut padding_core = Core::new();
+        padding_core.state.origin = Addr(0x0809);
+        padding_core.state.raw_data = vec![0xEA; 32];
+        padding_core.state.block_types = vec![BlockType::Undefined; 32];
+        padding_core.state.disassemble();
+        padding_core.view.active_pane = ActivePane::Charset;
+        padding_core.view.charset_cursor_index = 0;
+
+        let padding_events = padding_core.apply_action(AppAction::Byte);
+        assert!(padding_events.is_empty());
+        assert!(
+            padding_core
+                .state
+                .block_types
+                .iter()
+                .all(|&block_type| block_type == BlockType::Undefined)
+        );
+    }
+
+    #[test]
+    fn test_selection_consuming_handlers_clear_all_companion_anchors() {
+        let seed_stale_anchors = |view: &mut CoreViewState, selection_start: usize| {
+            view.hex_selection_start = Some(0);
+            view.hex_selection_start_col = 3;
+            view.sprites_selection_start = Some(1);
+            view.charset_selection_start = Some(2);
+            view.bitmap_selection_start = Some(0);
+            view.selection_start = Some(selection_start);
+            view.is_visual_mode = true;
+        };
+        let assert_all_cleared = |view: &CoreViewState, label: &str| {
+            assert_eq!(
+                view.hex_selection_start, None,
+                "{label}: hex_selection_start"
+            );
+            assert_eq!(
+                view.hex_selection_start_col, 0,
+                "{label}: hex_selection_start_col"
+            );
+            assert_eq!(
+                view.sprites_selection_start, None,
+                "{label}: sprites_selection_start"
+            );
+            assert_eq!(
+                view.charset_selection_start, None,
+                "{label}: charset_selection_start"
+            );
+            assert_eq!(
+                view.bitmap_selection_start, None,
+                "{label}: bitmap_selection_start"
+            );
+            assert_eq!(view.selection_start, None, "{label}: selection_start");
+            assert!(!view.is_visual_mode, "{label}: is_visual_mode");
+            assert!(!view.has_any_selection(), "{label}: has_any_selection");
+        };
+
+        let mut core = Core::new();
+        // $1000: LDA #$10, $1002: LDA #$20, $1004: LDA $C001, $1007: NOP, $1008: NOP
+        let program = vec![0xA9, 0x10, 0xA9, 0x20, 0xAD, 0x01, 0xC0, 0xEA, 0xEA];
+        core.state
+            .load_binary(Addr(0x1000), program)
+            .expect("binary should load at $1000");
+        core.state.block_types = vec![BlockType::Code; 9];
+        core.state
+            .create_set_user_label_command(Addr(0xC000), "tbl_base", /* is_local= */ false)
+            .expect("create tbl_base label command")
+            .apply(&mut core.state);
+        core.state
+            .create_set_user_label_command(Addr(0x1007), "buf_base", /* is_local= */ false)
+            .expect("create buf_base label command")
+            .apply(&mut core.state);
+        core.state.disassemble();
+
+        let index_1000 = core
+            .state
+            .disassembly
+            .iter()
+            .position(|line| line.address == Addr(0x1000) && !line.bytes.is_empty())
+            .expect("line at $1000");
+        let index_1002 = core
+            .state
+            .disassembly
+            .iter()
+            .position(|line| line.address == Addr(0x1002) && !line.bytes.is_empty())
+            .expect("line at $1002");
+
+        // 1. `AppAction::Scope` (`handle_add_scope`).
+        core.view.cursor_index = index_1002;
+        seed_stale_anchors(&mut core.view, index_1000);
+        let scope_events = core.apply_action(AppAction::Scope);
+        assert!(scope_events.contains(&CoreEvent::StateChanged));
+        assert_all_cleared(&core.view, "Scope");
+
+        // 2. `AppAction::PackLoHiAddress` (`handle_lo_hi_packing`).
+        let index_1000 = core
+            .state
+            .disassembly
+            .iter()
+            .position(|line| line.address == Addr(0x1000) && !line.bytes.is_empty())
+            .expect("line at $1000");
+        let index_1002 = core
+            .state
+            .disassembly
+            .iter()
+            .position(|line| line.address == Addr(0x1002) && !line.bytes.is_empty())
+            .expect("line at $1002");
+        core.view.cursor_index = index_1002;
+        seed_stale_anchors(&mut core.view, index_1000);
+        let pack_events = core.apply_action(AppAction::PackLoHiAddress);
+        assert!(pack_events.contains(&CoreEvent::StateChanged));
+        assert_all_cleared(&core.view, "PackLoHiAddress");
+
+        // 3. `AppAction::ApplySymbolicOffset` (Operand mode).
+        seed_stale_anchors(&mut core.view, index_1000);
+        let operand_offset_events = core.apply_action(AppAction::ApplySymbolicOffset {
+            site_address: Some(Addr(0x1004)),
+            target_address: Addr(0xC001),
+            address_range: None,
+            input: "tbl_base + 1".to_string(),
+            is_global: false,
+            is_zero_page_mode: false,
+        });
+        assert!(operand_offset_events.contains(&CoreEvent::StateChanged));
+        assert_all_cleared(&core.view, "ApplySymbolicOffset(Operand)");
+
+        // 4. `AppAction::ApplySymbolicOffset` (Address mode).
+        seed_stale_anchors(&mut core.view, index_1000);
+        let address_offset_events = core.apply_action(AppAction::ApplySymbolicOffset {
+            site_address: None,
+            target_address: Addr(0x1007),
+            address_range: Some((Addr(0x1007), Addr(0x1008))),
+            input: "buf_base".to_string(),
+            is_global: true,
+            is_zero_page_mode: false,
+        });
+        assert!(address_offset_events.contains(&CoreEvent::StateChanged));
+        assert_all_cleared(&core.view, "ApplySymbolicOffset(Address)");
+
+        // 5. `AppAction::Byte`.
+        core.view.cursor_index = index_1002;
+        seed_stale_anchors(&mut core.view, index_1000);
+        let bytes_events = core.apply_action(AppAction::Byte);
+        assert!(bytes_events.contains(&CoreEvent::StateChanged));
+        assert_all_cleared(&core.view, "Byte");
     }
 }

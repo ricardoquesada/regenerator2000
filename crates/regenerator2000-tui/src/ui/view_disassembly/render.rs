@@ -23,7 +23,8 @@ use regenerator2000_core::disassembler::{
     CODE_COLUMN_WIDTH, Disassembler, DisassemblyLine, DisassemblyLineKind, LABEL_COLUMN_WIDTH,
     LabelPlacement,
 };
-use regenerator2000_core::state::AppState;
+use regenerator2000_core::navigation::{AlignedGridRange, line_byte_addr_span};
+use regenerator2000_core::state::{Addr, AppState, BlockType};
 
 use super::layout::get_visual_line_count_for_instruction;
 use crate::ui_state::{ActivePane, UIState};
@@ -981,6 +982,23 @@ fn render_instruction_sub_rows(ctx: &RowRenderContext<'_>, parts: &mut Vec<Line<
     parts.push(Line::from(inst_spans));
 }
 
+/// Returns `true` if `line` covers at least one binary byte inside `span_start..=span_end`.
+///
+/// Uses [`line_byte_addr_span`] so external equates, preamble lines, splitters, and scope
+/// delimiters return `false`. Collapsed blocks use non-wrapping `usize` bounds and remain
+/// accurate across `$FFFF`.
+#[must_use]
+fn line_overlaps_addr_span(
+    line: &DisassemblyLine,
+    app_state: &AppState,
+    (span_start, span_end): (Addr, Addr),
+) -> bool {
+    let Some((line_start, line_end)) = line_byte_addr_span(app_state, line) else {
+        return false;
+    };
+    line_start <= usize::from(span_end.0) && line_end >= usize::from(span_start.0)
+}
+
 /// Renders the disassembly view widget into the specified frame area.
 ///
 /// # Arguments
@@ -1024,6 +1042,8 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
     let active_arrows =
         compute_visible_arrows(app_state, scroll_inst_idx, scroll_sub_idx, visible_height);
     let arrow_width = (app_state.settings.max_arrow_columns * 2) + 1;
+    // Resolve the focused companion item range (`None` when a Disassembly selection is active).
+    let companion_span = AlignedGridRange::active_pane_item_addr_range(app_state, &ui_state.core);
 
     let mut items = Vec::new();
     let mut current_inst = scroll_inst_idx;
@@ -1041,22 +1061,26 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
             };
             current_inst >= start && current_inst <= end
         });
+        let is_highlighted = is_selected_block
+            || companion_span.is_some_and(|span| line_overlaps_addr_span(line, app_state, span));
 
         let offset = line.address.0.saturating_sub(app_state.origin.0) as usize;
         let is_unexplored = line.external_label_address.is_none()
             && matches!(
                 app_state.block_types.get(offset),
-                Some(&regenerator2000_core::state::BlockType::Undefined)
+                Some(&BlockType::Undefined)
             );
 
-        let mut base_style = if is_selected_block {
+        // Skip `Modifier::DIM` whenever `is_highlighted` is true. Inner spans copy `base_style`,
+        // so `ListItem::style` alone cannot clear `DIM` on highlighted `Undefined` bytes.
+        let mut base_style = if is_highlighted {
             Style::default()
                 .bg(ui_state.theme.selection_bg)
                 .fg(ui_state.theme.selection_fg)
         } else {
             Style::default()
         };
-        if is_unexplored && !is_selected_block {
+        if is_unexplored && !is_highlighted {
             base_style = base_style.add_modifier(Modifier::DIM);
         }
 
@@ -1093,7 +1117,7 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
 
             if idx >= current_sub {
                 let is_cursor_sub = is_cursor_row && idx == ui_state.sub_cursor_index;
-                let style = if is_cursor_sub && !is_selected_block {
+                let style = if is_cursor_sub && !is_highlighted {
                     base_style
                         .bg(ui_state.theme.selection_bg)
                         .remove_modifier(Modifier::DIM)
@@ -1948,5 +1972,356 @@ mod tests {
             kick_buffer.cell((2, 1)).map_or("", |c| c.symbol()),
         );
         assert_eq!(kick_gutter, "  ");
+    }
+
+    #[test]
+    fn test_render_disassembly_tier1_companion_span_non_dimmed_and_exclusions() {
+        use ratatui::buffer::Buffer;
+
+        let mut app_state = AppState::new();
+        app_state
+            .load_binary(Addr(0x0800), vec![0xEA; 128])
+            .expect("load 128-byte binary at $0800");
+        app_state.block_types = vec![BlockType::Undefined; 128];
+        app_state.settings.assembler = Assembler::Kick;
+        app_state.settings.all_labels = true;
+        app_state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "vic_border".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::ExternalJump,
+            }],
+        );
+        app_state.labels.insert(
+            Addr(0x0801),
+            vec![Label {
+                name: "sprite_zero_own_line_label".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        app_state.annotations.update(Addr(0x0800), |entry| {
+            entry.scope = Some(Addr(0x083F));
+        });
+        app_state.annotations.update(Addr(0x0801), |entry| {
+            entry.user_line_comment = Some("sprite zero line comment".to_string());
+        });
+        app_state.disassemble();
+
+        let line_0800 = app_state
+            .get_line_index_containing_address(Addr(0x0800))
+            .expect("line index for $0800");
+        let line_0808 = app_state
+            .get_line_index_containing_address(Addr(0x0808))
+            .expect("line index for $0808");
+
+        let row_text = |buffer: &Buffer, y: u16| -> String {
+            (1..99)
+                .map(|x| {
+                    buffer
+                        .cell((x, y))
+                        .map_or(String::new(), |cell| cell.symbol().to_string())
+                })
+                .collect()
+        };
+        let row_is_highlighted = |buffer: &Buffer, y: u16, selection_bg| -> bool {
+            (1..99).all(|x| {
+                buffer
+                    .cell((x, y))
+                    .is_some_and(|cell| cell.bg == selection_bg)
+            })
+        };
+        let row_has_no_selection_bg = |buffer: &Buffer, y: u16, selection_bg| -> bool {
+            (1..99).all(|x| {
+                buffer
+                    .cell((x, y))
+                    .is_some_and(|cell| cell.bg != selection_bg)
+            })
+        };
+        let row_has_dim = |buffer: &Buffer, y: u16| -> bool {
+            (10..50).any(|x| {
+                buffer
+                    .cell((x, y))
+                    .is_some_and(|cell| cell.modifier.contains(Modifier::DIM))
+            })
+        };
+
+        // Case 1: ActivePane::Sprites, sprite 0 ($0800..=$083F), Tier 1 passive focus.
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_pane = ActivePane::Sprites;
+        ui_state.sprites_cursor_index = 0;
+        ui_state.sprites_selection_start = None;
+        ui_state.selection_start = None;
+        ui_state.cursor_index = line_0800;
+
+        let mut terminal =
+            Terminal::new(TestBackend::new(100, 90)).expect("create 100x90 terminal");
+        terminal
+            .draw(|f| render_disassembly(f, Rect::new(0, 0, 100, 90), &app_state, &mut ui_state))
+            .expect("draw disassembly tier 1 sprites frame");
+        let buffer = terminal.backend().buffer();
+        let selection_bg = ui_state.theme.selection_bg;
+
+        let mut found_0800 = false;
+        let mut found_0801_comment = false;
+        let mut found_0801_label = false;
+        let mut found_083f = false;
+        let mut found_external = false;
+        let mut found_closing_brace = false;
+        let mut found_0840 = false;
+
+        for y in 1..89 {
+            let text = row_text(buffer, y);
+            let lower = text.to_lowercase();
+            if lower.contains("$0800") && lower.contains(".byte") {
+                found_0800 = true;
+                assert!(
+                    row_is_highlighted(buffer, y, selection_bg),
+                    "$0800 must highlight"
+                );
+                assert!(!row_has_dim(buffer, y), "$0800 must not be dimmed");
+            } else if lower.contains("sprite zero line comment") {
+                found_0801_comment = true;
+                assert!(
+                    row_is_highlighted(buffer, y, selection_bg),
+                    "$0801 comment sub-row must highlight"
+                );
+                assert!(!row_has_dim(buffer, y), "$0801 comment must not be dimmed");
+            } else if lower.contains("sprite_zero_own_line_label") {
+                found_0801_label = true;
+                assert!(
+                    row_is_highlighted(buffer, y, selection_bg),
+                    "$0801 OwnLine label must highlight"
+                );
+                assert!(!row_has_dim(buffer, y), "$0801 label must not be dimmed");
+            } else if lower.contains("$083f") && lower.contains(".byte") {
+                found_083f = true;
+                assert!(
+                    row_is_highlighted(buffer, y, selection_bg),
+                    "$083F must highlight"
+                );
+                assert!(!row_has_dim(buffer, y), "$083F must not be dimmed");
+            } else if lower.contains("external") || lower.contains("vic_border") {
+                found_external = true;
+                assert!(
+                    row_has_no_selection_bg(buffer, y, selection_bg),
+                    "External label row '{text}' must not highlight"
+                );
+            } else if text.contains('}') {
+                found_closing_brace = true;
+                assert!(
+                    row_has_no_selection_bg(buffer, y, selection_bg),
+                    "Scope closing brace must not highlight"
+                );
+            } else if lower.contains("$0840") && lower.contains(".byte") {
+                found_0840 = true;
+                assert!(
+                    row_has_no_selection_bg(buffer, y, selection_bg),
+                    "$0840 outside Sprite 0 must not highlight"
+                );
+                assert!(
+                    row_has_dim(buffer, y),
+                    "$0840 Undefined byte outside span must retain Modifier::DIM"
+                );
+            }
+        }
+        assert!(
+            found_0800
+                && found_0801_comment
+                && found_0801_label
+                && found_083f
+                && found_external
+                && found_closing_brace
+                && found_0840,
+            "Expected all target rows in viewport: 0800={found_0800} comment={found_0801_comment} label={found_0801_label} 083f={found_083f} ext={found_external} brace={found_closing_brace} 0840={found_0840}"
+        );
+
+        // Case 2: ActivePane::Charset, char 1 ($0808..=$080F), Tier 1 passive focus.
+        ui_state.active_pane = ActivePane::Charset;
+        ui_state.charset_cursor_index = 1;
+        ui_state.charset_selection_start = None;
+        ui_state.selection_start = None;
+        ui_state.cursor_index = line_0808;
+
+        terminal
+            .draw(|f| render_disassembly(f, Rect::new(0, 0, 100, 90), &app_state, &mut ui_state))
+            .expect("draw disassembly tier 1 charset frame");
+        let charset_buffer = terminal.backend().buffer();
+        for addr in 0x0807..=0x0810u16 {
+            let needle = format!("${addr:04x}");
+            let y = (1..89)
+                .find(|&row| {
+                    let text = row_text(charset_buffer, row).to_lowercase();
+                    text.contains(&needle) && text.contains(".byte")
+                })
+                .unwrap_or_else(|| panic!("Missing row for {needle}"));
+            if (0x0808..=0x080F).contains(&addr) {
+                assert!(
+                    row_is_highlighted(charset_buffer, y, selection_bg),
+                    "{needle} inside Char 1 must highlight"
+                );
+                assert!(
+                    !row_has_dim(charset_buffer, y),
+                    "{needle} must not be dimmed"
+                );
+            } else {
+                assert!(
+                    row_has_no_selection_bg(charset_buffer, y, selection_bg),
+                    "{needle} outside Char 1 must not highlight"
+                );
+                assert!(
+                    row_has_dim(charset_buffer, y),
+                    "{needle} must retain Modifier::DIM"
+                );
+            }
+        }
+
+        // Case 3: Explicit Disassembly selection overrides companion_span.
+        ui_state.active_pane = ActivePane::Sprites;
+        ui_state.sprites_cursor_index = 1; // $0840..=$087F
+        ui_state.selection_start = Some(line_0800);
+        ui_state.cursor_index = line_0800;
+        terminal
+            .draw(|f| render_disassembly(f, Rect::new(0, 0, 100, 90), &app_state, &mut ui_state))
+            .expect("draw disassembly explicit selection override frame");
+        let override_buffer = terminal.backend().buffer();
+        let y_0800 = (1..89)
+            .find(|&row| {
+                let text = row_text(override_buffer, row).to_lowercase();
+                text.contains("$0800") && text.contains(".byte")
+            })
+            .expect("row for $0800");
+        let y_0840 = (1..89)
+            .find(|&row| {
+                let text = row_text(override_buffer, row).to_lowercase();
+                text.contains("$0840") && text.contains(".byte")
+            })
+            .expect("row for $0840");
+        assert!(row_is_highlighted(override_buffer, y_0800, selection_bg));
+        assert!(row_has_no_selection_bg(
+            override_buffer,
+            y_0840,
+            selection_bg
+        ));
+    }
+
+    #[test]
+    fn test_render_disassembly_tier1_collapsed_wrapped_and_bitmap_tail() {
+        use ratatui::buffer::Buffer;
+
+        let row_text = |buffer: &Buffer, width: u16, y: u16| -> String {
+            (1..width.saturating_sub(1))
+                .map(|x| {
+                    buffer
+                        .cell((x, y))
+                        .map_or(String::new(), |cell| cell.symbol().to_string())
+                })
+                .collect()
+        };
+
+        // Part A: Wrapped collapsed block $FFFE..=$0001 under Tier 1 Sprites focus.
+        let mut wrapped_state = AppState::new();
+        wrapped_state.origin = Addr(0xFFFE);
+        wrapped_state.raw_data = vec![0xEA; 4];
+        wrapped_state.block_types = vec![BlockType::Undefined; 4];
+        wrapped_state.collapsed_blocks.push((0, 3));
+        wrapped_state.disassemble();
+
+        let mut wrapped_ui = UIState::new(Theme::default());
+        wrapped_ui.active_pane = ActivePane::Sprites;
+        wrapped_ui.sprites_cursor_index = 0;
+        wrapped_ui.sprites_selection_start = None;
+        wrapped_ui.selection_start = None;
+
+        let mut wrapped_terminal =
+            Terminal::new(TestBackend::new(100, 10)).expect("create 100x10 terminal");
+        wrapped_terminal
+            .draw(|f| {
+                render_disassembly(f, Rect::new(0, 0, 100, 10), &wrapped_state, &mut wrapped_ui)
+            })
+            .expect("draw wrapped collapsed block frame");
+        let wrapped_buffer = wrapped_terminal.backend().buffer();
+        let selection_bg = wrapped_ui.theme.selection_bg;
+        let collapsed_y = (1..9)
+            .find(|&y| {
+                row_text(wrapped_buffer, 100, y)
+                    .contains("Collapsed Undefined block from $FFFE-$0001")
+            })
+            .expect("Collapsed summary row must be rendered");
+        assert!(
+            (1..99).all(|x| {
+                wrapped_buffer.cell((x, collapsed_y)).is_some_and(|cell| {
+                    cell.bg == selection_bg && !cell.modifier.contains(Modifier::DIM)
+                })
+            }),
+            "Wrapped collapsed block overlapping companion_span must highlight without DIM"
+        );
+
+        // Part B: Bitmap 8,000-byte boundary ($1F3E..=$1F3F inside Bitmap 0, $1F40..=$1F41 tail).
+        let mut tail_state = AppState::new();
+        tail_state.origin = Addr(0x1F3E);
+        tail_state.raw_data = vec![0xEA; 4];
+        tail_state.block_types = vec![BlockType::Undefined; 4];
+        tail_state.disassemble();
+
+        let mut tail_ui = UIState::new(Theme::default());
+        tail_ui.active_pane = ActivePane::Bitmap;
+        tail_ui.bitmap_cursor_index = 0;
+        tail_ui.bitmap_selection_start = None;
+        tail_ui.selection_start = None;
+        tail_ui.cursor_index = tail_state
+            .get_line_index_containing_address(Addr(0x1F3E))
+            .expect("line index for $1F3E");
+
+        let mut tail_terminal =
+            Terminal::new(TestBackend::new(100, 12)).expect("create 100x12 terminal");
+        tail_terminal
+            .draw(|f| render_disassembly(f, Rect::new(0, 0, 100, 12), &tail_state, &mut tail_ui))
+            .expect("draw bitmap tail boundary frame");
+        let tail_buffer = tail_terminal.backend().buffer();
+
+        for (addr, expected_in_bitmap) in [
+            (0x1F3E, true),
+            (0x1F3F, true),
+            (0x1F40, false),
+            (0x1F41, false),
+        ] {
+            let needle = format!("${addr:04x}");
+            let y = (1..11)
+                .find(|&row| {
+                    row_text(tail_buffer, 100, row)
+                        .to_lowercase()
+                        .contains(&needle)
+                })
+                .unwrap_or_else(|| panic!("Missing row for {needle}"));
+            if expected_in_bitmap {
+                assert!(
+                    (1..99).all(|x| {
+                        tail_buffer.cell((x, y)).is_some_and(|cell| {
+                            cell.bg == selection_bg && !cell.modifier.contains(Modifier::DIM)
+                        })
+                    }),
+                    "{needle} inside 8000-byte bitmap payload must highlight without DIM"
+                );
+            } else {
+                assert!(
+                    (1..99).all(|x| {
+                        tail_buffer
+                            .cell((x, y))
+                            .is_some_and(|cell| cell.bg != selection_bg)
+                    }),
+                    "{needle} in 192-byte tail must not highlight"
+                );
+                assert!(
+                    (10..50).any(|x| {
+                        tail_buffer
+                            .cell((x, y))
+                            .is_some_and(|cell| cell.modifier.contains(Modifier::DIM))
+                    }),
+                    "{needle} in 192-byte tail must retain Modifier::DIM"
+                );
+            }
+        }
     }
 }

@@ -19,48 +19,69 @@ impl NavigationActionHandler {
     }
 }
 
-/// Synchronizes the active right-pane cursor with the current disassembly cursor address
-/// when the corresponding `sync_*` option in `system_config` is enabled.
+/// Syncs the active right-pane cursor and selection from the disassembly pane when its
+/// `sync_*` setting is active.
 fn sync_pane_cursor_to_disassembly(ctx: &mut ActionContext<'_>) {
-    use crate::navigation::AlignedGridRange;
+    use crate::navigation::{
+        AlignedGridRange, sync_grid_pane_from_disassembly, sync_hex_pane_from_disassembly,
+    };
 
     let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index) else {
         return;
     };
-    if line.external_label_address.is_some() {
-        return;
-    }
-    let addr = line.address;
-    let addr_usize = addr.0 as usize;
+    let allow_cursor_sync = line.external_label_address.is_none();
+    let target_addr = line.address;
     let is_splitter = line.is_splitter();
+    let sync_target_addr = allow_cursor_sync.then_some(target_addr);
+    let disassembly_selection = ctx.view.selection_start;
+    let disassembly_cursor = ctx.view.cursor_index;
+
     match ctx.view.active_pane {
         ActivePane::HexDump if ctx.state.system_config.sync_hex_dump => {
-            let grid = AlignedGridRange::hex_dump(ctx.state, ctx.view.right_pane);
-            if let Some(row) = grid.index_for_addr(addr_usize) {
-                ctx.view.hex_cursor_index = row;
-                ctx.view.hex_col_cursor = (addr_usize - grid.aligned_origin) % grid.stride;
-            }
+            sync_hex_pane_from_disassembly(ctx.state, ctx.view, sync_target_addr);
         }
         ActivePane::Sprites if ctx.state.system_config.sync_sprites_view => {
             let grid = AlignedGridRange::sprites(ctx.state);
-            if let Some(idx) = grid.index_for_addr(addr_usize) {
-                ctx.view.sprites_cursor_index = idx;
-            }
+            sync_grid_pane_from_disassembly(
+                ctx.state,
+                disassembly_selection,
+                disassembly_cursor,
+                sync_target_addr,
+                &grid,
+                &mut ctx.view.sprites_cursor_index,
+                &mut ctx.view.sprites_selection_start,
+            );
         }
         ActivePane::Charset if ctx.state.system_config.sync_charset_view => {
             let grid = AlignedGridRange::charset(ctx.state);
-            if let Some(idx) = grid.index_for_addr(addr_usize) {
-                ctx.view.charset_cursor_index = idx;
-            }
+            sync_grid_pane_from_disassembly(
+                ctx.state,
+                disassembly_selection,
+                disassembly_cursor,
+                sync_target_addr,
+                &grid,
+                &mut ctx.view.charset_cursor_index,
+                &mut ctx.view.charset_selection_start,
+            );
         }
         ActivePane::Bitmap if ctx.state.system_config.sync_bitmap_view => {
             let grid = AlignedGridRange::bitmap(ctx.state);
-            if let Some(idx) = grid.index_for_addr(addr_usize) {
-                ctx.view.bitmap_cursor_index = idx;
-            }
+            sync_grid_pane_from_disassembly(
+                ctx.state,
+                disassembly_selection,
+                disassembly_cursor,
+                sync_target_addr,
+                &grid,
+                &mut ctx.view.bitmap_cursor_index,
+                &mut ctx.view.bitmap_selection_start,
+            );
         }
         ActivePane::Blocks if ctx.state.system_config.sync_blocks_view => {
-            if let Some(pos) = ctx.state.get_block_index_for_address(addr, is_splitter) {
+            if allow_cursor_sync
+                && let Some(pos) = ctx
+                    .state
+                    .get_block_index_for_address(target_addr, is_splitter)
+            {
                 ctx.view.blocks_selected_index = Some(pos);
             }
         }
@@ -84,17 +105,29 @@ fn toggle_two_column_pane(
     use crate::view_state::RightPane;
     match ctx.view.right_pane {
         p if p == wide => {
-            // Preserve the exact byte address when cycling HexDump16 -> HexDump8 with sync disabled.
-            let old_byte_addr = (active_pane == ActivePane::HexDump
-                && !ctx.state.system_config.sync_hex_dump)
-                .then(|| {
-                    let old_grid = AlignedGridRange::hex_dump(ctx.state, p);
-                    old_grid.item_addr(ctx.view.hex_cursor_index)
-                        + ctx.view.hex_col_cursor.min(old_grid.stride - 1)
-                });
+            // Re-index the hex cursor and selection anchor from 16-byte rows to 8-byte rows.
+            let reindex_hex = active_pane == ActivePane::HexDump
+                && (!ctx.state.system_config.sync_hex_dump
+                    || ctx.view.hex_selection_start.is_some());
+            let old_grid = reindex_hex.then(|| AlignedGridRange::hex_dump(ctx.state, p));
+            let old_byte_addr = old_grid.map(|grid| {
+                grid.item_addr(ctx.view.hex_cursor_index)
+                    + ctx.view.hex_col_cursor.min(grid.stride.saturating_sub(1))
+            });
+            let old_selection_addr = old_grid.and_then(|grid| {
+                ctx.view.hex_selection_start.map(|row| {
+                    grid.item_addr(row)
+                        + ctx
+                            .view
+                            .hex_selection_start_col
+                            .min(grid.stride.saturating_sub(1))
+                })
+            });
+
             ctx.view.right_pane = narrow;
             *last_pane(ctx.view) = narrow;
             ctx.view.active_pane = active_pane;
+
             if let Some(byte_addr) = old_byte_addr {
                 let new_grid = AlignedGridRange::hex_dump(ctx.state, narrow);
                 if let Some(row) = new_grid.index_for_addr(byte_addr) {
@@ -102,7 +135,15 @@ fn toggle_two_column_pane(
                     ctx.view.hex_col_cursor =
                         (byte_addr - new_grid.aligned_origin) % new_grid.stride;
                 }
-            } else {
+                if let Some(selection_addr) = old_selection_addr
+                    && let Some(selection_row) = new_grid.index_for_addr(selection_addr)
+                {
+                    ctx.view.hex_selection_start = Some(selection_row);
+                    ctx.view.hex_selection_start_col =
+                        (selection_addr - new_grid.aligned_origin) % new_grid.stride;
+                }
+            }
+            if old_byte_addr.is_none() || ctx.state.system_config.sync_hex_dump {
                 sync_pane_cursor_to_disassembly(ctx);
             }
             ctx.events
@@ -886,13 +927,13 @@ impl DomainActionHandler for NavigationActionHandler {
                 Ok(true)
             }
             AppAction::Cancel => {
+                // Clear selections across all panes so `Esc` leaves no stale anchor in inactive panes.
                 if ctx.view.is_visual_mode {
-                    ctx.view.is_visual_mode = false;
-                    ctx.view.selection_start = None;
+                    ctx.view.clear_all_selections();
                     ctx.events
                         .push(CoreEvent::StatusMessage("Visual Mode Exited".to_string()));
-                } else if ctx.view.selection_start.is_some() {
-                    ctx.view.selection_start = None;
+                } else if ctx.view.has_any_selection() {
+                    ctx.view.clear_all_selections();
                     ctx.events
                         .push(CoreEvent::StatusMessage("Selection cleared".to_string()));
                 }
@@ -2295,5 +2336,81 @@ mod tests {
                 expected
             );
         }
+    }
+
+    #[test]
+    fn test_cancel_action_clears_all_companion_selections() {
+        let mut state = AppState::new();
+        let handler = NavigationActionHandler::new();
+
+        // Case 1: visual mode active alongside companion anchors.
+        let mut view = CoreViewState::new();
+        view.is_visual_mode = true;
+        view.selection_start = Some(0);
+        view.sprites_selection_start = Some(1);
+        view.charset_selection_start = Some(2);
+        view.bitmap_selection_start = Some(0);
+        view.hex_selection_start = Some(2);
+        view.hex_selection_start_col = 5;
+
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+        assert!(
+            handler
+                .handle_action(&AppAction::Cancel, &mut ctx)
+                .expect("Cancel action should succeed in visual mode")
+        );
+        assert!(!view.has_any_selection());
+        assert_eq!(view.hex_selection_start_col, 0);
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg == "Visual Mode Exited"))
+        );
+
+        // Case 2: non-visual companion selection only.
+        view.bitmap_selection_start = Some(1);
+        view.hex_selection_start_col = 4;
+        events.clear();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+        assert!(
+            handler
+                .handle_action(&AppAction::Cancel, &mut ctx)
+                .expect("Cancel action should succeed with companion selection")
+        );
+        assert!(!view.has_any_selection());
+        assert_eq!(view.hex_selection_start_col, 0);
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg == "Selection cleared"))
+        );
+
+        // Case 3: no active selection emits ViewChanged without selection status messages.
+        events.clear();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+        assert!(
+            handler
+                .handle_action(&AppAction::Cancel, &mut ctx)
+                .expect("Cancel action should succeed when idle")
+        );
+        assert!(events.contains(&CoreEvent::ViewChanged));
+        assert!(!events.iter().any(|e| matches!(
+            e,
+            CoreEvent::StatusMessage(msg)
+                if msg == "Selection cleared" || msg == "Visual Mode Exited"
+        )));
     }
 }

@@ -1,8 +1,10 @@
-//! Address jump navigation and project-save cursor context construction.
+//! Address navigation, memory-grid range math, and cursor state for project saves.
 
+use crate::disassembler::DisassemblyLine;
 use crate::state::{Addr, AppState, ProjectSaveContext};
 use crate::view_state::{ActivePane, CoreViewState, NavigationTarget, RightPane};
 use std::collections::BTreeMap;
+use std::ops::Range;
 
 /// Returns `true` when `target_addr` lies inside the inclusive wrap-aware range `start_addr..=end_addr`.
 ///
@@ -78,15 +80,17 @@ fn advance_to_content_line(app_state: &AppState, target_addr: Addr, mut idx: usi
     idx
 }
 
-/// Resolves the final content [`DisassemblyLine`](crate::disassembler::DisassemblyLine) index
-/// in [`AppState::disassembly`] for `address`, skipping preamble and zero-byte body headers.
+/// Returns the content [`DisassemblyLine`] index in [`AppState::disassembly`] for `address`.
 ///
-/// Both live cursor jumps ([`perform_jump_to_address`], [`perform_jump_to_address_no_history`])
-/// and target previews ([`AppState::resolve_disassembly_jump_targets`]) call this helper. Cursor
-/// jumps and picker previews thus land on the exact same row. External addresses match only
-/// preamble equate rows (`external_label_address == Some(address)`). Collapsed blocks stop on
-/// their summary row, and multi-byte instructions match interior bytes without advancing.
-/// Returns `None` when `address` is out of range and has no external equate row.
+/// Skips preamble lines and zero-byte headers at `address`. Both cursor jumps
+/// ([`perform_jump_to_address`], [`perform_jump_to_address_no_history`]) and target previews
+/// ([`AppState::resolve_disassembly_jump_targets`]) call this function so they land on the
+/// same row.
+///
+/// - External addresses match only preamble equate rows (`external_label_address == Some(address)`).
+/// - Collapsed blocks stop on their summary row.
+/// - Multi-byte instructions match interior bytes without advancing to the next line.
+/// - Out-of-range addresses without an external equate row return `None`.
 #[must_use]
 pub fn resolve_jump_content_line_index(state: &AppState, address: Addr) -> Option<usize> {
     let raw_idx = resolve_jump_line_index(state, address)?;
@@ -450,9 +454,14 @@ impl AlignedGridRange {
         Self::new(app_state, 8192, 8192, 8000)
     }
 
-    /// Returns the total number of grid items spanning `[aligned_origin, end_address)`.
+    /// Returns the number of grid items in `[aligned_origin, end_address)`.
+    ///
+    /// Returns `0` if `raw_data` is empty (`end_address <= origin`).
     #[must_use]
     pub fn item_count(&self) -> usize {
+        if self.end_address <= self.origin {
+            return 0;
+        }
         self.end_address
             .saturating_sub(self.aligned_origin)
             .div_ceil(self.stride)
@@ -527,6 +536,415 @@ impl AlignedGridRange {
         let end_addr = self.item_addr(last) + self.item_bytes.saturating_sub(1);
         self.clamped_byte_offsets(start_addr, end_addr)
     }
+
+    /// Returns the clamped `(start_addr, end_addr)` range for grid items `first_item..=second_item`
+    /// (in either order).
+    ///
+    /// Clamps both bounds to `[origin, end_address - 1]`. Returns `None` if the item range lies
+    /// outside the binary (for example, inside alignment padding before `origin`).
+    ///
+    /// # Examples
+    ///
+    /// - **Sprites (`64` bytes):** `(37, 37)` returns `$0940..=$097F`. Both `(37, 38)` and
+    ///   `(38, 37)` return `$0940..=$09BF`.
+    /// - **Pre-origin padding (`origin = $0801`):** Sprite `0` (`$0800..=$083F`) clamps to
+    ///   `$0801..=$083F`.
+    /// - **Bitmaps (`stride = 8192`, `item_bytes = 8000`):** `(0, 0)` returns `$0000..=$1F3F` and
+    ///   excludes the 192-byte gap. `(0, 1)` returns `$0000..=$3F3F` as one contiguous range.
+    #[must_use]
+    pub fn clamped_item_addr_range(
+        &self,
+        first_item: usize,
+        second_item: usize,
+    ) -> Option<(Addr, Addr)> {
+        let (start_offset, end_offset) = self.item_range_byte_offsets(first_item, second_item)?;
+        // `item_range_byte_offsets` clamps within `[origin, min(end_address, 0x10000) - 1]`.
+        // Therefore `self.origin + end_offset` always fits in `u16`.
+        let start_addr = Addr((self.origin + start_offset) as u16);
+        let end_addr = Addr((self.origin + end_offset) as u16);
+        Some((start_addr, end_addr))
+    }
+
+    /// Returns the half-open `raw_data` byte range `start..end` for a hex dump cursor and
+    /// optional selection anchor.
+    ///
+    /// Clamps column indices to `self.stride - 1` so an 8-column switch cannot overflow into
+    /// the next row. Returns `None` if `self.stride == 0`, `raw_data` is empty, or the range
+    /// lies in alignment padding before `origin`.
+    #[must_use]
+    pub fn hex_byte_offset_range(
+        &self,
+        cursor_row: usize,
+        cursor_col: usize,
+        selection_start: Option<(usize, usize)>,
+    ) -> Option<Range<usize>> {
+        let max_col = self.stride.checked_sub(1)?;
+        let cursor_addr = self.item_addr(cursor_row) + cursor_col.min(max_col);
+        let (start_addr, end_addr) = if let Some((selection_row, selection_col)) = selection_start {
+            let anchor_addr = self.item_addr(selection_row) + selection_col.min(max_col);
+            (anchor_addr.min(cursor_addr), anchor_addr.max(cursor_addr))
+        } else {
+            (cursor_addr, cursor_addr)
+        };
+        // `clamped_byte_offsets` returns inclusive offsets `< raw_data.len()`, so `end + 1` will not overflow.
+        self.clamped_byte_offsets(start_addr, end_addr)
+            .map(|(start, end)| start..(end + 1))
+    }
+
+    /// Returns the clamped `(start_addr, end_addr)` range of the focused item in `Sprites`,
+    /// `Charset`, or `Bitmap` when no disassembly selection is active.
+    ///
+    /// The disassembly view uses this range to highlight all bytes of the focused item.
+    ///
+    /// - Returns `None` if [`CoreViewState::selection_start`] is `Some(_)`, so cursor focus never
+    ///   overrides an active selection.
+    /// - Returns `None` for [`ActivePane::HexDump`] because each hex cell is already one byte.
+    /// - Returns `None` for [`ActivePane::Disassembly`], [`ActivePane::Blocks`], and
+    ///   [`ActivePane::Debugger`].
+    #[must_use]
+    pub fn active_pane_item_addr_range(
+        app_state: &AppState,
+        view_state: &CoreViewState,
+    ) -> Option<(Addr, Addr)> {
+        if view_state.selection_start.is_some() {
+            return None;
+        }
+        match view_state.active_pane {
+            ActivePane::Sprites => {
+                let index = view_state.sprites_cursor_index;
+                Self::sprites(app_state).clamped_item_addr_range(index, index)
+            }
+            ActivePane::Charset => {
+                let index = view_state.charset_cursor_index;
+                Self::charset(app_state).clamped_item_addr_range(index, index)
+            }
+            ActivePane::Bitmap => {
+                let index = view_state.bitmap_cursor_index;
+                Self::bitmap(app_state).clamped_item_addr_range(index, index)
+            }
+            ActivePane::Disassembly
+            | ActivePane::HexDump
+            | ActivePane::Blocks
+            | ActivePane::Debugger => None,
+        }
+    }
+}
+
+/// Returns the half-open `raw_data` byte range `start..end` for the active memory pane
+/// (`HexDump`, `Sprites`, `Charset`, or `Bitmap`).
+///
+/// Edit menu block conversions and the `b` shortcut share this range calculation:
+///
+/// - Without a selection anchor, it covers the focused item (`1` hex byte, `64` sprite bytes,
+///   `8` charset bytes, or `8,000` bitmap bytes).
+/// - With a selection anchor, it covers all items from the anchor to the cursor.
+/// - Returns `None` if another pane is active or if the range lies in alignment padding
+///   before `origin`.
+#[must_use]
+pub fn active_pane_byte_offset_range(
+    app_state: &AppState,
+    view_state: &CoreViewState,
+) -> Option<Range<usize>> {
+    let (grid, cursor, selection) = match view_state.active_pane {
+        ActivePane::HexDump => {
+            return AlignedGridRange::hex_dump(app_state, view_state.right_pane)
+                .hex_byte_offset_range(
+                    view_state.hex_cursor_index,
+                    view_state.hex_col_cursor,
+                    view_state
+                        .hex_selection_start
+                        .map(|row| (row, view_state.hex_selection_start_col)),
+                );
+        }
+        ActivePane::Sprites => (
+            AlignedGridRange::sprites(app_state),
+            view_state.sprites_cursor_index,
+            view_state.sprites_selection_start,
+        ),
+        ActivePane::Charset => (
+            AlignedGridRange::charset(app_state),
+            view_state.charset_cursor_index,
+            view_state.charset_selection_start,
+        ),
+        ActivePane::Bitmap => (
+            AlignedGridRange::bitmap(app_state),
+            view_state.bitmap_cursor_index,
+            view_state.bitmap_selection_start,
+        ),
+        ActivePane::Disassembly | ActivePane::Blocks | ActivePane::Debugger => return None,
+    };
+    let anchor = selection.unwrap_or(cursor);
+    grid.item_range_byte_offsets(cursor, anchor)
+        .map(|(start, end)| start..(end + 1))
+}
+
+/// Returns the half-open `raw_data` byte range `start..end` covered by `line`.
+///
+/// - Returns `None` for external equates, `$0000` preamble lines, splitters, scope delimiters
+///   (`{` and `}`), and out-of-range addresses.
+/// - For collapsed blocks (`line.is_collapsed`), resolves the full block range from
+///   [`AppState::collapsed_blocks`] or [`AppState::get_block_range`].
+/// - Clamps the end offset to `state.raw_data.len()`.
+#[must_use]
+pub fn line_byte_offset_range(state: &AppState, line: &DisassemblyLine) -> Option<Range<usize>> {
+    if line.external_label_address.is_some() || state.is_external(line.address) {
+        return None;
+    }
+    let start_offset = line.address.offset_from(state.origin);
+    if start_offset >= state.raw_data.len() {
+        return None;
+    }
+    if line.is_collapsed {
+        if let Some(&(_, end_offset)) = state
+            .collapsed_blocks
+            .iter()
+            .find(|&&(block_start, _)| block_start == start_offset)
+        {
+            let end_exclusive = end_offset.saturating_add(1).min(state.raw_data.len());
+            return (start_offset < end_exclusive).then_some(start_offset..end_exclusive);
+        }
+        if let Some((start_addr, end_addr)) = state.get_block_range(line.address) {
+            let block_start = start_addr.offset_from(state.origin);
+            let end_exclusive = end_addr
+                .offset_from(state.origin)
+                .saturating_add(1)
+                .min(state.raw_data.len());
+            return (block_start < end_exclusive).then_some(block_start..end_exclusive);
+        }
+        // Collapsed summary rows leave `line.bytes` empty, so return `None` if lookup fails.
+        return None;
+    }
+    if line.bytes.is_empty() {
+        return None;
+    }
+    let end_exclusive = start_offset
+        .saturating_add(line.bytes.len())
+        .min(state.raw_data.len());
+    (start_offset < end_exclusive).then_some(start_offset..end_exclusive)
+}
+
+/// Returns the inclusive `usize` address range `(start, end)` covered by `line`.
+///
+/// Calls [`line_byte_offset_range`] and returns `None` for non-binary lines (such as external
+/// equates, preamble lines, splitters, and scope delimiters). Uses `usize` instead of `u16`
+/// so blocks that cross `$FFFF` (for example, `$FFFE..=$0001` as `0xFFFE..=0x10001`) do not
+/// wrap around.
+#[must_use]
+pub fn line_byte_addr_span(app_state: &AppState, line: &DisassemblyLine) -> Option<(usize, usize)> {
+    let range = line_byte_offset_range(app_state, line)?;
+    // Guard against empty ranges before subtracting `1` from `range.end`.
+    if range.is_empty() {
+        return None;
+    }
+    let origin_usize = usize::from(app_state.origin.0);
+    Some((origin_usize + range.start, origin_usize + range.end - 1))
+}
+
+/// Returns the half-open `raw_data` byte range `first.start..last.end` across `slice`.
+///
+/// Scans from both ends of `slice` for the first and last lines with binary bytes via
+/// [`line_byte_offset_range`]. Skips external equates, preamble lines, splitters, and scope
+/// delimiters. Returns `None` if `slice` covers no binary bytes.
+#[must_use]
+pub fn slice_byte_offset_range(
+    state: &AppState,
+    slice: &[DisassemblyLine],
+) -> Option<Range<usize>> {
+    let first = slice
+        .iter()
+        .find_map(|line| line_byte_offset_range(state, line))?;
+    let last = slice
+        .iter()
+        .rev()
+        .find_map(|line| line_byte_offset_range(state, line))?;
+    (first.start < last.end).then_some(first.start..last.end)
+}
+
+/// Returns the inclusive `usize` address range `(start, end)` for a disassembly selection or
+/// cursor line.
+///
+/// If `selection_start` is `Some(anchor)`, resolves the byte range across
+/// `anchor..=cursor_index` via [`slice_byte_offset_range`]. Otherwise, resolves `cursor_index`
+/// via [`line_byte_addr_span`]. Returns `None` if the selection covers no binary bytes.
+#[must_use]
+pub fn disassembly_selection_addr_span(
+    app_state: &AppState,
+    selection_start: Option<usize>,
+    cursor_index: usize,
+) -> Option<(usize, usize)> {
+    if let Some(anchor_index) = selection_start {
+        let (min_index, max_index) = if anchor_index <= cursor_index {
+            (anchor_index, cursor_index)
+        } else {
+            (cursor_index, anchor_index)
+        };
+        let slice = app_state.disassembly.get(min_index..=max_index)?;
+        let range = slice_byte_offset_range(app_state, slice)?;
+        if range.is_empty() {
+            return None;
+        }
+        let origin_usize = usize::from(app_state.origin.0);
+        Some((origin_usize + range.start, origin_usize + range.end - 1))
+    } else {
+        let line = app_state.disassembly.get(cursor_index)?;
+        line_byte_addr_span(app_state, line)
+    }
+}
+
+/// Maps a disassembly selection to `(anchor_item, cursor_item)` indices in `grid`.
+///
+/// Resolves the byte range via [`disassembly_selection_addr_span`] and clamps it to
+/// `[grid.aligned_origin, grid.end_address - 1]`. Preserves selection direction: returns
+/// `(start_item, end_item)` when `selection_start <= Some(cursor_index)` and
+/// `(end_item, start_item)` when backward. Returns `None` if `selection_start` is `None` or
+/// the selection does not overlap `grid`.
+#[must_use]
+pub fn mirror_disassembly_selection_to_grid(
+    app_state: &AppState,
+    selection_start: Option<usize>,
+    cursor_index: usize,
+    grid: &AlignedGridRange,
+) -> Option<(usize, usize)> {
+    let anchor_index = selection_start?;
+    if grid.end_address <= grid.aligned_origin || grid.stride == 0 {
+        return None;
+    }
+    let (first_start, last_end) =
+        disassembly_selection_addr_span(app_state, Some(anchor_index), cursor_index)?;
+    let max_grid_addr = grid.end_address - 1;
+    if first_start > max_grid_addr || last_end < grid.aligned_origin {
+        return None;
+    }
+
+    // Clamp spans that cross `$FFFF` into `[aligned_origin, max_grid_addr]` before division.
+    let clamped_start = first_start.max(grid.aligned_origin);
+    let clamped_end = last_end.min(max_grid_addr);
+    let max_item = grid.item_count().saturating_sub(1);
+    let start_item = ((clamped_start - grid.aligned_origin) / grid.stride).min(max_item);
+    let end_item = ((clamped_end - grid.aligned_origin) / grid.stride).min(max_item);
+
+    if anchor_index <= cursor_index {
+        Some((start_item, end_item))
+    } else {
+        Some((end_item, start_item))
+    }
+}
+
+/// Syncs a grid pane (`Charset`, `Sprites`, or `Bitmap`) from the disassembly cursor and
+/// selection.
+///
+/// - If the disassembly selection overlaps `grid`, sets `*pane_selection` and `*pane_cursor`
+///   to the matching item range and preserves direction.
+/// - Otherwise, clears `*pane_selection` and moves `*pane_cursor` to `sync_target_addr` when
+///   present.
+pub fn sync_grid_pane_from_disassembly(
+    app_state: &AppState,
+    disassembly_selection: Option<usize>,
+    disassembly_cursor: usize,
+    sync_target_addr: Option<Addr>,
+    grid: &AlignedGridRange,
+    pane_cursor: &mut usize,
+    pane_selection: &mut Option<usize>,
+) {
+    if let Some((anchor_item, cursor_item)) = mirror_disassembly_selection_to_grid(
+        app_state,
+        disassembly_selection,
+        disassembly_cursor,
+        grid,
+    ) {
+        *pane_selection = Some(anchor_item);
+        *pane_cursor = cursor_item;
+        return;
+    }
+
+    *pane_selection = None;
+    if let Some(target_addr) = sync_target_addr
+        && let Some(index) = grid.index_for_addr(usize::from(target_addr.0))
+    {
+        *pane_cursor = index;
+    }
+}
+
+/// Syncs the `HexDump` cursor and selection from the disassembly pane.
+///
+/// Preserves byte-level hex selection anchors inside multi-byte instructions across `Tab`
+/// switches when the disassembly selection still matches those lines.
+pub fn sync_hex_pane_from_disassembly(
+    app_state: &AppState,
+    view_state: &mut CoreViewState,
+    sync_target_addr: Option<Addr>,
+) {
+    let grid = AlignedGridRange::hex_dump(app_state, view_state.right_pane);
+    let Some(anchor_index) = view_state.selection_start else {
+        view_state.hex_selection_start = None;
+        view_state.hex_selection_start_col = 0;
+        if let Some(target_addr) = sync_target_addr {
+            let addr_usize = usize::from(target_addr.0);
+            if let Some(row) = grid.index_for_addr(addr_usize) {
+                view_state.hex_cursor_index = row;
+                view_state.hex_col_cursor = (addr_usize - grid.aligned_origin) % grid.stride;
+            }
+        }
+        return;
+    };
+
+    let Some(max_col) = grid.stride.checked_sub(1) else {
+        return;
+    };
+    if grid.end_address <= grid.aligned_origin {
+        return;
+    }
+
+    if let Some(selection_row) = view_state.hex_selection_start {
+        let hex_anchor_raw =
+            grid.item_addr(selection_row) + view_state.hex_selection_start_col.min(max_col);
+        let hex_cursor_raw =
+            grid.item_addr(view_state.hex_cursor_index) + view_state.hex_col_cursor.min(max_col);
+        let expected_anchor = grid
+            .clamped_addr(hex_anchor_raw)
+            .and_then(|addr| app_state.get_line_index_containing_address(addr));
+        let expected_cursor = grid
+            .clamped_addr(hex_cursor_raw)
+            .and_then(|addr| app_state.get_line_index_containing_address(addr));
+        if expected_anchor == Some(anchor_index) && expected_cursor == Some(view_state.cursor_index)
+        {
+            return;
+        }
+    }
+
+    let Some((first_start, last_end)) =
+        disassembly_selection_addr_span(app_state, Some(anchor_index), view_state.cursor_index)
+    else {
+        view_state.hex_selection_start = None;
+        view_state.hex_selection_start_col = 0;
+        return;
+    };
+
+    let max_grid_addr = grid.end_address - 1;
+    if first_start > max_grid_addr || last_end < grid.aligned_origin {
+        view_state.hex_selection_start = None;
+        view_state.hex_selection_start_col = 0;
+        return;
+    }
+
+    let clamped_start = first_start.max(grid.aligned_origin);
+    let clamped_end = last_end.min(max_grid_addr);
+    let (anchor_addr, cursor_addr) = if anchor_index <= view_state.cursor_index {
+        (clamped_start, clamped_end)
+    } else {
+        (clamped_end, clamped_start)
+    };
+
+    let max_row = grid.item_count().saturating_sub(1);
+    let anchor_row = ((anchor_addr - grid.aligned_origin) / grid.stride).min(max_row);
+    let anchor_col = (anchor_addr - grid.aligned_origin) % grid.stride;
+    let cursor_row = ((cursor_addr - grid.aligned_origin) / grid.stride).min(max_row);
+    let cursor_col = (cursor_addr - grid.aligned_origin) % grid.stride;
+
+    view_state.hex_selection_start = Some(anchor_row);
+    view_state.hex_selection_start_col = anchor_col;
+    view_state.hex_cursor_index = cursor_row;
+    view_state.hex_col_cursor = cursor_col;
 }
 
 /// Builds a [`ProjectSaveContext`] from the current application state and view state.
@@ -1587,6 +2005,340 @@ mod tests {
                 Addr(0xFFFE),
                 Addr(0xFFFF),
             ],
+        );
+    }
+
+    #[test]
+    fn test_clamped_item_addr_range_boundaries_and_bitmap_gaps() {
+        // Sprites at `origin = $0000`: indices 37..=38 correspond to `$0940..=$09BF`.
+        let mut zero_sprites = AppState::new();
+        zero_sprites.origin = Addr(0x0000);
+        zero_sprites.raw_data = vec![0xEA; 4096];
+        let sprites0 = AlignedGridRange::sprites(&zero_sprites);
+        assert_eq!(
+            sprites0.clamped_item_addr_range(37, 37),
+            Some((Addr(0x0940), Addr(0x097F)))
+        );
+        assert_eq!(
+            sprites0.clamped_item_addr_range(37, 38),
+            Some((Addr(0x0940), Addr(0x09BF)))
+        );
+        assert_eq!(
+            sprites0.clamped_item_addr_range(38, 37),
+            Some((Addr(0x0940), Addr(0x09BF)))
+        );
+
+        // Sprites at `origin = $0800`: indices 37..=38 correspond to `$1140..=$11BF`.
+        let mut state = AppState::new();
+        state.origin = Addr(0x0800);
+        state.raw_data = vec![0xEA; 4096];
+        let sprites = AlignedGridRange::sprites(&state);
+        assert_eq!(
+            sprites.clamped_item_addr_range(37, 37),
+            Some((Addr(0x1140), Addr(0x117F)))
+        );
+        assert_eq!(
+            sprites.clamped_item_addr_range(37, 38),
+            Some((Addr(0x1140), Addr(0x11BF)))
+        );
+        assert_eq!(
+            sprites.clamped_item_addr_range(38, 37),
+            Some((Addr(0x1140), Addr(0x11BF)))
+        );
+
+        // Pre-origin alignment padding only (`origin = $0809`, charset slot 0 is `$0800..=$0807`).
+        let mut padding_only = AppState::new();
+        padding_only.origin = Addr(0x0809);
+        padding_only.raw_data = vec![0xEA; 32];
+        assert_eq!(
+            AlignedGridRange::charset(&padding_only).clamped_item_addr_range(0, 0),
+            None
+        );
+
+        // Partial overlap (`origin = $0801`, sprite slot 0 spans `$0800..=$083F` -> `$0801..=$083F`).
+        let mut partial = AppState::new();
+        partial.origin = Addr(0x0801);
+        partial.raw_data = vec![0xEA; 128];
+        assert_eq!(
+            AlignedGridRange::sprites(&partial).clamped_item_addr_range(0, 0),
+            Some((Addr(0x0801), Addr(0x083F)))
+        );
+
+        // Bitmap single vs. multi-bitmap 192-byte gap.
+        let mut bitmap_state = AppState::new();
+        bitmap_state.origin = Addr(0x0000);
+        bitmap_state.raw_data = vec![0xEA; 16384];
+        let bitmap = AlignedGridRange::bitmap(&bitmap_state);
+        assert_eq!(
+            bitmap.clamped_item_addr_range(0, 0),
+            Some((Addr(0x0000), Addr(0x1F3F)))
+        );
+        assert_eq!(
+            bitmap.clamped_item_addr_range(0, 1),
+            Some((Addr(0x0000), Addr(0x3F3F)))
+        );
+        assert_eq!(
+            bitmap.clamped_item_addr_range(1, 0),
+            Some((Addr(0x0000), Addr(0x3F3F)))
+        );
+
+        // Bitmap origin inside trailing 192-byte tail (`$1F40..=$1FFF`).
+        let mut tail_bitmap = AppState::new();
+        tail_bitmap.origin = Addr(0x1F50);
+        tail_bitmap.raw_data = vec![0xEA; 256];
+        assert_eq!(
+            AlignedGridRange::bitmap(&tail_bitmap).clamped_item_addr_range(0, 0),
+            None
+        );
+
+        // Wrapped binary truncation at `$FFFF`.
+        let mut wrap = AppState::new();
+        wrap.origin = Addr(0xFFFE);
+        wrap.raw_data = vec![0xEA; 4];
+        assert_eq!(
+            AlignedGridRange::sprites(&wrap).clamped_item_addr_range(0, 0),
+            Some((Addr(0xFFFE), Addr(0xFFFF)))
+        );
+
+        // Empty binary (both origin $0000 and unaligned non-zero origin $0801).
+        let empty = AppState::new();
+        assert_eq!(
+            AlignedGridRange::sprites(&empty).clamped_item_addr_range(0, 0),
+            None
+        );
+        assert_eq!(AlignedGridRange::sprites(&empty).item_count(), 0);
+
+        let mut empty_unaligned = AppState::new();
+        empty_unaligned.origin = Addr(0x0801);
+        assert_eq!(AlignedGridRange::sprites(&empty_unaligned).item_count(), 0);
+        assert_eq!(AlignedGridRange::charset(&empty_unaligned).item_count(), 0);
+        assert_eq!(AlignedGridRange::bitmap(&empty_unaligned).item_count(), 0);
+        assert_eq!(
+            AlignedGridRange::hex_dump(&empty_unaligned, RightPane::HexDump16).item_count(),
+            0
+        );
+    }
+
+    #[test]
+    fn test_hex_byte_offset_range_and_col_clamping() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x0801);
+        state.raw_data = vec![0xEA; 32];
+
+        let hex16 = AlignedGridRange::hex_dump(&state, RightPane::HexDump16);
+        assert_eq!(hex16.hex_byte_offset_range(0, 0, None), None);
+        assert_eq!(hex16.hex_byte_offset_range(1, 2, Some((0, 0))), Some(0..18));
+        assert_eq!(hex16.hex_byte_offset_range(0, 2, Some((1, 0))), Some(1..16));
+
+        let hex8 = AlignedGridRange::hex_dump(&state, RightPane::HexDump8);
+        assert_eq!(hex8.hex_byte_offset_range(0, 15, None), Some(6..7));
+        assert_eq!(
+            hex8.hex_byte_offset_range(1, 15, Some((0, 15))),
+            Some(6..15)
+        );
+
+        let empty = AppState::new();
+        assert_eq!(
+            AlignedGridRange::hex_dump(&empty, RightPane::HexDump16)
+                .hex_byte_offset_range(0, 0, None),
+            None
+        );
+    }
+
+    #[test]
+    fn test_active_pane_item_addr_range_and_byte_offset_range() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x2000);
+        state.raw_data = vec![0xEA; 0x4200];
+
+        let mut view = CoreViewState::new();
+        for pane in [
+            ActivePane::Disassembly,
+            ActivePane::HexDump,
+            ActivePane::Blocks,
+            ActivePane::Debugger,
+        ] {
+            view.active_pane = pane;
+            assert_eq!(
+                AlignedGridRange::active_pane_item_addr_range(&state, &view),
+                None
+            );
+        }
+
+        view.active_pane = ActivePane::Sprites;
+        view.sprites_cursor_index = 2;
+        assert_eq!(
+            AlignedGridRange::active_pane_item_addr_range(&state, &view),
+            Some((Addr(0x2080), Addr(0x20BF)))
+        );
+        view.selection_start = Some(0);
+        assert_eq!(
+            AlignedGridRange::active_pane_item_addr_range(&state, &view),
+            None
+        );
+        view.selection_start = None;
+
+        view.active_pane = ActivePane::Charset;
+        view.charset_cursor_index = 3;
+        assert_eq!(
+            AlignedGridRange::active_pane_item_addr_range(&state, &view),
+            Some((Addr(0x2018), Addr(0x201F)))
+        );
+
+        view.active_pane = ActivePane::Bitmap;
+        view.bitmap_cursor_index = 0;
+        assert_eq!(
+            AlignedGridRange::active_pane_item_addr_range(&state, &view),
+            Some((Addr(0x2000), Addr(0x3F3F)))
+        );
+
+        // `active_pane_byte_offset_range` checks.
+        view.active_pane = ActivePane::Sprites;
+        view.sprites_selection_start = Some(2);
+        view.sprites_cursor_index = 1;
+        assert_eq!(active_pane_byte_offset_range(&state, &view), Some(64..192));
+
+        view.active_pane = ActivePane::Charset;
+        view.charset_selection_start = None;
+        view.charset_cursor_index = 4;
+        assert_eq!(active_pane_byte_offset_range(&state, &view), Some(32..40));
+
+        view.active_pane = ActivePane::Bitmap;
+        view.bitmap_selection_start = Some(0);
+        view.bitmap_cursor_index = 1;
+        assert_eq!(
+            active_pane_byte_offset_range(&state, &view),
+            Some(0..0x3F40)
+        );
+
+        view.active_pane = ActivePane::HexDump;
+        view.right_pane = RightPane::HexDump8;
+        view.hex_cursor_index = 1;
+        view.hex_col_cursor = 15;
+        view.hex_selection_start = Some(0);
+        view.hex_selection_start_col = 12;
+        assert_eq!(active_pane_byte_offset_range(&state, &view), Some(7..16));
+
+        for pane in [
+            ActivePane::Disassembly,
+            ActivePane::Blocks,
+            ActivePane::Debugger,
+        ] {
+            view.active_pane = pane;
+            assert_eq!(active_pane_byte_offset_range(&state, &view), None);
+        }
+
+        let mut padding_only = AppState::new();
+        padding_only.origin = Addr(0x0809);
+        padding_only.raw_data = vec![0xEA; 32];
+        let mut padding_view = CoreViewState::new();
+        padding_view.active_pane = ActivePane::Charset;
+        padding_view.charset_cursor_index = 0;
+        assert_eq!(
+            active_pane_byte_offset_range(&padding_only, &padding_view),
+            None
+        );
+    }
+
+    #[test]
+    fn test_line_byte_addr_span_excludes_non_body_and_handles_wrapped_collapsed() {
+        use crate::state::Assembler;
+
+        // Setup A: origin $0000 with preamble, external equate $D020, scope delimiter `}`, and LDA $D020.
+        let mut state = AppState::new();
+        state.origin = Addr(0x0000);
+        state.raw_data = vec![0xAD, 0x20, 0xD0, 0xEA];
+        state.block_types = vec![BlockType::Code; 4];
+        state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::AbsoluteAddress,
+            }],
+        );
+        state.settings.all_labels = true;
+        state.settings.assembler = Assembler::Kick;
+        state.annotations.update(Addr(0x0000), |entry| {
+            entry.scope = Some(Addr(0x0003));
+        });
+        state.disassemble();
+
+        let zero_non_body_lines: Vec<_> = state
+            .disassembly
+            .iter()
+            .filter(|line| {
+                line.address == Addr(0x0000) && line.bytes.is_empty() && !line.is_collapsed
+            })
+            .collect();
+        assert!(
+            !zero_non_body_lines.is_empty(),
+            "expected at least one non-body header/banner row at $0000"
+        );
+        for line in zero_non_body_lines {
+            assert_eq!(line_byte_addr_span(&state, line), None);
+        }
+
+        let external_line = state
+            .disassembly
+            .iter()
+            .find(|line| line.external_label_address == Some(Addr(0xD020)))
+            .expect("external equate $D020 line");
+        assert_eq!(line_byte_addr_span(&state, external_line), None);
+
+        let lda_line = state
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x0000) && !l.bytes.is_empty())
+            .expect("LDA $D020 line");
+        assert_eq!(
+            line_byte_addr_span(&state, lda_line),
+            Some((0x0000, 0x0002))
+        );
+
+        let scope_end_line = state
+            .disassembly
+            .iter()
+            .find(|l| l.address == Addr(0x0004) && l.mnemonic == "}")
+            .expect("closing scope delimiter `}` at $0004");
+        assert_eq!(line_byte_addr_span(&state, scope_end_line), None);
+
+        let synthetic_overlong = DisassemblyLine {
+            address: Addr(0x0002),
+            bytes: vec![0x01; 10],
+            mnemonic: ".byte".to_string(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        assert_eq!(
+            line_byte_addr_span(&state, &synthetic_overlong),
+            Some((0x0002, 0x0003))
+        );
+
+        // Setup B: wrapped binary collapsed block `$FFFE..=$0001`.
+        let mut wrap = AppState::new();
+        wrap.origin = Addr(0xFFFE);
+        wrap.raw_data = vec![0xEA; 4];
+        wrap.block_types = vec![BlockType::Undefined; 4];
+        wrap.collapsed_blocks = vec![(0, 3)];
+        wrap.disassemble();
+
+        let collapsed_line = wrap
+            .disassembly
+            .iter()
+            .find(|l| l.is_collapsed && l.address == Addr(0xFFFE))
+            .expect("collapsed line at $FFFE");
+        assert_eq!(line_byte_offset_range(&wrap, collapsed_line), Some(0..4));
+        assert_eq!(
+            line_byte_addr_span(&wrap, collapsed_line),
+            Some((0xFFFE, 0x10001))
         );
     }
 }

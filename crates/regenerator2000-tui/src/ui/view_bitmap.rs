@@ -13,13 +13,13 @@ use ratatui::{
 use ratatui_image::{FilterType, Resize, StatefulImage, picker::ProtocolType};
 
 use crate::ui::navigable::{
-    AlignedGridRange, Navigable, handle_nav_input, jump_to_disassembly_at_address,
-    right_pane_mouse_inner_area, sync_grid_item_to_disassembly,
+    AlignedGridRange, Navigable, handle_grid_selection_input, handle_nav_input, jump_grid_cursor,
+    move_grid_cursor_down, move_grid_cursor_up, right_pane_mouse_inner_area,
+    sync_grid_item_to_disassembly,
 };
 use crate::ui::widget::{Widget, WidgetResult};
 
-/// Immediately mirrors the bitmap cursor into the disassembly view's `cursor_index` and
-/// clears any active disassembly selection so both views stay consistent within the same frame.
+/// Syncs the bitmap cursor and selection to `DisassemblyView` for the current frame.
 fn sync_bitmap_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
     let grid = BitmapView::grid_range(app_state);
     sync_grid_item_to_disassembly(
@@ -27,7 +27,7 @@ fn sync_bitmap_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
         ui_state,
         &grid,
         ui_state.bitmap_cursor_index,
-        None,
+        ui_state.bitmap_selection_start,
     );
 }
 
@@ -103,16 +103,31 @@ impl Navigable for BitmapView {
     }
 
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
-        let total = self.len(app_state);
-        if total == 0 {
+        if app_state.raw_data.is_empty() {
             return;
         }
-        ui_state.bitmap_cursor_index =
-            (ui_state.bitmap_cursor_index + amount).min(total.saturating_sub(1));
+        let total = self.len(app_state);
+        move_grid_cursor_down(
+            &mut ui_state.core.bitmap_cursor_index,
+            &mut ui_state.core.bitmap_selection_start,
+            ui_state.core.is_visual_mode,
+            /* extend_selection= */ false,
+            amount,
+            total,
+        );
     }
 
-    fn move_up(&self, _app_state: &AppState, ui_state: &mut UIState, amount: usize) {
-        ui_state.bitmap_cursor_index = ui_state.bitmap_cursor_index.saturating_sub(amount);
+    fn move_up(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if app_state.raw_data.is_empty() {
+            return;
+        }
+        move_grid_cursor_up(
+            &mut ui_state.core.bitmap_cursor_index,
+            &mut ui_state.core.bitmap_selection_start,
+            ui_state.core.is_visual_mode,
+            /* extend_selection= */ false,
+            amount,
+        );
     }
 
     fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
@@ -125,7 +140,13 @@ impl Navigable for BitmapView {
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
         let total = self.len(app_state);
-        ui_state.bitmap_cursor_index = index.min(total.saturating_sub(1));
+        jump_grid_cursor(
+            &mut ui_state.core.bitmap_cursor_index,
+            &mut ui_state.core.bitmap_selection_start,
+            ui_state.core.is_visual_mode,
+            index,
+            total,
+        );
     }
 
     fn item_name(&self) -> &'static str {
@@ -173,11 +194,19 @@ impl Widget for BitmapView {
             "None".to_string()
         };
 
-        let title = if ui_state.bitmap_multicolor_mode {
-            format!(" Bitmap (Multicolor 160×200) [{protocol_name}] ")
+        let mode_label = if ui_state.bitmap_multicolor_mode {
+            "Multicolor 160×200"
         } else {
-            format!(" Bitmap (High-Res 320×200) [{protocol_name}] ")
+            "High-Res 320×200"
         };
+        // Show `[Selected: N]` in the border title because long `sub_header` lines can clip at 80 columns.
+        let selection_suffix = if let Some(selection_start) = ui_state.bitmap_selection_start {
+            let count = ui_state.bitmap_cursor_index.abs_diff(selection_start) + 1;
+            format!(" [Selected: {count}]")
+        } else {
+            String::new()
+        };
+        let title = format!(" Bitmap ({mode_label}) [{protocol_name}]{selection_suffix} ");
 
         let block = Block::default()
             .borders(Borders::ALL)
@@ -355,11 +384,8 @@ impl Widget for BitmapView {
             return WidgetResult::Handled;
         }
 
-        // All view-local single-character and `Enter` bindings must explicitly guard on
-        // `key.modifiers.is_empty()` (or `NONE | SHIFT` for uppercase `'S'`) because
-        // `handle_key_event_active_view` delegates to the active pane BEFORE `handle_global_input`.
-        // Without these guards, `'s'`, `'x'`, and `'b'` would shadow global `Ctrl+S`/`Alt+S` (Save),
-        // `Ctrl+X` (Find References), and `Ctrl+B`/`Alt+B` (Bookmarks).
+        // Guard single-key bindings with `key.modifiers.is_empty()` (or `SHIFT` for `'S'`).
+        // Active panes run before `handle_global_input`, so unguarded keys would block `Ctrl`/`Alt` shortcuts.
         match key.code {
             KeyCode::Char('s') if key.modifiers.is_empty() => {
                 // Cycle forward through the 16 bank offsets
@@ -369,7 +395,7 @@ impl Widget for BitmapView {
                         ScreenRamMode::BankOffset((offset + 1) % 16)
                     }
                 };
-                WidgetResult::Handled
+                return WidgetResult::Handled;
             }
             KeyCode::Char('S')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
@@ -385,31 +411,41 @@ impl Widget for BitmapView {
                         }
                     }
                 };
-                WidgetResult::Handled
+                return WidgetResult::Handled;
             }
             KeyCode::Char('x') if key.modifiers.is_empty() => {
                 // Set to "After Bitmap" mode
                 ui_state.bitmap_screen_ram_mode = ScreenRamMode::AfterBitmap;
-                WidgetResult::Handled
+                return WidgetResult::Handled;
             }
             KeyCode::Char('m') if key.modifiers.is_empty() => {
-                WidgetResult::Action(AppAction::ToggleBitmapMulticolor)
+                return WidgetResult::Action(AppAction::ToggleBitmapMulticolor);
             }
-            KeyCode::Char('b') if key.modifiers.is_empty() => {
-                let idx = ui_state.bitmap_cursor_index;
-                Self::grid_range(app_state)
-                    .item_range_byte_offsets(idx, idx)
-                    .map_or(WidgetResult::Ignored, |(start, end)| {
-                        WidgetResult::Action(AppAction::SetBytesBlockByOffset { start, end })
-                    })
-            }
-            KeyCode::Enter if key.modifiers.is_empty() => Self::grid_range(app_state)
-                .clamped_item_addr(ui_state.bitmap_cursor_index)
-                .map_or(WidgetResult::Ignored, |addr| {
-                    jump_to_disassembly_at_address(app_state, ui_state, addr)
-                }),
-            _ => WidgetResult::Ignored,
+            _ => {}
         }
+
+        // Handle `V`, `Shift+Up`/`Shift+Down`, `Esc`, `'b'`, and `Enter` with `grid_cols = 1`,
+        // then sync `DisassemblyView`.
+        let grid = Self::grid_range(app_state);
+        let cursor = ui_state.bitmap_cursor_index;
+        let selection = ui_state.bitmap_selection_start;
+        let result = handle_grid_selection_input(
+            key,
+            app_state,
+            ui_state,
+            &grid,
+            1,
+            cursor,
+            selection,
+            |ui, new_cursor, new_selection| {
+                ui.bitmap_cursor_index = new_cursor;
+                ui.bitmap_selection_start = new_selection;
+            },
+        );
+        if matches!(result, WidgetResult::Handled) {
+            sync_bitmap_to_disassembly(app_state, ui_state);
+        }
+        result
     }
 }
 
@@ -1330,5 +1366,290 @@ mod tests {
             assert_eq!(ui_state.bitmap_cursor_index, 0);
             assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x0801));
         }
+    }
+
+    #[test]
+    fn test_bitmap_view_selection_shortcuts_two_bitmaps_and_padding() {
+        let mut app_state = AppState::new();
+        app_state
+            .load_binary(Addr(0x2000), vec![0xEA; 0x4200])
+            .expect("load 16.5KB binary at $2000");
+        app_state.block_types = vec![BlockType::Undefined; 0x4200];
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_pane = ActivePane::Bitmap;
+        ui_state.right_pane = RightPane::Bitmap;
+        ui_state.bitmap_cursor_index = 0;
+
+        let mut view = BitmapView;
+        let disassembly_addr =
+            |app: &AppState, index: usize| -> Addr { app.disassembly[index].address };
+
+        // 1. Visual mode 'V' with NONE and SHIFT spans bitmap 0 ($2000..=$3F3F).
+        for visual_modifiers in [KeyModifiers::NONE, KeyModifiers::SHIFT] {
+            ui_state.is_visual_mode = false;
+            ui_state.bitmap_selection_start = None;
+            ui_state.selection_start = None;
+            let result = view.handle_input(
+                KeyEvent::new(KeyCode::Char('V'), visual_modifiers),
+                &mut app_state,
+                &mut ui_state,
+            );
+            assert_eq!(result, WidgetResult::Handled);
+            assert!(ui_state.is_visual_mode);
+            assert_eq!(ui_state.bitmap_selection_start, Some(0));
+            assert_eq!(
+                disassembly_addr(&app_state, ui_state.cursor_index),
+                Addr(0x2000)
+            );
+            assert_eq!(
+                disassembly_addr(
+                    &app_state,
+                    ui_state
+                        .selection_start
+                        .expect("visual 'V' must set selection_start"),
+                ),
+                Addr(0x3F3F)
+            );
+        }
+
+        // 2. Shift+Down / Shift+Up forward & backward selection.
+        ui_state.is_visual_mode = false;
+        ui_state.bitmap_selection_start = None;
+        ui_state.bitmap_cursor_index = 0;
+        assert_eq!(
+            view.handle_input(
+                KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert_eq!(ui_state.bitmap_selection_start, Some(0));
+        assert_eq!(ui_state.bitmap_cursor_index, 1);
+        assert_eq!(
+            disassembly_addr(
+                &app_state,
+                ui_state
+                    .selection_start
+                    .expect("forward Shift+Down must set selection_start"),
+            ),
+            Addr(0x2000)
+        );
+        assert_eq!(
+            disassembly_addr(&app_state, ui_state.cursor_index),
+            Addr(0x5F3F)
+        );
+
+        assert_eq!(
+            view.handle_input(
+                KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert_eq!(ui_state.bitmap_selection_start, Some(0));
+        assert_eq!(ui_state.bitmap_cursor_index, 0);
+        assert_eq!(
+            disassembly_addr(&app_state, ui_state.cursor_index),
+            Addr(0x2000)
+        );
+        assert_eq!(
+            disassembly_addr(
+                &app_state,
+                ui_state
+                    .selection_start
+                    .expect("shrinking to bitmap 0 must preserve selection_start"),
+            ),
+            Addr(0x3F3F)
+        );
+
+        // From slot 1 pressing Shift+Up creates backward selection 1 -> 0.
+        ui_state.is_visual_mode = false;
+        ui_state.bitmap_selection_start = None;
+        ui_state.bitmap_cursor_index = 1;
+        assert_eq!(
+            view.handle_input(
+                KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert_eq!(ui_state.bitmap_selection_start, Some(1));
+        assert_eq!(ui_state.bitmap_cursor_index, 0);
+        assert_eq!(
+            disassembly_addr(&app_state, ui_state.cursor_index),
+            Addr(0x2000)
+        );
+        assert_eq!(
+            disassembly_addr(
+                &app_state,
+                ui_state
+                    .selection_start
+                    .expect("backward Shift+Up must set selection_start"),
+            ),
+            Addr(0x5F3F)
+        );
+
+        // 3. Shift+Left / Shift+Right ignored (grid_cols == 1).
+        for code in [KeyCode::Left, KeyCode::Right] {
+            assert_eq!(
+                view.handle_input(
+                    KeyEvent::new(code, KeyModifiers::SHIFT),
+                    &mut app_state,
+                    &mut ui_state,
+                ),
+                WidgetResult::Ignored
+            );
+        }
+
+        // 4. End clears non-visual selection. Home keeps visual-mode selection anchored.
+        ui_state.is_visual_mode = false;
+        ui_state.bitmap_selection_start = Some(0);
+        ui_state.bitmap_cursor_index = 0;
+        assert_eq!(
+            view.handle_input(
+                KeyEvent::new(KeyCode::End, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert_eq!(ui_state.bitmap_selection_start, None);
+        assert_eq!(ui_state.bitmap_cursor_index, 2);
+        assert_eq!(ui_state.selection_start, None);
+
+        ui_state.is_visual_mode = true;
+        ui_state.bitmap_selection_start = Some(2);
+        assert_eq!(
+            view.handle_input(
+                KeyEvent::new(KeyCode::Home, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert_eq!(ui_state.bitmap_selection_start, Some(2));
+        assert_eq!(ui_state.bitmap_cursor_index, 0);
+
+        // 5. 'b' over 2 bitmaps (0..=1) emits AppAction::Byte without pre-clearing selection
+        // (Core::apply_action consumes active_pane_byte_offset_range and clears all selections).
+        ui_state.is_visual_mode = false;
+        ui_state.bitmap_selection_start = Some(0);
+        ui_state.bitmap_cursor_index = 1;
+        let byte_result = view.handle_input(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(byte_result, WidgetResult::Action(AppAction::Byte));
+
+        // 6. 'b' on pre-origin padding preserves active selection & returns Ignored.
+        let mut padding_state = AppState::new();
+        padding_state.origin = Addr(0x1F50);
+        padding_state.raw_data = vec![0xEA; 256];
+        padding_state.block_types = vec![BlockType::Code; 256];
+        padding_state.disassemble();
+        let mut padding_ui = UIState::new(Theme::default());
+        padding_ui.active_pane = ActivePane::Bitmap;
+        padding_ui.bitmap_cursor_index = 0;
+        padding_ui.bitmap_selection_start = Some(0);
+        padding_ui.is_visual_mode = true;
+        assert_eq!(
+            view.handle_input(
+                KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+                &mut padding_state,
+                &mut padding_ui,
+            ),
+            WidgetResult::Ignored
+        );
+        assert_eq!(padding_ui.bitmap_selection_start, Some(0));
+        assert!(padding_ui.is_visual_mode);
+
+        // 7. Esc clears bitmap_selection_start, is_visual_mode, input_buffer, and selection_start.
+        ui_state.bitmap_cursor_index = 0;
+        ui_state.bitmap_selection_start = Some(0);
+        ui_state.is_visual_mode = true;
+        ui_state.selection_start = Some(5);
+        ui_state.input_buffer = "9".to_string();
+        assert_eq!(
+            view.handle_input(
+                KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Handled
+        );
+        assert_eq!(ui_state.bitmap_selection_start, None);
+        assert!(!ui_state.is_visual_mode);
+        assert!(ui_state.input_buffer.is_empty());
+        assert_eq!(ui_state.selection_start, None);
+    }
+
+    #[test]
+    fn test_bitmap_view_border_title_selected_badge_no_80col_clipping() {
+        let mut app_state = make_bitmap_app_state(0x0801, |_| 0x55);
+        app_state.raw_data.resize(0x5000, 0x55);
+        app_state.block_types.resize(0x5000, BlockType::DataByte);
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_pane = ActivePane::Bitmap;
+        ui_state.right_pane = RightPane::Bitmap;
+        ui_state.picker = None;
+
+        let view = BitmapView;
+        let area = Rect::new(0, 0, 80, 30);
+        let mut terminal = Terminal::new(TestBackend::new(80, 30)).expect("create 80x30 terminal");
+
+        // 1. Tier 1 passive focus: no [Selected: ...] badge.
+        ui_state.bitmap_selection_start = None;
+        terminal
+            .draw(|f| view.render(f, area, &app_state, &mut ui_state))
+            .expect("draw tier 1 bitmap view frame");
+        let tier1_buffer = terminal.backend().buffer();
+        let tier1_title = row_text(tier1_buffer, 0, 80, 0);
+        assert!(
+            tier1_title.contains("Bitmap (High-Res 320×200) [None]"),
+            "Unexpected title: '{tier1_title}'"
+        );
+        assert!(!tier1_title.contains("[Selected:"));
+
+        // 2. Tier 2 1-bitmap selection: [Selected: 1] in border title, sub_header intact.
+        ui_state.bitmap_selection_start = Some(0);
+        ui_state.bitmap_cursor_index = 0;
+        terminal
+            .draw(|f| view.render(f, area, &app_state, &mut ui_state))
+            .expect("draw single-bitmap selected frame");
+        let single_buffer = terminal.backend().buffer();
+        let single_title = row_text(single_buffer, 0, 80, 0);
+        assert!(
+            single_title.contains("[Selected: 1]"),
+            "Expected unclipped [Selected: 1] in title: '{single_title}'"
+        );
+        let sub_header = row_text(single_buffer, 1, 79, 1);
+        assert!(
+            sub_header.starts_with("Bitmap @ $0801"),
+            "Expected sub_header starting with 'Bitmap @ $0801', got: '{sub_header}'"
+        );
+
+        // 3. Backward 2-bitmap selection in Multicolor + Kitty fits inside 80 cols unclipped.
+        let mut kitty_picker = create_headless_picker();
+        kitty_picker.set_protocol_type(ProtocolType::Kitty);
+        ui_state.picker = Some(kitty_picker);
+        ui_state.bitmap_multicolor_mode = true;
+        ui_state.bitmap_selection_start = Some(1);
+        ui_state.bitmap_cursor_index = 0;
+        terminal
+            .draw(|f| view.render(f, area, &app_state, &mut ui_state))
+            .expect("draw multicolor kitty selected frame");
+        let multicolor_buffer = terminal.backend().buffer();
+        let multicolor_title = row_text(multicolor_buffer, 0, 80, 0);
+        assert!(
+            multicolor_title.contains("Bitmap (Multicolor 160×200) [Kitty] [Selected: 2]"),
+            "Expected unclipped Multicolor Kitty [Selected: 2] in title: '{multicolor_title}'"
+        );
     }
 }

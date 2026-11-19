@@ -2025,6 +2025,22 @@ fn test_hexdump_view_shortcuts() {
     h.press(KeyCode::Esc, KeyModifiers::NONE);
     assert_eq!(h.ui_state.hex_selection_start, None);
 
+    // Home and End clear non-visual Shift+Right selection. Visual mode keeps the anchor across End.
+    h.ui_state.hex_cursor_index = 0;
+    h.ui_state.hex_col_cursor = 2;
+    h.press(KeyCode::Right, KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.hex_selection_start, Some(0));
+    h.press(KeyCode::End, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.hex_selection_start, None);
+    assert_eq!(h.ui_state.selection_start, None);
+
+    h.ui_state.hex_cursor_index = 0;
+    h.press(KeyCode::Char('V'), KeyModifiers::SHIFT);
+    h.press(KeyCode::End, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.hex_selection_start, Some(0));
+    h.press(KeyCode::Esc, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.hex_selection_start, None);
+
     // 4. Enter jumps to Disassembly at the selected byte address
     h.ui_state.hex_cursor_index = 1; // $0810
     h.ui_state.hex_col_cursor = 0;
@@ -2063,12 +2079,61 @@ fn test_sprites_view_shortcuts() {
     h.press(KeyCode::Right, KeyModifiers::SHIFT);
     assert_eq!(h.ui_state.sprites_selection_start, Some(0));
     assert_eq!(h.ui_state.sprites_cursor_index, 1);
+    assert_eq!(
+        h.core.state.disassembly[h
+            .ui_state
+            .selection_start
+            .expect("2-sprite Shift+Right must set selection_start")]
+        .address,
+        Addr(0x0800)
+    );
+    assert_eq!(
+        h.core.state.disassembly[h.ui_state.cursor_index].address,
+        Addr(0x087F),
+        "2-sprite Shift+Right must span all 128 bytes ($0800..=$087F), not stop at $0840"
+    );
     h.press(KeyCode::Down, KeyModifiers::SHIFT);
     assert_eq!(h.ui_state.sprites_cursor_index, 3);
     h.press(KeyCode::Up, KeyModifiers::SHIFT);
     assert_eq!(h.ui_state.sprites_cursor_index, 1);
     h.press(KeyCode::Left, KeyModifiers::SHIFT);
     assert_eq!(h.ui_state.sprites_cursor_index, 0);
+    h.press(KeyCode::Esc, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.sprites_selection_start, None);
+    assert_eq!(h.ui_state.selection_start, None);
+
+    // Single-sprite 'V' spans all 64 bytes of Sprite 1 ($0840..=$087F)
+    h.ui_state.sprites_cursor_index = 1;
+    h.press(KeyCode::Char('V'), KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.sprites_selection_start, Some(1));
+    assert_eq!(
+        h.core.state.disassembly[h.ui_state.cursor_index].address,
+        Addr(0x0840)
+    );
+    assert_eq!(
+        h.core.state.disassembly[h
+            .ui_state
+            .selection_start
+            .expect("single-sprite 'V' must set selection_start")]
+        .address,
+        Addr(0x087F)
+    );
+    h.press(KeyCode::Esc, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.sprites_selection_start, None);
+    assert_eq!(h.ui_state.selection_start, None);
+
+    // End, Home, and G clear non-visual Shift+Right selection. Visual mode keeps the anchor across End.
+    h.ui_state.sprites_cursor_index = 1;
+    h.press(KeyCode::Right, KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.sprites_selection_start, Some(1));
+    h.press(KeyCode::End, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.sprites_selection_start, None);
+    assert_eq!(h.ui_state.selection_start, None);
+
+    h.ui_state.sprites_cursor_index = 2;
+    h.press(KeyCode::Char('V'), KeyModifiers::SHIFT);
+    h.press(KeyCode::End, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.sprites_selection_start, Some(2));
     h.press(KeyCode::Esc, KeyModifiers::NONE);
     assert_eq!(h.ui_state.sprites_selection_start, None);
 
@@ -2091,12 +2156,12 @@ fn test_sprites_view_shortcuts() {
     assert!(!h.ui_state.sprite_multicolor_mode);
 
     // 4. Visual mode ('V' with SHIFT & NONE) + 'b' converts 64-byte sprites and clears all selection state
-    for v_mods in [KeyModifiers::SHIFT, KeyModifiers::NONE] {
+    for visual_modifiers in [KeyModifiers::SHIFT, KeyModifiers::NONE] {
         h.core.state.block_types[0..128].fill(BlockType::Undefined);
         h.core.state.disassemble();
         h.ui_state.sprites_cursor_index = 0;
 
-        h.press(KeyCode::Char('V'), v_mods);
+        h.press(KeyCode::Char('V'), visual_modifiers);
         assert!(h.ui_state.is_visual_mode);
         assert_eq!(h.ui_state.sprites_selection_start, Some(0));
         h.press(KeyCode::Down, KeyModifiers::NONE); // Sprite 1 in 1-col mode -> 2 sprites (128 bytes)
@@ -2188,6 +2253,59 @@ fn test_charset_view_shortcuts() {
     h.press(KeyCode::Esc, KeyModifiers::NONE);
     assert_eq!(h.ui_state.charset_selection_start, None);
 
+    // Single-char 'V' ($0840..=$0847 = 8 bytes) & 2-char Shift+Right ($0840..=$084F = 16 bytes, not 9)
+    h.ui_state.charset_cursor_index = 8;
+    h.press(KeyCode::Char('V'), KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.charset_selection_start, Some(8));
+    assert_eq!(
+        h.core.state.disassembly[h.ui_state.cursor_index].address,
+        Addr(0x0840)
+    );
+    assert_eq!(
+        h.core.state.disassembly[h
+            .ui_state
+            .selection_start
+            .expect("single-char 'V' must set selection_start")]
+        .address,
+        Addr(0x0847)
+    );
+    h.press(KeyCode::Esc, KeyModifiers::NONE);
+    h.press(KeyCode::Right, KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.charset_selection_start, Some(8));
+    assert_eq!(h.ui_state.charset_cursor_index, 9);
+    assert_eq!(
+        h.core.state.disassembly[h
+            .ui_state
+            .selection_start
+            .expect("2-char Shift+Right must set selection_start")]
+        .address,
+        Addr(0x0840)
+    );
+    assert_eq!(
+        h.core.state.disassembly[h.ui_state.cursor_index].address,
+        Addr(0x084F),
+        "2-char Shift+Right must span all 16 bytes ($0840..=$084F), not stop at $0848"
+    );
+    h.press(KeyCode::Esc, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.charset_selection_start, None);
+    assert_eq!(h.ui_state.selection_start, None);
+
+    // End clears non-visual Shift+Right selection. Visual mode keeps the anchor across End.
+    h.ui_state.charset_cursor_index = 4;
+    h.press(KeyCode::Right, KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.charset_selection_start, Some(4));
+    h.press(KeyCode::End, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.charset_selection_start, None);
+    assert_eq!(h.ui_state.selection_start, None);
+
+    h.ui_state.charset_cursor_index = 2;
+    h.press(KeyCode::Char('V'), KeyModifiers::SHIFT);
+    h.press(KeyCode::End, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.charset_selection_start, Some(2));
+    h.press(KeyCode::Esc, KeyModifiers::NONE);
+    assert_eq!(h.ui_state.charset_selection_start, None);
+    h.ui_state.charset_cursor_index = 0;
+
     // 2. 'm' toggles charset_multicolor_mode
     assert!(!h.ui_state.charset_multicolor_mode);
     h.press(KeyCode::Char('m'), KeyModifiers::NONE);
@@ -2196,12 +2314,12 @@ fn test_charset_view_shortcuts() {
     assert!(!h.ui_state.charset_multicolor_mode);
 
     // 3. Visual mode ('V' with SHIFT & NONE) + 'b' converts 8-byte chars and clears all selection state
-    for v_mods in [KeyModifiers::SHIFT, KeyModifiers::NONE] {
+    for visual_modifiers in [KeyModifiers::SHIFT, KeyModifiers::NONE] {
         h.core.state.block_types[0..16].fill(BlockType::Undefined);
         h.core.state.disassemble();
         h.ui_state.charset_cursor_index = 0;
 
-        h.press(KeyCode::Char('V'), v_mods);
+        h.press(KeyCode::Char('V'), visual_modifiers);
         assert!(h.ui_state.is_visual_mode);
         assert_eq!(h.ui_state.charset_selection_start, Some(0));
         h.press(KeyCode::Right, KeyModifiers::NONE); // Char 1 -> 2 chars (16 bytes)
@@ -2304,6 +2422,644 @@ fn test_bitmap_view_shortcuts() {
         h.core.state.disassembly[h.ui_state.cursor_index].address,
         Addr(0x0800)
     );
+
+    // 6. Visual mode ('V' / 'Shift+V'), 1-slot Shift+Down clamping, and Esc clearing selection + input_buffer
+    h.set_pane(ActivePane::Bitmap);
+    h.ui_state.bitmap_cursor_index = 0;
+    for visual_modifiers in [KeyModifiers::SHIFT, KeyModifiers::NONE] {
+        h.press(KeyCode::Char('V'), visual_modifiers);
+        assert!(h.ui_state.is_visual_mode);
+        assert_eq!(h.ui_state.bitmap_selection_start, Some(0));
+        assert_eq!(
+            h.core.state.disassembly[h.ui_state.cursor_index].address,
+            Addr(0x0800)
+        );
+        let selected_line = &h.core.state.disassembly[h
+            .ui_state
+            .selection_start
+            .expect("bitmap visual 'V' must set selection_start")];
+        assert_eq!(
+            usize::from(selected_line.address.0) + selected_line.bytes.len() - 1,
+            0x1F3F
+        );
+
+        h.ui_state.input_buffer = "42".to_string();
+        h.press(KeyCode::Esc, KeyModifiers::NONE);
+        assert!(!h.ui_state.is_visual_mode);
+        assert_eq!(h.ui_state.bitmap_selection_start, None);
+        assert_eq!(h.ui_state.selection_start, None);
+        assert!(h.ui_state.input_buffer.is_empty());
+    }
+    // Pressing Shift+Down at the last slot (1 of 2 on the $0800..$2800 harness) clamps cleanly
+    h.ui_state.bitmap_cursor_index = 1;
+    h.press(KeyCode::Down, KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.bitmap_selection_start, Some(1));
+    assert_eq!(h.ui_state.bitmap_cursor_index, 1);
+    h.press(KeyCode::Esc, KeyModifiers::NONE);
+
+    // 1-column BitmapView ignores Shift+Left and Shift+Right.
+    h.press(KeyCode::Right, KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.bitmap_selection_start, None);
+    h.press(KeyCode::Left, KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.bitmap_selection_start, None);
+
+    // 7. Multi-bitmap selection (Shift+Down / Shift+Up + 'b') on >=16KB binary at $2000
+    h.core
+        .state
+        .load_binary(Addr(0x2000), vec![0xEA; 0x4200])
+        .expect("load 16.5KB binary");
+    h.core.state.block_types.fill(BlockType::Undefined);
+    h.core.state.disassemble();
+    h.ui_state.bitmap_cursor_index = 0;
+    h.ui_state.bitmap_selection_start = None;
+    h.ui_state.selection_start = None;
+
+    h.press(KeyCode::Down, KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.bitmap_selection_start, Some(0));
+    assert_eq!(h.ui_state.bitmap_cursor_index, 1);
+    assert_eq!(
+        h.core.state.disassembly[h
+            .ui_state
+            .selection_start
+            .expect("2-bitmap Shift+Down must set selection_start")]
+        .address,
+        Addr(0x2000)
+    );
+    assert_eq!(
+        h.core.state.disassembly[h.ui_state.cursor_index].address,
+        Addr(0x5F3F)
+    );
+
+    h.press(KeyCode::Up, KeyModifiers::SHIFT);
+    assert_eq!(h.ui_state.bitmap_selection_start, Some(0));
+    assert_eq!(h.ui_state.bitmap_cursor_index, 0);
+    assert_eq!(
+        h.core.state.disassembly[h
+            .ui_state
+            .selection_start
+            .expect("shrinking back to bitmap 0 must preserve selection_start")]
+        .address,
+        Addr(0x3F3F)
+    );
+
+    // Extend back to 2 bitmaps and convert via 'b' (spans 192B inter-bitmap gap, leaves tail untouched)
+    h.press(KeyCode::Down, KeyModifiers::SHIFT);
+    h.press(KeyCode::Char('b'), KeyModifiers::NONE);
+    assert!(
+        h.core.state.block_types[0..0x3F40]
+            .iter()
+            .all(|&b| b == BlockType::DataByte),
+        "'b' over 2 bitmaps must convert $2000..=$5F3F (0..0x3F40) to DataByte"
+    );
+    assert!(
+        h.core.state.block_types[0x3F40..0x4200]
+            .iter()
+            .all(|&b| b == BlockType::Undefined),
+        "trailing 192B tail after bitmap 1 must remain Undefined"
+    );
+    assert_eq!(h.ui_state.bitmap_selection_start, None);
+    assert_eq!(h.ui_state.selection_start, None);
+}
+
+/// Checks `Tab` round-trips, `Edit` menu block conversions, and `sync_*_view == false`
+/// isolation across all companion memory panes.
+#[test]
+fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
+    use crate::ui::statusbar::StatusBar;
+    use crate::ui::widget::Widget;
+    use ratatui::layout::Rect;
+
+    let (tx, _rx) = std::sync::mpsc::channel();
+    let render_status = |core: &Core, ui_state: &mut UIState| -> String {
+        let backend = TestBackend::new(180, 1);
+        let mut terminal = Terminal::new(backend).expect("create 180x1 status bar terminal");
+        let bar = StatusBar;
+        terminal
+            .draw(|f| bar.render(f, Rect::new(0, 0, 180, 1), &core.state, ui_state))
+            .expect("draw status bar frame");
+        (0..180)
+            .map(|x| {
+                terminal
+                    .backend()
+                    .buffer()
+                    .cell((x, 0))
+                    .map_or("", |cell| cell.symbol())
+            })
+            .collect()
+    };
+
+    // 1. Tier 1 single-item Tab round-trip + Tier 2 1-item 'V' + Tab + 'c' (Code) in SpritesView
+    {
+        let mut harness = ShortcutTestHarness::new();
+        harness.core.state.system_config.sync_sprites_view = true;
+        harness.set_pane(ActivePane::Sprites);
+        harness.ui_state.right_pane = RightPane::Sprites2Col;
+        harness.ui_state.sprites_cursor_index = 0;
+
+        // Tier 1 passive move to Sprite 1 ($0840..=$087F, Undefined) -> Tab -> Tab back
+        harness.press(KeyCode::Right, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.sprites_cursor_index, 1);
+        assert_eq!(harness.ui_state.sprites_selection_start, None);
+        assert_eq!(harness.ui_state.selection_start, None);
+        assert_eq!(
+            harness.core.state.disassembly[harness.ui_state.cursor_index].address,
+            Addr(0x0840)
+        );
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Disassembly);
+        assert_eq!(harness.ui_state.selection_start, None);
+        assert_eq!(
+            harness.core.state.disassembly[harness.ui_state.cursor_index].address,
+            Addr(0x0840)
+        );
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Sprites);
+        assert_eq!(harness.ui_state.sprites_cursor_index, 1);
+        assert_eq!(harness.ui_state.sprites_selection_start, None);
+
+        // Tier 2 'V' on Sprite 1 -> Tab -> 'c' converts all 64 bytes ($0840..=$087F) to Code
+        harness.press(KeyCode::Char('V'), KeyModifiers::SHIFT);
+        assert_eq!(harness.ui_state.sprites_selection_start, Some(1));
+        assert_eq!(
+            harness.core.state.disassembly[harness.ui_state.cursor_index].address,
+            Addr(0x0840)
+        );
+        assert_eq!(
+            harness.core.state.disassembly[harness
+                .ui_state
+                .selection_start
+                .expect("Tier 2 'V' on Sprite 1 must set selection_start")]
+            .address,
+            Addr(0x087F)
+        );
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Disassembly);
+        assert_eq!(
+            harness.core.state.disassembly[harness.ui_state.cursor_index].address,
+            Addr(0x0840)
+        );
+        assert_eq!(
+            harness.core.state.disassembly[harness
+                .ui_state
+                .selection_start
+                .expect("Tab into Disassembly must preserve sprite selection_start")]
+            .address,
+            Addr(0x087F)
+        );
+        harness.press(KeyCode::Char('c'), KeyModifiers::NONE);
+        assert!(
+            harness.core.state.block_types[64..128]
+                .iter()
+                .all(|&b| b == BlockType::Code),
+            "Tab + 'c' from 1-sprite 'V' selection must convert all 64 bytes ($0840..=$087F) to Code"
+        );
+        assert!(!harness.ui_state.core.has_any_selection());
+    }
+
+    // 2. Forward & backward 2-item Tab round-trips in SpritesView and CharsetView
+    {
+        let mut harness = ShortcutTestHarness::new();
+        harness.core.state.system_config.sync_sprites_view = true;
+        harness.core.state.system_config.sync_charset_view = true;
+
+        // Sprites backward: Sprite 2 ($0880) + Shift+Left -> Sprite 1 ($0840)
+        harness.set_pane(ActivePane::Sprites);
+        harness.ui_state.right_pane = RightPane::Sprites2Col;
+        harness.ui_state.sprites_cursor_index = 2;
+        harness.press(KeyCode::Left, KeyModifiers::SHIFT);
+        assert_eq!(harness.ui_state.sprites_selection_start, Some(2));
+        assert_eq!(harness.ui_state.sprites_cursor_index, 1);
+        assert_eq!(
+            harness.core.state.disassembly[harness.ui_state.cursor_index].address,
+            Addr(0x0840)
+        );
+        let selected_line = &harness.core.state.disassembly[harness
+            .ui_state
+            .selection_start
+            .expect("backward Shift+Left must set selection_start")];
+        assert_eq!(
+            usize::from(selected_line.address.0) + selected_line.bytes.len() - 1,
+            0x08BF
+        );
+
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Disassembly);
+        assert_eq!(harness.ui_state.sprites_selection_start, Some(2));
+        assert_eq!(harness.ui_state.sprites_cursor_index, 1);
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Sprites);
+        assert_eq!(harness.ui_state.sprites_selection_start, Some(2));
+        assert_eq!(harness.ui_state.sprites_cursor_index, 1);
+
+        // Sprites forward: Sprite 1 -> Sprite 2
+        harness.press(KeyCode::Esc, KeyModifiers::NONE);
+        harness.press(KeyCode::Right, KeyModifiers::SHIFT);
+        assert_eq!(harness.ui_state.sprites_selection_start, Some(1));
+        assert_eq!(harness.ui_state.sprites_cursor_index, 2);
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.sprites_selection_start, Some(1));
+        assert_eq!(harness.ui_state.sprites_cursor_index, 2);
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.sprites_selection_start, Some(1));
+        assert_eq!(harness.ui_state.sprites_cursor_index, 2);
+
+        // Charset backward: Char 9 ($0848) + Shift+Left -> Char 8 ($0840)
+        harness.set_pane(ActivePane::Charset);
+        harness.ui_state.right_pane = RightPane::Charset8Col;
+        harness.ui_state.charset_cursor_index = 9;
+        harness.press(KeyCode::Left, KeyModifiers::SHIFT);
+        assert_eq!(harness.ui_state.charset_selection_start, Some(9));
+        assert_eq!(harness.ui_state.charset_cursor_index, 8);
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Disassembly);
+        assert_eq!(harness.ui_state.charset_selection_start, Some(9));
+        assert_eq!(harness.ui_state.charset_cursor_index, 8);
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Charset);
+        assert_eq!(harness.ui_state.charset_selection_start, Some(9));
+        assert_eq!(harness.ui_state.charset_cursor_index, 8);
+    }
+
+    // 3. Multi-bitmap Shift+Down + Tab round-trip + 'b' over 2 bitmaps ($2000..=$5F3F)
+    {
+        let mut harness = ShortcutTestHarness::new();
+        harness
+            .core
+            .state
+            .load_binary(Addr(0x2000), vec![0xEA; 0x4200])
+            .expect("load 16.5KB binary");
+        harness.core.state.block_types.fill(BlockType::Undefined);
+        harness.core.state.system_config.sync_bitmap_view = true;
+        harness.core.state.disassemble();
+
+        harness.set_pane(ActivePane::Bitmap);
+        harness.ui_state.bitmap_cursor_index = 0;
+        harness.press(KeyCode::Down, KeyModifiers::SHIFT);
+        assert_eq!(harness.ui_state.bitmap_selection_start, Some(0));
+        assert_eq!(harness.ui_state.bitmap_cursor_index, 1);
+        assert_eq!(
+            harness.core.state.disassembly[harness
+                .ui_state
+                .selection_start
+                .expect("multi-bitmap Shift+Down must set selection_start")]
+            .address,
+            Addr(0x2000)
+        );
+        assert_eq!(
+            harness.core.state.disassembly[harness.ui_state.cursor_index].address,
+            Addr(0x5F3F)
+        );
+
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Disassembly);
+        assert_eq!(harness.ui_state.bitmap_selection_start, Some(0));
+        assert_eq!(harness.ui_state.bitmap_cursor_index, 1);
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Bitmap);
+        assert_eq!(harness.ui_state.bitmap_selection_start, Some(0));
+        assert_eq!(harness.ui_state.bitmap_cursor_index, 1);
+
+        harness.press(KeyCode::Char('b'), KeyModifiers::NONE);
+        assert!(
+            harness.core.state.block_types[0..0x3F40]
+                .iter()
+                .all(|&b| b == BlockType::DataByte)
+        );
+        assert!(
+            harness.core.state.block_types[0x3F40..0x4200]
+                .iter()
+                .all(|&b| b == BlockType::Undefined)
+        );
+    }
+
+    // 4. Sub-instruction HexDumpView Tab round-trip with TestBackend frame render
+    {
+        let mut harness = ShortcutTestHarness::new();
+        harness.core.state.system_config.sync_hex_dump = true;
+        harness.ui_state.dismiss_logo = true;
+        harness.set_pane(ActivePane::HexDump);
+        harness.ui_state.right_pane = RightPane::HexDump16;
+        harness.ui_state.hex_cursor_index = 0;
+        harness.ui_state.hex_col_cursor = 4; // $0804 inside 3-byte JSR $0810 ($0804..=$0806)
+
+        harness.press(KeyCode::Right, KeyModifiers::SHIFT);
+        assert_eq!(harness.ui_state.hex_selection_start, Some(0));
+        assert_eq!(harness.ui_state.hex_selection_start_col, 4);
+        assert_eq!(harness.ui_state.hex_cursor_index, 0);
+        assert_eq!(harness.ui_state.hex_col_cursor, 5);
+
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Disassembly);
+
+        let backend = TestBackend::new(140, 30);
+        let mut terminal = Terminal::new(backend).expect("create 140x30 terminal");
+        terminal
+            .draw(|f| crate::ui::ui(f, &harness.core.state, &mut harness.ui_state))
+            .expect("draw full TUI frame across HexDump Tab");
+        assert_eq!(harness.ui_state.hex_selection_start, Some(0));
+        assert_eq!(harness.ui_state.hex_selection_start_col, 4);
+        assert_eq!(harness.ui_state.hex_cursor_index, 0);
+        assert_eq!(harness.ui_state.hex_col_cursor, 5);
+
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::HexDump);
+        assert_eq!(harness.ui_state.hex_selection_start, Some(0));
+        assert_eq!(harness.ui_state.hex_selection_start_col, 4);
+        assert_eq!(harness.ui_state.hex_cursor_index, 0);
+        assert_eq!(harness.ui_state.hex_col_cursor, 5);
+    }
+
+    // 5. Edit -> Byte / Code / LoHiAddress / Scope menu parity via handle_menu_action
+    {
+        let mut harness = ShortcutTestHarness::new();
+        harness.core.state.block_types[64..192].fill(BlockType::Undefined);
+        harness.core.state.disassemble();
+
+        // 5a. Sprites Tier 1 passive -> Byte, then Tier 2 explicit -> Code, then Tier 2 -> Scope
+        harness.set_pane(ActivePane::Sprites);
+        harness.ui_state.right_pane = RightPane::Sprites2Col;
+        harness.ui_state.sprites_cursor_index = 1; // $0840..=$087F (64..128)
+        crate::ui::menu::handle_menu_action(
+            &mut harness.core,
+            &mut harness.ui_state,
+            AppAction::Byte,
+            &tx,
+        );
+        assert!(
+            harness.core.state.block_types[64..128]
+                .iter()
+                .all(|&b| b == BlockType::DataByte)
+        );
+
+        harness.ui_state.sprites_cursor_index = 1;
+        harness.press(KeyCode::Right, KeyModifiers::SHIFT); // 1..=2 (64..192)
+        crate::ui::menu::handle_menu_action(
+            &mut harness.core,
+            &mut harness.ui_state,
+            AppAction::Code,
+            &tx,
+        );
+        assert!(
+            harness.core.state.block_types[64..192]
+                .iter()
+                .all(|&b| b == BlockType::Code)
+        );
+        assert!(!harness.ui_state.core.has_any_selection());
+
+        harness.ui_state.sprites_cursor_index = 1;
+        harness.press(KeyCode::Char('V'), KeyModifiers::SHIFT);
+        crate::ui::menu::handle_menu_action(
+            &mut harness.core,
+            &mut harness.ui_state,
+            AppAction::Scope,
+            &tx,
+        );
+        assert_eq!(
+            harness
+                .core
+                .state
+                .annotations
+                .get(Addr(0x0840))
+                .and_then(|entry| entry.scope),
+            Some(Addr(0x087F))
+        );
+        assert!(!harness.ui_state.core.has_any_selection());
+
+        // 5b. Charset Tier 1 passive -> Byte, Tier 2 explicit -> SetLoHiAddress
+        harness.set_pane(ActivePane::Charset);
+        harness.ui_state.charset_cursor_index = 24; // offset 192..200 (8 bytes)
+        crate::ui::menu::handle_menu_action(
+            &mut harness.core,
+            &mut harness.ui_state,
+            AppAction::Byte,
+            &tx,
+        );
+        assert!(
+            harness.core.state.block_types[192..200]
+                .iter()
+                .all(|&b| b == BlockType::DataByte)
+        );
+        harness.press(KeyCode::Right, KeyModifiers::SHIFT); // 24..=25 (192..208)
+        crate::ui::menu::handle_menu_action(
+            &mut harness.core,
+            &mut harness.ui_state,
+            AppAction::SetLoHiAddress,
+            &tx,
+        );
+        assert!(
+            harness.core.state.block_types[192..208]
+                .iter()
+                .all(|&b| b == BlockType::LoHiAddress)
+        );
+        assert!(!harness.ui_state.core.has_any_selection());
+
+        // 5c. Bitmap Tier 1 passive -> Code, Tier 2 explicit -> Byte (on 16.5KB binary at $2000)
+        harness
+            .core
+            .state
+            .load_binary(Addr(0x2000), vec![0xEA; 0x4200])
+            .expect("load 16.5KB binary");
+        harness.core.state.block_types.fill(BlockType::Undefined);
+        harness.core.state.disassemble();
+        harness.set_pane(ActivePane::Bitmap);
+        harness.ui_state.bitmap_cursor_index = 0;
+        crate::ui::menu::handle_menu_action(
+            &mut harness.core,
+            &mut harness.ui_state,
+            AppAction::Code,
+            &tx,
+        );
+        assert!(
+            harness.core.state.block_types[0..8000]
+                .iter()
+                .all(|&b| b == BlockType::Code)
+        );
+        harness.press(KeyCode::Down, KeyModifiers::SHIFT); // bitmaps 0..=1 -> 0..0x3F40
+        crate::ui::menu::handle_menu_action(
+            &mut harness.core,
+            &mut harness.ui_state,
+            AppAction::Byte,
+            &tx,
+        );
+        assert!(
+            harness.core.state.block_types[0..0x3F40]
+                .iter()
+                .all(|&b| b == BlockType::DataByte)
+        );
+        assert!(!harness.ui_state.core.has_any_selection());
+
+        // 5d. HexDump Tier 2 even SetLoHiAddress succeeds and odd SetLoHiAddress preserves anchors
+        harness.set_pane(ActivePane::HexDump);
+        harness.ui_state.right_pane = RightPane::HexDump16;
+        harness.ui_state.hex_cursor_index = 0;
+        harness.ui_state.hex_col_cursor = 0;
+        harness.ui_state.hex_selection_start = Some(0);
+        harness.ui_state.hex_selection_start_col = 3; // 4 bytes (0..=3)
+        crate::ui::menu::handle_menu_action(
+            &mut harness.core,
+            &mut harness.ui_state,
+            AppAction::SetLoHiAddress,
+            &tx,
+        );
+        assert!(
+            harness.core.state.block_types[0..4]
+                .iter()
+                .all(|&b| b == BlockType::LoHiAddress)
+        );
+        assert_eq!(harness.ui_state.hex_selection_start, None);
+        assert_eq!(harness.ui_state.hex_selection_start_col, 0);
+
+        // Odd 3-byte selection (cols 4..=6) must fail cleanly without clearing selection
+        harness.ui_state.hex_cursor_index = 0;
+        harness.ui_state.hex_col_cursor = 6;
+        harness.ui_state.hex_selection_start = Some(0);
+        harness.ui_state.hex_selection_start_col = 4;
+        crate::ui::menu::handle_menu_action(
+            &mut harness.core,
+            &mut harness.ui_state,
+            AppAction::SetLoHiAddress,
+            &tx,
+        );
+        assert_eq!(harness.ui_state.hex_selection_start, Some(0));
+        assert_eq!(harness.ui_state.hex_selection_start_col, 4);
+        assert_eq!(
+            harness.ui_state.status_bar.message,
+            "Address/Word block requires even number of bytes"
+        );
+    }
+
+    // 6. sync_*_view == false Tab isolation across Sprites, Charset, Bitmap, and HexDump
+    {
+        let mut harness = ShortcutTestHarness::new();
+        harness.core.state.system_config.sync_sprites_view = false;
+        harness.core.state.system_config.sync_charset_view = false;
+        harness.core.state.system_config.sync_bitmap_view = false;
+        harness.core.state.system_config.sync_hex_dump = false;
+
+        let line0 = harness.line_index_for_addr(Addr(0x0800));
+        let line2 = line0 + 2;
+
+        for (right_pane, expected_active) in [
+            (RightPane::Sprites2Col, ActivePane::Sprites),
+            (RightPane::Charset8Col, ActivePane::Charset),
+            (RightPane::Bitmap, ActivePane::Bitmap),
+            (RightPane::HexDump16, ActivePane::HexDump),
+        ] {
+            harness.set_pane(ActivePane::Disassembly);
+            harness.ui_state.right_pane = right_pane;
+            harness.ui_state.selection_start = Some(line0);
+            harness.ui_state.cursor_index = line2;
+            harness.ui_state.sprites_cursor_index = 3;
+            harness.ui_state.charset_cursor_index = 5;
+            harness.ui_state.bitmap_cursor_index = 0;
+            harness.ui_state.hex_cursor_index = 2;
+            harness.ui_state.hex_col_cursor = 7;
+
+            // Tab into companion pane
+            harness.press(KeyCode::Tab, KeyModifiers::NONE);
+            assert_eq!(harness.ui_state.active_pane, expected_active);
+            let status_row = render_status(&harness.core, &mut harness.ui_state);
+            assert!(
+                !status_row.contains("Selected:"),
+                "StatusBar must not leak Disassembly selection count into {expected_active:?}: {status_row}"
+            );
+            assert_eq!(harness.ui_state.selection_start, Some(line0));
+            assert_eq!(harness.ui_state.cursor_index, line2);
+
+            // Tab back to DisassemblyView: exact 3-line selection intact, companion cursors untouched
+            harness.press(KeyCode::Tab, KeyModifiers::NONE);
+            assert_eq!(harness.ui_state.active_pane, ActivePane::Disassembly);
+            assert_eq!(harness.ui_state.selection_start, Some(line0));
+            assert_eq!(harness.ui_state.cursor_index, line2);
+            assert_eq!(harness.ui_state.sprites_cursor_index, 3);
+            assert_eq!(harness.ui_state.charset_cursor_index, 5);
+            assert_eq!(harness.ui_state.bitmap_cursor_index, 0);
+            assert_eq!(harness.ui_state.hex_cursor_index, 2);
+            assert_eq!(harness.ui_state.hex_col_cursor, 7);
+        }
+    }
+
+    // 7. Disassembly -> Tab -> HexDump selection preservation & closed-pane Alt+3 mirroring
+    {
+        // 7a. Selection created in Disassembly ($0800..=$0806) survives Tab + render + 'b' in HexDump.
+        let mut harness = ShortcutTestHarness::new();
+        harness.core.state.system_config.sync_hex_dump = true;
+        harness.ui_state.dismiss_logo = true;
+        harness.set_pane(ActivePane::Disassembly);
+        harness.ui_state.right_pane = RightPane::HexDump16;
+
+        let line_0800 = harness.line_index_for_addr(Addr(0x0800));
+        harness.ui_state.cursor_index = line_0800;
+        harness.press(KeyCode::Down, KeyModifiers::SHIFT); // $0802
+        harness.press(KeyCode::Down, KeyModifiers::SHIFT); // $0804..=$0806
+        assert_eq!(harness.ui_state.selection_start, Some(line_0800));
+        assert_eq!(harness.ui_state.hex_selection_start, Some(0));
+        assert_eq!(harness.ui_state.hex_selection_start_col, 0);
+        assert_eq!(harness.ui_state.hex_cursor_index, 0);
+        assert_eq!(harness.ui_state.hex_col_cursor, 6);
+
+        harness.press(KeyCode::Tab, KeyModifiers::NONE);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::HexDump);
+
+        let backend = TestBackend::new(140, 30);
+        let mut terminal = Terminal::new(backend).expect("create 140x30 terminal");
+        terminal
+            .draw(|f| crate::ui::ui(f, &harness.core.state, &mut harness.ui_state))
+            .expect("draw frame after Tab from Disassembly into HexDump");
+        assert_eq!(harness.ui_state.selection_start, Some(line_0800));
+        assert_eq!(harness.ui_state.hex_selection_start, Some(0));
+        assert_eq!(harness.ui_state.hex_selection_start_col, 0);
+        assert_eq!(harness.ui_state.hex_cursor_index, 0);
+        assert_eq!(harness.ui_state.hex_col_cursor, 6);
+
+        harness.press(KeyCode::Char('b'), KeyModifiers::NONE);
+        assert!(
+            harness.core.state.block_types[0..7]
+                .iter()
+                .all(|&block_type| block_type == BlockType::DataByte),
+            "'b' in HexDump after Tab must convert all 7 selected bytes ($0800..=$0806)"
+        );
+        assert_eq!(harness.core.state.block_types[7], BlockType::Code);
+        assert!(!harness.ui_state.core.has_any_selection());
+    }
+
+    {
+        // 7b. Select sprites 1..=2 ($0840..=$08BF) in Disassembly with the right pane hidden.
+        // Opening Sprites via Alt+3 mirrors sprites 1..=2 and converts all 128 bytes on 'b'.
+        let mut harness = ShortcutTestHarness::new();
+        harness.core.state.block_types[64..192].fill(BlockType::Code);
+        harness.core.state.system_config.sync_sprites_view = true;
+        harness.core.state.disassemble();
+        harness.set_pane(ActivePane::Disassembly);
+        harness.ui_state.right_pane = RightPane::None;
+
+        let line_0840 = harness
+            .core
+            .state
+            .get_line_index_containing_address(Addr(0x0840))
+            .expect("line at $0840");
+        let line_08bf = harness
+            .core
+            .state
+            .get_line_index_containing_address(Addr(0x08BF))
+            .expect("line at $08BF");
+        harness.ui_state.selection_start = Some(line_0840);
+        harness.ui_state.cursor_index = line_08bf;
+
+        harness.press(KeyCode::Char('3'), KeyModifiers::ALT);
+        assert_eq!(harness.ui_state.active_pane, ActivePane::Sprites);
+        assert_eq!(harness.ui_state.sprites_selection_start, Some(1));
+        assert_eq!(harness.ui_state.sprites_cursor_index, 2);
+
+        harness.press(KeyCode::Char('b'), KeyModifiers::NONE);
+        assert!(
+            harness.core.state.block_types[64..192]
+                .iter()
+                .all(|&block_type| block_type == BlockType::DataByte),
+            "'b' after Alt+3 must convert all 128 bytes across sprites 1..=2"
+        );
+        assert!(!harness.ui_state.core.has_any_selection());
+    }
 }
 
 /// Pillar 2 (`BlocksView` and `DebuggerView`): Checks `Ctrl+k` block collapse and `Enter` jump in
@@ -2819,4 +3575,20 @@ fn test_shortcut_layers_synchronization() {
             && VIEWS_DOC.contains("++minus++"),
         "docs/views.md must document ++o++ and ++plus++ / ++minus++ for Symbolic Offsets"
     );
+
+    let bitmap_start = VIEWS_DOC
+        .find("## Bitmap View")
+        .expect("docs/views.md must contain '## Bitmap View'");
+    let bitmap_end = VIEWS_DOC[bitmap_start..]
+        .find("## Debugger View")
+        .map(|rel| bitmap_start + rel)
+        .expect("docs/views.md must contain '## Debugger View' after Bitmap View");
+    let bitmap_section = &VIEWS_DOC[bitmap_start..bitmap_end];
+    let bitmap_tokens = parse_markdown_shortcut_tokens(bitmap_section);
+    for expected in ["shift+v", "shift+up", "shift+down", "esc"] {
+        assert!(
+            bitmap_tokens.contains(&expected.to_string()),
+            "docs/views.md Bitmap View section is missing shortcut token '{expected}'"
+        );
+    }
 }

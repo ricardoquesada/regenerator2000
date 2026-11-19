@@ -140,13 +140,6 @@ pub enum AppAction {
     FindReferences,
     /// Navigate the disassembly view to the specified [`Addr`](super::Addr).
     NavigateToAddress(super::Addr),
-    /// Mark the byte offset range `start..=end` as [`BlockType::DataByte`](super::types::BlockType::DataByte).
-    SetBytesBlockByOffset {
-        /// Inclusive starting byte offset.
-        start: usize,
-        /// Inclusive ending byte offset.
-        end: usize,
-    },
     /// Open the label editor for the current address.
     SetLabel,
     /// Open the go-to-symbol dialog.

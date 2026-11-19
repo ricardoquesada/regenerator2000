@@ -260,15 +260,18 @@ The Bitmap View contains these elements:
 
 ### Keyboard Shortcuts
 
-| Action                      | Shortcut                |
-|:----------------------------|:------------------------|
-| **Toggle view**             | ++alt+5++ or ++ctrl+5++ |
-| **Convert to Byte**         | ++b++                   |
-| **Toggle Multicolor**       | ++m++                   |
-| **Next Screen RAM**         | ++s++                   |
-| **Previous Screen RAM**     | ++shift+s++             |
-| **Screen RAM after Bitmap** | ++x++                   |
-| **Jump to Disassembly**     | ++enter++               |
+| Action                      | Shortcut                      |
+|:----------------------------|:------------------------------|
+| **Toggle view**             | ++alt+5++ or ++ctrl+5++       |
+| **Toggle Visual Mode**      | ++shift+v++                   |
+| **Select Bitmaps**          | ++shift+up++ / ++shift+down++ |
+| **Clear Selection**         | ++escape++                    |
+| **Convert to Byte**         | ++b++                         |
+| **Toggle Multicolor**       | ++m++                         |
+| **Next Screen RAM**         | ++s++                         |
+| **Previous Screen RAM**     | ++shift+s++                   |
+| **Screen RAM after Bitmap** | ++x++                         |
+| **Jump to Disassembly**     | ++enter++                     |
 
 ## Debugger View
 

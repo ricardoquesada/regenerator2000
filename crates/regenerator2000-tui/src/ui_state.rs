@@ -254,6 +254,8 @@ impl UIState {
         }
     }
 
+    /// Resets transient UI state, clears all selections, and restores saved pane cursors from
+    /// `loaded_data`.
     pub fn restore_session(
         &mut self,
         loaded_data: &crate::state::LoadedProjectData,
@@ -266,12 +268,8 @@ impl UIState {
         self.pending_unpack_entry_mode = None;
         self.navigation_history.clear();
         self.active_pane = ActivePane::Disassembly;
-        self.is_visual_mode = false;
-        self.selection_start = None;
-        self.hex_selection_start = None;
-        self.hex_selection_start_col = 0;
-        self.sprites_selection_start = None;
-        self.charset_selection_start = None;
+        // Clear visual mode and all pane selection anchors.
+        self.core.clear_all_selections();
 
         self.cursor_index = 0;
         self.scroll_index = 0;
@@ -432,8 +430,10 @@ mod tests {
         ui_state.is_visual_mode = true;
         ui_state.selection_start = Some(10);
         ui_state.hex_selection_start = Some(5);
+        ui_state.hex_selection_start_col = 3;
         ui_state.sprites_selection_start = Some(3);
         ui_state.charset_selection_start = Some(7);
+        ui_state.bitmap_selection_start = Some(1);
         ui_state.sprites_cursor_index = 99;
         ui_state.charset_cursor_index = 99;
         ui_state.bitmap_cursor_index = 99;
@@ -469,8 +469,10 @@ mod tests {
         assert!(!ui_state.is_visual_mode);
         assert!(ui_state.selection_start.is_none());
         assert!(ui_state.hex_selection_start.is_none());
+        assert_eq!(ui_state.hex_selection_start_col, 0);
         assert!(ui_state.sprites_selection_start.is_none());
         assert!(ui_state.charset_selection_start.is_none());
+        assert!(ui_state.bitmap_selection_start.is_none());
         assert!(ui_state.navigation_history.is_empty());
 
         assert_eq!(ui_state.hex_cursor_index, 1);

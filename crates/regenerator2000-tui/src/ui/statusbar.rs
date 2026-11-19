@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui::widget::{Widget, WidgetResult};
-use crate::ui_state::UIState;
+use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::KeyEvent;
 use ratatui::{
     Frame,
@@ -9,6 +9,7 @@ use ratatui::{
     text::Span,
     widgets::Paragraph,
 };
+use regenerator2000_core::navigation::AlignedGridRange;
 
 #[derive(Debug, Clone)]
 pub struct StatusBarState {
@@ -103,44 +104,30 @@ impl Widget for StatusBar {
             .map(|n| n.to_string_lossy())
             .unwrap_or_default();
 
+        // Read only the active pane's selection anchor so unsynced Disassembly selections do not
+        // leak into companion status counts.
         let selection_count = match ui_state.active_pane {
-            crate::ui_state::ActivePane::HexDump => ui_state
-                .hex_selection_start
-                .map(|start_row| {
-                    let stride = match ui_state.right_pane {
-                        crate::ui_state::RightPane::HexDump8 => 8usize,
-                        _ => 16usize,
-                    };
-                    let start_pos = start_row
-                        .saturating_mul(stride)
-                        .saturating_add(ui_state.hex_selection_start_col.min(stride - 1));
-                    let cur_pos = ui_state
-                        .hex_cursor_index
-                        .saturating_mul(stride)
-                        .saturating_add(ui_state.hex_col_cursor.min(stride - 1));
-                    cur_pos.abs_diff(start_pos) + 1
-                })
-                .or_else(|| {
-                    ui_state
-                        .selection_start
-                        .map(|start| ui_state.cursor_index.abs_diff(start) + 1)
-                }),
-            crate::ui_state::ActivePane::Sprites => ui_state
+            ActivePane::HexDump => ui_state.hex_selection_start.map(|start_row| {
+                let stride = AlignedGridRange::hex_dump(app_state, ui_state.right_pane).stride;
+                let max_col = stride.saturating_sub(1);
+                let start_pos = start_row
+                    .saturating_mul(stride)
+                    .saturating_add(ui_state.hex_selection_start_col.min(max_col));
+                let cursor_pos = ui_state
+                    .hex_cursor_index
+                    .saturating_mul(stride)
+                    .saturating_add(ui_state.hex_col_cursor.min(max_col));
+                cursor_pos.abs_diff(start_pos) + 1
+            }),
+            ActivePane::Sprites => ui_state
                 .sprites_selection_start
-                .map(|start| ui_state.sprites_cursor_index.abs_diff(start) + 1)
-                .or_else(|| {
-                    ui_state
-                        .selection_start
-                        .map(|start| ui_state.cursor_index.abs_diff(start) + 1)
-                }),
-            crate::ui_state::ActivePane::Charset => ui_state
+                .map(|start| ui_state.sprites_cursor_index.abs_diff(start) + 1),
+            ActivePane::Charset => ui_state
                 .charset_selection_start
-                .map(|start| ui_state.charset_cursor_index.abs_diff(start) + 1)
-                .or_else(|| {
-                    ui_state
-                        .selection_start
-                        .map(|start| ui_state.cursor_index.abs_diff(start) + 1)
-                }),
+                .map(|start| ui_state.charset_cursor_index.abs_diff(start) + 1),
+            ActivePane::Bitmap => ui_state
+                .bitmap_selection_start
+                .map(|start| ui_state.bitmap_cursor_index.abs_diff(start) + 1),
             _ => ui_state
                 .selection_start
                 .map(|start| ui_state.cursor_index.abs_diff(start) + 1),
@@ -275,5 +262,86 @@ mod tests {
             ),
             WidgetResult::Ignored
         );
+    }
+
+    #[test]
+    fn test_status_bar_companion_selection_and_sync_false_isolation() {
+        let mut app_state = AppState::new();
+        app_state
+            .load_binary(Addr(0x0800), vec![0xEA; 0x4200])
+            .expect("load 16.5KB binary at $0800");
+        app_state.block_types = vec![BlockType::Code; 0x4200];
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        let mut terminal = Terminal::new(TestBackend::new(180, 1)).expect("create 180x1 terminal");
+        let bar = StatusBar;
+
+        let render_row =
+            |terminal: &mut Terminal<TestBackend>, app: &AppState, ui: &mut UIState| -> String {
+                terminal
+                    .draw(|f| bar.render(f, Rect::new(0, 0, 180, 1), app, ui))
+                    .expect("draw status bar row");
+                (0..180)
+                    .map(|x| {
+                        terminal
+                            .backend()
+                            .buffer()
+                            .cell((x, 0))
+                            .map_or("", |cell| cell.symbol())
+                    })
+                    .collect()
+            };
+
+        // 1. Tier 1 passive focus: no "Selected:" badge on Sprites, Charset, or Bitmap.
+        for pane in [ActivePane::Sprites, ActivePane::Charset, ActivePane::Bitmap] {
+            ui_state.active_pane = pane;
+            let row = render_row(&mut terminal, &app_state, &mut ui_state);
+            assert!(
+                !row.contains("Selected:"),
+                "Tier 1 passive focus in {pane:?} must not show Selected:, got: '{row}'"
+            );
+        }
+
+        // 2. Tier 2 active selection: Selected: N per pane.
+        ui_state.active_pane = ActivePane::Sprites;
+        ui_state.sprites_selection_start = Some(2);
+        ui_state.sprites_cursor_index = 1;
+        assert!(render_row(&mut terminal, &app_state, &mut ui_state).contains("Selected: 2"));
+
+        ui_state.active_pane = ActivePane::Charset;
+        ui_state.charset_selection_start = Some(3);
+        ui_state.charset_cursor_index = 3;
+        assert!(render_row(&mut terminal, &app_state, &mut ui_state).contains("Selected: 1"));
+
+        ui_state.active_pane = ActivePane::Bitmap;
+        ui_state.bitmap_selection_start = Some(0);
+        ui_state.bitmap_cursor_index = 1;
+        assert!(render_row(&mut terminal, &app_state, &mut ui_state).contains("Selected: 2"));
+
+        // 3. sync_*_view == false isolation: Disassembly selection must NOT leak into companion panes.
+        ui_state.selection_start = Some(0);
+        ui_state.cursor_index = 4;
+        ui_state.sprites_selection_start = None;
+        ui_state.charset_selection_start = None;
+        ui_state.bitmap_selection_start = None;
+        ui_state.hex_selection_start = None;
+
+        for pane in [
+            ActivePane::Sprites,
+            ActivePane::Charset,
+            ActivePane::Bitmap,
+            ActivePane::HexDump,
+        ] {
+            ui_state.active_pane = pane;
+            let row = render_row(&mut terminal, &app_state, &mut ui_state);
+            assert!(
+                !row.contains("Selected:"),
+                "Pane {pane:?} must not leak Disassembly selection count, got: '{row}'"
+            );
+        }
+
+        ui_state.active_pane = ActivePane::Disassembly;
+        assert!(render_row(&mut terminal, &app_state, &mut ui_state).contains("Selected: 5"));
     }
 }

@@ -703,25 +703,31 @@ mod tests {
     }
 
     #[test]
-    fn test_set_bytes_block_by_offset() {
+    fn test_byte_action_from_hex_selection_converts_range_and_clears_selection() {
         let mut core = Core::new();
         core.state.origin = Addr(0x1000);
         core.state.raw_data = vec![0xEA; 5];
         core.state.block_types = vec![crate::state::BlockType::Code; 5];
         core.state.disassemble();
 
-        // Convert offset 1 through 3 to bytes
-        core.apply_action(AppAction::SetBytesBlockByOffset { start: 1, end: 3 });
+        // Convert offset 1 through 3 to bytes via HexDump selection.
+        core.view.active_pane = ActivePane::HexDump;
+        core.view.hex_selection_start = Some(0);
+        core.view.hex_selection_start_col = 1;
+        core.view.hex_cursor_index = 0;
+        core.view.hex_col_cursor = 3;
+        core.apply_action(AppAction::Byte);
 
         assert_eq!(core.state.block_types[0], crate::state::BlockType::Code);
         assert_eq!(core.state.block_types[1], crate::state::BlockType::DataByte);
         assert_eq!(core.state.block_types[2], crate::state::BlockType::DataByte);
         assert_eq!(core.state.block_types[3], crate::state::BlockType::DataByte);
         assert_eq!(core.state.block_types[4], crate::state::BlockType::Code);
+        assert!(!core.view.has_any_selection());
     }
 
-    /// Verifies that `apply_block_type` applies across a `Shift+Arrow` range selection
-    /// (`selection_start.is_some()` with `is_visual_mode == false`) and clears `selection_start`.
+    /// Checks that `apply_block_type` converts a `Shift+Arrow` selection outside visual mode and
+    /// clears `selection_start`.
     #[test]
     fn test_apply_block_type_shift_selection_without_visual_mode() {
         use crate::state::types::BlockType;

@@ -11,8 +11,9 @@ use ratatui::{
 
 use crate::ui::navigable::{
     AlignedGridRange, Navigable, apply_grid_mouse_click, compute_scroll_offset,
-    handle_grid_selection_input, handle_nav_input, is_grid_item_selected, move_grid_cursor_down,
-    move_grid_cursor_up, right_pane_mouse_inner_area, sync_grid_item_to_disassembly,
+    handle_grid_selection_input, handle_nav_input, is_grid_item_selected, jump_grid_cursor,
+    move_grid_cursor_down, move_grid_cursor_up, right_pane_mouse_inner_area,
+    sync_grid_item_to_disassembly,
 };
 use crate::ui::widget::{Widget, WidgetResult};
 
@@ -48,7 +49,7 @@ impl Navigable for SpritesView {
             &mut ui_state.core.sprites_cursor_index,
             &mut ui_state.core.sprites_selection_start,
             ui_state.core.is_visual_mode,
-            false,
+            /* extend_selection= */ false,
             delta,
             total,
         );
@@ -60,14 +61,20 @@ impl Navigable for SpritesView {
             &mut ui_state.core.sprites_cursor_index,
             &mut ui_state.core.sprites_selection_start,
             ui_state.core.is_visual_mode,
-            false,
+            /* extend_selection= */ false,
             delta,
         );
     }
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
         let total = self.len(app_state);
-        ui_state.sprites_cursor_index = index.min(total.saturating_sub(1));
+        jump_grid_cursor(
+            &mut ui_state.core.sprites_cursor_index,
+            &mut ui_state.core.sprites_selection_start,
+            ui_state.core.is_visual_mode,
+            index,
+            total,
+        );
     }
 
     fn item_name(&self) -> &'static str {

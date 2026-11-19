@@ -94,8 +94,15 @@ pub fn sync_pane_to_disassembly(
     }
 }
 
-/// Mirrors a grid-indexed right-pane cursor (`cursor_index` and `selection_start`) into the
-/// disassembly view using `grid` geometry.
+/// Syncs a grid pane cursor and optional selection into `DisassemblyView`.
+///
+/// - **No selection (`selection_start == None`):** Moves `ui_state.cursor_index` to the item's
+///   first byte and leaves `ui_state.selection_start` as `None`. `DisassemblyView` highlights
+///   the focused item via [`AlignedGridRange::active_pane_item_addr_range`].
+/// - **Active selection (`selection_start == Some(anchor)`):** Resolves the clamped byte range
+///   via [`AlignedGridRange::clamped_item_addr_range`]. Places `ui_state.cursor_index` at
+///   `end_addr` when `cursor_index > anchor`, or at `start_addr` otherwise. Clears
+///   `ui_state.selection_start` if the range lies in alignment padding before `origin`.
 pub fn sync_grid_item_to_disassembly(
     app_state: &AppState,
     ui_state: &mut UIState,
@@ -103,14 +110,50 @@ pub fn sync_grid_item_to_disassembly(
     cursor_index: usize,
     selection_start: Option<usize>,
 ) {
-    sync_pane_to_disassembly(
-        app_state,
-        ui_state,
-        grid,
-        grid.item_addr(cursor_index),
-        selection_start.map(|sel| grid.item_addr(sel)),
-        None,
-    );
+    if app_state.raw_data.is_empty() || app_state.disassembly.is_empty() {
+        return;
+    }
+
+    if let Some(anchor_index) = selection_start {
+        let Some((start_addr, end_addr)) = grid.clamped_item_addr_range(anchor_index, cursor_index)
+        else {
+            // Item lies in alignment padding before `origin`. Clear the disassembly selection.
+            sync_pane_to_disassembly(
+                app_state,
+                ui_state,
+                grid,
+                grid.item_addr(cursor_index),
+                None,
+                None,
+            );
+            return;
+        };
+
+        // Place the disassembly cursor on the moving edge so the viewport scrolls with it.
+        let (cursor_raw, anchor_raw) = if cursor_index > anchor_index {
+            (usize::from(end_addr.0), usize::from(start_addr.0))
+        } else {
+            (usize::from(start_addr.0), usize::from(end_addr.0))
+        };
+        sync_pane_to_disassembly(
+            app_state,
+            ui_state,
+            grid,
+            cursor_raw,
+            Some(anchor_raw),
+            None,
+        );
+    } else {
+        // Leave `selection_start` as `None` during passive focus so `Tab` carries no sticky selection.
+        sync_pane_to_disassembly(
+            app_state,
+            ui_state,
+            grid,
+            grid.item_addr(cursor_index),
+            None,
+            None,
+        );
+    }
 }
 
 /// Adjusts `scroll_offset` so `cursor_row` stays within `[scroll_offset + margin,
@@ -200,8 +243,10 @@ pub fn apply_grid_mouse_click(
     }
 }
 
-/// Moves a 1D grid cursor forward by `delta`, preserving or clearing `selection_start`
-/// according to `is_visual_mode` or `extend_selection`.
+/// Moves a grid cursor forward by `delta` and updates `selection_start`.
+///
+/// Keeps or sets `selection_start` when `extend_selection` or `is_visual_mode` is `true`, and
+/// clears it otherwise. If `total == 0`, returns without setting `selection_start`.
 pub fn move_grid_cursor_down(
     cursor_index: &mut usize,
     selection_start: &mut Option<usize>,
@@ -210,6 +255,12 @@ pub fn move_grid_cursor_down(
     delta: usize,
     total: usize,
 ) {
+    if total == 0 {
+        if !extend_selection && !is_visual_mode {
+            *selection_start = None;
+        }
+        return;
+    }
     if extend_selection || is_visual_mode {
         if selection_start.is_none() {
             *selection_start = Some(*cursor_index);
@@ -217,13 +268,13 @@ pub fn move_grid_cursor_down(
     } else {
         *selection_start = None;
     }
-    if total > 0 {
-        *cursor_index = (*cursor_index + delta).min(total.saturating_sub(1));
-    }
+    *cursor_index = (*cursor_index + delta).min(total.saturating_sub(1));
 }
 
-/// Moves a 1D grid cursor backward by `delta`, preserving or clearing `selection_start`
-/// according to `is_visual_mode` or `extend_selection`.
+/// Moves a grid cursor backward by `delta` and updates `selection_start`.
+///
+/// Keeps or sets `selection_start` when `extend_selection` or `is_visual_mode` is `true`, and
+/// clears it otherwise. Callers must check `total > 0` before passing `extend_selection = true`.
 pub fn move_grid_cursor_up(
     cursor_index: &mut usize,
     selection_start: &mut Option<usize>,
@@ -241,16 +292,44 @@ pub fn move_grid_cursor_up(
     *cursor_index = cursor_index.saturating_sub(delta);
 }
 
-/// Handles shared keyboard shortcuts for grid-based right-pane views (`SpritesView` and
-/// `CharsetView`):
-/// - `Esc`: Clears active visual mode and selection anchor.
+/// Jumps a grid cursor to `index` (clamped to `total - 1`).
+///
+/// Keeps or sets `selection_start` in visual mode, and clears non-visual `Shift+Arrow`
+/// selections. If `total == 0`, returns without setting `selection_start`.
+pub fn jump_grid_cursor(
+    cursor_index: &mut usize,
+    selection_start: &mut Option<usize>,
+    is_visual_mode: bool,
+    index: usize,
+    total: usize,
+) {
+    if total == 0 {
+        if !is_visual_mode {
+            *selection_start = None;
+        }
+        return;
+    }
+    if is_visual_mode {
+        if selection_start.is_none() {
+            *selection_start = Some(*cursor_index);
+        }
+    } else {
+        *selection_start = None;
+    }
+    *cursor_index = index.min(total.saturating_sub(1));
+}
+
+/// Handles shared selection and navigation keys for `SpritesView`, `CharsetView`, and
+/// `BitmapView`.
+///
+/// - `Esc`: Clears visual mode, all pane selections, and `input_buffer`.
 /// - `V` / `Shift+V`: Toggles visual selection mode.
-/// - `Shift+Up` / `Shift+Down`: Extends selection by one visual row (`grid_cols` items).
-/// - `Left` / `Right` / `h` / `l` and `Shift+Left` / `Shift+Right` (when `grid_cols > 1`):
-///   Moves or extends selection horizontally by 1 item.
-/// - `b`: Converts the selected item range (or current item) to a `DataByte` block and clears
-///   selection state.
-/// - `Enter`: Jumps focus to the Disassembly view at the current item's clamped address.
+/// - `Shift+Up` / `Shift+Down`: Extends the selection by one row (`grid_cols` items).
+/// - `Left` / `Right` / `h` / `l` (when `grid_cols > 1`): Moves the cursor by one item.
+/// - `Shift+Left` / `Shift+Right` (when `grid_cols > 1`): Extends the selection by one item.
+/// - `b`: Converts the selected or focused items to `DataByte` and clears selections. Ignores
+///   items that lie only in alignment padding before `origin`.
+/// - `Enter`: Jumps focus to `DisassemblyView` at the current item's clamped address.
 #[allow(clippy::too_many_arguments)]
 pub fn handle_grid_selection_input(
     key: KeyEvent,
@@ -262,20 +341,23 @@ pub fn handle_grid_selection_input(
     mut selection: Option<usize>,
     set_state: impl FnOnce(&mut UIState, usize, Option<usize>),
 ) -> WidgetResult {
+    let has_items = !app_state.raw_data.is_empty() && grid.item_count() > 0;
     match key.code {
         KeyCode::Esc if key.modifiers.is_empty() => {
             if selection.is_some() || ui_state.is_visual_mode {
                 selection = None;
-                ui_state.is_visual_mode = false;
-                ui_state.set_status_message("");
                 set_state(ui_state, cursor, selection);
+                // Clear selections in all panes and reset any `[N]G` count prefix.
+                ui_state.core.clear_all_selections();
+                ui_state.input_buffer.clear();
+                ui_state.set_status_message("");
                 WidgetResult::Handled
             } else {
                 WidgetResult::Ignored
             }
         }
         KeyCode::Char('V') if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT => {
-            if !app_state.raw_data.is_empty() {
+            if has_items {
                 ui_state.is_visual_mode = !ui_state.is_visual_mode;
                 if ui_state.is_visual_mode {
                     selection = Some(cursor);
@@ -289,92 +371,97 @@ pub fn handle_grid_selection_input(
             WidgetResult::Handled
         }
         KeyCode::Down if key.modifiers == KeyModifiers::SHIFT => {
-            move_grid_cursor_down(
-                &mut cursor,
-                &mut selection,
-                ui_state.is_visual_mode,
-                true,
-                grid_cols,
-                grid.item_count(),
-            );
-            set_state(ui_state, cursor, selection);
+            if has_items {
+                move_grid_cursor_down(
+                    &mut cursor,
+                    &mut selection,
+                    ui_state.is_visual_mode,
+                    /* extend_selection= */ true,
+                    grid_cols,
+                    grid.item_count(),
+                );
+                set_state(ui_state, cursor, selection);
+            }
             WidgetResult::Handled
         }
         KeyCode::Up if key.modifiers == KeyModifiers::SHIFT => {
-            move_grid_cursor_up(
-                &mut cursor,
-                &mut selection,
-                ui_state.is_visual_mode,
-                true,
-                grid_cols,
-            );
-            set_state(ui_state, cursor, selection);
+            if has_items {
+                move_grid_cursor_up(
+                    &mut cursor,
+                    &mut selection,
+                    ui_state.is_visual_mode,
+                    /* extend_selection= */ true,
+                    grid_cols,
+                );
+                set_state(ui_state, cursor, selection);
+            }
             WidgetResult::Handled
         }
         KeyCode::Left if key.modifiers == KeyModifiers::SHIFT && grid_cols > 1 => {
-            move_grid_cursor_up(
-                &mut cursor,
-                &mut selection,
-                ui_state.is_visual_mode,
-                true,
-                1,
-            );
-            set_state(ui_state, cursor, selection);
+            if has_items {
+                move_grid_cursor_up(
+                    &mut cursor,
+                    &mut selection,
+                    ui_state.is_visual_mode,
+                    /* extend_selection= */ true,
+                    1,
+                );
+                set_state(ui_state, cursor, selection);
+            }
             WidgetResult::Handled
         }
         KeyCode::Right if key.modifiers == KeyModifiers::SHIFT && grid_cols > 1 => {
-            move_grid_cursor_down(
-                &mut cursor,
-                &mut selection,
-                ui_state.is_visual_mode,
-                true,
-                1,
-                grid.item_count(),
-            );
-            set_state(ui_state, cursor, selection);
+            if has_items {
+                move_grid_cursor_down(
+                    &mut cursor,
+                    &mut selection,
+                    ui_state.is_visual_mode,
+                    /* extend_selection= */ true,
+                    1,
+                    grid.item_count(),
+                );
+                set_state(ui_state, cursor, selection);
+            }
             WidgetResult::Handled
         }
         // Guard `Left`/`Right`/`h`/`l` with `key.modifiers.is_empty()` so modified arrow keys
         // pass through to global shortcuts.
         KeyCode::Left | KeyCode::Char('h') if key.modifiers.is_empty() && grid_cols > 1 => {
             ui_state.input_buffer.clear();
-            move_grid_cursor_up(
-                &mut cursor,
-                &mut selection,
-                ui_state.is_visual_mode,
-                false,
-                1,
-            );
-            set_state(ui_state, cursor, selection);
+            if has_items {
+                move_grid_cursor_up(
+                    &mut cursor,
+                    &mut selection,
+                    ui_state.is_visual_mode,
+                    /* extend_selection= */ false,
+                    1,
+                );
+                set_state(ui_state, cursor, selection);
+            }
             WidgetResult::Handled
         }
         KeyCode::Right | KeyCode::Char('l') if key.modifiers.is_empty() && grid_cols > 1 => {
             ui_state.input_buffer.clear();
-            move_grid_cursor_down(
-                &mut cursor,
-                &mut selection,
-                ui_state.is_visual_mode,
-                false,
-                1,
-                grid.item_count(),
-            );
-            set_state(ui_state, cursor, selection);
+            if has_items {
+                move_grid_cursor_down(
+                    &mut cursor,
+                    &mut selection,
+                    ui_state.is_visual_mode,
+                    /* extend_selection= */ false,
+                    1,
+                    grid.item_count(),
+                );
+                set_state(ui_state, cursor, selection);
+            }
             WidgetResult::Handled
         }
         KeyCode::Char('b') if key.modifiers.is_empty() => {
             let end_item = selection.unwrap_or(cursor);
-            // Clear selection state before dispatching `SetBytesBlockByOffset` so `handle_menu_action`
-            // syncs the cleared flags into `core.view`.
-            selection = None;
-            ui_state.is_visual_mode = false;
-            ui_state.selection_start = None;
-            set_state(ui_state, cursor, selection);
-            grid.item_range_byte_offsets(cursor, end_item).map_or(
-                WidgetResult::Ignored,
-                |(start, end)| {
-                    WidgetResult::Action(AppAction::SetBytesBlockByOffset { start, end })
-                },
-            )
+            // Ignore padding-only slots before dispatching `AppAction::Byte` so active selections stay intact.
+            if grid.item_range_byte_offsets(cursor, end_item).is_none() {
+                return WidgetResult::Ignored;
+            }
+            WidgetResult::Action(AppAction::Byte)
         }
         KeyCode::Enter if key.modifiers.is_empty() => grid
             .clamped_item_addr(cursor)
@@ -635,11 +722,378 @@ mod tests {
         let grid = AlignedGridRange::new(&app_state, 0x400, 8, 8);
         let mut ui_state = UIState::new(Theme::default());
 
+        // Forward selection: item 0..=2 covers $1000..=$1017. Cursor leads at $1017.
         sync_grid_item_to_disassembly(&app_state, &mut ui_state, &grid, 2, Some(0));
         assert_eq!(ui_state.selection_start, Some(0));
         assert_eq!(
             app_state.disassembly[ui_state.cursor_index].address,
-            Addr(0x1010)
+            Addr(0x1017)
         );
+
+        // Backward selection: item 2..=0 covers $1000..=$1017. Cursor leads at $1000 and anchor stays at $1017.
+        sync_grid_item_to_disassembly(&app_state, &mut ui_state, &grid, 0, Some(2));
+        assert_eq!(
+            app_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x1000)
+        );
+        let selection_index = ui_state
+            .selection_start
+            .expect("backward selection must set selection_start");
+        assert_eq!(app_state.disassembly[selection_index].address, Addr(0x1017));
+    }
+
+    #[test]
+    fn test_sync_grid_item_to_disassembly_tier1_tier2_and_padding() {
+        // Setup A1: 256 bytes at $0900 for Sprites (64B) and Charset (8B).
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0900);
+        app_state.raw_data = vec![0xEA; 256];
+        app_state.block_types = vec![BlockType::Code; 256];
+        app_state.disassemble();
+
+        let sprites_grid = AlignedGridRange::sprites(&app_state);
+        let charset_grid = AlignedGridRange::charset(&app_state);
+        let mut ui_state = UIState::new(Theme::default());
+
+        // Tier 1 passive focus (selection_start == None): cursor at item start, no selection_start.
+        ui_state.selection_start = Some(99);
+        sync_grid_item_to_disassembly(&app_state, &mut ui_state, &sprites_grid, 1, None);
+        assert_eq!(
+            app_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0940)
+        );
+        assert_eq!(ui_state.selection_start, None);
+
+        // Tier 2 1-item selection (1, Some(1)): cursor at $0940, anchor at $097F (64 bytes).
+        sync_grid_item_to_disassembly(&app_state, &mut ui_state, &sprites_grid, 1, Some(1));
+        assert_eq!(
+            app_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0940)
+        );
+        assert_eq!(
+            app_state.disassembly[ui_state
+                .selection_start
+                .expect("1-item sprite selection must set selection_start")]
+            .address,
+            Addr(0x097F)
+        );
+
+        // Tier 2 2-item forward (2, Some(1)) and backward (1, Some(2)) cover $0940..=$09BF (128 bytes).
+        sync_grid_item_to_disassembly(&app_state, &mut ui_state, &sprites_grid, 2, Some(1));
+        assert_eq!(
+            app_state.disassembly[ui_state
+                .selection_start
+                .expect("forward sprite selection must set selection_start")]
+            .address,
+            Addr(0x0940)
+        );
+        assert_eq!(
+            app_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x09BF)
+        );
+
+        sync_grid_item_to_disassembly(&app_state, &mut ui_state, &sprites_grid, 1, Some(2));
+        assert_eq!(
+            app_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0940)
+        );
+        assert_eq!(
+            app_state.disassembly[ui_state
+                .selection_start
+                .expect("backward sprite selection must set selection_start")]
+            .address,
+            Addr(0x09BF)
+        );
+
+        // Charset 1-item (33, Some(33)) covers $0908..=$090F (8 bytes) since Charset aligns to $0400 ($0800).
+        sync_grid_item_to_disassembly(&app_state, &mut ui_state, &charset_grid, 33, Some(33));
+        assert_eq!(
+            app_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0908)
+        );
+        assert_eq!(
+            app_state.disassembly[ui_state
+                .selection_start
+                .expect("1-item charset selection must set selection_start")]
+            .address,
+            Addr(0x090F)
+        );
+
+        // Charset item 1 ($0808..=$080F) lies in pre-origin padding (< $0900) and clears selection.
+        sync_grid_item_to_disassembly(&app_state, &mut ui_state, &charset_grid, 1, Some(1));
+        assert_eq!(ui_state.selection_start, None);
+        assert_eq!(
+            app_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0900)
+        );
+
+        // Setup A2: 3-byte JSR $0920 straddling item 0 / item 1 boundary at $093E..=$0940.
+        let mut straddle_state = AppState::new();
+        straddle_state.origin = Addr(0x0900);
+        let mut data = vec![0xEA; 256];
+        data[0x3E] = 0x20;
+        data[0x3F] = 0x20;
+        data[0x40] = 0x09;
+        straddle_state.raw_data = data;
+        straddle_state.block_types = vec![BlockType::Code; 256];
+        straddle_state.disassemble();
+        let straddle_grid = AlignedGridRange::sprites(&straddle_state);
+        sync_grid_item_to_disassembly(&straddle_state, &mut ui_state, &straddle_grid, 0, Some(0));
+        assert_eq!(
+            straddle_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0900)
+        );
+        assert_eq!(
+            straddle_state.disassembly[ui_state
+                .selection_start
+                .expect("straddling instruction selection must set selection_start")]
+            .address,
+            Addr(0x093E)
+        );
+
+        // Setup B: Bitmap at $0000 (16,384 bytes) maps (0, Some(0)) to $0000..=$1F3F.
+        let mut bitmap_state = AppState::new();
+        bitmap_state.origin = Addr(0x0000);
+        bitmap_state.raw_data = vec![0xEA; 16384];
+        bitmap_state.block_types = vec![BlockType::Undefined; 16384];
+        bitmap_state.disassemble();
+        let bitmap_grid = AlignedGridRange::bitmap(&bitmap_state);
+        sync_grid_item_to_disassembly(&bitmap_state, &mut ui_state, &bitmap_grid, 0, Some(0));
+        assert_eq!(
+            bitmap_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0000)
+        );
+        assert_eq!(
+            bitmap_state.disassembly[ui_state
+                .selection_start
+                .expect("1-item bitmap selection must set selection_start")]
+            .address,
+            Addr(0x1F3F)
+        );
+
+        // Setup C: Pre-origin alignment padding only (origin = $0809, Charset slot 0 = $0800..=$0807).
+        let mut padding_state = AppState::new();
+        padding_state.origin = Addr(0x0809);
+        padding_state.raw_data = vec![0xEA; 32];
+        padding_state.block_types = vec![BlockType::Code; 32];
+        padding_state.disassemble();
+        let padding_grid = AlignedGridRange::charset(&padding_state);
+        ui_state.selection_start = Some(5);
+        sync_grid_item_to_disassembly(&padding_state, &mut ui_state, &padding_grid, 0, Some(0));
+        assert_eq!(ui_state.selection_start, None);
+        assert_eq!(
+            padding_state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0809)
+        );
+    }
+
+    #[test]
+    fn test_handle_grid_selection_input_empty_clamping_2d_padding_and_esc() {
+        // 1. Empty binary guard (raw_data = vec![]).
+        let empty_state = AppState::new();
+        let empty_grid = AlignedGridRange::sprites(&empty_state);
+        let mut ui_state = UIState::new(Theme::default());
+        let mut cursor = 0usize;
+        let mut selection = None;
+
+        for (code, modifiers) in [
+            (KeyCode::Down, KeyModifiers::SHIFT),
+            (KeyCode::Up, KeyModifiers::SHIFT),
+            (KeyCode::Left, KeyModifiers::SHIFT),
+            (KeyCode::Right, KeyModifiers::SHIFT),
+            (KeyCode::Char('V'), KeyModifiers::SHIFT),
+        ] {
+            let result = handle_grid_selection_input(
+                KeyEvent::new(code, modifiers),
+                &empty_state,
+                &mut ui_state,
+                &empty_grid,
+                2,
+                cursor,
+                selection,
+                |_, new_cursor, new_selection| {
+                    cursor = new_cursor;
+                    selection = new_selection;
+                },
+            );
+            assert_eq!(result, WidgetResult::Handled);
+            assert_eq!(selection, None);
+            assert_eq!(cursor, 0);
+            assert!(!ui_state.is_visual_mode);
+        }
+
+        // 2. Shift+Cursor clamping at 0 and len - 1 (1-slot bitmap, total = 1).
+        let mut bitmap_state = AppState::new();
+        bitmap_state.origin = Addr(0x2000);
+        bitmap_state.raw_data = vec![0xEA; 8000];
+        bitmap_state.block_types = vec![BlockType::Undefined; 8000];
+        bitmap_state.disassemble();
+        let bitmap_grid = AlignedGridRange::bitmap(&bitmap_state);
+        assert_eq!(bitmap_grid.item_count(), 1);
+
+        cursor = 0;
+        selection = None;
+        let up_result = handle_grid_selection_input(
+            KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT),
+            &bitmap_state,
+            &mut ui_state,
+            &bitmap_grid,
+            1,
+            cursor,
+            selection,
+            |_, new_cursor, new_selection| {
+                cursor = new_cursor;
+                selection = new_selection;
+            },
+        );
+        assert_eq!(up_result, WidgetResult::Handled);
+        assert_eq!(selection, Some(0));
+        assert_eq!(cursor, 0);
+
+        selection = None;
+        let down_result = handle_grid_selection_input(
+            KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT),
+            &bitmap_state,
+            &mut ui_state,
+            &bitmap_grid,
+            1,
+            cursor,
+            selection,
+            |_, new_cursor, new_selection| {
+                cursor = new_cursor;
+                selection = new_selection;
+            },
+        );
+        assert_eq!(down_result, WidgetResult::Handled);
+        assert_eq!(selection, Some(0));
+        assert_eq!(cursor, 0);
+
+        // A 1-column grid (`grid_cols == 1`) ignores `Shift+Left` and `Shift+Right`.
+        for code in [KeyCode::Left, KeyCode::Right] {
+            assert_eq!(
+                handle_grid_selection_input(
+                    KeyEvent::new(code, KeyModifiers::SHIFT),
+                    &bitmap_state,
+                    &mut ui_state,
+                    &bitmap_grid,
+                    1,
+                    cursor,
+                    selection,
+                    |_, _, _| {},
+                ),
+                WidgetResult::Ignored
+            );
+        }
+
+        // 3. 2D grid partial last row (Charset8Col, grid_cols = 8, total = 10).
+        let mut charset_state = AppState::new();
+        charset_state.origin = Addr(0x0800);
+        charset_state.raw_data = vec![0xEA; 80];
+        charset_state.block_types = vec![BlockType::Undefined; 80];
+        charset_state.disassemble();
+        let charset_grid = AlignedGridRange::charset(&charset_state);
+        assert_eq!(charset_grid.item_count(), 10);
+
+        cursor = 5;
+        selection = None;
+        handle_grid_selection_input(
+            KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT),
+            &charset_state,
+            &mut ui_state,
+            &charset_grid,
+            8,
+            cursor,
+            selection,
+            |_, new_cursor, new_selection| {
+                cursor = new_cursor;
+                selection = new_selection;
+            },
+        );
+        assert_eq!(cursor, 9);
+        assert_eq!(selection, Some(5));
+
+        cursor = 1;
+        selection = None;
+        handle_grid_selection_input(
+            KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT),
+            &charset_state,
+            &mut ui_state,
+            &charset_grid,
+            8,
+            cursor,
+            selection,
+            |_, new_cursor, new_selection| {
+                cursor = new_cursor;
+                selection = new_selection;
+            },
+        );
+        assert_eq!(cursor, 0);
+        assert_eq!(selection, Some(1));
+
+        // 4. 'b' on pure pre-origin alignment padding preserves active selection & returns Ignored.
+        let mut padding_state = AppState::new();
+        padding_state.origin = Addr(0x0809);
+        padding_state.raw_data = vec![0xEA; 32];
+        padding_state.block_types = vec![BlockType::Code; 32];
+        padding_state.disassemble();
+        let padding_grid = AlignedGridRange::charset(&padding_state);
+        cursor = 0;
+        selection = Some(0);
+        ui_state.is_visual_mode = true;
+        ui_state.selection_start = Some(0);
+        let byte_result = handle_grid_selection_input(
+            KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
+            &padding_state,
+            &mut ui_state,
+            &padding_grid,
+            8,
+            cursor,
+            selection,
+            |_, new_cursor, new_selection| {
+                cursor = new_cursor;
+                selection = new_selection;
+            },
+        );
+        assert_eq!(byte_result, WidgetResult::Ignored);
+        assert_eq!(selection, Some(0));
+        assert!(ui_state.is_visual_mode);
+        assert_eq!(ui_state.selection_start, Some(0));
+
+        // 5. Esc clears input_buffer and all companion selection anchors when active, ignores otherwise.
+        ui_state.input_buffer = "42".to_string();
+        ui_state.hex_selection_start = Some(2);
+        ui_state.hex_selection_start_col = 5;
+        ui_state.sprites_selection_start = Some(1);
+        ui_state.bitmap_selection_start = Some(0);
+        let escape_result = handle_grid_selection_input(
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+            &padding_state,
+            &mut ui_state,
+            &padding_grid,
+            8,
+            cursor,
+            selection,
+            |_, new_cursor, new_selection| {
+                cursor = new_cursor;
+                selection = new_selection;
+            },
+        );
+        assert_eq!(escape_result, WidgetResult::Handled);
+        assert_eq!(selection, None);
+        assert!(!ui_state.core.has_any_selection());
+        assert_eq!(ui_state.hex_selection_start_col, 0);
+        assert!(ui_state.input_buffer.is_empty());
+
+        let idle_escape_result = handle_grid_selection_input(
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+            &padding_state,
+            &mut ui_state,
+            &padding_grid,
+            8,
+            cursor,
+            selection,
+            |_, _, _| {},
+        );
+        assert_eq!(idle_escape_result, WidgetResult::Ignored);
     }
 }

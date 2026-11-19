@@ -2,11 +2,14 @@ pub mod input;
 
 use crate::ui::dialog_import_context::ImportContextDialog;
 use crate::ui::ui;
-use crate::ui_state::{ActivePane, UIState};
+use crate::ui_state::{ActivePane, RightPane, UIState};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, MouseEvent};
 use input::handle_global_input;
 use ratatui::{Terminal, backend::Backend};
 use regenerator2000_core::Core;
+use regenerator2000_core::navigation::{
+    AlignedGridRange, sync_grid_pane_from_disassembly, sync_hex_pane_from_disassembly,
+};
 use regenerator2000_core::state::types::System;
 use regenerator2000_core::state::{AppState, EntryAnalysisMode};
 use std::io;
@@ -1004,41 +1007,8 @@ fn dispatch_menu_action(
 // View synchronization (runs before each render)
 // ---------------------------------------------------------------------------
 
-/// Maps an active disassembly line selection to clamped grid item indices `(start, end)`.
-fn mirror_disassembly_selection_to_grid(
-    app_state: &AppState,
-    selection_start: Option<usize>,
-    cursor_index: usize,
-    target_addr: crate::state::Addr,
-    grid: &crate::ui::navigable::AlignedGridRange,
-) -> Option<(usize, usize)> {
-    let sel_start = selection_start?;
-    let (s_idx, e_idx) = if sel_start <= cursor_index {
-        (sel_start, cursor_index)
-    } else {
-        (cursor_index, sel_start)
-    };
-    let sel_start_addr = app_state
-        .disassembly
-        .get(s_idx)
-        .map_or(target_addr.0 as usize, |l| l.address.0 as usize);
-    let sel_end_addr = app_state
-        .disassembly
-        .get(e_idx)
-        .map_or(target_addr.0 as usize, |l| {
-            l.address.0 as usize + l.bytes.len().saturating_sub(1)
-        });
-
-    let start_item = sel_start_addr.checked_sub(grid.aligned_origin)? / grid.stride;
-    let end_item = sel_end_addr.checked_sub(grid.aligned_origin)? / grid.stride;
-    let max_idx = grid.item_count().saturating_sub(1);
-    Some((start_item.min(max_idx), end_item.min(max_idx)))
-}
-
 /// Syncs right-pane views with the disassembly cursor position and updates menu availability.
 fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
-    use crate::ui::navigable::AlignedGridRange;
-
     ui_state.cached_blocks_items = None;
 
     // Update menu availability
@@ -1057,96 +1027,84 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     let Some(line) = app_state.disassembly.get(ui_state.cursor_index) else {
         return;
     };
-    if line.external_label_address.is_some() {
-        return;
-    }
+    // Skip cursor sync on external equates (`$D020`), but still sync active selections and
+    // clear stale companion anchors.
+    let allow_cursor_sync = line.external_label_address.is_none();
     let target_addr = line.address;
+    let is_splitter = line.is_splitter();
+    let sync_target_addr = allow_cursor_sync.then_some(target_addr);
+    let disassembly_selection = ui_state.selection_start;
+    let disassembly_cursor = ui_state.cursor_index;
 
     // Sync Blocks view and retain `items` for `BlocksView::render` in the same frame.
-    if ui_state.right_pane == crate::ui_state::RightPane::Blocks
-        && app_state.system_config.sync_blocks_view
-    {
+    if ui_state.right_pane == RightPane::Blocks && app_state.system_config.sync_blocks_view {
         let items = app_state.get_blocks_view_items();
-        if let Some(idx) =
-            AppState::find_block_index_in_items(&items, target_addr, line.is_splitter())
+        if allow_cursor_sync
+            && let Some(index) =
+                AppState::find_block_index_in_items(&items, target_addr, is_splitter)
         {
-            ui_state.blocks_list_state.select(Some(idx));
+            ui_state.blocks_list_state.select(Some(index));
         }
         ui_state.cached_blocks_items = Some(items);
     }
 
-    // Sync HexDump view
+    // Sync HexDump cursor and selection while preserving sub-instruction hex anchors.
     if matches!(
         ui_state.right_pane,
-        crate::ui_state::RightPane::HexDump16 | crate::ui_state::RightPane::HexDump8
+        RightPane::HexDump16 | RightPane::HexDump8
     ) && app_state.system_config.sync_hex_dump
     {
-        let grid = AlignedGridRange::hex_dump(app_state, ui_state.right_pane);
-        let addr_usize = target_addr.0 as usize;
-        if let Some(row) = grid.index_for_addr(addr_usize) {
-            ui_state.hex_cursor_index = row;
-            ui_state.hex_col_cursor = (addr_usize - grid.aligned_origin) % grid.stride;
-        }
+        sync_hex_pane_from_disassembly(app_state, &mut ui_state.core, sync_target_addr);
     }
 
     // Sync Charset view
     if matches!(
         ui_state.right_pane,
-        crate::ui_state::RightPane::Charset8Col | crate::ui_state::RightPane::Charset4Col
+        RightPane::Charset8Col | RightPane::Charset4Col
     ) && app_state.system_config.sync_charset_view
     {
         let grid = AlignedGridRange::charset(app_state);
-        if let Some(idx) = grid.index_for_addr(target_addr.0 as usize) {
-            ui_state.charset_cursor_index = idx;
-        }
-
-        if let Some((start_char, end_char)) = mirror_disassembly_selection_to_grid(
+        sync_grid_pane_from_disassembly(
             app_state,
-            ui_state.selection_start,
-            ui_state.cursor_index,
-            target_addr,
+            disassembly_selection,
+            disassembly_cursor,
+            sync_target_addr,
             &grid,
-        ) {
-            ui_state.charset_selection_start = Some(start_char);
-            ui_state.charset_cursor_index = end_char;
-        } else if ui_state.selection_start.is_none() {
-            ui_state.charset_selection_start = None;
-        }
+            &mut ui_state.core.charset_cursor_index,
+            &mut ui_state.core.charset_selection_start,
+        );
     }
 
     // Sync Sprites view
     if matches!(
         ui_state.right_pane,
-        crate::ui_state::RightPane::Sprites2Col | crate::ui_state::RightPane::Sprites1Col
+        RightPane::Sprites2Col | RightPane::Sprites1Col
     ) && app_state.system_config.sync_sprites_view
     {
         let grid = AlignedGridRange::sprites(app_state);
-        if let Some(idx) = grid.index_for_addr(target_addr.0 as usize) {
-            ui_state.sprites_cursor_index = idx;
-        }
-
-        if let Some((start_sprite, end_sprite)) = mirror_disassembly_selection_to_grid(
+        sync_grid_pane_from_disassembly(
             app_state,
-            ui_state.selection_start,
-            ui_state.cursor_index,
-            target_addr,
+            disassembly_selection,
+            disassembly_cursor,
+            sync_target_addr,
             &grid,
-        ) {
-            ui_state.sprites_selection_start = Some(start_sprite);
-            ui_state.sprites_cursor_index = end_sprite;
-        } else if ui_state.selection_start.is_none() {
-            ui_state.sprites_selection_start = None;
-        }
+            &mut ui_state.core.sprites_cursor_index,
+            &mut ui_state.core.sprites_selection_start,
+        );
     }
 
     // Sync Bitmap view
-    if ui_state.right_pane == crate::ui_state::RightPane::Bitmap
-        && app_state.system_config.sync_bitmap_view
-    {
+    if ui_state.right_pane == RightPane::Bitmap && app_state.system_config.sync_bitmap_view {
         let grid = AlignedGridRange::bitmap(app_state);
-        if let Some(idx) = grid.index_for_addr(target_addr.0 as usize) {
-            ui_state.bitmap_cursor_index = idx;
-        }
+        sync_grid_pane_from_disassembly(
+            app_state,
+            disassembly_selection,
+            disassembly_cursor,
+            sync_target_addr,
+            &grid,
+            &mut ui_state.core.bitmap_cursor_index,
+            &mut ui_state.core.bitmap_selection_start,
+        );
     }
 }
 
@@ -1156,7 +1114,7 @@ mod tests {
     use crate::theme::Theme;
     use crate::ui::widget::WidgetResult;
     use crossterm::event::KeyModifiers;
-    use regenerator2000_core::state::BlockType;
+    use regenerator2000_core::state::{Addr, BlockType};
     use regenerator2000_core::unpacker::{
         BoundSource, ExitReason, UnpackError, UnpackReport, UnpackResult,
     };
@@ -1702,5 +1660,593 @@ mod tests {
             &mut should_render,
         );
         assert!(ui_state.active_dialog.is_some());
+    }
+
+    #[test]
+    fn test_sync_views_before_render_direction_collapsed_wrapped_equates_and_hex() {
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+        use regenerator2000_core::state::{Assembler, BlockType, Label, LabelKind, LabelType};
+
+        // 1. Backward direction preservation across Tab (Sprites, Charset, Bitmap) + 1-item round-trip
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x2000);
+        app_state.raw_data = vec![0xEA; 0x4200];
+        app_state.block_types = vec![BlockType::Code; 0x4200];
+        app_state.system_config.sync_sprites_view = true;
+        app_state.system_config.sync_charset_view = true;
+        app_state.system_config.sync_bitmap_view = true;
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.active_pane = ActivePane::Disassembly;
+
+        // Sprites backward 2-item ($20BF -> $2000 -> Some(2), 0) and ($20BF -> $2040 -> Some(2), 1)
+        let index_2000 = app_state
+            .get_line_index_containing_address(Addr(0x2000))
+            .expect("$2000");
+        let index_2040 = app_state
+            .get_line_index_containing_address(Addr(0x2040))
+            .expect("$2040");
+        let index_20bf = app_state
+            .get_line_index_containing_address(Addr(0x20BF))
+            .expect("$20BF");
+        let index_203f = app_state
+            .get_line_index_containing_address(Addr(0x203F))
+            .expect("$203F");
+        ui_state.right_pane = RightPane::Sprites2Col;
+        ui_state.selection_start = Some(index_20bf);
+        ui_state.cursor_index = index_2000;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, Some(2));
+        assert_eq!(ui_state.sprites_cursor_index, 0);
+
+        ui_state.cursor_index = index_2040;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, Some(2));
+        assert_eq!(ui_state.sprites_cursor_index, 1);
+
+        // Single-item Sprites round-trip ($203F -> $2000 => (Some(0), 0))
+        ui_state.selection_start = Some(index_203f);
+        ui_state.cursor_index = index_2000;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, Some(0));
+        assert_eq!(ui_state.sprites_cursor_index, 0);
+
+        // Charset backward ($2017 Char 2 -> $2008 Char 1)
+        let index_2008 = app_state
+            .get_line_index_containing_address(Addr(0x2008))
+            .expect("$2008");
+        let index_2017 = app_state
+            .get_line_index_containing_address(Addr(0x2017))
+            .expect("$2017");
+        ui_state.right_pane = RightPane::Charset8Col;
+        ui_state.selection_start = Some(index_2017);
+        ui_state.cursor_index = index_2008;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.charset_selection_start, Some(2));
+        assert_eq!(ui_state.charset_cursor_index, 1);
+
+        // Bitmap backward ($5F3F Bitmap 1 -> $2000 Bitmap 0) and 1-item ($3F3F -> $2000)
+        let index_5f3f = app_state
+            .get_line_index_containing_address(Addr(0x5F3F))
+            .expect("$5F3F");
+        let index_3f3f = app_state
+            .get_line_index_containing_address(Addr(0x3F3F))
+            .expect("$3F3F");
+        ui_state.right_pane = RightPane::Bitmap;
+        ui_state.selection_start = Some(index_5f3f);
+        ui_state.cursor_index = index_2000;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.bitmap_selection_start, Some(1));
+        assert_eq!(ui_state.bitmap_cursor_index, 0);
+
+        ui_state.selection_start = Some(index_3f3f);
+        ui_state.cursor_index = index_2000;
+        sync_views_before_render(&app_state, &mut ui_state);
+        assert_eq!(ui_state.bitmap_selection_start, Some(0));
+        assert_eq!(ui_state.bitmap_cursor_index, 0);
+
+        // 2. Collapsed block mirroring: (0, 127) ($2000..=$207F) maps to 2 sprites (0..=1)
+        let mut collapsed_state = AppState::new();
+        collapsed_state.origin = Addr(0x2000);
+        collapsed_state.raw_data = vec![0xEA; 256];
+        collapsed_state.block_types = vec![BlockType::Code; 256];
+        collapsed_state.collapsed_blocks.push((0, 127));
+        collapsed_state.system_config.sync_sprites_view = true;
+        collapsed_state.disassemble();
+        let collapsed_index = collapsed_state
+            .disassembly
+            .iter()
+            .position(|l| l.is_collapsed && l.address == Addr(0x2000))
+            .expect("collapsed block at $2000");
+        ui_state.right_pane = RightPane::Sprites2Col;
+        ui_state.selection_start = Some(collapsed_index);
+        ui_state.cursor_index = collapsed_index;
+        sync_views_before_render(&collapsed_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, Some(0));
+        assert_eq!(ui_state.sprites_cursor_index, 1);
+
+        // 3. Wrapped binary $FFFE..=$0001 collapsed block
+        let mut wrapped_state = AppState::new();
+        wrapped_state.origin = Addr(0xFFFE);
+        wrapped_state.raw_data = vec![0xEA; 4];
+        wrapped_state.block_types = vec![BlockType::Undefined; 4];
+        wrapped_state.collapsed_blocks.push((0, 3));
+        wrapped_state.system_config.sync_sprites_view = true;
+        wrapped_state.disassemble();
+        let wrapped_index = wrapped_state
+            .disassembly
+            .iter()
+            .position(|l| l.is_collapsed && l.address == Addr(0xFFFE))
+            .expect("collapsed block at $FFFE");
+        ui_state.right_pane = RightPane::Sprites2Col;
+        ui_state.sprites_cursor_index = 5;
+        ui_state.sprites_selection_start = Some(5);
+        ui_state.selection_start = Some(wrapped_index);
+        ui_state.cursor_index = wrapped_index;
+        sync_views_before_render(&wrapped_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, Some(0));
+        assert_eq!(ui_state.sprites_cursor_index, 0);
+
+        // 4. External equates $D020, $0000 preamble, and closing `}` exclusion + allow_cursor_sync
+        let mut equate_state = AppState::new();
+        equate_state.origin = Addr(0x2000);
+        equate_state.raw_data = vec![0xEA; 0x200];
+        equate_state.block_types = vec![BlockType::Code; 0x200];
+        equate_state.settings.assembler = Assembler::Kick;
+        equate_state.settings.all_labels = true;
+        equate_state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::ExternalJump,
+            }],
+        );
+        equate_state.annotations.update(Addr(0x2000), |e| {
+            e.scope = Some(Addr(0x203F));
+        });
+        equate_state.system_config.sync_blocks_view = true;
+        equate_state.system_config.sync_hex_dump = true;
+        equate_state.system_config.sync_charset_view = true;
+        equate_state.system_config.sync_sprites_view = true;
+        equate_state.system_config.sync_bitmap_view = true;
+        equate_state.disassemble();
+
+        let external_index = equate_state
+            .disassembly
+            .iter()
+            .position(|l| l.external_label_address == Some(Addr(0xD020)))
+            .expect("$D020 external line");
+        let preamble_index = equate_state
+            .disassembly
+            .iter()
+            .position(|l| {
+                l.address == Addr(0x0000)
+                    && l.bytes.is_empty()
+                    && !l.is_collapsed
+                    && l.external_label_address.is_none()
+            })
+            .expect("$0000 preamble line");
+        let close_brace_index = equate_state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x2040) && l.mnemonic == "}" && l.bytes.is_empty())
+            .expect("closing } scope line at $2040");
+        let equate_2000 = equate_state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x2000) && !l.bytes.is_empty())
+            .expect("code line at $2000");
+        let equate_207f = equate_state
+            .disassembly
+            .iter()
+            .position(|l| l.address == Addr(0x207F) && !l.bytes.is_empty())
+            .expect("code line at $207F");
+
+        // 4a. Cursor on $D020 with selection_start = None: keep cursors, clear stale selections, cache Blocks
+        ui_state.selection_start = None;
+        ui_state.cursor_index = external_index;
+        ui_state.hex_cursor_index = 7;
+        ui_state.hex_col_cursor = 3;
+        ui_state.hex_selection_start = Some(1);
+        ui_state.hex_selection_start_col = 4;
+        ui_state.sprites_cursor_index = 4;
+        ui_state.sprites_selection_start = Some(2);
+        ui_state.charset_cursor_index = 9;
+        ui_state.charset_selection_start = Some(3);
+        ui_state.bitmap_cursor_index = 1;
+        ui_state.bitmap_selection_start = Some(0);
+        ui_state.blocks_list_state.select(Some(1));
+
+        ui_state.right_pane = RightPane::Blocks;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert!(ui_state.cached_blocks_items.is_some());
+        assert_eq!(ui_state.blocks_list_state.selected(), Some(1));
+
+        ui_state.right_pane = RightPane::HexDump16;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert_eq!(ui_state.hex_cursor_index, 7);
+        assert_eq!(ui_state.hex_col_cursor, 3);
+        assert_eq!(ui_state.hex_selection_start, None);
+        assert_eq!(ui_state.hex_selection_start_col, 0);
+
+        ui_state.right_pane = RightPane::Sprites2Col;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_cursor_index, 4);
+        assert_eq!(ui_state.sprites_selection_start, None);
+
+        ui_state.right_pane = RightPane::Charset8Col;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert_eq!(ui_state.charset_cursor_index, 9);
+        assert_eq!(ui_state.charset_selection_start, None);
+
+        ui_state.right_pane = RightPane::Bitmap;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert_eq!(ui_state.bitmap_cursor_index, 1);
+        assert_eq!(ui_state.bitmap_selection_start, None);
+
+        // 4b. Selection from $D020 to $207F (and reversed $207F to $D020) mirrors only in-binary (0, 1) / (1, 0)
+        ui_state.right_pane = RightPane::Sprites2Col;
+        ui_state.selection_start = Some(external_index);
+        ui_state.cursor_index = equate_207f;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, Some(0));
+        assert_eq!(ui_state.sprites_cursor_index, 1);
+
+        ui_state.selection_start = Some(equate_207f);
+        ui_state.cursor_index = external_index;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, Some(1));
+        assert_eq!(ui_state.sprites_cursor_index, 0);
+
+        // 4c. Selection covering ONLY $0000 preamble + $D020 external equates clears stale selections
+        ui_state.selection_start = Some(preamble_index);
+        ui_state.cursor_index = external_index;
+        ui_state.sprites_selection_start = Some(1);
+        ui_state.right_pane = RightPane::Sprites2Col;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, None);
+
+        ui_state.charset_selection_start = Some(1);
+        ui_state.right_pane = RightPane::Charset8Col;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert_eq!(ui_state.charset_selection_start, None);
+
+        ui_state.bitmap_selection_start = Some(0);
+        ui_state.right_pane = RightPane::Bitmap;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert_eq!(ui_state.bitmap_selection_start, None);
+
+        // 4d. Selection from $2000 to closing `}` at $2040 stays within Sprite 0 (no 1-byte spill)
+        ui_state.right_pane = RightPane::Sprites2Col;
+        ui_state.selection_start = Some(equate_2000);
+        ui_state.cursor_index = close_brace_index;
+        sync_views_before_render(&equate_state, &mut ui_state);
+        assert_eq!(ui_state.sprites_selection_start, Some(0));
+        assert_eq!(ui_state.sprites_cursor_index, 0);
+
+        // 5. HexDump across Tab (sync_hex_dump = true)
+        let mut hex_state = AppState::new();
+        hex_state.origin = Addr(0x0800);
+        // $0800..$0803: 4 NOPs, $0804..$0806: JSR $0810, $0807: RTS.
+        hex_state.raw_data = vec![0xEA, 0xEA, 0xEA, 0xEA, 0x20, 0x10, 0x08, 0x60];
+        hex_state.block_types = vec![BlockType::Code; 8];
+        hex_state.system_config.sync_hex_dump = true;
+        hex_state.disassemble();
+        let line_0804 = hex_state
+            .get_line_index_containing_address(Addr(0x0804))
+            .expect("JSR at $0804");
+
+        // 5a. selection_start.is_none() clears stale hex_selection_start + col and syncs cursor
+        ui_state.active_pane = ActivePane::Disassembly;
+        ui_state.right_pane = RightPane::HexDump16;
+        ui_state.dismiss_logo = true;
+        ui_state.selection_start = None;
+        ui_state.cursor_index = line_0804;
+        ui_state.hex_selection_start = Some(1);
+        ui_state.hex_selection_start_col = 5;
+        sync_views_before_render(&hex_state, &mut ui_state);
+        assert_eq!(ui_state.hex_selection_start, None);
+        assert_eq!(ui_state.hex_selection_start_col, 0);
+        assert_eq!(ui_state.hex_cursor_index, 0);
+        assert_eq!(ui_state.hex_col_cursor, 4);
+
+        // 5b. selection_start.is_some() preserves sub-instruction hex anchors across sync & render
+        ui_state.selection_start = Some(line_0804);
+        ui_state.cursor_index = line_0804;
+        ui_state.hex_selection_start = Some(0);
+        ui_state.hex_selection_start_col = 4;
+        ui_state.hex_cursor_index = 0;
+        ui_state.hex_col_cursor = 5;
+        sync_views_before_render(&hex_state, &mut ui_state);
+        let backend = TestBackend::new(120, 30);
+        let mut terminal = Terminal::new(backend).expect("create test terminal for hex sync test");
+        terminal
+            .draw(|f| crate::ui::ui(f, &hex_state, &mut ui_state))
+            .expect("draw UI for hex sync test");
+        assert_eq!(ui_state.hex_selection_start, Some(0));
+        assert_eq!(ui_state.hex_selection_start_col, 4);
+        assert_eq!(ui_state.hex_cursor_index, 0);
+        assert_eq!(ui_state.hex_col_cursor, 5);
+
+        // 5c. Extending Disassembly selection past $0804 updates HexDump from sub-instruction bounds.
+        let line_0807 = hex_state
+            .get_line_index_containing_address(Addr(0x0807))
+            .expect("RTS at $0807");
+        ui_state.selection_start = Some(line_0804);
+        ui_state.cursor_index = line_0807;
+        sync_views_before_render(&hex_state, &mut ui_state);
+        assert_eq!(ui_state.hex_selection_start, Some(0));
+        assert_eq!(ui_state.hex_selection_start_col, 4);
+        assert_eq!(ui_state.hex_cursor_index, 0);
+        assert_eq!(ui_state.hex_col_cursor, 7);
+
+        // 5d. Fresh Disassembly selection ($0800..=$0806) mirrors into HexDump when no hex anchor exists.
+        let line_0800 = hex_state
+            .get_line_index_containing_address(Addr(0x0800))
+            .expect("NOP at $0800");
+        ui_state.hex_selection_start = None;
+        ui_state.hex_selection_start_col = 0;
+        ui_state.selection_start = Some(line_0800);
+        ui_state.cursor_index = line_0804;
+        sync_views_before_render(&hex_state, &mut ui_state);
+        assert_eq!(ui_state.hex_selection_start, Some(0));
+        assert_eq!(ui_state.hex_selection_start_col, 0);
+        assert_eq!(ui_state.hex_cursor_index, 0);
+        assert_eq!(ui_state.hex_col_cursor, 6);
+    }
+
+    #[test]
+    fn test_sprites_and_charset_mouse_shift_click_and_drag_sync() {
+        use crossterm::event::{MouseButton, MouseEventKind};
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+
+        let mut core = Core::new();
+        core.state
+            .load_binary(Addr(0x0800), vec![0xEA; 256])
+            .expect("load binary fixture");
+        core.state.block_types = vec![BlockType::Undefined; 256];
+        core.state.disassemble();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.dismiss_logo = true;
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut should_render = false;
+
+        let backend = TestBackend::new(120, 40);
+        let mut terminal = Terminal::new(backend).expect("create test terminal for mouse sync");
+
+        // --- Sprites2Col ---
+        ui_state.right_pane = RightPane::Sprites2Col;
+        terminal
+            .draw(|f| crate::ui::ui(f, &core.state, &mut ui_state))
+            .expect("draw sprites pane");
+        let sprite_area = ui_state.right_pane_area;
+
+        // 1. Plain Left-Click on Sprite 1 (column 2): Tier 1 passive focus on $0840
+        let click_sprite_1 = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: sprite_area.x + 1 + 30,
+            row: sprite_area.y + 2,
+            modifiers: KeyModifiers::NONE,
+        };
+        handle_mouse_event(
+            click_sprite_1,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert_eq!(ui_state.active_pane, ActivePane::Sprites);
+        assert_eq!(ui_state.sprites_cursor_index, 1);
+        assert_eq!(ui_state.sprites_selection_start, None);
+        assert_eq!(ui_state.selection_start, None);
+        assert_eq!(
+            core.state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0840)
+        );
+
+        // 2. Shift+Click on Sprite 1 itself: 1-item Tier 2 selection ($0840..=$087F, 64 bytes)
+        let shift_click_sprite_1 = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: sprite_area.x + 1 + 30,
+            row: sprite_area.y + 2,
+            modifiers: KeyModifiers::SHIFT,
+        };
+        handle_mouse_event(
+            shift_click_sprite_1,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert_eq!(ui_state.sprites_selection_start, Some(1));
+        assert_eq!(ui_state.sprites_cursor_index, 1);
+        assert_eq!(
+            core.state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0840)
+        );
+        assert_eq!(
+            core.state.disassembly[ui_state
+                .selection_start
+                .expect("selection_start set for single-sprite Shift+Click")]
+            .address,
+            Addr(0x087F)
+        );
+
+        // 3. Mouse Down(Left) on Sprite 0 -> Drag(Left) to Sprite 1 ($0800..=$087F, 128 bytes)
+        let down_sprite_0 = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: sprite_area.x + 2,
+            row: sprite_area.y + 2,
+            modifiers: KeyModifiers::NONE,
+        };
+        handle_mouse_event(
+            down_sprite_0,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert_eq!(ui_state.sprites_selection_start, None);
+        assert_eq!(ui_state.sprites_cursor_index, 0);
+
+        let drag_sprite_1 = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: sprite_area.x + 1 + 30,
+            row: sprite_area.y + 2,
+            modifiers: KeyModifiers::NONE,
+        };
+        handle_mouse_event(
+            drag_sprite_1,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert_eq!(ui_state.sprites_selection_start, Some(0));
+        assert_eq!(ui_state.sprites_cursor_index, 1);
+        assert_eq!(
+            core.state.disassembly[ui_state
+                .selection_start
+                .expect("selection_start set for sprite drag")]
+            .address,
+            Addr(0x0800)
+        );
+        assert_eq!(
+            core.state.disassembly[ui_state.cursor_index].address,
+            Addr(0x087F)
+        );
+
+        // --- Charset8Col ---
+        ui_state.right_pane = RightPane::Charset8Col;
+        ui_state.active_pane = ActivePane::Charset;
+        ui_state.charset_cursor_index = 0;
+        ui_state.charset_selection_start = None;
+        terminal
+            .draw(|f| crate::ui::ui(f, &core.state, &mut ui_state))
+            .expect("draw charset pane");
+        let charset_area = ui_state.right_pane_area;
+
+        // 4. Plain Left-Click on Char 0 -> Shift+Click on Char 1 (y+2 skips bank header row)
+        let click_char_0 = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: charset_area.x + 2,
+            row: charset_area.y + 2,
+            modifiers: KeyModifiers::NONE,
+        };
+        handle_mouse_event(
+            click_char_0,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert_eq!(ui_state.charset_cursor_index, 0);
+        assert_eq!(ui_state.charset_selection_start, None);
+
+        let shift_click_char_1 = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: charset_area.x + 1 + 10,
+            row: charset_area.y + 2,
+            modifiers: KeyModifiers::SHIFT,
+        };
+        handle_mouse_event(
+            shift_click_char_1,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert_eq!(ui_state.charset_selection_start, Some(0));
+        assert_eq!(ui_state.charset_cursor_index, 1);
+        assert_eq!(
+            core.state.disassembly[ui_state
+                .selection_start
+                .expect("selection_start set for charset Shift+Click")]
+            .address,
+            Addr(0x0800)
+        );
+        assert_eq!(
+            core.state.disassembly[ui_state.cursor_index].address,
+            Addr(0x080F)
+        );
+
+        // 5. Plain Left-Click on Char 1 -> Drag(Left) to Char 0 (backward 2-char selection)
+        let click_char_1 = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: charset_area.x + 1 + 10,
+            row: charset_area.y + 2,
+            modifiers: KeyModifiers::NONE,
+        };
+        handle_mouse_event(
+            click_char_1,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert_eq!(ui_state.charset_cursor_index, 1);
+        assert_eq!(ui_state.charset_selection_start, None);
+
+        // Shift+Click on Char 1 itself -> 1-item Tier 2 selection ($0808..=$080F, 8 bytes)
+        handle_mouse_event(
+            shift_click_char_1,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert_eq!(ui_state.charset_selection_start, Some(1));
+        assert_eq!(ui_state.charset_cursor_index, 1);
+        assert_eq!(
+            core.state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0808)
+        );
+        assert_eq!(
+            core.state.disassembly[ui_state
+                .selection_start
+                .expect("selection_start set for single-char Shift+Click")]
+            .address,
+            Addr(0x080F)
+        );
+
+        // Drag(Left) from Char 1 back to Char 0 -> backward 2-char ($0800..=$080F)
+        handle_mouse_event(
+            click_char_1,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        let drag_char_0 = MouseEvent {
+            kind: MouseEventKind::Drag(MouseButton::Left),
+            column: charset_area.x + 2,
+            row: charset_area.y + 2,
+            modifiers: KeyModifiers::NONE,
+        };
+        handle_mouse_event(
+            drag_char_0,
+            &mut core,
+            &mut ui_state,
+            &tx,
+            &mut should_render,
+        );
+        assert_eq!(ui_state.charset_selection_start, Some(1));
+        assert_eq!(ui_state.charset_cursor_index, 0);
+        assert_eq!(
+            core.state.disassembly[ui_state.cursor_index].address,
+            Addr(0x0800)
+        );
+        assert_eq!(
+            core.state.disassembly[ui_state
+                .selection_start
+                .expect("selection_start set for backward charset drag")]
+            .address,
+            Addr(0x080F)
+        );
     }
 }

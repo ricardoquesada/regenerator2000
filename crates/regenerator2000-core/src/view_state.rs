@@ -126,6 +126,8 @@ pub struct CoreViewState {
     pub charset_scroll_row: usize,
     /// Selected 8 KB slot index in the bitmap pane.
     pub bitmap_cursor_index: usize,
+    /// Anchor 8 KB slot index for range selection in the bitmap pane.
+    pub bitmap_selection_start: Option<usize>,
     /// Active screen RAM address mode in the bitmap pane.
     pub bitmap_screen_ram_mode: ScreenRamMode,
 
@@ -182,6 +184,7 @@ impl CoreViewState {
             charset_selection_start: None,
             charset_scroll_row: 0,
             bitmap_cursor_index: 0,
+            bitmap_selection_start: None,
             bitmap_screen_ram_mode: ScreenRamMode::AfterBitmap,
 
             sprite_multicolor_mode: false,
@@ -194,10 +197,92 @@ impl CoreViewState {
             status_message: None,
         }
     }
+
+    /// Returns `true` if visual mode or any pane selection anchor is active.
+    ///
+    /// Checks [`Self::is_visual_mode`], [`Self::selection_start`], [`Self::hex_selection_start`],
+    /// [`Self::sprites_selection_start`], [`Self::charset_selection_start`], and
+    /// [`Self::bitmap_selection_start`]. Ignores [`Self::hex_selection_start_col`] because that
+    /// column offset applies only when [`Self::hex_selection_start`] is `Some(_)`.
+    #[must_use]
+    pub fn has_any_selection(&self) -> bool {
+        self.is_visual_mode
+            || self.selection_start.is_some()
+            || self.hex_selection_start.is_some()
+            || self.sprites_selection_start.is_some()
+            || self.charset_selection_start.is_some()
+            || self.bitmap_selection_start.is_some()
+    }
+
+    /// Clears visual mode and resets selection anchors across all panes.
+    ///
+    /// Resets [`Self::selection_start`], [`Self::hex_selection_start`],
+    /// [`Self::hex_selection_start_col`], [`Self::sprites_selection_start`],
+    /// [`Self::charset_selection_start`], and [`Self::bitmap_selection_start`].
+    pub fn clear_all_selections(&mut self) {
+        self.is_visual_mode = false;
+        self.selection_start = None;
+        self.hex_selection_start = None;
+        self.hex_selection_start_col = 0;
+        self.sprites_selection_start = None;
+        self.charset_selection_start = None;
+        self.bitmap_selection_start = None;
+    }
 }
 
 impl Default for CoreViewState {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CoreViewState;
+
+    #[test]
+    fn test_core_view_state_has_any_and_clear_all_selections() {
+        let view = CoreViewState::new();
+        assert_eq!(view.bitmap_selection_start, None);
+        assert!(!view.has_any_selection());
+
+        type SelectionSetter = (&'static str, fn(&mut CoreViewState));
+        let cases: [SelectionSetter; 6] = [
+            ("is_visual_mode", |v| v.is_visual_mode = true),
+            ("selection_start", |v| v.selection_start = Some(0)),
+            ("hex_selection_start", |v| v.hex_selection_start = Some(0)),
+            ("sprites_selection_start", |v| {
+                v.sprites_selection_start = Some(0);
+            }),
+            ("charset_selection_start", |v| {
+                v.charset_selection_start = Some(0);
+            }),
+            ("bitmap_selection_start", |v| {
+                v.bitmap_selection_start = Some(0);
+            }),
+        ];
+        for (name, setter) in cases {
+            let mut candidate_view = CoreViewState::new();
+            setter(&mut candidate_view);
+            assert!(
+                candidate_view.has_any_selection(),
+                "has_any_selection() must be true when {name} is active"
+            );
+        }
+
+        let mut populated_view = CoreViewState::new();
+        populated_view.is_visual_mode = true;
+        populated_view.selection_start = Some(1);
+        populated_view.hex_selection_start = Some(2);
+        populated_view.hex_selection_start_col = 7;
+        populated_view.sprites_selection_start = Some(3);
+        populated_view.charset_selection_start = Some(4);
+        populated_view.bitmap_selection_start = Some(5);
+        assert!(populated_view.has_any_selection());
+
+        populated_view.clear_all_selections();
+        assert!(!populated_view.has_any_selection());
+        assert_eq!(populated_view.bitmap_selection_start, None);
+        assert_eq!(populated_view.hex_selection_start_col, 0);
     }
 }
