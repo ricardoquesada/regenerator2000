@@ -6,6 +6,34 @@ The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.27] - 2026-11-19
+
+### Features
+
+- **TUI**: Support Visual Mode (`V`), `Shift+Arrows`, `Shift+Click`, and mouse
+  drag to select single or multiple sprites, characters, and bitmaps.
+- **TUI**: Support all block conversions in the `Edit` menu directly from the
+  Hex Dump, Sprites, Charset, and Bitmap panes.
+
+### Fixes
+
+- **Navigation & TUI**: Highlight the full byte range of the active sprite,
+  character, or bitmap in Disassembly. Sync selections across `Tab` and
+  `Alt+2`-`Alt+5` when view sync is on. Isolate selections per pane when view
+  sync is off.
+- **Navigation & TUI**: Clear `Shift+Arrow` selections on `Home`, `End`, and
+  `G`. Clear all pane selections on `Esc` or block conversion. Fix selection
+  highlights in Disassembly and Hex Dump on collapsed blocks, external equates,
+  preamble lines, and scope delimiters.
+- **Unpacker**: Keep unpacked binaries as raw `.byte` data until you confirm the
+  Import Context dialog. Keep the entry-point disassembly toggle across the
+  unpack step.
+
+### Documentation
+
+- **Docs**: Simplify `README.md` and the home page. Add Bitmap selection
+  shortcuts to the views guide. Update the workspace agent skills.
+
 ## [0.9.26] - 2026-11-17
 
 ### Features
