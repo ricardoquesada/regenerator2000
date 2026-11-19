@@ -4,6 +4,7 @@ use crate::ui::widget::Widget;
 use image::DynamicImage;
 use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
+use regenerator2000_core::state::EntryAnalysisMode;
 pub use regenerator2000_core::state::actions::AppAction;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -95,6 +96,11 @@ pub struct UIState {
     /// The rendered area of the textarea inside the line-comment dialog.
     /// Used to translate mouse clicks to textarea row/col coordinates.
     pub comment_textarea_area: ratatui::layout::Rect,
+
+    /// Entry-point analysis mode carried from a pre-unpack `ImportContextDialog` into the
+    /// post-unpack `ImportContextDialog` so the user's `[ ] Disassemble from Entry Point Address`
+    /// toggle persists across unpacking.
+    pub pending_unpack_entry_mode: Option<EntryAnalysisMode>,
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +166,7 @@ impl UIState {
             active_dialog_area: ratatui::layout::Rect::default(),
             minimap_area: ratatui::layout::Rect::default(),
             comment_textarea_area: ratatui::layout::Rect::default(),
+            pending_unpack_entry_mode: None,
         }
     }
 
@@ -256,6 +263,7 @@ impl UIState {
 
         self.invalidate_bitmap_cache();
         self.cached_blocks_items = None;
+        self.pending_unpack_entry_mode = None;
         self.navigation_history.clear();
         self.active_pane = ActivePane::Disassembly;
         self.is_visual_mode = false;
@@ -434,6 +442,7 @@ mod tests {
         ui_state
             .navigation_history
             .push((ActivePane::Disassembly, NavigationTarget::Address(0x0800)));
+        ui_state.pending_unpack_entry_mode = Some(EntryAnalysisMode::SkipEntryAnalysis);
 
         let loaded = LoadedProjectData {
             cursor_address: Some(Addr(0x0800)),
@@ -470,5 +479,6 @@ mod tests {
         assert_eq!(ui_state.bitmap_cursor_index, 0);
         assert_eq!(ui_state.blocks_selected_index, None);
         assert_eq!(ui_state.blocks_list_state.selected(), None);
+        assert_eq!(ui_state.pending_unpack_entry_mode, None);
     }
 }

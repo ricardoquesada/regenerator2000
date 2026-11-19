@@ -1,4 +1,4 @@
-use crate::state::{Addr, AppState, System};
+use crate::state::{Addr, AppState, EntryAnalysisMode, System};
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
@@ -16,7 +16,7 @@ pub struct ImportContextDialog {
     pub selected_system_idx: usize,
     pub origin_input: String,
     pub start_input: String,
-    pub disassemble_sequence: bool,
+    pub entry_mode: EntryAnalysisMode,
     pub active_field: usize, // 0: System, 1: Origin, 2: Start, 3: Checkbox, 4: Confirm, 5: Cancel
     pub entropy: Option<f32>,
     pub packer_name: Option<String>,
@@ -46,7 +46,7 @@ impl ImportContextDialog {
             selected_system_idx,
             origin_input: format!("{:04X}", current_origin.0),
             start_input: format!("{:04X}", suggested_entry.unwrap_or(current_origin).0),
-            disassemble_sequence: true,
+            entry_mode: EntryAnalysisMode::AnalyzeAndLabel,
             active_field,
             entropy,
             packer_name: packer_str,
@@ -182,7 +182,7 @@ impl Widget for ImportContextDialog {
         let checkbox_selected = self.active_field == 3;
         let checkbox_text = Line::from(vec![
             Span::styled(
-                if self.disassemble_sequence {
+                if self.entry_mode == EntryAnalysisMode::AnalyzeAndLabel {
                     "[X]"
                 } else {
                     "[ ]"
@@ -412,7 +412,10 @@ impl Widget for ImportContextDialog {
                 }
 
                 if self.active_field == 3 {
-                    self.disassemble_sequence = !self.disassemble_sequence;
+                    self.entry_mode = match self.entry_mode {
+                        EntryAnalysisMode::AnalyzeAndLabel => EntryAnalysisMode::SkipEntryAnalysis,
+                        EntryAnalysisMode::SkipEntryAnalysis => EntryAnalysisMode::AnalyzeAndLabel,
+                    };
                     WidgetResult::Handled
                 } else if self.active_field == 0 {
                     self.is_selecting_system = true;
@@ -427,6 +430,7 @@ impl Widget for ImportContextDialog {
                     if let Ok(new_start) = u16::from_str_radix(&self.start_input, 16) {
                         app_state.entry_point = Some(Addr(new_start));
                     }
+                    ui_state.pending_unpack_entry_mode = Some(self.entry_mode);
                     ui_state.set_status_message("Unpacking...");
                     WidgetResult::Action(crate::state::actions::AppAction::UnpackBinary)
                 } else if self.active_field == cancel_field {
@@ -442,13 +446,13 @@ impl Widget for ImportContextDialog {
                             let system = self.selected_system().unwrap_or_default();
                             let origin = Addr(new_origin);
                             let entry_addr = Addr(new_start);
-                            let mode = if self.disassemble_sequence {
-                                regenerator2000_core::state::EntryAnalysisMode::AnalyzeAndLabel
-                            } else {
-                                regenerator2000_core::state::EntryAnalysisMode::SkipEntryAnalysis
-                            };
 
-                            app_state.apply_import_context(system, origin, entry_addr, mode);
+                            app_state.apply_import_context(
+                                system,
+                                origin,
+                                entry_addr,
+                                self.entry_mode,
+                            );
                             regenerator2000_core::navigation::perform_jump_to_address_no_history(
                                 app_state,
                                 &mut ui_state.core,
@@ -486,6 +490,7 @@ impl Widget for ImportContextDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::actions::AppAction;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use regenerator2000_core::commands::Command;
     use regenerator2000_core::state::{BlockType, LabelKind};
@@ -536,13 +541,35 @@ mod tests {
         let mut app_state = AppState::new();
         let mut ui_state = UIState::new(crate::theme::Theme::default());
 
-        // Focused on Unpack (index 5). Pressing Enter should trigger AppAction::UnpackBinary.
+        // Focused on Unpack (index 5). Pressing Enter should record AnalyzeAndLabel and trigger UnpackBinary.
         let key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
-        let res = dialog.handle_input(key, &mut app_state, &mut ui_state);
+        let result = dialog.handle_input(key, &mut app_state, &mut ui_state);
 
+        assert_eq!(result, WidgetResult::Action(AppAction::UnpackBinary));
         assert_eq!(
-            res,
-            WidgetResult::Action(crate::state::actions::AppAction::UnpackBinary)
+            ui_state.pending_unpack_entry_mode,
+            Some(EntryAnalysisMode::AnalyzeAndLabel)
+        );
+
+        // Toggle checkbox (field 3) off with Space, then press Enter on Unpack (field 5).
+        dialog.active_field = 3;
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.entry_mode, EntryAnalysisMode::SkipEntryAnalysis);
+
+        dialog.active_field = 5;
+        let result = dialog.handle_input(
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(result, WidgetResult::Action(AppAction::UnpackBinary));
+        assert_eq!(
+            ui_state.pending_unpack_entry_mode,
+            Some(EntryAnalysisMode::SkipEntryAnalysis)
         );
     }
 

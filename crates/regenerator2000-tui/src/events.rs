@@ -1,13 +1,14 @@
 pub mod input;
 
+use crate::ui::dialog_import_context::ImportContextDialog;
 use crate::ui::ui;
 use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, MouseEvent};
 use input::handle_global_input;
 use ratatui::{Terminal, backend::Backend};
 use regenerator2000_core::Core;
-use regenerator2000_core::state::AppState;
 use regenerator2000_core::state::types::System;
+use regenerator2000_core::state::{AppState, EntryAnalysisMode};
 use std::io;
 
 pub enum AppEvent {
@@ -293,9 +294,11 @@ pub fn spawn_mcp_server_thread_on_port(
 
 /// Processes the result of a background unpack operation.
 ///
-/// On success, loads the unpacked binary into the application state, updates
-/// the status bar with a summary, and opens the import context dialog.
-/// On failure, displays the error in the status bar.
+/// On success, loads the unpacked binary into the application state without running
+/// entry-point flow analysis yet ([`EntryAnalysisMode::SkipEntryAnalysis`]), updates the
+/// status bar with a summary, and opens `ImportContextDialog` inheriting any pending
+/// [`EntryAnalysisMode`] from the pre-unpack dialog so disassembly only runs if confirmed.
+/// On failure, clears any pending [`EntryAnalysisMode`] and displays the error in the status bar.
 pub fn handle_unpack_complete(
     result: Result<
         regenerator2000_core::unpacker::UnpackResult,
@@ -304,10 +307,16 @@ pub fn handle_unpack_complete(
     core: &mut Core,
     ui_state: &mut UIState,
 ) {
+    let entry_mode = ui_state
+        .pending_unpack_entry_mode
+        .take()
+        .unwrap_or_default();
     match result {
         Ok(result) => {
             ui_state.invalidate_bitmap_cache();
-            let outcome = core.state.apply_unpack_result(&result);
+            let outcome = core
+                .state
+                .apply_unpack_result_with_mode(&result, EntryAnalysisMode::SkipEntryAnalysis);
             regenerator2000_core::navigation::perform_jump_to_address_no_history(
                 &core.state,
                 &mut core.view,
@@ -316,17 +325,17 @@ pub fn handle_unpack_complete(
             ui_state.core = core.view.clone();
             ui_state.sync_core_to_tui();
             ui_state.set_status_message(outcome.summary);
-            // Show import context dialog for system/origin/entry setup
-            ui_state.push_dialog(Box::new(
-                crate::ui::dialog_import_context::ImportContextDialog::new(
-                    core.state.settings.system.as_str(),
-                    outcome.start_addr,
-                    Some(outcome.entry_point),
-                    None,
-                    None,
-                    Option::<String>::None,
-                ),
-            ));
+            // Show import context dialog for system/origin/entry setup.
+            let mut dialog = ImportContextDialog::new(
+                core.state.settings.system.as_str(),
+                outcome.start_addr,
+                Some(outcome.entry_point),
+                None,
+                None,
+                Option::<String>::None,
+            );
+            dialog.entry_mode = entry_mode;
+            ui_state.push_dialog(Box::new(dialog));
         }
         Err(e) => {
             ui_state.set_status_message(format!("Unpack failed: {e}"));
@@ -1144,13 +1153,16 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use regenerator2000_core::unpacker::{BoundSource, ExitReason, UnpackReport, UnpackResult};
+    use crate::theme::Theme;
+    use crate::ui::widget::WidgetResult;
+    use crossterm::event::KeyModifiers;
+    use regenerator2000_core::state::BlockType;
+    use regenerator2000_core::unpacker::{
+        BoundSource, ExitReason, UnpackError, UnpackReport, UnpackResult,
+    };
 
-    #[test]
-    fn status_line_shows_packer_and_exit_reason() {
-        let mut core = Core::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
-        let res = UnpackResult {
+    fn sample_unpack_result() -> UnpackResult {
+        UnpackResult {
             data: vec![0xA9, 0x01, 0x60],
             start_addr: 0x080D,
             end_addr: 0x080F,
@@ -1168,9 +1180,16 @@ mod tests {
                 entry_source: BoundSource::ExitPc,
                 trace_tail: Vec::new(),
             },
-        };
+        }
+    }
 
-        handle_unpack_complete(Ok(res), &mut core, &mut ui_state);
+    #[test]
+    fn status_line_shows_packer_and_exit_reason() {
+        let mut core = Core::new();
+        let mut ui_state = UIState::new(Theme::default());
+        let unpack_result = sample_unpack_result();
+
+        handle_unpack_complete(Ok(unpack_result), &mut core, &mut ui_state);
 
         let status = ui_state
             .status_message
@@ -1183,6 +1202,94 @@ mod tests {
         assert!(
             status.contains("written_code($080D)"),
             "status message missing exit reason: {status}"
+        );
+    }
+
+    #[test]
+    fn unpack_complete_defers_disassembly_until_confirm_and_cancel_leaves_bytes_unexplored() {
+        let mut core = Core::new();
+        let mut ui_state = UIState::new(Theme::default());
+        let unpack_result = sample_unpack_result();
+
+        handle_unpack_complete(Ok(unpack_result), &mut core, &mut ui_state);
+
+        assert!(
+            core.state
+                .block_types
+                .iter()
+                .all(|&block_type| block_type == BlockType::Undefined),
+            "unpacked bytes should remain Undefined while the 2nd dialog is open"
+        );
+        assert!(
+            !core
+                .state
+                .labels
+                .values()
+                .any(|labels| labels.iter().any(|label| label.name == "start")),
+            "no 'start' label should exist before the 2nd dialog is confirmed"
+        );
+        assert!(
+            core.state
+                .disassembly
+                .iter()
+                .any(|line| line.mnemonic == ".byte"),
+            "deferred disassembly should render .byte lines while the 2nd dialog is open"
+        );
+        assert!(
+            !core
+                .state
+                .disassembly
+                .iter()
+                .any(|line| line.mnemonic == "lda" || line.mnemonic == "rts"),
+            "no instructions should be disassembled before confirming the 2nd dialog"
+        );
+
+        let mut dialog = ui_state
+            .active_dialog
+            .take()
+            .expect("2nd ImportContextDialog must be active");
+        let outcome = dialog.handle_input(
+            KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
+            &mut core.state,
+            &mut ui_state,
+        );
+        assert_eq!(outcome, WidgetResult::Close);
+        assert!(
+            core.state
+                .block_types
+                .iter()
+                .all(|&block_type| block_type == BlockType::Undefined),
+            "canceling the 2nd dialog should leave unpacked bytes Undefined"
+        );
+        assert!(
+            !core
+                .state
+                .labels
+                .values()
+                .any(|labels| labels.iter().any(|label| label.name == "start")),
+            "canceling the 2nd dialog should not add a 'start' label"
+        );
+    }
+
+    #[test]
+    fn unpack_failure_clears_pending_unpack_entry_mode() {
+        let mut core = Core::new();
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.pending_unpack_entry_mode = Some(EntryAnalysisMode::SkipEntryAnalysis);
+
+        handle_unpack_complete(Err(UnpackError::NoEntryPoint), &mut core, &mut ui_state);
+
+        assert!(
+            ui_state.pending_unpack_entry_mode.is_none(),
+            "failed unpack must clear pending_unpack_entry_mode so future menu unpacks start fresh"
+        );
+        assert!(
+            ui_state
+                .status_message
+                .as_deref()
+                .is_some_and(|message| message.starts_with("Unpack failed:")),
+            "failed unpack should display an 'Unpack failed:' status message, got {:?}",
+            ui_state.status_message
         );
     }
 

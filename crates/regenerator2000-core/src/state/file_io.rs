@@ -375,6 +375,9 @@ impl AppState {
     }
 
     /// Applies an [`crate::unpacker::UnpackResult`] to the application state using `mode`.
+    ///
+    /// Undo commands for entry-point labeling and analysis are only pushed onto the undo
+    /// stack when `mode` is [`EntryAnalysisMode::AnalyzeAndLabel`].
     pub fn apply_unpack_result_with_mode(
         &mut self,
         result: &crate::unpacker::UnpackResult,
@@ -387,7 +390,9 @@ impl AppState {
 
         if self.settings.auto_analyze {
             let (command, _msg) = self.perform_analysis();
-            self.push_command(command);
+            if mode == EntryAnalysisMode::AnalyzeAndLabel {
+                self.push_command(command);
+            }
         } else {
             self.disassemble();
         }
@@ -571,7 +576,7 @@ impl AppState {
             return;
         }
 
-        if !entry_already_applied {
+        if !entry_already_applied && self.has_any_user_start_label() {
             self.rollback_entry_code_and_label();
         }
 
@@ -587,7 +592,9 @@ impl AppState {
 
         if self.settings.auto_analyze {
             let (command, _msg) = self.perform_analysis();
-            self.push_command(command);
+            if mode == EntryAnalysisMode::AnalyzeAndLabel {
+                self.push_command(command);
+            }
         } else {
             self.disassemble();
         }
@@ -1536,6 +1543,7 @@ mod apply_unpack_result_tests {
     use super::super::app_state::AppState;
     use super::super::types::{Addr, BlockType, LabelKind, LabelType};
     use super::{EntryAnalysisMode, UnpackEntryMode};
+    use crate::commands::Command;
     use crate::unpacker::{BoundSource, ExitReason, UnpackReport, UnpackResult};
 
     fn synthetic_unpack_result() -> UnpackResult {
@@ -1695,6 +1703,70 @@ mod apply_unpack_result_tests {
             .values()
             .any(|v| v.iter().any(|l| l.name == "start"));
         assert!(!has_start, "SkipEntryAnalysis must create no 'start' label");
+        assert!(
+            state.undo_stack.active_commands().is_empty(),
+            "SkipEntryAnalysis must not push undo commands"
+        );
+        assert!(!state.is_dirty());
+
+        // Confirming Import Context with SkipEntryAnalysis keeps bytes Undefined and undo_stack empty.
+        state.apply_import_context(
+            state.settings.system.clone(),
+            Addr(res.start_addr),
+            Addr(res.entry_point),
+            EntryAnalysisMode::SkipEntryAnalysis,
+        );
+        assert!(
+            state
+                .block_types
+                .iter()
+                .all(|&block_type| block_type == BlockType::Undefined),
+            "confirming SkipEntryAnalysis must keep block_types Undefined"
+        );
+        assert!(
+            !state
+                .labels
+                .values()
+                .any(|labels| labels.iter().any(|label| label.name == "start")),
+            "confirming SkipEntryAnalysis must create no 'start' label"
+        );
+        assert!(
+            state.undo_stack.active_commands().is_empty(),
+            "confirming SkipEntryAnalysis must leave undo_stack empty"
+        );
+
+        // Confirming Import Context with AnalyzeAndLabel marks Code, adds 'start', and records [SetLabel, SetAnalysisData].
+        state.apply_import_context(
+            state.settings.system.clone(),
+            Addr(res.start_addr),
+            Addr(res.entry_point),
+            EntryAnalysisMode::AnalyzeAndLabel,
+        );
+        assert_eq!(state.block_types[0], BlockType::Code);
+        assert!(
+            state
+                .labels
+                .get(&Addr(0x080D))
+                .is_some_and(|labels| labels.iter().any(|label| label.name == "start")),
+            "confirming AnalyzeAndLabel must add 'start' label at entry $080D"
+        );
+        let active_commands = state.undo_stack.active_commands();
+        assert_eq!(
+            active_commands.len(),
+            2,
+            "confirming AnalyzeAndLabel should push SetLabel and SetAnalysisData"
+        );
+        assert!(matches!(
+            active_commands[0],
+            Command::SetLabel {
+                address: Addr(0x080D),
+                ..
+            }
+        ));
+        assert!(matches!(
+            active_commands[1],
+            Command::SetAnalysisData { .. }
+        ));
 
         state.apply_unpack_result_with_mode(&res, EntryAnalysisMode::AnalyzeAndLabel);
         assert_eq!(state.block_types[0], BlockType::Code);

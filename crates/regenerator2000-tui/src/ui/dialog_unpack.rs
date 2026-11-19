@@ -339,6 +339,7 @@ impl Widget for UnpackDialog {
                 } else {
                     match self.build_config() {
                         Ok(config) => {
+                            ui_state.pending_unpack_entry_mode = None;
                             ui_state.set_status_message("Unpacking with custom parameters...");
                             WidgetResult::Action(AppAction::UnpackBinaryWithConfig(config))
                         }

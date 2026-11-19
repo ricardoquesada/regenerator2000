@@ -161,3 +161,138 @@ fn parity_over_one_file_per_hooked_packer() {
         assert_project_state_parity(fixture, &tui_state, &tui_view, &mcp_state, &mcp_view);
     }
 }
+
+#[test]
+fn tui_unpack_poke4k_respects_unchecked_entry_disassembly_toggle() {
+    use regenerator2000_core::state::actions::AppAction;
+    use regenerator2000_core::state::{Addr, BlockType, EntryAnalysisMode};
+
+    let path = fixture_path("c64_poke4k_1_1.alz64.prg");
+    let mut core = Core::new();
+    let mut ui_state = UIState::new(Theme::default());
+    let loaded = core
+        .state
+        .load_file(&path)
+        .unwrap_or_else(|error| panic!("load_file({}) failed: {error}", path.display()));
+    ui_state.restore_session(&loaded, &core.state);
+
+    // 1st ImportContextDialog is open; navigate to checkbox (field 3) and uncheck it, then click < Unpack > (field 5).
+    let mut first_dialog = ui_state
+        .active_dialog
+        .take()
+        .expect("1st ImportContextDialog must be open after loading c64_poke4k_1_1.alz64.prg");
+    // Initial focus on packed binary is field 5 (< Unpack >); Shift+Tab twice reaches field 3 (checkbox).
+    for _ in 0..2 {
+        let step_result = first_dialog.handle_input(
+            KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT),
+            &mut core.state,
+            &mut ui_state,
+        );
+        assert_eq!(step_result, WidgetResult::Handled);
+    }
+    let toggle_result = first_dialog.handle_input(
+        KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE),
+        &mut core.state,
+        &mut ui_state,
+    );
+    assert_eq!(toggle_result, WidgetResult::Handled);
+
+    // Tab twice back to field 5 (< Unpack >) and press Enter.
+    for _ in 0..2 {
+        let step_result = first_dialog.handle_input(
+            KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE),
+            &mut core.state,
+            &mut ui_state,
+        );
+        assert_eq!(step_result, WidgetResult::Handled);
+    }
+    let unpack_action = first_dialog.handle_input(
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+        &mut core.state,
+        &mut ui_state,
+    );
+    assert_eq!(unpack_action, WidgetResult::Action(AppAction::UnpackBinary));
+    assert_eq!(
+        ui_state.pending_unpack_entry_mode,
+        Some(EntryAnalysisMode::SkipEntryAnalysis)
+    );
+
+    let result = unpack(
+        &core.state.raw_data,
+        core.state.origin.0,
+        &UnpackConfig::default(),
+        None,
+    );
+    handle_unpack_complete(result, &mut core, &mut ui_state);
+
+    // While the 2nd dialog is open, unpacked bytes must remain Undefined with no "start" label or disassembled instructions.
+    assert!(
+        core.state
+            .block_types
+            .iter()
+            .all(|&block_type| block_type == BlockType::Undefined),
+        "unpacked bytes must remain Undefined while 2nd ImportContextDialog is open"
+    );
+    assert!(
+        !core
+            .state
+            .labels
+            .values()
+            .any(|labels| labels.iter().any(|label| label.name == "start")),
+        "unpacked binary must not have 'start' label while 2nd ImportContextDialog is open"
+    );
+
+    // Confirming the 2nd dialog without touching its checkbox preserves SkipEntryAnalysis.
+    let mut second_dialog = ui_state
+        .active_dialog
+        .take()
+        .expect("2nd ImportContextDialog must be open after handle_unpack_complete");
+    let confirm_result = second_dialog.handle_input(
+        KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
+        &mut core.state,
+        &mut ui_state,
+    );
+    assert_eq!(confirm_result, WidgetResult::Close);
+    assert!(
+        core.state
+            .block_types
+            .iter()
+            .all(|&block_type| block_type == BlockType::Undefined),
+        "confirming 2nd dialog with preserved unchecked toggle must keep bytes Undefined"
+    );
+    assert!(
+        !core
+            .state
+            .labels
+            .values()
+            .any(|labels| labels.iter().any(|label| label.name == "start")),
+        "confirming 2nd dialog with preserved unchecked toggle must create no 'start' label"
+    );
+    assert!(
+        core.state.undo_stack.active_commands().is_empty(),
+        "confirming SkipEntryAnalysis must leave undo_stack empty"
+    );
+
+    // Confirming with AnalyzeAndLabel disassembles entry point $080D (`stx $d011`).
+    let entry_address = core.state.entry_point.expect("entry_point must be set");
+    core.state.apply_import_context(
+        core.state.settings.system.clone(),
+        core.state.origin,
+        entry_address,
+        EntryAnalysisMode::AnalyzeAndLabel,
+    );
+    assert!(
+        core.state
+            .labels
+            .get(&Addr(0x080D))
+            .is_some_and(|labels| labels.iter().any(|label| label.name == "start")),
+        "confirming with AnalyzeAndLabel must label entry $080D as start"
+    );
+    assert!(
+        core.state
+            .disassembly
+            .iter()
+            .any(|line| line.address == Addr(0x080D) && line.mnemonic == "stx"),
+        "entry $080D must disassemble to stx when AnalyzeAndLabel is confirmed"
+    );
+}
