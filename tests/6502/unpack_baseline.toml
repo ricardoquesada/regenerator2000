@@ -396,6 +396,17 @@ len = 38170
 fnv64 = "61d2cf115af235de"
 
 [[row]]
+file = "c64_poke4k_1_1.alz64.prg"
+start = "$0801"
+end = "$2187"
+entry = "$080D"
+dep = "$005E"
+packer = "ALZ64/Kabuto"
+instructions = 2719093
+len = 6535
+fnv64 = "43dc1eccd3dbc351"
+
+[[row]]
 file = "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg"
 start = "$0800"
 end = "$9FFF"

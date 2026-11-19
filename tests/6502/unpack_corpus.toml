@@ -22,7 +22,7 @@ end = "$319C"
 entry = "$3197"
 len = 10652
 payload_fnv64 = "8830977f58b6745b"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -44,7 +44,7 @@ end = "$BFFE"
 entry = "$8100"
 len = 47102
 payload_fnv64 = "6bf40d5a21c8cd7b"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -66,7 +66,7 @@ end = "$EF83"
 entry = "$083A"
 len = 59268
 payload_fnv64 = "3a7b02fba7ba181b"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_CopperBooze.byte_boozer2.prg"
@@ -77,7 +77,7 @@ end = "$E7FF"
 entry = "$1300"
 len = 57344
 payload_fnv64 = "44f9c4eb7b8400b6"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_FppScroller.byte_boozer2.prg"
@@ -88,7 +88,7 @@ end = "$A057"
 entry = "$080D"
 len = 38999
 payload_fnv64 = "e282d5a9685fd6aa"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_HBFS.exo3.prg"
@@ -101,7 +101,7 @@ end = "$FEFF"
 entry = "$080D"
 len = 64256
 payload_fnv64 = "6eefb073d5c418af"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -124,7 +124,7 @@ end = "$FBF1"
 entry = "$0834"
 len = 62437
 payload_fnv64 = "577ea702be4ccfd8"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$080D"
@@ -146,7 +146,7 @@ end = "$FFFF"
 entry = "$0911"
 len = 63488
 payload_fnv64 = "71fbaff3f2fcd8ba"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0800"
@@ -168,7 +168,7 @@ end = "$FEA4"
 entry = "$1000"
 len = 63140
 payload_fnv64 = "4855a97906e0f18b"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -190,7 +190,7 @@ end = "$4D3B"
 entry = "$2A78"
 len = 8900
 payload_fnv64 = "3e82eeb108e201eb"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$2A78"
@@ -212,7 +212,7 @@ end = "$CE00"
 entry = "$0818"
 len = 50688
 payload_fnv64 = "8f1fa1c60dd4e21f"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_connection-8580.pucrunch.prg"
@@ -223,7 +223,7 @@ end = "$FF3F"
 entry = "$0810"
 len = 63280
 payload_fnv64 = "cf0316648aaf0566"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0810"
@@ -245,7 +245,7 @@ end = "$EF2A"
 entry = "$080D"
 len = 59178
 payload_fnv64 = "06650017553c1a63"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -267,7 +267,7 @@ end = "$FFF9"
 entry = "$0810"
 len = 63466
 payload_fnv64 = "d1f6d0571b1981df"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0810"
@@ -289,7 +289,7 @@ end = "$CE1F"
 entry = "$4800"
 len = 50719
 payload_fnv64 = "51f797b4a8caadc3"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -311,7 +311,7 @@ end = "$FF29"
 entry = "$0810"
 len = 63274
 payload_fnv64 = "f0ea939cc87e09ec"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_f600.exo.prg"
@@ -322,7 +322,7 @@ end = "$FEFF"
 entry = "$0810"
 len = 63231
 payload_fnv64 = "a39ed85e3c0c3138"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_fantasy_intro.eca_compactor.prg"
@@ -333,7 +333,7 @@ end = "$37FF"
 entry = "$3000"
 len = 12288
 payload_fnv64 = "55ab7299a9a56ce0"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_gianna_sister_remix_badboy.tbc_multicompactor.prg"
@@ -344,7 +344,7 @@ end = "$C947"
 entry = "$0810"
 len = 49479
 payload_fnv64 = "e4c86f473342045c"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_goblin.unk.prg"
@@ -355,7 +355,7 @@ end = "$FFFF"
 entry = "$1400"
 len = 63488
 payload_fnv64 = "7a6cb8482c4ccddf"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0800"
@@ -377,7 +377,7 @@ end = "$FF3F"
 entry = "$3000"
 len = 63296
 payload_fnv64 = "8fd3c44c3dd89dc3"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -399,7 +399,7 @@ end = "$F3F0"
 entry = "$080E"
 len = 60400
 payload_fnv64 = "f8d2679820c3daa6"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -421,7 +421,7 @@ end = "$7CBC"
 entry = "$080D"
 len = 29884
 payload_fnv64 = "75596b8117981459"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -443,7 +443,7 @@ end = "$C56B"
 entry = "$080D"
 len = 48491
 payload_fnv64 = "cdae0580f8d8b77e"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -465,7 +465,7 @@ end = "$98FF"
 entry = "$080D"
 len = 37120
 payload_fnv64 = "ece8f67ef8140c28"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_moving_tubes_lxt.dali.prg"
@@ -477,7 +477,7 @@ end = "$31FF"
 entry = "$2E00"
 len = 10752
 payload_fnv64 = "5add2d44f7b01d41"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_moving_tubes_lxt.exo3.prg"
@@ -489,7 +489,7 @@ end = "$31FF"
 entry = "$2E00"
 len = 10752
 payload_fnv64 = "5add2d44f7b01d41"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_moving_tubes_lxt.pucrunch.prg"
@@ -501,7 +501,7 @@ end = "$31FF"
 entry = "$2E00"
 len = 10752
 payload_fnv64 = "5add2d44f7b01d41"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_moving_tubes_lxt.tscrunch_x.prg"
@@ -513,7 +513,7 @@ end = "$31FF"
 entry = "$2E00"
 len = 10752
 payload_fnv64 = "5add2d44f7b01d41"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_moving_tubes_lxt.tscrunch_x2.prg"
@@ -525,7 +525,7 @@ end = "$31FF"
 entry = "$2E00"
 len = 10752
 payload_fnv64 = "5add2d44f7b01d41"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_mule.dali.prg"
@@ -537,7 +537,7 @@ end = "$9D19"
 entry = "$1100"
 len = 38170
 payload_fnv64 = "61d2cf115af235de"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_mule.exo3.prg"
@@ -550,7 +550,7 @@ end = "$9D19"
 entry = "$1100"
 len = 38170
 payload_fnv64 = "61d2cf115af235de"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_mule.mccracken_compressor.prg"
@@ -562,7 +562,7 @@ end = "$9D19"
 entry = "$1100"
 len = 38170
 payload_fnv64 = "61d2cf115af235de"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_mule.pucrunch.prg"
@@ -574,7 +574,7 @@ end = "$9D19"
 entry = "$1100"
 len = 38170
 payload_fnv64 = "61d2cf115af235de"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_mule.tscrunch_x.prg"
@@ -586,7 +586,7 @@ end = "$9D19"
 entry = "$1100"
 len = 38170
 payload_fnv64 = "61d2cf115af235de"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_mule.tscrunch_x2.prg"
@@ -598,7 +598,29 @@ end = "$9D19"
 entry = "$1100"
 len = 38170
 payload_fnv64 = "61d2cf115af235de"
-version = "2.42"
+version = "2.43"
+
+[[case]]
+file = "c64_poke4k_1_1.alz64.prg"
+
+[case.unp64]
+start = "$080D"
+end = "$2186"
+entry = "$080D"
+len = 6522
+payload_fnv64 = "4b84599d8f5a0277"
+version = "2.43"
+
+[case.unp64.overlap]
+start = "$080D"
+end = "$2186"
+fnv64 = "4b84599d8f5a0277"
+
+[case.accepted_divergence]
+kind = "unexplained"
+fields = ["start", "end"]
+reviewed_by = "initial-classification-2026-10-28 (pending ricardoq)"
+note = "ALZ64/Kabuto overlap $080D-$2186 matches unp64 100%; R2000 dumps $0801-$2187 (ALZ64 start $080D clamped to BASIC SYS at $0801, plus $00CF end pointer +1 padding byte) while unp64 dumps $080D-$2186"
 
 [[case]]
 file = "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg"
@@ -609,7 +631,7 @@ end = "$9FFF"
 entry = "$2800"
 len = 38912
 payload_fnv64 = "defb5d033252969c"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_robot - not human.exo3.prg"
@@ -620,7 +642,7 @@ end = "$CBE6"
 entry = "$0810"
 len = 50150
 payload_fnv64 = "9a1db5cd7e64d5ed"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -642,7 +664,7 @@ end = "$C8C5"
 entry = "$0820"
 len = 49349
 payload_fnv64 = "866e48067dc31e31"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -664,7 +686,7 @@ end = "$FFFF"
 entry = "$E000"
 len = 63488
 payload_fnv64 = "7a5fecb497135f8d"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -686,7 +708,7 @@ end = "$E7FF"
 entry = "$08A1"
 len = 57331
 payload_fnv64 = "bdd50b500180297b"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$080D"
@@ -708,7 +730,7 @@ end = "$95BF"
 entry = "$6900"
 len = 36287
 payload_fnv64 = "824ec79ac310e992"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -730,7 +752,7 @@ end = "$E750"
 entry = "$0801"
 len = 57168
 payload_fnv64 = "b8a927223e970618"
-version = "2.42"
+version = "2.43"
 
 [[case]]
 file = "c64_traveller.tiny_crunch.prg"
@@ -741,7 +763,7 @@ end = "$FFFD"
 entry = "$0911"
 len = 63485
 payload_fnv64 = "f68ef9b91d50b2c0"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$0801"
@@ -763,7 +785,7 @@ end = "$1E41"
 entry = "$080D"
 len = 5685
 payload_fnv64 = "13378032cad803bd"
-version = "2.42"
+version = "2.43"
 
 [case.unp64.overlap]
 start = "$080D"

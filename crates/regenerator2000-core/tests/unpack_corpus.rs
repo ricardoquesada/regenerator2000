@@ -51,7 +51,7 @@ const TIME_LIMIT_ENV: &str = "UNPACK_CORPUS_TIME_LIMIT_SECS";
 const CORPUS_TIME_LIMIT: Duration = Duration::from_secs(30);
 
 /// Alphabetical list of packed `.prg` fixtures in `tests/6502/unpack_corpus.toml`.
-const CORPUS_CASES: [&str; 45] = [
+const CORPUS_CASES: [&str; 46] = [
     "c64_323_ice_psm.1001_card_cruncher.prg",
     "c64_8_bit_ball.meanteam_cruncher.prg",
     "c64_Bit_by_Bits-BZ!.exo3.prg",
@@ -88,6 +88,7 @@ const CORPUS_CASES: [&str; 45] = [
     "c64_mule.pucrunch.prg",
     "c64_mule.tscrunch_x.prg",
     "c64_mule.tscrunch_x2.prg",
+    "c64_poke4k_1_1.alz64.prg",
     "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg",
     "c64_robot - not human.exo3.prg",
     "c64_roma.exe.exo3.prg",
