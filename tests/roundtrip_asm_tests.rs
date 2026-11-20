@@ -648,3 +648,89 @@ fn test_roundtrip_zp_legacy_out_of_bounds_base_defense_in_depth_all_assemblers()
         );
     }
 }
+
+// ════════════════════════════════════════════════════════════════════════════════
+// Test: Exhaustive 256-Byte PETSCII & Screencode Text Roundtrips
+// ════════════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_roundtrip_petscii_all_256_bytes() {
+    let mut state = AppState::new();
+    state.origin = Addr(0x1000);
+    state.raw_data = (0x00..=0xFF).collect();
+    state.block_types = vec![BlockType::PetsciiText; state.raw_data.len()];
+    state.disassemble();
+
+    for asm in Assembler::all() {
+        let result = verify_roundtrip(&state, *asm);
+        if result.message.contains("not found in PATH") {
+            println!("Skipping {asm}: not installed");
+            continue;
+        }
+
+        println!("{result}");
+        assert!(
+            result.success,
+            "{asm} roundtrip failed for all 256 PETSCII bytes: {}",
+            result.message
+        );
+    }
+}
+
+#[test]
+fn test_roundtrip_screencode_all_256_bytes() {
+    let mut state = AppState::new();
+    state.origin = Addr(0x1000);
+    state.raw_data = (0x00..=0xFF).collect();
+    state.block_types = vec![BlockType::ScreencodeText; state.raw_data.len()];
+    state.disassemble();
+
+    for asm in Assembler::all() {
+        let result = verify_roundtrip(&state, *asm);
+        if result.message.contains("not found in PATH") {
+            println!("Skipping {asm}: not installed");
+            continue;
+        }
+
+        println!("{result}");
+        assert!(
+            result.success,
+            "{asm} roundtrip failed for all 256 screencode bytes: {}",
+            result.message
+        );
+    }
+}
+
+#[test]
+fn test_roundtrip_screencode_many_quotes_and_special_chars() {
+    let mut state = AppState::new();
+    state.origin = Addr(0x1000);
+    // Single 40-char line containing:
+    // - 11 `scrcode` parts (`A"B"C"D"E"F` -> exceeds cc65's 9-parameter `scrcode` macro limit)
+    // - 12 consecutive `"` (`$22`) bytes
+    // - All `$1B..=$1F` screen codes interleaved with letters
+    let mut raw_data = vec![
+        0x01, 0x22, 0x02, 0x22, 0x03, 0x22, 0x04, 0x22, 0x05, 0x22, 0x06, // A"B"C"D"E"F
+    ];
+    raw_data.extend([0x22; 12]); // 12 consecutive double quotes
+    raw_data.extend([0x01, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x02]); // A[\]^_B
+
+    state.block_types = vec![BlockType::ScreencodeText; raw_data.len()];
+    state.raw_data = raw_data;
+    state.disassemble();
+
+    for asm in Assembler::all() {
+        let result = verify_roundtrip(&state, *asm);
+        if result.message.contains("not found in PATH") {
+            println!("Skipping {asm}: not installed");
+            continue;
+        }
+
+        println!("{result}");
+        assert!(
+            result.success,
+            "{asm} roundtrip failed for screencode quotes and special chars: {}",
+            result.message
+        );
+    }
+}
