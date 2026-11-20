@@ -1,54 +1,47 @@
+---
+icon: material/format-list-numbered
+description: Replace raw numeric literals with semantic constants using Regenerator 2000's Project, Global, and Built-in System enums.
+---
+
 # Enums
 
-Regenerator 2000 supports custom **Enums** for each target system. You can replace raw numeric values (immediate operands, data bytes, and data words) with named constants across your disassemblies.
-
-Enums map numeric literals (such as color indices or state constants) to text identifiers. This makes the code easier to read.
+Enums replace raw numeric literals—such as color indices, hardware flags, or game states—with readable symbolic constants across immediate operands (`lda #VicIIColors.BLACK`), `.byte` values, and `.word` tables.
 
 ---
 
-## The Three-Tier Scope Model
+## Enum Scopes and Precedence
 
-Regenerator 2000 uses a three-tier model to manage enum definitions. You can reuse common hardware definitions across multiple disassemblies and define project-specific names where necessary.
+Regenerator 2000 resolves enum definitions across three scopes in priority order, letting you override built-in hardware definitions without modifying global files:
 
 ```mermaid
 flowchart TB
-    Tier1["Tier 1 — Project-Specific Enums<br/>• Stored in .regen2000proj<br/>• Supports Undo/Redo<br/>• Local overrides"]
-    Tier2["Tier 2 — Global Custom Enums<br/>• Persistent across projects<br/>• Stored in config folder<br/>• Saved as TOML files"]
-    Tier3["Tier 3 — Built-in System Enums<br/>• Curated for target machine (e.g. VIC-II, PETSCII)<br/>• Read-only, embedded in the application"]
+    Project["`Project-Specific Enums
+    • Stored in .regen2000proj
+    • Supports Undo / Redo
+    • Highest precedence`"]
+    Global["`Global Custom Enums
+    • Shared across projects
+    • Stored as TOML in config dir
+    • Overrides system enums`"]
+    System["`Built-in System Enums
+    • Curated per machine (e.g. VicIIColors)
+    • Read-only, embedded in binary
+    • Lowest precedence`"]
 
-    Tier1 -->|"Precedes"| Tier2
-    Tier2 -->|"Precedes"| Tier3
+    Project -->|Overrides| Global
+    Global -->|Overrides| System
 ```
 
-### 1. Project-Specific Enums
+| Level | Scope | Storage | Precedence | Undo / Redo |
+| :--- | :--- | :--- | :--- | :---: |
+| **1. Project-Specific** | Active project only | Inside `.regen2000proj` | Highest | Yes (++u++ / ++ctrl+r++) |
+| **2. Global Custom** | All projects on your machine | `enum-*.toml` in config dir | Medium | — |
+| **3. Built-in System** | Curated per target system | Embedded (read-only) | Lowest | — |
 
-- **Scope**: Local to the current project file (`.regen2000proj`).
-- **Purpose**: Stores definitions unique to the current binary (such as game state constants or level indices).
-- **Precedence**: Highest priority. If a project enum shares a name with a global or system enum, Regenerator 2000 uses the project enum.
-- **Properties**: Uses the command queue so you can undo and redo (`u` / `Ctrl+R`) enum creation, updates, and deletions.
+### Portability & Sharing
 
-### 2. Global Custom Enums
-
-- **Scope**: User-wide across all projects on your computer.
-- **Purpose**: Reuses custom enum definitions (such as math constants or loader codes) across multiple projects.
-- **Precedence**: Medium priority. Global enums override built-in system enums, and project enums override global enums.
-- **Storage**: Regenerator 2000 saves global enums as individual `.toml` files in your global configuration directory.
-
-### 3. Built-in System Enums
-
-- **Scope**: Read-only system definitions.
-- **Purpose**: Provides standard hardware constants. For example, if you select the Commodore 64 system, Regenerator 2000 provides the `VicIIColors` enum automatically.
-- **Precedence**: Lowest priority. Regenerator 2000 uses system enums when no project or global enum overrides them.
-
----
-
-## Portability and Reference Behavior
-
-Regenerator 2000 manages enum references to keep `.regen2000proj` project files portable across machines:
-
-- **Built-in & Global Enums**: When you apply a system or global enum to an operand, the project file stores only the enum name reference. It does not copy the full enum definition into the project file.
-- **Project-Local Enums**: When you create a local project enum, Regenerator 2000 serializes the full definition into the `.regen2000proj` file.
-- **Importing and Sharing**: If a shared project references a missing global enum, copy that enum into the local project pool from the **Manage Enums** dialog.
+- **System & Global Enums:** Project files store only the enum name reference—not a full copy of the definition.
+- **Project-Local Enums:** Serialized directly inside `.regen2000proj` so shared projects stay self-contained. If a collaborator's `.regen2000proj` references a missing global enum, clone it into the local project pool via **Manage Enums**.
 
 ---
 
@@ -56,87 +49,72 @@ Regenerator 2000 manages enum references to keep `.regen2000proj` project files 
 
 ### Applying an Enum
 
-Replace a raw numeric value with an enum variant:
-
-1. Move the cursor to a line with an immediate operand (`lda #$00`), a data byte (`.byte $02`), or a data word (`.word $0001`).
-2. Press **++e++** (or select **Edit → Apply Enum...**) to open the **Apply Enum** dialog.
-3. Enums that define a variant for the current value appear in **bold** at the top of the list with the resolved variant name in parentheses (for example, `VicIIColors (BLACK)`), and the first matching enum is highlighted automatically.
-4. Type in the **Search / Filter** box to filter by enum name, use **++up++** / **++down++** to change the selection (or highlight `<None> (Clear Enum Usage)` to clear an applied enum), or press **++ctrl+n++** to create a new enum inline.
-5. Press **++enter++** to apply the selected enum.
-
-The disassembler updates the line immediately to show the enum variant name (for example, `lda #VicIIColors.BLACK`).
+1. Move the cursor to an immediate operand (`lda #$00`), `.byte`, or `.word` value and press ++e++ (or **Edit → Apply Enum...**).
+2. Matching enums that define the current value float to the top in **bold** with the variant preview (e.g., `VicIIColors (BLACK)`).
+3. Filter by typing in the search box, switch selection with ++up++ / ++down++ (pick `<None> (Clear Enum Usage)` to clear, or press ++ctrl+n++ to create a new enum inline), and press ++enter++ to apply.
 
 ### Managing Enums
 
-Create, edit, clone, or delete custom enums:
-
-1. Press **++f10++** to open the main menu (or press **++alt+t++** to open the Edit menu).
-2. Select **Manage Enums...**.
-3. Use the **Project**, **Global**, and **System** tabs in the dialog:
-
-    - **Add**: Create a new local or global enum.
-    - **Edit**: Update variant values, names, or descriptions.
-    - **Delete**: Remove an unused enum. If the disassembly uses the enum, Regenerator 2000 does not let you delete it.
-    - **Clone to Project/Global**: Copy a system or global enum into your project pool to customize it. You can also copy an enum in the opposite direction.
+Open **Edit → Manage Enums...** (++f10++ or ++alt+t++) and switch across the **Project**, **Global**, and **System** tabs to **Add**, **Edit**, **Delete** (unused enums only), or **Clone** enums between project and global pools.
 
 ---
 
 ## Custom Global Enums
 
-Place an `enum-*.toml` file in the application configuration directory to create a global enum or override a built-in system enum.
+Create `enum-*.toml` files in your configuration directory to share custom constants across projects or override built-in system enums:
 
-### Config Directory Location
+--8<-- "config_dir.md"
 
-| Platform    | Config Directory                                          |
-|:------------|:----------------------------------------------------------|
-| **macOS**   | `~/Library/Application Support/regenerator2000/`          |
-| **Linux**   | `~/.config/regenerator2000/`                              |
-| **Windows** | `C:\Users\<User>\AppData\Roaming\regenerator2000\config\` |
+### Creating from Built-in Templates
 
-### Dumping Built-in Enums
+1. Dump the built-in enum files as starting templates:
 
-Dump the built-in system enums to use them as templates for your own global enums:
+    === "macOS"
 
-1. **Dump** all built-in enums to the configuration directory:
+        ```bash
+        regenerator2000 --dump-enum-files ~/Library/Application\ Support/regenerator2000/
+        ```
 
-    ```bash
-    # macOS
-    regenerator2000 --dump-enum-files ~/Library/Application\ Support/regenerator2000/
+    === "Linux"
 
-    # Linux
-    regenerator2000 --dump-enum-files ~/.config/regenerator2000/
+        ```bash
+        regenerator2000 --dump-enum-files ~/.config/regenerator2000/
+        ```
 
-    # Windows (PowerShell)
-    regenerator2000.exe --dump-enum-files $env:APPDATA\regenerator2000\config\
-    ```
+    === "Windows (PowerShell)"
 
-    This command writes every `enum-*.toml` file to the destination folder and exits.
+        ```powershell
+        regenerator2000.exe --dump-enum-files $env:APPDATA\regenerator2000\config\
+        ```
 
-2. **Edit** an existing file or create a new enum file (for example, `enum-CustomColors.toml`):
+2. Edit an existing file or add a new `enum-<Name>.toml` file:
 
-    ```toml
-    name = "CustomColors"
+    ```toml title="enum-CustomColors.toml"
+    name = "CustomColors" # (1)!
     description = "My custom system color definitions"
 
-    [variants]
+    [variants] # (2)!
     BLACK = 0
     WHITE = 1
     RED = 2
     ```
 
-3. **Start** Regenerator 2000. The application loads your custom enum automatically under the **Global** tab in the **Manage Enums** and **Apply Enum** dialogs.
+    1. Reuse a built-in enum name (like `"VicIIColors"`) to override it globally across all projects.
+    2. Map each constant name to its integer value (supports decimal, or hex/binary if quoted/formatted as TOML integers).
+
+3. Restart Regenerator 2000—the enum appears automatically under the **Global** tab in **Manage Enums** and **Apply Enum**.
 
 ---
 
 ## Assembler Syntax Support
 
-During export, Regenerator 2000 translates enums into the syntax required by your target assembler:
+On export, Regenerator 2000 lowers enum definitions and usages to each assembler's native namespace or scoping syntax:
 
 === "64tass"
 
-    Uses named `.block` scopes to group variants:
+    Groups variants inside `.block` / `.bend` and accesses members with `.`:
 
-    ```asm
+    ```ca65
     Colors .block
         BLACK = $00
         WHITE = $01
@@ -150,9 +128,9 @@ During export, Regenerator 2000 translates enums into the syntax required by you
 
 === "ca65"
 
-    Uses `.enum` blocks and double-colon (`::`) scope namespaces:
+    Groups variants inside `.enum` / `.endenum` and accesses members with `::`:
 
-    ```asm
+    ```ca65
     .enum Colors
         BLACK = $00
         WHITE = $01
@@ -166,9 +144,9 @@ During export, Regenerator 2000 translates enums into the syntax required by you
 
 === "KickAssembler"
 
-    Uses `.namespace` blocks with `.label` definitions and dot (`.`) member access:
+    Groups variants inside `.namespace` with `.label` entries and accesses members with `.`:
 
-    ```asm
+    ```js
     .namespace Colors {
         .label BLACK = $00
         .label WHITE = $01
@@ -182,9 +160,9 @@ During export, Regenerator 2000 translates enums into the syntax required by you
 
 === "ACME"
 
-    Because ACME does not support namespaces or enum blocks, Regenerator 2000 flattens enum names with an underscore (`_`) separator:
+    Because ACME has no enum or namespace blocks, Regenerator 2000 flattens variant names with `_`:
 
-    ```asm
+    ```ca65
     Colors_BLACK = $00
     Colors_WHITE = $01
     Colors_RED = $02

@@ -1,391 +1,301 @@
-# Tutorial
+---
+icon: material/compass-outline
+description: Step-by-step guided walkthrough from loading a raw Commodore binary to labeling routines, inspecting graphics, debugging in VICE, and exporting assembly.
+---
 
-This tutorial guides you through a reverse-engineering session in **Regenerator 2000**. You will convert a raw binary into a labeled and documented disassembly project.
+# Guided Tutorial
+
+Walk through a complete reverse-engineering session in **Regenerator 2000**—turning a raw binary into a labeled, commented, export-ready disassembly project.
 
 !!! tip "Prerequisites"
 
-    Install Regenerator 2000. Prepare a Commodore 64 program (`.prg`) for analysis.
+    Install Regenerator 2000 and keep any Commodore 8-bit `.prg` file handy.
+
+By the end of this walkthrough, you will know how to:
+
+- [x] Trace reachable code and partition raw data tables
+- [x] Name subroutines, inspect typed X-Refs, and document behavior
+- [x] Spot embedded graphics across Hexdump, Sprites, Charset, and Bitmap views
+- [x] Organize routines with scopes, splitters, and collapsed blocks
+- [x] Debug live in VICE, or hand off repetitive passes to an AI agent via MCP
 
 ---
 
-## The Workflow
+## The Iterative Loop
 
-Reverse engineering is an iterative process. You start with raw binary bytes and classify code, graphics, and data tables until the program structure is clear.
+Reverse engineering works best in short passes: explore a slice, classify code or data, document what you learn, and follow the next jump.
 
 ```mermaid
 flowchart TD
-    Start((Start)) --> Load[Load Binary]
-    Load --> Explore[Explore & Analyze]
-    Explore --> Define{Identify Region}
-    Define -- "Looks like Code" --> Code[Disassemble Address 'd']
-    Define -- "Looks like Data" --> Data[Convert to Byte 'b']
-    Define -- "Standard Routines" --> Label[Label 'l']
-    Define -- "Weird Stuff" --> Graphics[Check Graphics Views]
-    Code --> Comment[Add Comments ';']
-    Data --> Comment
-    Label --> Comment
-    Comment --> Explore
-    Explore --> Debug{Debug?}
-    Debug -- Yes --> VICE[Connect to VICE]
-    VICE --> Explore
-    Debug -- No --> Finish{Done?}
-    Finish -- No --> Explore
-    Finish -- Yes --> Export[Export Project]
+    S1["`**1. Load Binary**
+    .prg · .crt · .d64 · .vsf → Auto-analyze`"]
+    S2["`**2. Explore Views & X-Refs**
+    Disassembly · Hex · Sprites · Charset · Bitmap`"]
+    S3["`**3. Classify & Annotate**
+    Code (d/c) · Data (b/w/a) · Text (p/s)
+    Labels (l) · Comments (; / :) · Scopes (r)`"]
+    S4["`**4. Save Project**
+    Ctrl+S → .regen2000proj`"]
+    Q{"Need live runtime state?"}
+    VICE["`**Connect to VICE Binary Monitor**
+    Breakpoints (F2) · Step (F7/F8) · Inspect Chips`"]
+    S5["`**5. Export & Verify**
+    .asm / .html + --verify byte-identical build`"]
+
+    S1 --> S2
+    S2 --> S3
+    S3 -->|Next region| S2
+    S3 --> S4
+    S4 --> Q
+    Q -->|Yes| VICE
+    VICE -->|Update labels & notes| S2
+    Q -->|No — Ready| S5
 ```
 
 ---
 
 ## Phase 1: First Contact & Navigation
 
-Start Regenerator 2000 with your target file:
+Launch Regenerator 2000 on your binary:
 
 ```bash
 regenerator2000 my_game.prg
 ```
 
-The application opens in the **Disassembly View**.
+For raw files without headers, the **Import Context** dialog opens first so you can confirm the target **System**, **Origin**, and **Entry Point**. Once loaded, you land in the **Disassembly View**:
 
-When you load a raw binary (not a `.regen2000proj` project), the **Import Context** dialog opens. Select the target **System** (such as C64 or VIC-20), the **Origin** address, and the main **Entry Point** before analysis begins.
+![Disassembly View](regenerator2000_disassembly_screenshot.png)
 
--   **Grey text**: Unanalyzed (`Undefined`) bytes.
--   **White text**: Decoded 6502 instructions.
--   **Addresses (Left)**: Memory address of each line.
+/// caption
+Disassembly View on the left with control-flow arrows, decoded instructions, auto-labels, and inline X-Refs.
+///
 
-### Basic Movement
+- **Grey lines**: Unexplored (`Undefined`) bytes waiting to be classified.
+- **Highlighted instructions**: Decoded 6502 code (unreferenced code blocks dim slightly for contrast).
+- **Left margin**: Decimal line numbers, jump/branch arrows, and `$XXXX` memory addresses.
 
--   **Scroll**: Press ++arrow-up++ / ++arrow-down++ or ++page-up++ / ++page-down++.
--   **Jump to Address**: Press ++ctrl+g++. Type a hexadecimal address (such as `c000`). Press ++enter++.
--   **Follow Flow**: Move the cursor to a `JMP` or `JSR` instruction. Press ++enter++ to jump to its target address.
--   **Go Back**: Press ++backspace++ to return to the previous address.
+### Essential Navigation
+
+- **Move & Page:** ++up++ / ++down++ (or ++j++ / ++k++), plus ++page-up++ / ++page-down++.
+- **Jump to Address:** Hit ++ctrl+g++, enter hex like `c000`, and press ++enter++.
+- **Follow Control Flow:** Put the cursor on any `JMP`, `JSR`, branch, or pointer and press ++enter++ to jump to its target (multi-target tables open a quick picker).
+- **Jump Back:** Press ++backspace++ to retrace your navigation history.
 
 ### Auto-Analysis
 
-If you enable automatic analysis in Settings, Regenerator 2000 runs it when you load a binary:
-
--   Traces code execution flow from known entry points.
--   Generates labels for subroutines (`s_XXXX`), jump targets (`j_XXXX`), and branch targets (`b_XXXX`).
--   Builds cross-reference tables across the binary.
--   Resolves platform addresses (KERNAL routines and I/O registers) for the selected target system.
-
-See [Analysis](analysis.md) for details on the analyzer and label prefixes.
-
-If automatic analysis is disabled, press ++ctrl+a++ to run the analyzer manually.
+With auto-analysis enabled in [Settings](settings.md), Regenerator 2000 automatically walks reachable flow from entry points on load—creating typed labels (`s_`, `j_`, `b_`), building cross-references, and resolving system KERNAL/register names. Press ++ctrl+a++ anytime to rerun it after structural edits. See [Analysis & Labels](analysis.md) for all prefix rules.
 
 ---
 
 ## Phase 2: Defining Code and Data
 
-Your primary task is to classify memory regions as **Code** or **Data**.
+### Disassembling Code (++d++)
 
-### Disassembling an Address
+Unexplored regions appear as single raw byte lines (`$C000  A9 00 85 D0 ...`). Put your cursor on a suspected entry point and press ++d++—flow analysis follows branches and `JSR` calls until hitting invalid opcodes or returns (`RTS`/`RTI`), cleanly skipping data tables tucked between subroutines.
 
-Unanalyzed byte regions appear as follows:
+### Converting Data with Visual Mode (++shift+v++)
 
-```text
-$C000  A9 00 85 D0 ...
-```
+When raw tables or graphics were mistakenly decoded as instructions or `BRK` padding, convert them back to data:
 
-To trace execution from an address, move the cursor to the line. Press ++d++.
-
-Regenerator 2000 disassembles the bytes from that address with **Flow Analysis**. It follows relative branches and absolute jumps until it encounters an invalid opcode or a return instruction. Press ++d++ at each new subroutine entry point to trace code and skip inline data tables.
-
-### Converting to Data
-
-Sometimes the disassembler decodes data bytes as invalid instructions or `BRK` opcodes. Convert data and graphics regions to raw bytes or words:
-
-1.  **Select the region**:
-
-    -   Press ++shift+v++ to enter **Visual Mode**.
-    -   Press the arrow keys to highlight the target rows.
-
-2.  **Convert the selection**:
-
-    -   Press ++b++ to convert the selection to **Bytes** (`.byte $00, $01...`).
-    -   Press ++w++ to convert the selection to **Words** (`.word $1000...`).
-
-### Using Visual Mode
-
-Use Visual Mode (++shift+v++) to edit ranges of memory:
-
--   **Extend selection**: Press ++arrow-up++ / ++arrow-down++ or ++j++ / ++k++ to expand the selection.
--   **Apply block type**: Press any block-type shortcut (++d++, ++b++, ++w++, ++a++, ++p++, ++s++) to convert the selected range.
--   **Exit**: Press ++escape++ to exit Visual Mode without changes.
+1. Press ++shift+v++ to start **Visual Mode**, then highlight the range with ++up++ / ++down++ (or ++j++ / ++k++).
+2. Press ++b++ for **Bytes** (`.byte $00, $01...`), ++w++ for **Words** (`.word $1000...`), ++a++ for **Addresses**, ++p++ for **PETSCII**, or ++s++ for **Screencode** text.
+3. Press ++escape++ anytime to cancel selection without changes.
 
 !!! tip "When to Use Visual Mode"
 
-    -   Mark large data tables as bytes or words.
-    -   Select an address range for a Lo/Hi table (++less-than++ or ++greater-than++).
-    -   Convert a text buffer to PETSCII (++p++) or Screencode (++s++).
+    - Mark sprite/charset blocks as **Bytes** (++b++).
+    - Select an even byte range for **Lo/Hi** (++less-than++) or **Hi/Lo** (++greater-than++) split address tables.
+    - Convert embedded menus or high-score strings to **PETSCII** (++p++) or **Screencode** (++s++).
 
 ---
 
 ## Phase 3: Labels & Cross-References
 
-As you inspect the code, identify subroutines, variables, and hardware registers (such as `$D020` for Border Color).
+Replacing hex addresses with readable names makes every caller across the program click into place:
 
-### Creating Labels
+1. Put your cursor on `$C015` (or any label/operand) and press ++l++.
+2. Type `main_loop` and press ++enter++.
 
-Assign descriptive names to addresses instead of raw hexadecimal numbers:
-
-1.  Move the cursor to `$C015`.
-2.  Press ++l++.
-3.  Type `main_loop`.
-4.  Press ++enter++.
-
-Every instruction that references `$C015` now displays `JMP main_loop` instead of `JMP $C015`.
+Every instruction referencing `$C015` now reads `JMP main_loop`.
 
 !!! tip "Local vs. Global Labels"
 
-    In the label dialog, press ++tab++ to focus the scope checkbox. Press ++space++ to toggle between **Local** and **Global**. Use local labels for loop counters and branch targets inside a subroutine.
+    Inside the label dialog, press ++tab++ to focus the scope checkbox and ++space++ to toggle **Local** vs. **Global**—ideal for short loop targets inside a subroutine.
 
-### Using Cross-References (X-Refs)
+### Inspecting X-Refs & Symbols
 
-Regenerator 2000 tracks **Cross-References (X-Refs)** for every address:
-
--   Inspect the `x-ref` list in the side comments (for example, `; x-ref: $0820, $0850`).
--   Press ++ctrl+x++ to open the **Find References** dialog. Use the dialog to jump to any caller.
-
-### Go to Symbol
-
-Press ++ctrl+p++ to open the **Go to Symbol** dialog. Type part of a label name to filter the list. Press ++enter++ to jump to the selected symbol.
+- **Inline X-Refs:** Check the trailing `; x-ref: $0820, $0850` comments on referenced lines.
+- **Find References (++ctrl+x++):** Opens a list of every caller with typed badges (`[R]`, `[W]`, `[R/W]`, `[C]`, `[J]`, `[O]`)—press ++enter++ on any row to jump there.
+- **Go to Symbol (++ctrl+p++):** Type any part of a label name to filter and jump straight to it.
 
 ---
 
-## Phase 4: Adding Comments and Bookmarks
+## Phase 4: Comments & Bookmarks
 
-Use comments to document the purpose of instructions and subroutines.
+=== "Side Comments (;)"
 
-### Side Comments
+    Press ++semicolon++ to attach a short inline note to the right of an instruction:
 
-Use side comments for brief notes on a single instruction:
-
--   Press ++semicolon++.
--   Type `Update score counter`.
--   Press ++enter++.
--   Result: `INC $D020  ; Update score counter`
-
-### Line Comments
-
-Use line comments for subroutine headers or multi-line explanations:
-
--   Press ++colon++.
--   Type `--- INIT ROUTINE ---`.
--   Press ++enter++.
--   Result: The comment appears on a dedicated line above the instruction:
-
-    ```asm
-    ; --- INIT ROUTINE ---
-    lda #$00
-    ...
+    ```ca65
+    inc $d020 ; Update border color flash
     ```
 
-!!! tip "Multi-line and Separator Comments"
+=== "Line Comments (:)"
 
-    -   Press **++shift+enter++** or **++ctrl+j++** to insert a newline inside the comment dialog.
-    -   Use these shortcuts inside the comment dialog to insert separators:
-        -   ++alt+minus++: Inserts a dashed line (`---`).
-        -   ++alt+equals++: Inserts an equals line (`===`).
-        -   ++alt+backslash++: Inserts a mixed separator (`-=-`).
+    Press ++colon++ to insert a block header above an address:
 
-### Using Bookmarks
+    ```ca65
+    ; === INIT SCREEN ===
+    lda #$00
+    ```
 
-Use bookmarks to jump between important addresses:
+    Use ++shift+enter++ or ++ctrl+j++ for newlines, and ++alt+minus++, ++alt+equal++, or ++alt+backslash++ inside the dialog for `---`, `===`, or `-=-` divider bars.
 
--   ++ctrl+b++: Toggles a bookmark at the current address.
--   ++ctrl+shift+b++ (or ++alt+b++): Opens the Bookmarks dialog.
+=== "Bookmarks (Ctrl+B)"
 
-Project files (`.regen2000proj`) save all bookmarks across sessions.
+    - Press ++ctrl+b++ to drop or remove a bookmark at the current address.
+    - Press ++ctrl+shift+b++ (or ++alt+b++) to open the **Bookmarks** dialog and jump between saved spots.
+
+    All bookmarks are saved inside `.regen2000proj`.
 
 ---
 
 ## Phase 5: Searching
 
-Regenerator 2000 provides two search modes.
+=== "Vim Search (/)"
 
-### Vim-Style Search
+    Press ++slash++, type text, and hit ++enter++ to search across labels, mnemonics, operands, and comments. Step through hits with ++n++ (next) and ++shift+n++ (previous).
 
-Press ++slash++. Type a search query. Press ++enter++. The search scans labels, mnemonics, operands, and comments. Press ++n++ to jump to the next match or ++shift+n++ to jump to the previous match.
+=== "Search Dialog (Ctrl+F)"
 
-### Search Dialog
+    Press ++ctrl+f++ for structured searches:
 
-Press ++ctrl+f++ to open the Search dialog:
+    - **Text:** Matches labels, comments, and instructions.
+    - **Hex Pattern:** Searches raw bytes like `A9 00 8D` (supports `??` single-byte wildcards).
+    - **PETSCII / Screencode:** Finds encoded text strings anywhere in memory.
 
--   **Text search**: Searches labels, comments, and mnemonics.
--   **Hex pattern search**: Searches raw byte sequences (such as `A9 00 8D`). Use `??` as a wildcard for any single byte.
--   **PETSCII / Screencode search**: Searches memory for encoded text strings.
-
-After you close the dialog, press ++f3++ or ++shift+f3++ to jump to the next or previous match.
+    Step through matches afterward with ++f3++ / ++shift+f3++.
 
 ---
 
 ## Phase 6: Graphics & Data Views
 
-Inspect non-code regions with the visual inspection views:
+Switch to any companion view in the right pane (++tab++ moves focus between panes) to visually spot non-code regions:
 
--   **Hex Dump**: Press ++alt+2++ to open the Hex Dump View. Press ++m++ to cycle text encodings (PETSCII and Screencode). Byte colors highlight data patterns (`$00` appears dim, `$FF` appears bright, and printable characters use distinct colors).
--   **Sprites**: Press ++alt+3++ to open the **Sprite View**. Locate 24x21 hardware sprites.
--   **Charset**: Press ++alt+4++ to inspect 8x8 character sets.
--   **Bitmap**: Press ++alt+5++ to open the **Bitmap View**. Inspect 320x200 or 160x200 bitmaps.
+=== "Hexdump (Alt+2)"
 
-Mark confirmed graphics regions as `Byte` blocks (++b++) so the disassembler does not decode them as instructions.
+    ![Hexdump View](regenerator2000_hexdump_screenshot.png){ loading=lazy }
+
+    /// caption
+    Byte-value color highlighting (`$00` dim, `$FF` bright) makes tables and strings stand out. Press ++m++ to cycle PETSCII/Screencode decoding.
+    ///
+
+=== "Sprites (Alt+3)"
+
+    ![Sprites View](regenerator2000_sprites_screenshot.png){ loading=lazy }
+
+    /// caption
+    Previews 64-byte chunks as 24×21 sprites. Press ++m++ to toggle multicolor mode and ++b++ to mark confirmed sprites as Byte blocks.
+    ///
+
+=== "Charset (Alt+4)"
+
+    ![Charset View](regenerator2000_charset_screenshot.png){ loading=lazy }
+
+    /// caption
+    Scans memory as 8×8 character tiles in high-res or multicolor mode (++m++) to locate custom fonts.
+    ///
+
+=== "Bitmap (Alt+5)"
+
+    ![Bitmap View](regenerator2000_bitmap_screenshot.png){ loading=lazy }
+
+    /// caption
+    Renders 320×200 or 160×200 bitmaps with selectable Screen RAM overlays (++s++ / ++shift+s++ or ++x++ for `+8000`).
+    ///
 
 !!! tip "Syncing Views"
 
-    If you enable view synchronization in Settings, cursor movement in the Disassembly View updates the active right-hand pane to the same memory address.
+    When view synchronization is enabled in [Settings](settings.md), moving in the Disassembly View keeps the active right pane aligned to the same address.
 
 ---
 
 ## Phase 7: Scopes, Splitters & Collapsed Blocks
 
-Use structural markers to organize large disassembly projects.
+![Blocks View](regenerator2000_blocks_screenshot.png){ loading=lazy }
+
+/// caption
+The Blocks View (Alt+1) maps every Code, Data, Undefined, Scope, and Splitter region across your binary.
+///
 
 ### Scopes
 
-Scopes group instructions and isolate local labels (with `.proc`/`.endproc` in ca65, `.block`/`.bend` in 64tass, or `{`/`}` in KickAssembler):
-
--   Press ++r++ to create a scope at the current address or selection.
--   Press ++delete++ to remove a scope boundary.
+Press ++r++ (on a line or Visual selection) to wrap a routine in a lexical scope (`.block`/`.bend` in 64tass, `.proc`/`.endproc` in ca65, `{`/`}` in KickAssembler), keeping local labels isolated. Press ++delete++ at a scope boundary to remove it.
 
 ### Splitters
 
-Regenerator 2000 merges adjacent blocks of the same type automatically. To keep two adjacent blocks separate (such as two distinct data tables), press ++pipe++ to insert a **splitter** between them. Line comments (++colon++) also split adjacent address and word tables.
+Regenerator 2000 auto-merges adjacent blocks of the same type. Press ++pipe++ at a boundary address to insert a **splitter** so two consecutive tables (especially **Lo/Hi** or **Hi/Lo** tables!) stay separate. Line comments (++colon++) also split adjacent Address and Word tables.
 
 ### Collapsing Blocks
 
-Press ++ctrl+k++ to collapse a block into a single summary line. Collapse large data tables or completed subroutines to focus on unanalyzed areas. Collapsed blocks affect only the TUI display and do not change exported `.asm` files.
+Press ++ctrl+k++ to fold a large data table or finished subroutine into a single summary line in the TUI—leaving exported `.asm` output untouched.
 
 ---
 
 ## Phase 8: Saving & Exporting
 
-### Saving Your Work
+- **Save Project (++ctrl+s++):** Writes your binary, blocks, labels, comments, bookmarks, and undo history to `.regen2000proj`.
+- **Export ASM (++ctrl+e++):** Generates assembly for **64tass**, **ACME**, **KickAssembler**, or **ca65** (pick your target assembler and fill-run threshold in **Document Settings**, ++alt+d++).
 
-Press ++ctrl+s++ to save your progress to a `.regen2000proj` file. The project file stores all labels, comments, block types, bookmarks, and settings.
-
-### Exporting to Assembler
-
-Export your project to an assembly source file (`.asm`):
-
--   Press ++ctrl+e++ to export the disassembly.
--   Select the target assembler (**64tass**, **ACME**, **KickAssembler**, or **ca65**) in **Document Settings** (++alt+d++).
--   Adjust the **Fill run threshold** (default `8`) in Document Settings to collapse identical consecutive bytes into `.fill`, `!fill`, or `.res`.
-
-### Batch Processing (Headless Mode)
-
-Run Regenerator 2000 in headless mode for scripts and automated builds:
+For build scripts and CI pipelines, export or verify from the command line in headless mode:
 
 ```bash
-# Export to ASM:
+# Export to ASM or interactive HTML
 regenerator2000 --headless --export_asm output.asm my_game.regen2000proj
-
-# Export to HTML:
 regenerator2000 --headless --export_html output.html my_game.regen2000proj
 
-# Override the assembler format (64tass, acme, ca65, kick)
+# Override target assembler and verify byte-identical roundtrip assembly
 regenerator2000 --headless --assembler acme --export_asm output.asm my_game.regen2000proj
-
-# Import VICE labels and export
-regenerator2000 --headless --import_lbl labels.lbl --export_asm output.asm my_game.prg
+regenerator2000 --verify my_game.regen2000proj
 ```
 
 ---
 
-## Phase 9: Debugging with VICE
+## Phase 9: Live Debugging with VICE
 
-Connect Regenerator 2000 to a running VICE emulator instance for live debugging:
+![Debugger View](regenerator2000_debugger_screenshot.png){ loading=lazy }
 
-1.  **Start VICE**: Start the emulator with the binary monitor enabled:
+/// caption
+Live Debugger View (Alt+6) showing CPU registers, stack, VIC-II/CIA hardware chips, breakpoints, and live PC disassembly.
+///
+
+1. Start VICE with its binary monitor enabled and launch Regenerator 2000 on the **exact same binary**:
 
     ```bash
     x64 -binarymonitor my_game.prg
+    regenerator2000 --vice localhost:6502 my_game.prg
     ```
 
-2.  **Connect**: In Regenerator 2000, select **Debugger → Connect to VICE...** (`localhost:6502`).
+    *(Or connect anytime from **Debugger → Connect to VICE...**)*
 
-    !!! tip "Auto-connect with `--vice`"
+2. Open the Debugger pane with ++alt+6++ (or ++ctrl+6++).
+3. Toggle execution breakpoints (++f2++ / ++shift+f2++) or memory watchpoints (++f6++), resume with ++f9++, run to cursor (++f4++), and step with ++f7++ (Into), ++f8++ (Over), or ++shift+f8++ (Out)—updating labels and comments as runtime behavior reveals itself.
 
-        Pass `--vice localhost:6502` on the command line to connect automatically at startup:
+!!! warning "Keep Binaries Identical"
 
-        ```bash
-        regenerator2000 --vice localhost:6502 my_game.prg
-        ```
-
-3.  **View**: Press ++alt+6++ (or ++ctrl+6++) to open the **Debugger** panel. Inspect the program counter, CPU registers, and breakpoints.
-
-!!! warning
-
-    VICE and Regenerator 2000 must run the **exact same binary**. Mismatched binaries cause misaligned breakpoints and program counter addresses.
-
-### Debugging Features
-
--   **Breakpoints**: Press ++f2++ (or ++shift+f2++) to toggle a breakpoint. Press ++f6++ to set a watchpoint at the cursor.
--   **Stepping**: Press ++f7++ (Step Instruction), ++f8++ (Step Over), or ++shift+f8++ (Step Out).
--   **Control**: Press ++f9++ to continue execution. Press ++f4++ to run to the cursor address.
-
-### Debugging Workflow
-
-Follow these steps to debug a routine:
-
-1.  Set a breakpoint at the target routine (++f2++).
-2.  Resume execution in VICE (++f9++).
-3.  When execution stops at the breakpoint, inspect the CPU registers and stack in the Debugger panel.
-4.  Step through the instructions (++f7++) to observe state changes.
-5.  Update labels and comments in the Disassembly View based on the observed behavior.
-
-!!! note "Legacy Workflow: Export VICE Labels"
-
-    To use the standalone VICE monitor without the integrated debugger, select **File → Export VICE Labels...** to export project symbols.
+    VICE and Regenerator 2000 must load the exact same `.prg`; mismatched binaries misalign PC addresses and breakpoints.
 
 ---
 
 ## Phase 10: AI-Assisted Analysis (MCP)
 
-Regenerator 2000 includes an MCP (Model Context Protocol) server for programmatic analysis with AI assistants.
-
-### Quick Start
-
-1.  Start Regenerator 2000 with the MCP server enabled: `regenerator2000 --mcp-server my_game.prg`
-2.  Connect your MCP client to `http://localhost:3000/mcp`.
-3.  Instruct the AI assistant to read the disassembly, rename labels, add comments, and classify blocks.
-
-Use the MCP server to:
-
--   Batch-label known routines and hardware registers.
--   Explain complex 6502 code patterns.
--   Automate repetitive classification tasks across large binaries.
-
-See [MCP Integration](mcp.md) for the complete list of MCP tools and resources.
+Launch Regenerator 2000 with `--mcp-server` and point Claude Code or Antigravity at `http://127.0.0.1:3000/mcp` to let an AI assistant decode BASIC headers, partition unknown blocks, trace routines, and rename variables right inside your live TUI. See [MCP Integration](mcp.md) for setup and the 5 analysis skills.
 
 ---
 
-## Summary of Key Shortcuts
+## Next Steps
 
-| Key | Action |
-| :--- | :--- |
-| ++d++ | Disassemble Address |
-| ++b++ | Convert to **B**yte |
-| ++w++ | Convert to **W**ord |
-| ++a++ | Convert to **A**ddress |
-| ++r++ | Create Scope |
-| ++delete++ | Exclude Address / Remove Scope |
-| ++l++ | Set **L**abel |
-| ++semicolon++ | Add Side Comment |
-| ++colon++ | Add Line Comment |
-| ++i++ / ++shift+i++ | Cycle Immediate Format (hex/dec/bin) |
-| ++open-bracket++ | Pack Lo/Hi Address |
-| ++close-bracket++ | Pack Hi/Lo Address |
-| ++shift+v++ | Toggle Visual Mode (selection) |
-| ++enter++ | Follow Jump / Jump to Operand |
-| ++backspace++ | Jump Back |
-| ++ctrl+g++ | Jump to Address |
-| ++ctrl+p++ | Go to Symbol |
-| ++ctrl+x++ | Find Cross-References |
-| ++slash++ | Vim Search |
-| ++ctrl+b++ | Toggle Bookmark |
-| ++ctrl+k++ | Toggle Collapsed Block |
-| ++pipe++ | Toggle Splitter |
-| ++ctrl+s++ | Save Project |
-| ++ctrl+e++ | Export to ASM |
-| ++f2++ | Toggle Breakpoint |
-| ++f7++ / ++f8++ | Step Instruction / Step Over |
-| ++f9++ | Run / Continue |
+- [Keyboard Shortcuts](keyboard_shortcuts.md) — Complete shortcut reference by pane and mode.
+- [Block Types and Helpers](blocks.md) — Deep dive into every block directive and immediate helper.
+- [Live Debugger (VICE)](debugger.md) — Memory dumps, chip registers, and watchpoint tips.
+- [MCP Integration](mcp.md) — Pair-reverse-engineering setup with AI agents.

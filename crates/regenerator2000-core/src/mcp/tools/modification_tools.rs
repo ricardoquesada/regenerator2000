@@ -36,7 +36,7 @@ pub fn tool_schemas() -> Vec<Value> {
         }),
         json!({
             "name": "r2000_set_label_name",
-            "description": "Set or delete a user-defined label (or Tier 2 global symbolic offset expression such as 'zp_ptr + 1') at a specific MOS 6502 memory address. Use this tool to name subroutines, variables, jump targets, or pointer/struct fields.",
+            "description": "Set or delete a user-defined label (or global symbolic offset expression such as 'zp_ptr + 1') at a specific MOS 6502 memory address. Use this tool to name subroutines, variables, jump targets, or pointer/struct fields.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -61,7 +61,7 @@ pub fn tool_schemas() -> Vec<Value> {
                     "scope": {
                         "type": "string",
                         "enum": ["auto", "operand", "address"],
-                        "description": "'operand' sets Tier 1 on the instruction or address table ('address', 'lo_hi_address', 'hi_lo_address') at address/range. 'address' sets Tier 2 on the target address across all references (or across a byte/word struct range). Default 'auto' uses 'operand' on instructions or address tables, and 'address' when no operand or address table exists (such as 'byte', 'word', or 'lo_hi_word' blocks). Pass explicit 'operand' for address/RTS tables."
+                        "description": "'operand' sets a per-site offset on the instruction or address table ('address', 'lo_hi_address', 'hi_lo_address') at address/range. 'address' sets a global offset on the target address across all references (or across a byte/word struct range). Default 'auto' uses 'operand' on instructions or address tables, and 'address' when no operand or address table exists (such as 'byte', 'word', or 'lo_hi_word' blocks). Pass explicit 'operand' for address/RTS tables."
                     },
                     "radix": {
                         "type": "string",

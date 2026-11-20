@@ -100,7 +100,7 @@ pub fn tool_schemas(system_config: &SystemConfig) -> Vec<Value> {
                     "kind": {
                         "type": "string",
                         "enum": ["user", "system", "auto", "derived"],
-                        "description": "Optional filter to return only symbols of a given kind. 'user' = user-defined labels, 'system' = predefined system labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000), 'derived' = Tier 2 global symbolic offset expressions (e.g. zp_ptr + 1)."
+                        "description": "Optional filter to return only symbols of a given kind. 'user' = user-defined labels, 'system' = predefined system labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000), 'derived' = global address symbolic offset expressions (e.g. zp_ptr + 1)."
                     }
                 }
             }

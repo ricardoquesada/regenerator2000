@@ -1,182 +1,157 @@
+---
+icon: material/code-braces
+description: Export and roundtrip-verify byte-identical 6502 assembly for 64tass, ACME, KickAssembler, and ca65.
+---
+
 # Supported Assemblers
 
-Regenerator 2000 generates assembly code for four 6502 assemblers. This page lists the supported assemblers and the commands to assemble the exported output.
+Regenerator 2000 exports ready-to-assemble source code for four 6502 assemblers—and can verify byte-for-byte parity against your original binary automatically.
 
-## 64tass
+| Assembler | Build Command | Notes |
+| :--- | :--- | :--- |
+| **[64tass][tass_url]** | `64tass -o output.prg input.asm` | Supports scopes (`.block`) and `.encode` directives |
+| **[ACME][acme_url]** | `acme -f cbm -o output.prg input.asm` | `-f cbm` prepends the 2-byte PRG load address |
+| **[KickAssembler][kick_url]** | `java -jar kickass.jar input.asm` | Requires JRE; set `KICKASS_JAR` for `--verify` |
+| **[ca65 (cc65)][ca65_url]** | `cl65 -t c64 -C c64-asm.cfg -o output.prg input.asm` | Custom linker `.cfg` needed if origin ≠ `$0801` |
 
-**64tass** is a multi-pass optimizing macro assembler for the 65xx processor family.
+[tass_url]: https://sourceforge.net/projects/tass64/
+[acme_url]: https://sourceforge.net/projects/acme-crossass/
+[kick_url]: http://www.kickassembler.com/
+[ca65_url]: https://cc65.github.io/
 
-- **Website**: [https://sourceforge.net/projects/tass64/](https://sourceforge.net/projects/tass64/)
+---
 
-### Command Line
+## Per-Assembler Setup
 
-Assemble a file generated for 64tass:
+=== "64tass"
 
-```bash
-64tass -o output.prg input.asm
-```
+    **64tass** is a multi-pass optimizing macro assembler for the 65xx family ([homepage][tass_url]).
 
-- `-o`: Specify the output filename.
+    ```bash
+    64tass -o output.prg input.asm
+    ```
 
-## ACME
+    - `-o`: Output `.prg` file path.
 
-**ACME** is a cross-assembler for the 6502, 6510, and 65816 processors.
+=== "ACME"
 
-- **Website**: [https://sourceforge.net/projects/acme-crossass/](https://sourceforge.net/projects/acme-crossass/)
+    **ACME** is a fast cross-assembler targeting 6502, 6510, and 65816 ([homepage][acme_url]).
 
-### Command Line
+    ```bash
+    acme -f cbm -o output.prg input.asm
+    ```
 
-Assemble a file generated for ACME:
+    - `-f cbm`: Emits CBM `.prg` format (including the 2-byte load header).
+    - `-o`: Output `.prg` file path.
 
-```bash
-acme -f cbm -o output.prg input.asm
-```
+=== "KickAssembler"
 
-- `-f cbm`: Set the output format to CBM (which includes the 2-byte load address).
-- `-o`: Specify the output filename.
+    **KickAssembler** is a Java-based 6502 assembler with built-in scripting ([homepage][kick_url]).
 
-## KickAssembler
+    ```bash
+    java -jar kickass.jar input.asm
+    ```
 
-**KickAssembler** is a Java-based 6502 assembler with a built-in scripting language. It requires a Java Runtime Environment (JRE).
+    KickAssembler outputs a `.prg` file automatically.
 
-- **Website**: [http://www.kickassembler.com/](http://www.kickassembler.com/)
+    !!! tip "Setting `KICKASS_JAR` for `--verify`"
 
-### Command Line
+        Because KickAssembler runs from a `.jar`, set `KICKASS_JAR` (otherwise Regenerator 2000 looks in the current working directory):
 
-Assemble a file generated for KickAssembler:
+        === "macOS / Linux"
 
-```bash
-java -jar kickass.jar input.asm
-```
+            ```bash
+            export KICKASS_JAR="$HOME/bin/KickAss.jar"
+            ```
 
-KickAssembler produces a `.prg` output file by default.
+        === "Windows"
 
-!!! tip "Environment Variable"
+            ```powershell
+            setx KICKASS_JAR "C:\Tools\KickAssembler\KickAss.jar"
+            ```
 
-    Because KickAssembler is a `.jar` file, `--verify` requires its file path. Set the **`KICKASS_JAR`** environment variable to the full path of `KickAss.jar`:
+=== "ca65"
 
-    === "macOS / Linux"
+    **ca65** ships with the **cc65** suite ([homepage][ca65_url]). Assemble and link Regenerator 2000's single-file output with `cl65`:
 
-        ```bash
-        export KICKASS_JAR="$HOME/bin/KickAss.jar"
-        ```
+    ```bash
+    cl65 -t c64 -C c64-asm.cfg -o output.prg input.asm
+    ```
 
-        Add this line to `~/.zshrc` or `~/.bashrc` to persist the setting.
+    If your program's origin is `$0801`, cc65's stock [c64-asm.cfg][c64-asm.cfg] works directly; for any other origin, copy it and adjust `STARTADDRESS` (see the [ld65 docs][cc65-docs]).
 
-    === "Windows"
+    /// details | Default `c64-asm.cfg` Linker Config
+        type: example
 
-        ```powershell
-        setx KICKASS_JAR "C:\Tools\KickAssembler\KickAss.jar"
-        ```
+    ```sh title="c64-asm.cfg"
+    FEATURES {
+        STARTADDRESS: default = $0801; # (1)!
+    }
+    SYMBOLS {
+        __LOADADDR__: type = import;
+    }
+    MEMORY {
+        ZP:       file = "", start = $0002,  size = $00FE,      define = yes;
+        LOADADDR: file = %O, start = %S - 2, size = $0002; # (2)!
+        MAIN:     file = %O, start = %S,     size = $D000 - %S;
+    }
+    SEGMENTS {
+        ZEROPAGE: load = ZP,       type = zp,  optional = yes;
+        LOADADDR: load = LOADADDR, type = ro;
+        EXEHDR:   load = MAIN,     type = ro,  optional = yes;
+        CODE:     load = MAIN,     type = rw;
+        RODATA:   load = MAIN,     type = ro,  optional = yes;
+        DATA:     load = MAIN,     type = rw,  optional = yes;
+        BSS:      load = MAIN,     type = bss, optional = yes, define = yes;
+    }
+    ```
 
-    If you do not set `KICKASS_JAR`, Regenerator 2000 searches for `KickAss.jar` in the current working directory.
-
-## ca65
-
-**ca65** is the macro assembler included in the **cc65** compiler suite.
-
-- **Website**: [https://cc65.github.io/](https://cc65.github.io/)
-
-### Command Line
-
-Regenerator 2000 generates a single assembly file. Use the `cl65` utility from cc65 to assemble and link the file in one step:
-
-```bash
-cl65 -t c64 -C c64-asm.cfg -o output.prg input.asm
-```
-
-- `-t c64`: Set the target platform to Commodore 64.
-- `-C c64-asm.cfg`: Use the default linker configuration file for C64 assembly.
-- `-o`: Specify the output filename.
-
-If the program origin is `$0801`, this command works without modification. The default configuration file [c64-asm.cfg][c64-asm.cfg] sets the start address to `$0801`:
-
-```text
-FEATURES {
-    STARTADDRESS: default = $0801;
-}
-SYMBOLS {
-    __LOADADDR__: type = import;
-}
-MEMORY {
-    ZP:       file = "", start = $0002,  size = $00FE,      define = yes;
-    LOADADDR: file = %O, start = %S - 2, size = $0002;
-    MAIN:     file = %O, start = %S,     size = $D000 - %S;
-}
-SEGMENTS {
-    ZEROPAGE: load = ZP,       type = zp,  optional = yes;
-    LOADADDR: load = LOADADDR, type = ro;
-    EXEHDR:   load = MAIN,     type = ro,  optional = yes;
-    CODE:     load = MAIN,     type = rw;
-    RODATA:   load = MAIN,     type = ro,  optional = yes;
-    DATA:     load = MAIN,     type = rw,  optional = yes;
-    BSS:      load = MAIN,     type = bss, optional = yes, define = yes;
-}
-```
-
-If your binary uses a different origin, create a custom configuration file. Copy `c64-asm.cfg` and update `STARTADDRESS`. See the "Configuration Files" section in the [ld65 documentation][cc65-docs].
+    1. Change `$0801` (or pass `--start-addr`) if your binary loads elsewhere.
+    2. Reserves the 2-byte `.prg` load-address header immediately before `MAIN`.
+    ///
 
 [c64-asm.cfg]: https://github.com/cc65/cc65/blob/master/cfg/c64-asm.cfg
 [cc65-docs]: https://cc65.github.io/doc/ld65.html#s5
 
 ---
 
-## Assembler Comparison
-
-Regenerator 2000 translates disassembly structures into the syntax required by each target assembler.
+## Assembler Syntax Comparison
 
 ### Fill Directives
 
-If a memory range contains identical values and exceeds the **Fill run threshold** in Document Settings, Regenerator 2000 emits a fill directive:
+Contiguous runs of identical bytes meeting the **Fill run threshold** in [Document Settings](settings.md) emit fill directives:
 
-| Assembler      | Directive       | Example syntax        |
-| :------------- | :-------------- | :-------------------- |
-| 64tass         | `.fill`         | `.fill 10, $00`       |
-| ACME           | `!fill`         | `!fill 10, $00`       |
-| ca65           | `.res`          | `.res 10, $00`        |
-| KickAssembler  | `.fill`         | `.fill 10, $00`       |
+| Assembler | Directive | Example (`10` zero bytes) |
+| :--- | :--- | :--- |
+| **64tass** | `.fill` | `.fill 10, $00` |
+| **ACME** | `!fill` | `!fill 10, $00` |
+| **ca65** | `.res` | `.res 10, $00` |
+| **KickAssembler** | `.fill` | `.fill 10, $00` |
 
 ### Scope Directives
 
-Scopes isolate local label names (such as `loop` or `next`) so you can reuse them across routines without name collisions:
+Scopes isolate local label names inside subroutines (see [Block Types — Scopes](blocks.md#scopes)):
 
-| Assembler      | Start Directive | End Directive    | Notes                    |
-| :------------- | :-------------- | :--------------- | :----------------------- |
-| 64tass         | `.block`        | `.bend`          |                          |
-| ACME           |                 |                  | Not supported (ignored)  |
-| ca65           | `.proc`         | `.endproc`       |                          |
-| KickAssembler  | `{`             | `}`              | Label precedes `{`       |
+| Assembler | Start Directive | End Directive | Notes |
+| :--- | :--- | :--- | :--- |
+| **64tass** | `.block` | `.bend` | Scope label precedes `.block` |
+| **ACME** | — | — | Not supported (omitted on export) |
+| **ca65** | `.proc` | `.endproc` | Unnamed scopes default to `unnamed_scope` |
+| **KickAssembler** | `{` | `}` | Scope label precedes `{` |
 
 ---
 
-## Verifying Exports
+## Verifying Exports (`--verify`)
 
-Regenerator 2000 includes a **roundtrip verification** mode. This mode exports your project to all four assemblers, assembles each file, and compares the output byte-for-byte against the original binary.
-
-### Usage
+Run roundtrip verification to export your `.regen2000proj` to every installed assembler, reassemble each file, and verify byte-for-byte parity with the original binary:
 
 ```bash
 regenerator2000 --verify my_project.regen2000proj
 ```
 
-The `--verify` flag enables `--headless` automatically and accepts only `.regen2000proj` files.
+*(Enables `--headless` automatically. Any assembler missing from `PATH`—`64tass`, `acme`, `cl65`, or `KICKASS_JAR`—is skipped cleanly as long as at least one assembler runs.)*
 
-### Requirements
-
-Install the target assemblers and add them to your `PATH`:
-
-| Assembler      | Binary / Command | Notes                                                        |
-| :------------- | :--------------- | :----------------------------------------------------------- |
-| 64tass         | `64tass`         | Must be in `PATH`                                            |
-| ACME           | `acme`           | Must be in `PATH`                                            |
-| ca65 (cc65)    | `cl65`           | Must be in `PATH`                                            |
-| KickAssembler  | `java -jar ...`  | Requires `KICKASS_JAR` env var (see [above](#kickassembler)) |
-
-If an assembler is missing, Regenerator 2000 skips it. A missing assembler does not cause the verification run to fail. At least one assembler must be available for verification to succeed.
-
-### Example Output
-
-```text
+```text title="Sample output"
 Roundtrip Export Verification
 =============================
   ✓ 64tass — byte-identical (2049 bytes)

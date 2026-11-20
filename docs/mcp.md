@@ -1,586 +1,656 @@
+---
+icon: material/robot-outline
+description: Connect AI assistants like Claude Code and Antigravity via HTTP/SSE or stdio MCP with 29 structured tools and 5 reverse-engineering skills.
+---
+
 # MCP Integration
 
-Regenerator 2000 supports the **Model Context Protocol (MCP)**. AI agents such as **Antigravity** and **Claude Code** connect to the MCP server to inspect and modify your disassembly project directly.
+Regenerator 2000 includes a built-in **Model Context Protocol (MCP)** server so AI coding assistants—such as **Antigravity** and **Claude Code**—can inspect memory, trace subroutines, rename symbols, and classify blocks directly inside your active project.
 
-Through the MCP server, an AI assistant performs four core operations:
+Through MCP, an assistant can:
 
--   **Read** disassembly text, memory dumps, and project state.
--   **Modify** comments, labels, symbolic offsets, immediate formats, scopes, enums, and block types.
--   **Navigate** to memory addresses and move the cursor.
--   **Analyze** code structure and control flow.
+**Read**
+:   Disassembly listings, raw memory hexdumps, block maps, labels, comments, and typed cross-references.
 
-!!! note "What is MCP?"
+**Modify**
+:   Labels, line/side comments, symbolic offsets, immediate formats, lexical scopes, enums, splitters, and block types—all tracked in the undo stack.
 
-    The Model Context Protocol (MCP) is an open standard that connects AI models to local applications and data sources. See [modelcontextprotocol.io](https://modelcontextprotocol.io) for specification details.
+**Navigate & Analyze**
+:   Jump the TUI cursor to symbols or addresses, search memory or disassembly, run recursive flow analysis, and unpack compressed binaries.
 
-## Modes of Operation
+/// details | What is MCP?
+    type: info
 
-Regenerator 2000 supports two MCP transport modes:
+The Model Context Protocol (MCP) is an open standard that lets AI models call structured tools and read resources exposed by local applications. See [modelcontextprotocol.io](https://modelcontextprotocol.io) for the protocol specification.
+///
 
-1.  **HTTP Mode (Streamable/SSE)** (Recommended):
+---
 
-    -   Runs the MCP server over HTTP with Server-Sent Events (SSE).
-    -   Supports concurrent TUI and AI usage in the same session.
-    -   **Flag**: `--mcp-server` (starts the TUI and HTTP server on port `3000`).
-    -   **Flag**: `--mcp-server --headless` (starts the headless HTTP server on port `3000`).
-    -   **Endpoint**: `http://127.0.0.1:3000/mcp`
+## Transport Modes
 
-2.  **Stdio Mode (Headless)**:
+| Mode | CLI Flag | Endpoint / Transport | Best For |
+| :--- | :--- | :--- | :--- |
+| **HTTP (Streamable / SSE)** *(Recommended)* | `--mcp-server` *(add `--headless` to skip TUI)* | `http://127.0.0.1:3000/mcp` | Live pair reverse-engineering where the AI updates the TUI in real time |
+| **Stdio (Headless)** | `--mcp-server-stdio` *(implies `--headless`)* | Standard I/O subprocess | Automated pipelines or clients (like Claude Desktop) that launch the server on demand |
 
-    -   Starts a headless instance of Regenerator 2000 over standard input/output.
-    -   Works with local AI clients (such as Claude Desktop or Claude Code) that spawn the server as a subprocess.
-    -   **Flag**: `--mcp-server-stdio` (implies `--headless`).
+---
 
-## Configuration
+## Setup & Configuration
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/_HW2d7kNCQw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+!!! tip "Video Walkthrough"
+
+    Prefer to watch the workflow in action?
+
+    [:material-youtube: Watch the MCP Setup & Demo Video](https://www.youtube.com/watch?v=_HW2d7kNCQw){ .md-button }
 
 ### 1. Start the Server
 
-Start Regenerator 2000 with the `--mcp-server` flag before you connect an MCP client. This command opens the TUI and starts the HTTP server on `http://127.0.0.1:3000/mcp`:
+Start Regenerator 2000 with `--mcp-server` **before** launching your AI client so the client connects cleanly at startup:
 
-```shell
-# Open your project with the server enabled
+```bash title="Terminal"
 regenerator2000 --mcp-server your_project.regen2000proj
 ```
 
-### 2. Configure the Client
+### 2. Connect Your Client
 
-!!! tip
+=== "Claude Code"
 
-    Start `regenerator2000 --mcp-server` **before** you start Claude Code or Antigravity so the client connects at startup.
+    Register the HTTP server from your terminal:
 
-#### Claude Code
+    ```bash
+    claude mcp add -t http regenerator2000 http://127.0.0.1:3000/mcp
+    ```
 
-Run this command to register Regenerator 2000 with Claude Code:
+    /// details | Manual JSON config (`claude.json`)
+        type: example
 
-```shell
-claude mcp add -t http regenerator2000 http://127.0.0.1:3000/mcp
-```
-
-Alternatively, add this block to `claude.json`:
-
-```json
-{
-  "mcpServers": {
-    "regenerator2000": {
-      "type": "http",
-      "url": "http://127.0.0.1:3000/mcp"
-    }
-  }
-}
-```
-
-#### Antigravity CLI
-
-Run this command to register the running server with Antigravity CLI:
-
-```bash
-# Example connection command
-agy mcp add regenerator2000 http://127.0.0.1:3000/mcp --scope user -t http
-```
-
-Alternatively, add this block to `~/.gemini/antigravity/mcp_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "regenerator2000": {
-      "serverUrl": "http://127.0.0.1:3000/mcp",
-      "headers": {
-        "Accept": "application/json, text/event-stream",
-        "Content-Type": "application/json"
+    ```json title="claude.json"
+    {
+      "mcpServers": {
+        "regenerator2000": {
+          "type": "http",
+          "url": "http://127.0.0.1:3000/mcp"
+        }
       }
     }
-  }
-}
-```
+    ```
+
+    ///
+
+=== "Antigravity CLI"
+
+    Register the HTTP server globally with `agy`:
+
+    ```bash
+    agy mcp add regenerator2000 http://127.0.0.1:3000/mcp --scope user -t http
+    ```
+
+    /// details | Manual JSON config (`~/.gemini/antigravity/mcp_config.json`)
+        type: example
+
+    ```json title="~/.gemini/antigravity/mcp_config.json"
+    {
+      "mcpServers": {
+        "regenerator2000": {
+          "serverUrl": "http://127.0.0.1:3000/mcp",
+          "headers": {
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json"
+          }
+        }
+      }
+    }
+    ```
+
+    ///
+
+---
 
 ## Common Workflows
 
-Combine AI semantic analysis with Regenerator 2000 tools to accelerate reverse engineering.
+Click through four typical prompts to see which MCP tools the assistant orchestrates behind the scenes:
 
-### 1. Analyze a Routine
+=== "Analyze a Routine"
 
-**Goal**: Identify what a subroutine does, rename its variables, and add documentation comments.
+    > *"Analyze the routine at $C000. It checks sprite collisions. Rename variables and add comments that explain the logic."*
 
-!!! example "Prompt"
+    The assistant calls `r2000_read_region` and `r2000_get_address_details` around `$C000`, traces control flow and hardware register reads (such as `$D01E` for sprite collisions), then renames symbols and writes header/side comments via `r2000_set_label_name` and `r2000_set_comment`.
 
-    > "Analyze the routine at $C000. It checks sprite collisions. Rename variables and add comments that explain the logic."
+=== "Separate Code vs. Data"
 
-**Behavior**: The AI reads the disassembly at `$C000`, traces control flow, and identifies hardware register accesses (such as `$D01E` for sprite collisions). Then it calls `r2000_set_label_name` and `r2000_set_comment` to update the project.
+    > *"Scan $2000–$4000. Disassemble valid code sequences, mark tables as bytes, and mark strings as PETSCII."*
 
-### 2. Identify Code vs. Data
+    The assistant inspects raw bytes and existing regions via `r2000_read_region` and `r2000_get_blocks`, then applies classifications in bulk using `r2000_disassemble` and `r2000_set_data_type` (`"code"`, `"byte"`, or `"petscii"`).
 
-**Goal**: Separate code from graphics and data tables in an unanalyzed memory range.
+=== "Trace Cross-References"
 
-!!! example "Prompt"
+    > *"Find every `JSR $FFD2` (CHROUT) call and comment the character value loaded before each call."*
 
-    > "Scan the region from $2000 to $4000. Identify valid code sequences and mark the rest as byte data. Mark text strings as PETSCII."
+    The assistant queries `r2000_get_cross_references` for `$FFD2`, reads the preceding `LDA #$XX` instructions at each call site, and annotates each caller with `r2000_set_comment`.
 
-**Behavior**: The AI calls `r2000_read_region` and `r2000_get_blocks` to inspect the memory range, then calls `r2000_set_data_type` with `"data_type": "code"`, `"byte"`, or `"petscii"`.
+=== "Semantic Navigation"
 
-### 3. Trace Cross-References
+    > *"Jump to the high score table."* / *"Go to the interrupt handler."*
 
-**Goal**: Locate every reference to a global variable or subroutine.
+    The assistant searches labels and comments via `r2000_get_symbols` or `r2000_search_disassembly`, resolves the target address, and moves your live TUI cursor there with `r2000_jump_to_address`.
 
-!!! example "Prompt"
-
-    > "Find all `JSR $FFD2` (CHROUT) calls. Document the character or value loaded before each call."
-
-**Behavior**: The AI calls `r2000_get_cross_references` for `$FFD2`, inspects the instructions before each call site (such as `LDA #$05`), and adds side comments.
-
-### 4. Semantic Navigation
-
-**Goal**: Navigate the project using natural-language queries instead of hexadecimal addresses.
-
-!!! example "Prompt"
-
-    > "Jump to the high score table."
-
-    > "Go to the interrupt handler."
-
-**Behavior**: The AI searches the symbol table or disassembly text, locates the target address, and calls `r2000_jump_to_address` to move the TUI cursor.
+---
 
 ## Agent Skills
 
-**Skills** are reusable instruction files in `.agent/skills/` that guide AI agents through multi-step reverse-engineering workflows.
+**Skills** are reusable workflow playbooks stored in `.agent/skills/` that guide AI agents through multi-step reverse engineering.
 
-### Installation
-
-Copy the skill folders into your project directory:
-
-```shell
+```bash title="Copy skills into your analysis workspace"
 cp -r .agent/skills/r2000* /path/to/your/project/.agent/skills/
 ```
 
-The target directory structure appears as follows:
-
-```text
+```text title="Expected directory layout"
 your_project/
 └── .agent/
     └── skills/
-        └── r2000-analyze-blocks/   (or whichever skill you copied)
+        └── r2000-analyze-blocks/
             └── SKILL.md
 ```
 
 !!! note "Claude Code users"
 
-    Claude Code loads skills from `.claude/` instead of `.agent/`. Create a symbolic link so both Antigravity and Claude Code share the same skill files:
+    Claude Code loads skills from `.claude/` instead of `.agent/`. Create a symlink so both clients share the same skill folders:
 
-    ```shell
+    ```bash
     ln -s .agent .claude
     ```
 
 ### Recommended Workflow
 
-Run the analysis skills in this sequence:
+Run the four individual skills in order—or launch **`r2000-analyze-program`** to orchestrate all four automatically using parallel subagents:
 
-1.  **BASIC Stub Analysis**: Run `r2000-analyze-basic` to decode tokenized Commodore BASIC lines and `SYS` entry points.
-2.  **Macro Analysis**: Run `r2000-analyze-blocks` to partition the binary into code and data blocks.
-3.  **Micro Analysis (Control Flow)**: Run `r2000-analyze-routine` to document individual subroutines.
-4.  **Micro Analysis (Data Flow)**: Run `r2000-analyze-symbol` to classify variables, pointers, and hardware registers.
+| Skill | Scope | Example Prompts |
+| :--- | :--- | :--- |
+| `r2000-analyze-program` | Full program (orchestrates all 4 skills in parallel) | *"Analyze this program"*, *"Full analysis"* |
+| `r2000-analyze-basic` | Tokenized Commodore BASIC header & `SYS` entry | *"Analyze BASIC"*, *"Decode BASIC header"* |
+| `r2000-analyze-blocks` | Macro partitioning into code, text, and tables | *"Analyze blocks"*, *"Classify the program"* |
+| `r2000-analyze-routine` | Single subroutine control flow and header comments | *"Analyze this routine"*, *"What does this function do?"* |
+| `r2000-analyze-symbol` | Single address/variable cross-references & naming | *"Analyze this label"*, *"What is this variable?"* |
 
-Alternatively, run **`r2000-analyze-program`** to execute all four skills automatically with parallel subagents.
+/// details | Skill details: `r2000-analyze-program`
+    type: note
 
-### Skill: `r2000-analyze-program`
+Coordinates BASIC decoding, block classification, and parallel subagent analysis of routines and symbols:
 
-Analyzes all of the loaded binary. This orchestrator coordinates BASIC decoding, block classification, and parallel subagent analysis of routines and symbols:
+1. **Phase 0 — Gather Context:** Reads binary metadata, entropy, existing blocks, symbols, and comments.
+2. **Phase 1 — Decode BASIC & Classify Blocks:** Runs `r2000-analyze-basic` on BASIC headers and `r2000-analyze-blocks` across undefined regions.
+3. **Phase 2 — Analyze Routines:** Collects unanalyzed subroutines (`s_XXXX`, uncommented `JSR` targets, `p_XXXX` pointers inside `Code` blocks, and `start`) and spawns parallel subagents running `r2000-analyze-routine`.
+4. **Phase 3 — Analyze Symbols:** Collects unanalyzed data symbols (`zpp_`, `zpf_`, `zpa_`, `p_`, `f_`, `a_`) and spawns parallel subagents running `r2000-analyze-symbol`.
+5. **Phase 4 — Save & Report:** Saves the project and summarizes analyzed routines, renamed symbols, and ambiguous regions.
+///
 
-1.  **Phase 0 — Gather Context**: Reads binary metadata, entropy, existing blocks, symbols, and comments.
-2.  **Phase 1 — Decode BASIC & Classify Blocks**: Runs `r2000-analyze-basic` on BASIC headers and `r2000-analyze-blocks` across undefined memory regions.
-3.  **Phase 2 — Analyze Routines**: Finds unanalyzed subroutines (`s_XXXX` labels, uncommented `JSR` targets, `p_XXXX` pointers inside `Code` blocks, and the `start` entry point). Spawns parallel subagents that run `r2000-analyze-routine`.
-4.  **Phase 3 — Analyze Symbols**: Finds unanalyzed data symbols with auto-generated prefixes (`zpp_`, `zpf_`, `zpa_`, `p_`, `f_`, `a_`). Spawns parallel subagents that run `r2000-analyze-symbol` to classify and rename each symbol.
-5.  **Phase 4 — Save & Report**: Saves the project and generates a summary report of analyzed routines, renamed symbols, and ambiguous items.
+/// details | Skill details: `r2000-analyze-basic`
+    type: note
 
-!!! example "Prompt"
+Decodes tokenized Commodore BASIC lines at the system BASIC start address:
 
-    > "Analyze this program", "Full analysis", "Analyze everything"
+1. Resolves the BASIC start address from `r2000_get_binary_info` (`$0801` C64, `$1C01` C128, `$1001`/`$0401`/`$1201` VIC-20, `$0401` PET, `$1001` Plus/4 & C16).
+2. Walks the 16-bit next-line pointer chain until the `$00 $00` end-of-program marker.
+3. Formats next-line pointers as `address`, line numbers as `word`, and token payloads as `byte` blocks.
+4. Adds decoded BASIC statements as side comments and disassembles unmarked `SYS` targets.
+///
 
-### Skill: `r2000-analyze-basic`
+/// details | Skill details: `r2000-analyze-blocks`
+    type: note
 
-Decodes tokenized Commodore BASIC sequences at the system BASIC start address and formats each line with plain BASIC side comments:
+Scans a memory range (or the full binary) and converts regions into block types:
 
-1.  Resolves the BASIC start address from `r2000_get_binary_info` (`$0801` on C64, `$1C01` on C128, `$1001`/`$0401`/`$1201` on VIC-20, `$0401` on PET, or `$1001` on Plus/4 and C16).
-2.  Walks the 16-bit next-line pointer chain until the `$00 $00` end-of-program marker.
-3.  Formats next-line pointers as `address`, line numbers as `word`, and token payloads as `byte` blocks.
-4.  Adds decoded BASIC source statements as side comments and disassembles unmarked `SYS` targets.
+1. Reads the target address range via `r2000_get_binary_info` and existing blocks via `r2000_get_blocks`.
+2. Traces code from entry points, locates text strings, detects data tables, and classifies remaining regions.
+3. Applies block conversions in batches via `r2000_batch_execute`.
+4. Inserts splitters via `r2000_toggle_splitter` to separate adjacent tables of the same type.
+5. Labels and comments notable regions (entry points, strings, jump tables), then summarizes classified blocks and flags ambiguous ranges.
+///
 
-!!! example "Prompt"
+/// details | Skill details: `r2000-analyze-routine`
+    type: note
 
-    > "Analyze BASIC", "Decode BASIC header", "Create side comments for BASIC lines"
+Documents a single subroutine by inspecting instructions, cross-references, and memory accesses:
 
-### Skill: `r2000-analyze-blocks`
+1. Identifies start and end addresses (entry point to `RTS`, `JMP`, or `RTI`).
+2. Decodes instruction flow, loops, KERNAL calls, and hardware register accesses.
+3. Inspects cross-references to determine call context.
+4. Analyzes zero-page variables and memory operands.
+5. Summarizes purpose, inputs, outputs, and side effects, then adds a header line comment and renames the routine label.
+///
 
-Scans a memory range (or the entire binary) and converts each region to the appropriate block type:
+/// details | Skill details: `r2000-analyze-symbol`
+    type: note
 
-1.  Reads the target address range via `r2000_get_binary_info`.
-2.  Reads existing block classifications via `r2000_get_blocks`.
-3.  Traces code from entry points, locates text strings, detects data tables, and classifies remaining regions.
-4.  Applies block conversions in batches via `r2000_batch_execute`.
-5.  Inserts splitters via `r2000_toggle_splitter` to separate adjacent tables of the same type.
-6.  Labels and comments notable regions (entry points, strings, and jump tables).
-7.  Outputs a summary of all classified blocks and flags ambiguous regions for manual review.
+Determines the role of a memory address or label from its cross-references and usage patterns:
 
-**Supported block types:** Code, Byte, Word, Address, PETSCII Text, Screencode Text, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined.
+1. Identifies target address, current label, and target platform.
+2. Checks whether the address maps to a hardware register or ROM entry point.
+3. Inspects cross-references to classify read, write, and read-modify-write patterns.
+4. Classifies the symbol as a pointer, flag, loop counter, or state variable.
+5. Renames variables (`snake_case`) or constants (`UPPER_CASE`) and documents data flow via `r2000_set_comment`.
+///
 
-!!! example "Prompt"
-
-    > "Analyze blocks", "Convert blocks", "Identify data regions", "Classify the program"
-
-### Skill: `r2000-analyze-routine`
-
-Analyzes a subroutine by inspecting its instructions, cross-references, and memory accesses:
-
-1.  Identifies the start and end addresses of the subroutine (entry point to `RTS`, `JMP`, or `RTI`).
-2.  Decodes the instruction flow, loops, KERNAL calls, and hardware register accesses.
-3.  Inspects cross-references to determine the call context.
-4.  Analyzes zero-page variables and memory operands.
-5.  Summarizes the purpose, inputs, outputs, and side effects of the routine.
-6.  Adds a header comment block above the entry point and renames the subroutine label.
-
-!!! example "Prompt"
-
-    > "Analyze this routine", "What does this function do?"
-
-### Skill: `r2000-analyze-symbol`
-
-Analyzes a memory address or label by inspecting its cross-references and access patterns:
-
-1.  Identifies the target address, current label, and target platform.
-2.  Checks whether the address maps to a hardware register or ROM entry point.
-3.  Inspects all cross-references to classify read, write, and read-modify-write operations.
-4.  Classifies the symbol as a pointer, flag, loop counter, or state variable.
-5.  Renames the symbol using `snake_case` for variables or `UPPER_CASE` for constants.
-6.  Adds line and side comments via `r2000_set_comment` to document data flow.
-
-!!! example "Prompt"
-
-    > "Analyze this label", "What is this variable?", "Trace this address"
+---
 
 ## Available Resources
 
-The server exposes **6** resources:
+| Resource URI | MIME Type | Contents |
+| :--- | :--- | :--- |
+| `binary://main` | `application/octet-stream` | Raw PRG payload (including 2-byte load address header) as base64 |
+| `disassembly://current` | `text/x-asm` | Complete disassembled text of the active binary |
+| `hexdump://current` | `text/plain` | Formatted memory hexdump of the active binary |
+| `symbols://current` | `application/json` | All user, system, and auto-generated labels |
+| `comments://current` | `application/json` | All user line and side comments |
+| `blocks://current` | `application/json` | All memory block classifications and byte ranges |
 
--   `binary://main`: Raw PRG binary payload (including the 2-byte load address header) encoded as a base64 blob (`application/octet-stream`).
--   `disassembly://current`: Complete disassembled text of the active binary file (`text/x-asm`).
--   `hexdump://current`: Formatted memory hexdump of the active binary file (`text/plain`).
--   `symbols://current`: All labels, routines, and symbols defined in the active disassembly session (`application/json`).
--   `comments://current`: All user line and side comments in the active disassembly session (`application/json`).
--   `blocks://current`: All memory block classifications and byte ranges (`application/json`).
+---
 
 ## Available Tools
 
-The server exposes **29** tools.
+The server exposes **29** tools across **5** categories. Expand any tool below to inspect its full description and argument schema.
 
-### `r2000_add_scope`
+### Inspection & Reading
 
-Adds a lexical scope over the specified memory range to group a subroutine. New symbols inside this range default to local scope and require explicit scope qualification from outside. Regenerator 2000 does not support nested scopes.
+| Tool | Summary |
+| :--- | :--- |
+| [`r2000_get_binary_info`](#r2000_get_binary_info) | Return origin address, size, target platform, filename, description, entropy (>7.2000003 suggests compression), and undocumented opcodes flag. |
+| [`r2000_get_blocks`](#r2000_get_blocks) | Return all memory blocks with their address ranges and types (Code, Byte, Word, Address, text, split tables, External File, Undefined). |
+| [`r2000_read_region`](#r2000_read_region) | Return disassembly or hexdump text for a specific memory range. |
+| [`r2000_read_selected`](#r2000_read_selected) | Return disassembly or hexdump text for the active UI selection, or the row under the cursor when no selection is active. |
+| [`r2000_get_address_details`](#r2000_get_address_details) | Return detailed information about a specific memory address: instruction semantics, cross-references, labels, comments, and block type. |
+| [`r2000_get_symbols`](#r2000_get_symbols) | Return defined labels (user, system, auto, and derived symbolic offsets) and their addresses. |
+| [`r2000_get_comments`](#r2000_get_comments) | Return user-defined comments and their addresses with optional filters. |
+| [`r2000_get_cross_references`](#r2000_get_cross_references) | Return a list of addresses that reference the given address (for example, JSR, JMP, or load/store instructions). |
 
-**Arguments:**
+/// details | `r2000_get_binary_info` — Return origin address, size, target platform, filename, description, entropy (>7.2000003 suggests compression), and undocumented opcodes flag.
+    type: abstract
+    attrs: {id: r2000_get_binary_info}
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer` | Inclusive end address of the scope in decimal. | Yes |
-| `start_address` | `integer` | Inclusive start address of the scope in decimal. | Yes |
-
-### `r2000_apply_enum_usage`
-
-Applies or clears an enum usage for an immediate operand at a specific address.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer` | Instruction address in decimal. | Yes |
-| `name` | `string` | Name of the enum to apply, or an empty string to clear. | No |
-
-### `r2000_batch_execute`
-
-Executes multiple tool calls sequentially in a single request. Use this tool to batch 5 or more independent operations.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `calls` | `array` | List of tool calls to execute sequentially. | Yes |
-
-### `r2000_create_project_enum`
-
-Creates a project-specific enum definition inside the project file.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `description` | `string` | Optional summary of the enum purpose. | No |
-| `name` | `string` | Unique alphanumeric identifier. | Yes |
-| `variants` | `object` | Map of numeric strings (decimal, hex `0x`/`$`, or binary `0b`/`%`) to variant names. | Yes |
-
-### `r2000_delete_project_enum`
-
-Deletes a project-specific enum definition.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `force` | `boolean` | Deletes the enum even when instructions reference it (default: `false`). | No |
-| `name` | `string` | Name of the enum to delete. | Yes |
-
-### `r2000_disassemble`
-
-Runs recursive flow disassembly from the specified start address.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer` | Start address to disassemble in decimal. | Yes |
-
-### `r2000_get_address_details`
-
-Returns instruction semantics, cross-references, labels, comments, symbolic offsets, and the block type for a memory address. The `metadata` object includes `cross_refs_in` (numeric source addresses) and `typed_cross_refs_in` (`address`, `from_address`, `from_hex`, `kind`, and `badge`). When a symbolic offset is active, `metadata` also includes `symbolic_offset` (`expression`, `base_address`, `base_hex`, `offset`, `radix`, and `scope`).
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer` | Memory address to inspect in decimal. | Yes |
-
-### `r2000_get_binary_info`
-
-Returns the origin address, size, target platform, filename, description, Shannon entropy (values above `7.4` indicate compression), and illegal-opcode hint.
+Return origin address, size, target platform, filename, description, entropy (>7.2000003 suggests compression), and undocumented opcodes flag.
 
 _No arguments._
+///
 
-### `r2000_get_blocks`
+/// details | `r2000_get_blocks` — Return all memory blocks with their address ranges and types (Code, Byte, Word, Address, text, split tables, External File, Undefined).
+    type: abstract
+    attrs: {id: r2000_get_blocks}
 
-Returns all memory blocks with their address ranges and block types. The block types are `Code`, `Byte`, `Word`, `Address`, `PETSCII`, `Screencode`, `Lo/Hi Address`, `Hi/Lo Address`, `Lo/Hi Word`, `Hi/Lo Word`, `External File`, and `Undefined`. This tool respects user splitters.
+Return all memory blocks with their address ranges and types (Code, Byte, Word, Address, text, split tables, External File, Undefined). Respects splitters.
 
-**Arguments:**
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `block_type` | `string` | No | Optional filter to return only blocks of a specific type. Case-insensitive. |
+///
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `block_type` | `string` | Case-insensitive filter that returns only blocks of a specific type. | No |
+/// details | `r2000_read_region` — Return disassembly or hexdump text for a specific memory range.
+    type: abstract
+    attrs: {id: r2000_read_region}
 
-### `r2000_get_comments`
+Return disassembly or hexdump text for a specific memory range.
 
-Returns user-defined comments and their addresses with optional filters.
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `end_address` | `integer` | Yes | End address (inclusive), decimal. |
+| `start_address` | `integer` | Yes | Start address (inclusive), decimal. |
+| `view` | `string` | No | The view to return. Default: 'disasm'. |
+///
 
-**Arguments:**
+/// details | `r2000_read_selected` — Return disassembly or hexdump text for the active UI selection, or the row under the cursor when no selection is active.
+    type: abstract
+    attrs: {id: r2000_read_selected}
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `addresses` | `array` | Optional list of memory addresses in decimal. | No |
-| `end_address` | `integer` | Optional inclusive upper address bound in decimal. | No |
-| `start_address` | `integer` | Optional inclusive lower address bound in decimal. | No |
-| `type` | `string` | Optional comment type filter (`'line'` or `'side'`). | No |
+Return disassembly or hexdump text for the active UI selection, or the row under the cursor when no selection is active.
 
-### `r2000_get_cross_references`
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `view` | `string` | No | The view to return. Default: 'disasm'. |
+///
 
-Returns a sorted, deduplicated list of typed references to the target address. Each object contains `address`, `from_address`, `from_hex` (`"$XXXX"`), `kind` (`"read"`, `"write"`, `"read_modify_write"`, `"call"`, `"jump"`, or `"offset"`), and `badge` (`"[R]"`, `"[W]"`, `"[R/W]"`, `"[C]"`, `"[J]"`, or `"[O]"`).
+/// details | `r2000_get_address_details` — Return detailed information about a specific memory address: instruction semantics, cross-references, labels, comments, and block type.
+    type: abstract
+    attrs: {id: r2000_get_address_details}
 
-**Arguments:**
+Return detailed information about a specific memory address: instruction semantics, cross-references, labels, comments, and block type.
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer` | Target address to query in decimal. | Yes |
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `address` | `integer` | Yes | The memory address to inspect (decimal). |
+///
 
-### `r2000_get_disassembly_cursor`
+/// details | `r2000_get_symbols` — Return defined labels (user, system, auto, and derived symbolic offsets) and their addresses.
+    type: abstract
+    attrs: {id: r2000_get_symbols}
 
-Returns the memory address of the current cursor position in the Disassembly View.
+Return defined labels (user, system, auto, and derived symbolic offsets) and their addresses. Without arguments, this tool returns all symbols. Optional filters narrow results by 'names', 'name', 'start_address', 'end_address', and 'kind'. Active filters combine with logical AND.
 
-_No arguments._
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `end_address` | `integer` | No | Optional upper bound (inclusive) of the address range to filter by (decimal). |
+| `kind` | `string` | No | Optional filter to return only symbols of a given kind. 'user' = user-defined labels, 'system' = predefined system labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000), 'derived' = global address symbolic offset expressions (e.g. zp_ptr + 1). |
+| `name` | `string` | No | Optional substring filter matching label names (or expression text and base label name for derived symbolic offsets). Case-sensitive. |
+| `names` | `array` | No | Optional list of label names to look up. Case-sensitive. |
+| `start_address` | `integer` | No | Optional lower bound (inclusive) of the address range to filter by (decimal). |
+///
 
-### `r2000_get_symbols`
+/// details | `r2000_get_comments` — Return user-defined comments and their addresses with optional filters.
+    type: abstract
+    attrs: {id: r2000_get_comments}
 
-Returns defined labels (user, system, auto, and derived symbolic offsets) and their addresses. Without arguments, this tool returns all symbols. Optional filters narrow the results with logical `AND`: `names` matches exact label names, `name` matches a substring, `start_address` and `end_address` restrict the address range, and `kind` filters by symbol kind.
+Return user-defined comments and their addresses with optional filters.
 
-**Arguments:**
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `addresses` | `array` | No | Optional list of memory addresses to query comments for (decimal). |
+| `end_address` | `integer` | No | Optional upper bound (inclusive) of the address range to filter by (decimal). |
+| `start_address` | `integer` | No | Optional lower bound (inclusive) of the address range to filter by (decimal). |
+| `type` | `string` | No | Optional filter for comment type ('line' or 'side'). |
+///
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer` | Optional inclusive upper address bound in decimal. | No |
-| `kind` | `string` | Optional symbol kind filter: `'user'` (user-defined labels), `'system'` (KERNAL and hardware registers), `'auto'` (analyzer labels such as `s_C000`), or `'derived'` (Tier 2 global symbolic offset expressions such as `zp_ptr + 1`). | No |
-| `name` | `string` | Optional case-sensitive substring filter matching label names (or expression text and base label name for `'derived'` symbolic offsets). | No |
-| `names` | `array` | Optional case-sensitive list of exact label names to match. | No |
-| `start_address` | `integer` | Optional inclusive lower address bound in decimal. | No |
+/// details | `r2000_get_cross_references` — Return a list of addresses that reference the given address (for example, JSR, JMP, or load/store instructions).
+    type: abstract
+    attrs: {id: r2000_get_cross_references}
 
-### `r2000_jump_to_address`
+Return a list of addresses that reference the given address (for example, JSR, JMP, or load/store instructions).
 
-Moves the disassembly cursor to a specific memory address, scrolls the viewport, and records the jump in navigation history.
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `address` | `integer` | Yes | The target address to find references to (decimal). |
+///
 
-**Arguments:**
+### Disassembly & Editing
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer` | Target address to jump to in decimal. | Yes |
+| Tool | Summary |
+| :--- | :--- |
+| [`r2000_disassemble`](#r2000_disassemble) | Run recursive flow disassembly starting at a specified address. |
+| [`r2000_set_data_type`](#r2000_set_data_type) | Set the block data type for a memory region (bytes, words, addresses, text, split tables, or external file; for executable code, prefer r2000_disassemble). |
+| [`r2000_set_label_name`](#r2000_set_label_name) | Set or delete a user-defined label (or global symbolic offset expression such as 'zp_ptr + 1') at a specific MOS 6502 memory address. |
+| [`r2000_set_comment`](#r2000_set_comment) | Set or delete a comment at a specific address. |
+| [`r2000_set_immediate_format`](#r2000_set_immediate_format) | Set the operand format for an immediate instruction at a specific address. |
+| [`r2000_set_symbolic_offset`](#r2000_set_symbolic_offset) | Format an operand, address table (including Lo/Hi, Hi/Lo, or contiguous RTS target-1 tables), or target address as a symbolic offset (e.g. |
+| [`r2000_add_scope`](#r2000_add_scope) | Add a lexical scope that covers the specified memory range. |
+| [`r2000_toggle_splitter`](#r2000_toggle_splitter) | Toggle a block splitter at a specific address. |
 
-### `r2000_read_region`
+/// details | `r2000_disassemble` — Run recursive flow disassembly starting at a specified address.
+    type: abstract
+    attrs: {id: r2000_disassemble}
 
-Returns disassembly or hexdump text for a specific memory range.
+Run recursive flow disassembly starting at a specified address.
 
-**Arguments:**
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `address` | `integer` | Yes | Start address to disassemble (decimal). |
+///
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer` | Inclusive end address in decimal. | Yes |
-| `start_address` | `integer` | Inclusive start address in decimal. | Yes |
-| `view` | `string` | View format to return (default: `'disasm'`). | No |
-
-### `r2000_read_selected`
-
-Returns disassembly or hexdump text for the active UI selection, or returns the row under the cursor when no selection is active.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `view` | `string` | View format to return (default: `'disasm'`). | No |
-
-### `r2000_redo`
-
-Redoes the most recently undone command.
-
-_No arguments._
-
-### `r2000_save_project`
-
-Saves the current project state to the active `.regen2000proj` file.
-
-_No arguments._
-
-### `r2000_search_disassembly`
-
-Searches disassembly text for a substring or regular expression and returns matching addresses with context (label, mnemonic, operand, and comment). By default, this tool searches labels, comments, and instructions.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `max_results` | `integer` | Maximum number of matching addresses to return (default: `50`). | No |
-| `query` | `string` | Case-insensitive search substring, or regular expression when `use_regex` is `true`. | Yes |
-| `search_comments` | `boolean` | Includes side and line comments in the search (default: `true`). | No |
-| `search_instructions` | `boolean` | Includes mnemonics and operands in the search (default: `true`). | No |
-| `search_labels` | `boolean` | Includes label names in the search (default: `true`). | No |
-| `use_regex` | `boolean` | Compiles `query` as a case-insensitive regular expression with `(?i)` (default: `false`). | No |
-
-### `r2000_search_memory`
-
-Searches binary memory for a byte sequence or text string and returns all matching addresses.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `encoding` | `string` | Query encoding: `'text'` searches PETSCII and Screencode, and `'hex'` searches raw byte patterns. | No |
-| `query` | `string` | Search query (space-separated hex bytes such as `'A9 00'`, or a plain text string). | Yes |
-
-### `r2000_set_comment`
-
-Sets or deletes a comment at a specific address. A `'line'` comment appears on a dedicated line before the instruction and supports multiple lines. A `'side'` comment appears inline next to the instruction. Pass an empty string (or omit `comment`) to delete an existing comment.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer` | Target memory address in decimal (for example, `4096` for `$1000`). | Yes |
-| `comment` | `string` | Comment text without a leading `;` character, or an empty string to delete the existing comment. | No |
-| `type` | `string` | Comment placement: `'line'` (above instruction) or `'side'` (inline). | Yes |
-
-### `r2000_set_data_type`
+/// details | `r2000_set_data_type` — Set the block data type for a memory region (bytes, words, addresses, text, split tables, or external file; for executable code, prefer r2000_disassemble).
+    type: abstract
+    attrs: {id: r2000_set_data_type}
 
 Set the block data type for a memory region (bytes, words, addresses, text, split tables, or external file; for executable code, prefer r2000_disassemble). Use 'address', 'lo_hi_address', or 'hi_lo_address' for pointer and jump tables—including RTS (target - 1) dispatch tables paired with r2000_set_symbolic_offset (offset: -1, scope: 'operand'). Reserve 'word', 'lo_hi_word', and 'hi_lo_word' for non-pointer numeric 16-bit values.
 
-**Arguments:**
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `data_type` | `string` | Yes | Data type classification: 'address', 'lo_hi_address', or 'hi_lo_address' for 16-bit pointer or RTS (target - 1) tables (enables cross-references and r2000_set_symbolic_offset); 'word', 'lo_hi_word', or 'hi_lo_word' for numeric 16-bit constants; 'byte', 'petscii', 'screencode', 'external_file', 'undefined', or 'code'. |
+| `end_address` | `integer` | Yes | End of the memory region (inclusive), decimal. |
+| `start_address` | `integer` | Yes | Start of the memory region (inclusive), decimal. |
+///
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `data_type` | `string` | Data type classification: 'address', 'lo_hi_address', or 'hi_lo_address' for 16-bit pointer or RTS (target - 1) tables (enables cross-references and r2000_set_symbolic_offset); 'word', 'lo_hi_word', or 'hi_lo_word' for numeric 16-bit constants; 'byte', 'petscii', 'screencode', 'external_file', 'undefined', or 'code'. | Yes |
-| `end_address` | `integer` | End of the memory region (inclusive), decimal. | Yes |
-| `start_address` | `integer` | Start of the memory region (inclusive), decimal. | Yes |
+/// details | `r2000_set_label_name` — Set or delete a user-defined label (or global symbolic offset expression such as 'zp_ptr + 1') at a specific MOS 6502 memory address.
+    type: abstract
+    attrs: {id: r2000_set_label_name}
 
-### `r2000_set_immediate_format`
+Set or delete a user-defined label (or global symbolic offset expression such as 'zp_ptr + 1') at a specific MOS 6502 memory address. Use this tool to name subroutines, variables, jump targets, or pointer/struct fields.
 
-Sets the operand format for an immediate instruction at a specific address. Supported formats include hexadecimal, decimal, binary, and low/high byte address references with optional signed offsets.
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `address` | `integer` | Yes | The memory address where the label should be set (decimal, e.g. 4096 for $1000). |
+| `name` | `string` | Yes | Label name (e.g. 'init_screen'), symbolic offset expression (e.g. 'zp_ptr + 1'), or '' to delete an existing user label or symbolic offset. |
+///
 
-**Arguments:**
+/// details | `r2000_set_comment` — Set or delete a comment at a specific address.
+    type: abstract
+    attrs: {id: r2000_set_comment}
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer` | Instruction address in decimal. | Yes |
-| `format` | `string` | Operand format: `'hex'` (`$00`), `'decimal'` (`0`), `'binary'` (`%00000000`), `'low_byte'` (`#<p_ADDRESS`), or `'high_byte'` (`#>p_ADDRESS`). | Yes |
-| `offset` | `integer` | Optional signed byte displacement (such as `-1` for `#<(sub_C100 - 1)`). Accepts a base or effective `target_address` and checks the immediate operand byte. | No |
-| `radix` | `string` | Offset radix when `offset` is non-zero: `'decimal'` (`- 1`) or `'hex'` (`- $1`). Default: `'decimal'`. | No |
-| `target_address` | `integer` | 16-bit target address in decimal (required when `format` is `'low_byte'` or `'high_byte'`). | No |
+Set or delete a comment at a specific address. 'line' comments appear on their own line before the instruction (multi-line supported). 'side' comments appear inline on the instruction line. Pass an empty string (or omit 'comment') to delete an existing comment.
 
-### `r2000_set_label_name`
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `address` | `integer` | Yes | The memory address for the comment (decimal, e.g. 4096 for $1000). |
+| `comment` | `string` | No | Comment text (omit the leading comment prefix character), or an empty string to delete the existing comment. |
+| `type` | `string` | Yes | 'line' = comment on its own line before the instruction. 'side' = inline comment on the same line. |
+///
 
-Sets or deletes a user-defined label or Tier 2 global symbolic offset (such as `'zp_ptr + 1'`) at a memory address. Use this tool to name subroutines, variables, jump targets, or pointer and struct fields.
+/// details | `r2000_set_immediate_format` — Set the operand format for an immediate instruction at a specific address.
+    type: abstract
+    attrs: {id: r2000_set_immediate_format}
 
-**Arguments:**
+Set the operand format for an immediate instruction at a specific address. Supports hexadecimal, decimal, binary, and low/high byte references to a 16-bit address (with optional signed symbolic byte displacement).
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer` | Target memory address in decimal (for example, `4096` for `$1000`). | Yes |
-| `name` | `string` | Label identifier (such as `'init_screen'`), symbolic offset expression (such as `'zp_ptr + 1'`), or `''` to delete an existing label or offset. | Yes |
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `address` | `integer` | Yes | The address of the instruction (decimal). |
+| `format` | `string` | Yes | hex=$00, decimal=0, binary=%00000000, low_byte=#<p_ADDRESS, high_byte=#>p_ADDRESS. |
+| `offset` | `integer` | No | Optional signed byte displacement (such as -1 for #<(sub_C100 - 1)). Accepts a base or effective target_address and checks the immediate operand byte. |
+| `radix` | `string` | No | Offset radix when offset is non-zero ('decimal' -> '- 1', 'hex' -> '- $1'). Default: 'decimal'. |
+| `target_address` | `integer` | No | The 16-bit target address decimal (e.g. 60000 for $EA31). Required when format is 'low_byte' or 'high_byte'. |
+///
 
-### `r2000_set_symbolic_offset`
+/// details | `r2000_set_symbolic_offset` — Format an operand, address table (including Lo/Hi, Hi/Lo, or contiguous RTS target-1 tables), or target address as a symbolic offset (e.g.
+    type: abstract
+    attrs: {id: r2000_set_symbolic_offset}
 
 Format an operand, address table (including Lo/Hi, Hi/Lo, or contiguous RTS target-1 tables), or target address as a symbolic offset (e.g. 'zp_ptr + 1', 'sub_C100 - 1'). For RTS dispatch tables, first set data_type to 'address', 'lo_hi_address', or 'hi_lo_address' (never 'word', 'lo_hi_word', or 'hi_lo_word'), then apply offset: -1 with scope: 'operand'. Pass 'address' for one site or address, or pass 'start_address' and 'end_address' for a table or struct range. Set the offset with 'expression' ('zp_ptr + 1' or '' to clear), 'base' (name or address), or 'offset' (signed integer, 0 to clear).
 
-**Arguments:**
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `address` | `integer` | No | Single instruction, table entry, or target memory address (decimal). |
+| `base` | `string \| integer` | No | Base symbol name (e.g. 'zp_ptr', 'SCREEN_RAM') or base address (e.g. 251 or '$00FB'). Automatically calculates offset = effective_address - base. |
+| `end_address` | `integer` | No | End address (inclusive, decimal) when applying to an address table or struct range. |
+| `expression` | `string` | No | Symbolic expression such as 'zp_ptr + 1', 'sub_C100 - 1', 'SCREEN_RAM + $28', or '' to clear. |
+| `offset` | `integer` | No | Signed byte displacement from base (e.g. -1 for RTS dispatch tables or 1-based indexed loops, +1 for pointer high byte, 0 to clear). Automatically calculates base = effective_address - offset. |
+| `radix` | `string` | No | Offset radix ('decimal' -> '+ 40', 'hex' -> '+ $28'). Default: 'decimal'. |
+| `scope` | `string` | No | 'operand' sets a per-site offset on the instruction or address table ('address', 'lo_hi_address', 'hi_lo_address') at address/range. 'address' sets a global offset on the target address across all references (or across a byte/word struct range). Default 'auto' uses 'operand' on instructions or address tables, and 'address' when no operand or address table exists (such as 'byte', 'word', or 'lo_hi_word' blocks). Pass explicit 'operand' for address/RTS tables. |
+| `start_address` | `integer` | No | Start address (inclusive, decimal) when applying to an address table or struct range. |
+///
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer` | Single instruction, table entry, or target memory address (decimal). | No |
-| `base` | `string \| integer` | Base symbol name (e.g. 'zp_ptr', 'SCREEN_RAM') or base address (e.g. 251 or '$00FB'). Automatically calculates offset = effective_address - base. | No |
-| `end_address` | `integer` | End address (inclusive, decimal) when applying to an address table or struct range. | No |
-| `expression` | `string` | Symbolic expression such as 'zp_ptr + 1', 'sub_C100 - 1', 'SCREEN_RAM + $28', or '' to clear. | No |
-| `offset` | `integer` | Signed byte displacement from base (e.g. -1 for RTS dispatch tables or 1-based indexed loops, +1 for pointer high byte, 0 to clear). Automatically calculates base = effective_address - offset. | No |
-| `radix` | `string` | Offset radix ('decimal' -> '+ 40', 'hex' -> '+ $28'). Default: 'decimal'. | No |
-| `scope` | `string` | 'operand' sets Tier 1 on the instruction or address table ('address', 'lo_hi_address', 'hi_lo_address') at address/range. 'address' sets Tier 2 on the target address across all references (or across a byte/word struct range). Default 'auto' uses 'operand' on instructions or address tables, and 'address' when no operand or address table exists (such as 'byte', 'word', or 'lo_hi_word' blocks). Pass explicit 'operand' for address/RTS tables. | No |
-| `start_address` | `integer` | Start address (inclusive, decimal) when applying to an address table or struct range. | No |
+/// details | `r2000_add_scope` — Add a lexical scope that covers the specified memory range.
+    type: abstract
+    attrs: {id: r2000_add_scope}
 
-### `r2000_toggle_splitter`
+Add a lexical scope that covers the specified memory range. Use this tool to isolate local labels inside a subroutine. Nested scopes are not supported.
 
-Toggles a block splitter at a specific address so the auto-merger does not combine adjacent blocks of the same type.
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `end_address` | `integer` | Yes | End address of the scope (inclusive), decimal. |
+| `start_address` | `integer` | Yes | Start address of the scope (inclusive), decimal. |
+///
 
-**Arguments:**
+/// details | `r2000_toggle_splitter` — Toggle a block splitter at a specific address.
+    type: abstract
+    attrs: {id: r2000_toggle_splitter}
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer` | Memory address in decimal where the splitter toggles. | Yes |
+Toggle a block splitter at a specific address. Splitters prevent the disassembler from merging adjacent blocks of the same type.
 
-### `r2000_undo`
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `address` | `integer` | Yes | The memory address where the splitter should be toggled (decimal). |
+///
 
-Undoes the most recent command.
+### Enums
+
+| Tool | Summary |
+| :--- | :--- |
+| [`r2000_create_project_enum`](#r2000_create_project_enum) | Create a new project-specific enum definition in the project state. |
+| [`r2000_update_project_enum`](#r2000_update_project_enum) | Update or rename an existing project-specific enum. |
+| [`r2000_delete_project_enum`](#r2000_delete_project_enum) | Delete a project-specific enum definition. |
+| [`r2000_apply_enum_usage`](#r2000_apply_enum_usage) | Apply or clear an enum usage annotation for an immediate operand at a specific address. |
+
+/// details | `r2000_create_project_enum` — Create a new project-specific enum definition in the project state.
+    type: abstract
+    attrs: {id: r2000_create_project_enum}
+
+Create a new project-specific enum definition in the project state.
+
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `description` | `string` | No | Optional summary of the enum purpose. |
+| `name` | `string` | Yes | Unique alphanumeric identifier. |
+| `variants` | `object` | Yes | Variant map where keys are numeric strings (decimal, hex 0x/$, bin 0b/%) and values are variant names. |
+///
+
+/// details | `r2000_update_project_enum` — Update or rename an existing project-specific enum.
+    type: abstract
+    attrs: {id: r2000_update_project_enum}
+
+Update or rename an existing project-specific enum.
+
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `description` | `string` | No | Optional updated summary of the enum purpose. |
+| `name` | `string` | Yes | Existing name of the enum to update. |
+| `new_name` | `string` | No | Optional new name when renaming the enum. |
+| `variants` | `object` | No | Variant map. |
+///
+
+/// details | `r2000_delete_project_enum` — Delete a project-specific enum definition.
+    type: abstract
+    attrs: {id: r2000_delete_project_enum}
+
+Delete a project-specific enum definition.
+
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `force` | `boolean` | No | When true, forces deletion even if the enum is in use. Defaults to false. |
+| `name` | `string` | Yes | Name of the enum to delete. |
+///
+
+/// details | `r2000_apply_enum_usage` — Apply or clear an enum usage annotation for an immediate operand at a specific address.
+    type: abstract
+    attrs: {id: r2000_apply_enum_usage}
+
+Apply or clear an enum usage annotation for an immediate operand at a specific address.
+
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `address` | `integer` | Yes | The address of the instruction (decimal). |
+| `name` | `string` | No | Name of the enum to apply, or empty string to clear. |
+///
+
+### Navigation & Search
+
+| Tool | Summary |
+| :--- | :--- |
+| [`r2000_get_disassembly_cursor`](#r2000_get_disassembly_cursor) | Return the memory address of the current cursor position in the disassembly view. |
+| [`r2000_jump_to_address`](#r2000_jump_to_address) | Move the disassembly cursor to a specific memory address, scroll the view to make it visible, and record the previous position in the navigation history. |
+| [`r2000_search_disassembly`](#r2000_search_disassembly) | Search disassembly text for a substring or regular expression. |
+| [`r2000_search_memory`](#r2000_search_memory) | Search memory for a byte sequence or text string and return matching addresses. |
+
+/// details | `r2000_get_disassembly_cursor` — Return the memory address of the current cursor position in the disassembly view.
+    type: abstract
+    attrs: {id: r2000_get_disassembly_cursor}
+
+Return the memory address of the current cursor position in the disassembly view.
 
 _No arguments._
+///
 
-### `r2000_unpack_binary`
+/// details | `r2000_jump_to_address` — Move the disassembly cursor to a specific memory address, scroll the view to make it visible, and record the previous position in the navigation history.
+    type: abstract
+    attrs: {id: r2000_jump_to_address}
 
-Runs dynamic 6502 unpacking emulation on the loaded binary payload.
+Move the disassembly cursor to a specific memory address, scroll the view to make it visible, and record the previous position in the navigation history.
 
-**Arguments:**
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `address` | `integer` | Yes | The target address to jump to (decimal). |
+///
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `depacker_address` | `string` | Optional forced depacker routine address. | No |
-| `entry_point` | `string` | Optional forced entry point address (hexadecimal string or integer). | No |
-| `max_instructions` | `integer` | Maximum number of instructions to emulate. | No |
-| `return_address` | `string` | Optional forced unpacked target address. | No |
+/// details | `r2000_search_disassembly` — Search disassembly text for a substring or regular expression.
+    type: abstract
+    attrs: {id: r2000_search_disassembly}
 
-### `r2000_update_project_enum`
+Search disassembly text for a substring or regular expression. Returns matching addresses with label, mnemonic, operand, and comment fields.
 
-Updates or renames an existing project-specific enum definition.
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `max_results` | `integer` | No | Maximum number of matching addresses to return. Defaults to 50. |
+| `query` | `string` | Yes | The search query. Interpreted as a case-insensitive substring by default, or as a regex when 'use_regex' is true. |
+| `search_comments` | `boolean` | No | Include side and line comments in the search. Defaults to true. |
+| `search_instructions` | `boolean` | No | Include mnemonic and operand text in the search. Defaults to true. |
+| `search_labels` | `boolean` | No | Include label names in the search. Defaults to true. |
+| `use_regex` | `boolean` | No | When true, compiles the query as a case-insensitive regular expression. Defaults to false. |
+///
 
-**Arguments:**
+/// details | `r2000_search_memory` — Search memory for a byte sequence or text string and return matching addresses.
+    type: abstract
+    attrs: {id: r2000_search_memory}
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `description` | `string` | Optional updated summary of the enum purpose. | No |
-| `name` | `string` | Current name of the enum to update. | Yes |
-| `new_name` | `string` | Optional new identifier when renaming the enum. | No |
-| `variants` | `object` | Updated variant map. | No |
+Search memory for a byte sequence or text string and return matching addresses.
+
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `encoding` | `string` | No | Encoding for the query. 'text' searches both PETSCII and Screencode. 'hex' searches raw byte patterns. Defaults to 'hex' when the query matches hex bytes, otherwise 'text'. |
+| `query` | `string` | Yes | The search query. For hex: space-separated bytes, e.g. 'A9 00'. For text: plain string. |
+///
+
+### Session, Batching & Unpacking
+
+| Tool | Summary |
+| :--- | :--- |
+| [`r2000_batch_execute`](#r2000_batch_execute) | Execute multiple tool calls sequentially in a single request. |
+| [`r2000_unpack_binary`](#r2000_unpack_binary) | Run dynamic 6502 unpacking analysis on the loaded binary payload. |
+| [`r2000_save_project`](#r2000_save_project) | Save the current project state to the active .regen2000proj file. |
+| [`r2000_undo`](#r2000_undo) | Undo the latest operation. |
+| [`r2000_redo`](#r2000_redo) | Redo the latest undone operation. |
+
+/// details | `r2000_batch_execute` — Execute multiple tool calls sequentially in a single request.
+    type: abstract
+    attrs: {id: r2000_batch_execute}
+
+Execute multiple tool calls sequentially in a single request. Use this tool only when you have 5 or more independent operations to run at once.
+
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `calls` | `array` | Yes | List of tool calls to execute sequentially. |
+///
+
+/// details | `r2000_unpack_binary` — Run dynamic 6502 unpacking analysis on the loaded binary payload.
+    type: abstract
+    attrs: {id: r2000_unpack_binary}
+
+Run dynamic 6502 unpacking analysis on the loaded binary payload.
+
+| Argument | Type | Required | Description |
+| :--- | :--- | :---: | :--- |
+| `depacker_address` | `string` | No | Optional forced depacker address. |
+| `entry_point` | `string` | No | Optional forced entry point address (hex string or integer). |
+| `max_instructions` | `integer` | No | Maximum instructions to emulate. |
+| `return_address` | `string` | No | Optional forced return address. |
+///
+
+/// details | `r2000_save_project` — Save the current project state to the active .regen2000proj file.
+    type: abstract
+    attrs: {id: r2000_save_project}
+
+Save the current project state to the active .regen2000proj file.
+
+_No arguments._
+///
+
+/// details | `r2000_undo` — Undo the latest operation.
+    type: abstract
+    attrs: {id: r2000_undo}
+
+Undo the latest operation.
+
+_No arguments._
+///
+
+/// details | `r2000_redo` — Redo the latest undone operation.
+    type: abstract
+    attrs: {id: r2000_redo}
+
+Redo the latest undone operation.
+
+_No arguments._
+///

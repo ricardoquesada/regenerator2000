@@ -1,167 +1,134 @@
+---
+icon: material/palette-outline
+description: Preview all 9 built-in 24-bit color themes and build partial or custom TOML palettes for Regenerator 2000.
+---
+
 # Themes
 
-Regenerator 2000 includes **9 built-in color themes**. Switch between them in **File → Settings** (++alt+p++ or ++ctrl+comma++) under the **Theme** option.
+Regenerator 2000 ships with **9 built-in 24-bit color themes**—switch anytime in **File → Settings** (++alt+p++ or ++ctrl+comma++).
 
-## Available Themes
+## Built-in Themes
 
-=== "Dracula"
+=== "Dracula (Default)"
 
-    **The default theme.** Uses a dark background with purple, pink, and cyan accent colors.
+    Dark slate canvas with purple, pink, and cyan highlights.
 
     ![Dracula](theme_dracula.png)
 
 === "Solarized Dark"
 
-    Uses a low-contrast dark palette designed by Ethan Schoonover.
+    Ethan Schoonover's calibrated low-contrast dark palette.
 
-    ![Solarized Dark](theme_solarized_dark.png)
+    ![Solarized Dark](theme_solarized_dark.png){ loading=lazy }
 
 === "Solarized Light"
 
-    Uses the light variant of the Solarized palette for bright environments.
+    High-legibility light Solarized variant for bright rooms.
 
-    ![Solarized Light](theme_solarized_light.png)
+    ![Solarized Light](theme_solarized_light.png){ loading=lazy }
 
 === "Gruvbox Dark"
 
-    Uses a dark palette with warm orange, yellow, and aqua tones.
+    Warm dark tones with orange, yellow, and aqua syntax contrast.
 
-    ![Gruvbox Dark](theme_gruvbox_dark.png)
+    ![Gruvbox Dark](theme_gruvbox_dark.png){ loading=lazy }
 
 === "Gruvbox Light"
 
-    Uses a warm light background with earthy accent colors.
+    Warm paper background with earthy contrast.
 
-    ![Gruvbox Light](theme_gruvbox_light.png)
+    ![Gruvbox Light](theme_gruvbox_light.png){ loading=lazy }
 
 === "Monokai"
 
-    Uses a dark background with high-contrast saturated accent colors.
+    Deep dark background paired with saturated, high-contrast accents.
 
-    ![Monokai](theme_monokai.png)
+    ![Monokai](theme_monokai.png){ loading=lazy }
 
 === "Nord"
 
-    Uses a low-contrast dark palette with cool blue tones.
+    Low-contrast arctic dark palette built on cool blue tones.
 
-    ![Nord](theme_nord.png)
+    ![Nord](theme_nord.png){ loading=lazy }
 
 === "Catppuccin Mocha"
 
-    Uses a dark background with warm pastel accent colors.
+    Dark background with warm pastel accents.
 
-    ![Catppuccin Mocha](theme_catppuccin_mocha.png)
+    ![Catppuccin Mocha](theme_catppuccin_mocha.png){ loading=lazy }
 
 === "Catppuccin Latte"
 
-    Uses a light background with pastel accent colors for daytime use.
+    Light daytime palette with crisp pastel highlights.
 
-    ![Catppuccin Latte](theme_catppuccin_latte.png)
+    ![Catppuccin Latte](theme_catppuccin_latte.png){ loading=lazy }
 
-## How to Change the Theme
+### Switching Themes
 
-1. Open **File → Settings** (++alt+p++ or ++ctrl+comma++).
-2. Select the **Theme** option.
-3. Change the theme with either method:
-    - Press ++left++ or ++right++ to cycle themes with a live preview.
-    - Press ++enter++ to open the theme selector popup and choose from the list.
-4. Select a theme. Then press ++enter++.
+Open **File → Settings** (++alt+p++ or ++ctrl+comma++), highlight **Theme**, and either press ++left++ / ++right++ to preview themes live or hit ++enter++ to pick from the popup list. Your selection is saved globally across projects.
 
-Regenerator 2000 saves the selected theme globally across sessions and projects.
+!!! tip "True-Color Terminal Recommended"
 
-!!! tip
+    All themes use 24-bit RGB colors—see [Recommended Terminals](install.md#recommended-terminals) for best rendering.
 
-    All themes use 24-bit RGB true color. Use a terminal with true-color support for accurate rendering. See [Recommended Terminals](install.md#recommended-terminals).
+---
 
 ## Custom Themes
 
-Place a `theme-*.toml` file in the application configuration directory to create a custom theme or override a built-in theme.
+Add `theme-*.toml` files to your configuration directory to create partial overrides or brand-new palettes:
 
-### Config Directory Location
+--8<-- "config_dir.md"
 
-| Platform    | Config directory                                          |
-|:------------|:----------------------------------------------------------|
-| **macOS**   | `~/Library/Application Support/regenerator2000/`          |
-| **Linux**   | `~/.config/regenerator2000/`                              |
-| **Windows** | `C:\Users\<User>\AppData\Roaming\regenerator2000\config\` |
+### Creating a Custom Theme
 
-### Getting Started
+1. Dump all built-in themes to use as starting points:
 
-Start from the built-in theme files to create a custom theme:
+    === "macOS"
 
-1. **Dump** all built-in themes to the configuration directory:
+        ```bash
+        regenerator2000 --dump-theme-files ~/Library/Application\ Support/regenerator2000/
+        ```
 
-    ```bash
-    # macOS
-    regenerator2000 --dump-theme-files ~/Library/Application\ Support/regenerator2000/
+    === "Linux"
 
-    # Linux
-    regenerator2000 --dump-theme-files ~/.config/regenerator2000/
+        ```bash
+        regenerator2000 --dump-theme-files ~/.config/regenerator2000/
+        ```
 
-    # Windows (PowerShell)
-    regenerator2000.exe --dump-theme-files $env:APPDATA\regenerator2000\config\
-    ```
+    === "Windows (PowerShell)"
 
-    This command writes every `theme-*.toml` file to the destination folder and exits.
+        ```powershell
+        regenerator2000.exe --dump-theme-files $env:APPDATA\regenerator2000\config\
+        ```
 
-2. **Edit** an existing file or create a new file (for example, `theme-green_screen.toml`):
+2. Create a partial override or full theme—any omitted color key inherits cleanly from `base`:
 
-    ```toml
-    name = "Green Screen"
-    base = "Solarized Dark"
-    background = "#003300"
+    ```toml title="theme-green_screen.toml"
+    name = "Green Screen"          # (1)!
+    base = "Solarized Dark"        # (2)!
+    background = "#003300"         # (3)!
     foreground = "#33FF33"
     border_active = "#33FF33"
     border_inactive = "#116611"
     ```
 
-3. **Start** Regenerator 2000. Your custom theme appears in **Settings → Theme**.
+    1. **Required.** Display name in **Settings → Theme**. Reuse a built-in name to override it.
+    2. Optional fallback theme for unspecified keys (defaults to `"Solarized Dark"`).
+    3. All color values use `"#RRGGBB"` 24-bit hex strings.
 
-### How It Works
+3. Restart Regenerator 2000 and pick **Green Screen** in **Settings → Theme**.
 
-- Name each theme file `theme-<name>.toml` (for example, `theme-green_screen.toml`).
-- Set the `name` field to the display name shown in the theme selector.
-- Set the optional `base` field to inherit unspecified colors from a built-in theme (defaults to `"Solarized Dark"`).
-- If a custom theme uses the **same name** as a built-in theme, it replaces the built-in theme.
-- Format all colors as hexadecimal strings: `"#RRGGBB"`.
+/// details | All 45 Theme Color Fields & `hex_color_palette`
+    type: info
 
-!!! tip
+Every key below accepts a `"#RRGGBB"` hex string (except `hex_color_palette`, an optional 18-entry array of `"#RRGGBB"` strings for the Hexdump color map):
 
-    Define **partial themes** that override only the colors you want to change. A partial theme inherits the remaining colors from a `base` theme.
-
-### TOML Schema Reference
-
-Every `theme-*.toml` file supports these top-level keys:
-
-| Field               | Type             | Description                                                                 |
-|:--------------------|:-----------------|:----------------------------------------------------------------------------|
-| `name`              | string           | **Required.** Unique display name in the theme selector.                    |
-| `base`              | string           | Optional. Built-in theme to inherit from. Defaults to `"Solarized Dark"`.   |
-| _color fields_      | string           | Optional. Hexadecimal color (`"#RRGGBB"`). See the list below.              |
-| `hex_color_palette` | array of strings | Optional. 18-entry array of hexadecimal colors for the Hex Dump palette.    |
-
-### Color Fields
-
-All color fields accept `#RRGGBB` hexadecimal strings. Omitted fields inherit their values from the base theme.
-
-**Base colors:** `background`, `foreground`, `border_active`, `border_inactive`, `selection_bg`,
-`selection_fg`, `block_selection_bg`, `block_selection_fg`, `status_bar_bg`, `status_bar_fg`
-
-**Code / Disassembly:** `address`, `bytes`, `mnemonic`, `operand`, `label`, `label_def`, `comment`,
-`arrow`, `collapsed_block`, `collapsed_block_bg`
-
-**Hex View:** `hex_bytes`, `hex_ascii`
-
-**UI Elements:** `dialog_bg`, `dialog_fg`, `dialog_border`, `menu_bg`, `menu_fg`, `menu_selected_bg`,
-`menu_selected_fg`, `menu_disabled_fg`, `sprite_multicolor_1`, `sprite_multicolor_2`,
-`charset_multicolor_1`, `charset_multicolor_2`
-
-**Highlights:** `highlight_fg`, `highlight_bg`, `error_fg`
-
-**Block Types (fg/bg):** `block_code_fg`, `block_code_bg`, `block_scope_fg`, `block_scope_bg`,
-`block_data_byte_fg`, `block_data_byte_bg`, `block_data_word_fg`, `block_data_word_bg`,
-`block_address_fg`, `block_address_bg`, `block_petscii_text_fg`, `block_petscii_text_bg`,
-`block_screencode_text_fg`, `block_screencode_text_bg`, `block_lohi_fg`, `block_lohi_bg`,
-`block_hilo_fg`, `block_hilo_bg`, `block_external_file_fg`, `block_external_file_bg`,
-`block_undefined_fg`, `block_undefined_bg`, `block_splitter_fg`, `block_splitter_bg`,
-`minimap_cursor_fg`
+| Category | Fields |
+| :--- | :--- |
+| **Base & Chrome** | `background`, `foreground`, `border_active`, `border_inactive`, `selection_bg`, `selection_fg`, `block_selection_bg`, `block_selection_fg`, `status_bar_bg`, `status_bar_fg`, `minimap_cursor_fg` |
+| **Disassembly** | `address`, `bytes`, `mnemonic`, `operand`, `label`, `label_def`, `comment`, `arrow`, `collapsed_block`, `collapsed_block_bg` |
+| **Hex & Graphics** | `hex_bytes`, `hex_ascii`, `sprite_multicolor_1`, `sprite_multicolor_2`, `charset_multicolor_1`, `charset_multicolor_2`, `hex_color_palette` |
+| **Dialogs & Menus** | `dialog_bg`, `dialog_fg`, `dialog_border`, `menu_bg`, `menu_fg`, `menu_selected_bg`, `menu_selected_fg`, `menu_disabled_fg` |
+| **Highlights** | `highlight_fg`, `highlight_bg`, `error_fg` |
+| **Block Types (fg/bg)** | `block_code_*`, `block_scope_*`, `block_data_byte_*`, `block_data_word_*`, `block_address_*`, `block_petscii_text_*`, `block_screencode_text_*`, `block_lohi_*`, `block_hilo_*`, `block_external_file_*`, `block_undefined_*`, `block_splitter_*` *(each has `_fg` and `_bg`)* |
+///

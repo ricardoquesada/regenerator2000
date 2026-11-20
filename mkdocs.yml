@@ -6,7 +6,7 @@ site_description: >-
   Features a TUI with modern features like x-ref, undo/redo, arrows,
   keyboard-driven and more!
 
-site_url: http://regenerator2000.readthedocs.io/
+site_url: https://regenerator2000.readthedocs.io/
 repo_url: https://github.com/ricardoquesada/regenerator2000
 repo_name: ricardoquesada/regenerator2000
 
@@ -17,78 +17,96 @@ edit_uri: edit/main/docs/
 exclude_docs: |
   venv/
   presentation/
+  _includes/
 
 watch:
   - README.md
   - CHANGELOG.md
+  - docs/_includes
 
 theme:
   name: material
   logo: regenerator2000_logo_noname.png
   favicon: regenerator2000_logo_favicon.png
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
   palette:
-    # Palette toggle for light mode
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: indigo
-      accent: deep purple
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
-
     # Palette toggle for dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: deep purple
+      primary: blue grey
+      accent: cyan
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
   font:
-    text: Roboto
-    code: Roboto Mono
+    text: IBM Plex Sans
+    code: JetBrains Mono
   features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.preview
+    - navigation.instant.progress
     - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.path
     - navigation.top
     - navigation.tracking
     - navigation.footer
+    - toc.follow
     - content.code.copy
+    - content.code.select
     - content.code.annotate
     - content.tabs.link
     - content.tooltips
+    - content.footnote.tooltips
+    - content.action.edit
+    - content.action.view
     - search.suggest
     - search.highlight
+    - search.share
 
 nav:
   - Home: index.md
   - Getting Started:
       - Installation & Usage: install.md
-      - Tutorial: tutorial.md
-  - User Reference:
-      - Core Features:
-          - Views: views.md
-          - Block Types: blocks.md
-          - Analysis & Labels: analysis.md
-          - Custom Enums: enums.md
-          - Binary Unpacker: unpacker.md
-      - Targets & Emulation:
-          - Target Systems: systems.md
-          - Target Assemblers: assemblers.md
-          - Live Debugger (VICE): debugger.md
-      - Customization & Config:
-          - Settings: settings.md
-          - Themes: themes.md
-          - Keyboard Shortcuts: keyboard_shortcuts.md
-      - AI Agent Integration:
-          - MCP Integration: mcp.md
+      - Guided Tutorial: tutorial.md
+  - User Guide:
+      - Views: views.md
+      - Block Types: blocks.md
+      - Analysis & Labels: analysis.md
+      - Custom Enums: enums.md
+      - Binary Unpacker: unpacker.md
+      - Live Debugger (VICE): debugger.md
+  - Reference:
+      - Keyboard Shortcuts: keyboard_shortcuts.md
+      - Settings: settings.md
+      - Themes: themes.md
+      - Target Systems: systems.md
+      - Target Assemblers: assemblers.md
+      - MCP Integration: mcp.md
       - FAQ: faq.md
   - Examples: examples.md
-  - Development & Internals:
+  - Internals:
       - Architecture: architecture.md
       - Roadmap: roadmap.md
       - Changelog: changelog.md
 
 markdown_extensions:
+  - abbr
+  - footnotes
   - attr_list
   - md_in_html
   - def_list
@@ -96,8 +114,15 @@ markdown_extensions:
   - admonition
   - toc:
       permalink: true
+      title: On this page
   - pymdownx.details
   - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.blocks.caption
+  - pymdownx.blocks.details
   - pymdownx.inlinehilite
   - pymdownx.highlight:
       anchor_linenums: true
@@ -110,16 +135,38 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
+      combine_header_slug: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.snippets:
+      base_path:
+        - docs/_includes
+      auto_append:
+        - abbreviations.md
 
 plugins:
   - include-markdown
-  - search
+  - search:
+      lang: en
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
   - social
+  - typeset
 
 extra:
   analytics:
     provider: google
     property: G-K9JX0F7781
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ricardoquesada/regenerator2000
+      name: Regenerator 2000 on GitHub
+    - icon: fontawesome/brands/rust
+      link: https://crates.io/crates/regenerator2000
+      name: Regenerator 2000 on Crates.io
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/r5aMn6Cw5q
+      name: Regenerator 2000 on Discord

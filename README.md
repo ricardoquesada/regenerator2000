@@ -104,9 +104,9 @@ Use a modern terminal to ensure full support for keyboard shortcuts and renderin
 
 | Platform    | Recommended Terminals                              |
 | :---------- | :------------------------------------------------- |
-| **Windows** | Windows Terminal, Alacritty, WezTerm               |
-| **macOS**   | iTerm2, Ghostty, Alacritty, kitty, WezTerm         |
-| **Linux**   | Ghostty, Alacritty, kitty, WezTerm, GNOME Terminal |
+| **Windows** | Windows Terminal, WezTerm       |
+| **macOS**   | iTerm2, Ghostty, kitty, WezTerm |
+| **Linux**   | Ghostty, kitty, WezTerm         |
 
 ## Installation
 

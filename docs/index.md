@@ -1,145 +1,143 @@
+---
+icon: material/home
+description: Interactive 6502 disassembler TUI for Commodore 8-bit computers with live VICE debugging, binary unpacking, multi-assembler export, and MCP AI integration.
+hide:
+  - navigation
+---
+
 # Regenerator 2000
 
-<p align="center">
-  <img src="regenerator2000_logo.png" alt="Regenerator 2000 Logo" width="600"/>
-</p>
+![Regenerator 2000 Logo](regenerator2000_logo.png){ width="560" }
 
-# The Modern 6502 Disassembler
+/// caption
+Interactive 6502 disassembler for Commodore 8-bit systems — keyboard-first, non-destructive, and AI-ready.
+///
 
-**Regenerator 2000** is an interactive disassembler for the Commodore 64 and other 6502-based systems.
+[:material-download: Install & Quick Start](install.md){ .md-button .md-button--primary }
+[:material-compass-outline: Guided Tutorial](tutorial.md){ .md-button }
+[:material-file-code-outline: Live HTML Examples](examples.md){ .md-button }
 
-- **⚡ Fast** — Starts immediately, navigates large binaries with zero lag, and updates control flow and cross-references in real time.
-- **⏪ Non-Destructive** — Tracks every edit in the undo history so you can experiment with code, data, and labels without risk.
-- **⌨️ Keyboard-First** — Navigate and edit with single-key shortcuts, arrow or Vim keys, and optional mouse support.
+Regenerator 2000 is built around two complementary ways to reverse engineer a binary—use either on its own, or run an AI pass first and refine the results by hand:
 
-It supports two primary workflows:
+:material-keyboard-outline: **Manual Analysis**
+:   Navigate code and data with single-key shortcuts, Vim motions, or mouse clicks. Every edit pushes to a persistent undo stack so you can reclassify blocks, rename labels, and inspect graphics safely.
 
-- **🕹️ Manual Analysis** — Use the keyboard-centric terminal interface to navigate code, define data regions, label subroutines, add comments, and refine your disassembly.
-- **🤖 Automated Analysis** — Use the built-in [MCP Server](mcp.md) and [skills](https://github.com/ricardoquesada/regenerator2000/tree/main/.agent/skills) so AI assistants classify blocks, trace routines, and name symbols automatically.
-
-Use either workflow independently, or combine them. Run an initial pass with the AI, and then refine the results interactively.
+:material-robot-outline: **Automated Analysis**
+:   Connect Claude Code, Antigravity, or any MCP client to the built-in [MCP Server](mcp.md) and [agent skills](https://github.com/ricardoquesada/regenerator2000/tree/main/.agent/skills) to decode BASIC stubs, partition blocks, trace routines, and document variables automatically.
 
 ---
 
-## Views Overview
+## Inside the Workspace
 
-Inspect your binary through specialized views:
+Inspect code, raw memory, graphics, and live execution side by side across seven views (see [Views](views.md) for every shortcut):
 
 === "Disassembly"
 
-    **The Code View**: Navigate and disassemble code, follow jumps, and manage labels.
+    Navigate decoded 6502 instructions, follow branch arrows, inspect inline X-Refs, and rename labels in place.
 
     ![Disassembly View](regenerator2000_disassembly_screenshot.png)
 
 === "Hexdump"
 
-    **The Data View**: Inspect raw memory to identify patterns in data and tables.
+    Spot patterns, padding, and strings with a byte-value color palette and live PETSCII / Screencode decoding.
 
-    ![Hexdump View](regenerator2000_hexdump_screenshot.png)
+    ![Hexdump View](regenerator2000_hexdump_screenshot.png){ loading=lazy }
 
 === "Character Set"
 
-    **Character Graphics**: Inspect 8x8 character data directly in the terminal.
+    Scan memory as 8×8 character tiles in standard high-res or multicolor mode to uncover custom fonts.
 
-    ![Charset View](regenerator2000_charset_screenshot.png)
+    ![Charset View](regenerator2000_charset_screenshot.png){ loading=lazy }
 
 === "Sprites"
 
-    **Sprite Viewer**: Inspect 24x21 hardware sprites in single-color or multicolor mode.
+    Browse 64-byte chunks as 24×21 hardware sprites in single-color or multicolor mode and mark them directly.
 
-    ![Sprites View](regenerator2000_sprites_screenshot.png)
+    ![Sprites View](regenerator2000_sprites_screenshot.png){ loading=lazy }
 
 === "Bitmap"
 
-    **Bitmap Mode**: Render memory as a high-resolution or multicolor bitmap.
+    Preview full-screen 320×200 or 160×200 bitmaps with selectable Screen RAM overlays and terminal pixel graphics.
 
-    ![Bitmap View](regenerator2000_bitmap_screenshot.png)
+    ![Bitmap View](regenerator2000_bitmap_screenshot.png){ loading=lazy }
 
 === "Blocks"
 
-    **Structure Analysis**: Inspect how Regenerator 2000 segments the binary into code and data blocks.
+    See the macro layout of Code, Data, Undefined regions, Scopes, and Splitters at a glance.
 
-    ![Blocks View](regenerator2000_blocks_screenshot.png)
+    ![Blocks View](regenerator2000_blocks_screenshot.png){ loading=lazy }
 
 === "Debugger"
 
-    **Live Debugging**: Connect to VICE to inspect registers, memory, and breakpoints, and step through code.
+    Attach to VICE over the binary monitor to inspect registers, stack, hardware chips, and step live code.
 
-    ![Debugger View](regenerator2000_debugger_screenshot.png)
+    ![Debugger View](regenerator2000_debugger_screenshot.png){ loading=lazy }
 
 ---
 
-## Key Features
+## At a Glance
 
-- **🚀 6502 & Undocumented Opcodes**: Supports the full 6502 instruction set and undocumented opcodes.
-- **⚡ Fast TUI**: Uses Rust to deliver responsive terminal rendering.
-- **🧠 Analysis**: Creates labels and cross-reference comments automatically.
-- **⏪ Undo/Redo**: Reverts or reapplies any editing action.
-- **🏷️ Labels & Comments**: Renames subroutines and variables to improve readability.
-- **📂 Scopes**: Organizes code into lexical namespaces.
-- **🔢 Enums**: Defines and applies System, Global, and Project value-to-name mappings to replace numeric literals with semantic names.
-- **📦 Binary Unpacker**: Emulates a cycle-accurate 6502 sandbox to unpack compressed programs automatically.
-- **🎨 Custom Themes**: Customizes interface colors with TOML theme files.
-- **🐛 VICE Debugger Integration**: Connects to a running VICE emulator to step through code, inspect registers, and set breakpoints or watchpoints.
-- **🤖 MCP Integration**: Connects AI assistants to the disassembler for automated analysis.
-- **💾 Project Saving**: Saves project state to disk so you can resume work later.
-- **📤 Export**: Generates assembly code for multiple assemblers, or exports HTML files with clickable cross-references.
+| Capability | What It Gives You |
+| :--- | :--- |
+| :material-chip: **Full 6502 + Undocumented Opcodes** | Disassembles standard and illegal 6502 instructions for C64, C128, VIC-20, Plus/4, C16, PET, and 1541. |
+| :material-graph-outline: **Auto-Analysis & Typed X-Refs** | Traces reachable code, names targets by addressing mode (`s_`, `j_`, `b_`), and tags every caller (`[R]`, `[W]`, `[C]`, `[J]`). |
+| :material-undo-variant: **Persistent Undo / Redo** | Records every block, label, comment, scope, and enum change in `.regen2000proj` project files. |
+| :material-tag-multiple-outline: **Labels, Scopes & Enums** | Isolates local labels inside lexical scopes and replaces magic numbers with system, global, or project enum constants. |
+| :material-package-up: **Built-in 6502 Binary Unpacker** | Emulates 26+ packer families (and custom stubs) in a sandboxed 6502 CPU to extract packed PRG binaries automatically. |
+| :material-bug-outline: **Live VICE Debugger** | Sets breakpoints and watchpoints, steps instructions, and highlights changed registers, stack entries, and chip state. |
+| :material-robot-outline: **MCP Server & Skills** | Exposes 29 structured tools over HTTP/SSE or stdio so AI agents can analyze routines alongside the live TUI. |
+| :material-palette-outline: **9 Built-in Themes** | Ships with Dracula, Solarized, Gruvbox, Monokai, Nord, and Catppuccin, plus TOML overrides for custom palettes. |
+| :material-export-variant: **Roundtrip ASM & HTML Export** | Exports clean source for **64tass**, **ACME**, **KickAssembler**, and **ca65** (with `--verify` byte-identical checks) plus interactive HTML. |
+
+---
 
 ## Quick Start
 
-1. **Install**:
+1. **Install** Regenerator 2000:
+
+    === "Cargo (Crates.io)"
+
+        ```bash
+        cargo install regenerator2000
+        ```
+
+    === "Pre-compiled Binary"
+
+        Download the archive for Linux, macOS, or Windows from the [latest GitHub Release](https://github.com/ricardoquesada/regenerator2000/releases/latest) and place `regenerator2000` in your `PATH`.
+
+2. **Open a binary** (`.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, `.dis65`, or raw `.bin`):
 
     ```bash
-    cargo install regenerator2000
+    regenerator2000 my_game.prg # (1)!
     ```
 
-2. **Run**:
+    1. For raw binaries without headers, the **Import Context** dialog opens first so you can set the target system, origin address, and entry point. If entropy or packer signatures trigger, `< Unpack >` is pre-selected.
 
-    ```bash
-    regenerator2000 my_game.prg
-    ```
+3. **Start classifying** with five core keys:
 
-    When you import a new binary, use the **Import Context** dialog to configure the System, Origin, and Entry Point.
-
-3. **Explore**:
-
-    - **Move**: Use the arrow keys, mini map, or jump commands.
-    - **Disassemble**: Press ++d++ to convert bytes to code.
-    - **Define Data**: Press ++b++ to convert regions to data bytes.
-    - **Comment**: Press ++semicolon++ to add a side comment.
-    - **Rename**: Press ++l++ to rename a label.
-
-[Get Started Now](install.md){ .md-button .md-button--primary }
+    | Key | Action |
+    | :--- | :--- |
+    | ++d++ | Disassemble reachable code from the cursor |
+    | ++b++ | Mark the current byte or Visual selection (++shift+v++) as data bytes |
+    | ++l++ | Rename the label under the cursor |
+    | ++semicolon++ | Add an inline side comment (++colon++ adds a line comment above) |
+    | ++enter++ | Jump to an operand target (++backspace++ jumps back) |
 
 ---
 
-## Documentation
+## Typical Workflow
 
-- **[Installation & Usage](install.md)**: Install and run Regenerator 2000.
-- **[Views](views.md)**: Learn about each interface view.
-- **[Analysis](analysis.md)**: Understand the auto-analyzer and label prefixes.
-- **[Enums](enums.md)**: Replace numeric literals with named constants.
-- **[Binary Unpacker](unpacker.md)**: Decompress packed binaries automatically.
-- **[Keyboard Shortcuts](keyboard_shortcuts.md)**: Review all keyboard controls.
-- **[Debugger (VICE)](debugger.md)**: Connect to VICE for live debugging.
-- **[MCP Integration](mcp.md)**: Connect AI agents to Regenerator 2000.
-
-## Tutorial
-
-A standard workflow loads a file, identifies code and data regions, adds labels, and refines the disassembly iteratively.
+Reverse engineering is iterative—classify a region, follow a branch, label what you learn, and verify or export when ready:
 
 ```mermaid
-flowchart TD
-    S1[1. Load File] --> S2[2. Explore]
-    S2 --> S3[3-6. Disassemble, Define Data, Labels, Comments]
-    S3 --> S7[7. Save]
-    S3 --> S2
-    S7 --> Q{Debug?}
-    Q -- No --> S10[10. Export to .asm / .html]
-    Q -- Yes --> S8[8. Connect to VICE]
-    S8 --> S9[9. Live Debugging]
-    S9 --> S2
-    S10 --> Done[Assemble it, patch it, etc.]
+flowchart LR
+    Open["`**1. Open**
+    PRG · CRT · D64 · VSF`"] --> Analyze["`**2. Analyze**
+    TUI or AI (MCP)`"]
+    Analyze --> Debug["`**3. Debug**
+    Live VICE Monitor`"]
+    Debug --> Export["`**4. Export**
+    ASM · HTML · --verify`"]
 ```
 
-Read the [full tutorial](tutorial.md) for a complete step-by-step walkthrough.
+Ready for a full hands-on walkthrough? Head to the [Guided Tutorial](tutorial.md).

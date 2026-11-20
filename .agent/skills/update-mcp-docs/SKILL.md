@@ -35,7 +35,9 @@ Python `.venv`:
 1. Builds `regenerator2000` with `cargo build --quiet`.
 2. Queries `tools/list` from `cargo run --quiet -- --mcp-server-stdio`.
 3. Replaces `## Available Tools` in `docs/mcp.md` (preserving all sections
-   above and below it) with sorted tool headings and argument tables.
+   above and below it) with semantic tool categories, quick-reference summary
+   tables, and collapsible `/// details` drawers (`attrs: {id: <tool_name>}`)
+   containing full descriptions and argument tables.
 
 To preview output into a temporary copy without modifying `docs/mcp.md`, pass
 `--output /tmp/mcp_preview.md`.

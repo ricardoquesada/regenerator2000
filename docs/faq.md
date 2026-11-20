@@ -1,340 +1,195 @@
+---
+icon: material/frequently-asked-questions
+description: Quick answers and troubleshooting fixes for terminals, tmux shortcuts, BASIC tokens, VICE monitor connections, roundtrip verification, and unpacking.
+---
+
 # Frequently Asked Questions (FAQ)
+
+Click any question below to expand the answer, or jump straight to [Troubleshooting](#troubleshooting).
 
 ## General
 
-### How do I start analyzing a new file?
+/// details | How do I start analyzing a file?
+    type: question
 
-Select **File → Open** (++ctrl+o++) or pass the filename as a command-line argument:
+Select **File → Open** (++ctrl+o++) or pass a file directly on the command line (`regenerator2000 my_game.prg`). See [Installation & Usage](install.md) for all CLI options.
+///
 
-```bash
-regenerator2000 my_game.prg
-```
+/// details | What file formats and target systems are supported?
+    type: question
 
-### What file formats are supported?
+Regenerator 2000 opens `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf` (VICE snapshots), `.dis65` (SourceGen), raw `.bin`/`.raw`, and `.regen2000proj` files.
 
-Regenerator 2000 supports the following formats:
+Built-in definitions cover **Commodore 64**, **128**, **VIC-20**, **Plus/4**, **PET (BASIC 2.0 & 4.0)**, and **1541**, plus experimental configs for NES, Apple II, Atari 8-bit, BBC Micro, and Oric. See [Target Systems](systems.md) and [Installation & Usage](install.md#supported-file-formats).
+///
 
-| Format           | Description                                                      |
-|:-----------------|:-----------------------------------------------------------------|
-| `.prg`           | Standard Commodore program (first 2 bytes = load address)        |
-| `.crt`           | C64 cartridge image with bank selection                          |
-| `.d64`           | 35/40/42-track disk image (select a PRG from the image)          |
-| `.d71`           | 70/80-track double-sided disk image                              |
-| `.d81`           | 80-track disk image                                              |
-| `.t64`           | Tape image container (select a PRG from the container)           |
-| `.vsf`           | VICE snapshot — extracts RAM and uses PC as the start address    |
-| `.bin` / `.raw`  | Raw binary — set the origin manually                             |
-| `.dis65`         | 6502bench SourceGen project file                                 |
-| `.regen2000proj` | Regenerator 2000 project file (includes all labels and comments) |
+/// details | How do I save or reopen recent work?
+    type: question
 
-### What systems are supported?
+Press ++ctrl+s++ to save everything (binary, blocks, labels, comments, bookmarks, and undo stack) to a `.regen2000proj` file, or ++alt+s++ / ++ctrl+shift+s++ for **Save As**. Press ++alt+o++ (or ++ctrl+shift+o++) to reopen recent projects.
+///
 
-Regenerator 2000 includes system-specific labels, comments, and memory maps for these systems:
+/// details | Does it run on Windows, macOS, and Linux?
+    type: question
 
-- Commodore 64
-- Commodore 128
-- Commodore VIC-20
-- Commodore Plus/4
-- Commodore PET (BASIC 2.0 and 4.0)
-- Commodore 1541 disk drive
-
-Select the target system in **Document Settings** (++alt+d++ or ++ctrl+shift+d++).
-
-### How do I save my work?
-
-Press ++ctrl+s++ to save the project as a `.regen2000proj` file. This file stores all labels, comments, block types, and bookmarks. Press ++alt+s++ (or ++ctrl+shift+s++) to save the project under a new filename.
-
-### Does it run on Windows, macOS, and Linux?
-
-Yes. Download pre-compiled binaries for all three platforms from the [GitHub Releases](https://github.com/ricardoquesada/regenerator2000/releases/latest) page. You can also install the package from Crates.io with `cargo install regenerator2000`.
-
-### How do I reopen a recent project?
-
-Select **File → Open Recents...** (++alt+o++ or ++ctrl+shift+o++) to open your recent files and projects.
-
----
-
-## Disassembly
-
-### How do I change the type of a block?
-
-Move the cursor to the target line (or press ++shift+v++ to select a range in Visual Mode). Press the block key:
-
-| Key               | Block Type          |
-|:------------------|:--------------------|
-| ++c++             | Code                |
-| ++b++             | Byte                |
-| ++w++             | Word                |
-| ++a++             | Address             |
-| ++p++             | PETSCII Text        |
-| ++s++             | Screencode Text     |
-| ++less-than++     | Lo/Hi Address Table |
-| ++greater-than++  | Hi/Lo Address Table |
-| ++comma++         | Lo/Hi Word Table    |
-| ++period++        | Hi/Lo Word Table    |
-| ++e++             | External File       |
-| ++question-mark++ | Undefined (reset)   |
-
-See [Block Types](blocks.md) for descriptions and assembler-specific examples.
-
-### How do I select multiple lines?
-
-Press ++shift+v++ to enter **Visual Mode**. Press ++arrow-up++ or ++arrow-down++ (or ++j++ / ++k++) to extend the selection. Press a block-type key to convert the entire selection, or press ++escape++ to exit Visual Mode.
-
-### Can I rename labels?
-
-Yes. Move the cursor to a label. Press ++l++. Type the new name. Press ++enter++. Regenerator 2000 updates every instruction that references that address with the new name.
-
-### What do the label prefixes mean?
-
-Each auto-generated label starts with a prefix that indicates how the code references that address. For example, `s_C000` marks a subroutine at `$C000`, and `zpa_A0` marks a zero-page absolute address at `$A0`.
-
-See [Analysis — Label Prefixes](analysis.md#label-prefixes) for the complete prefix table and assignment rules.
-
-### What is the difference between a local and a global label?
-
-- **Global Labels**: Top-level symbols that any instruction in the program can reference.
-- **Local Labels** (such as `_loop` or `.skip`): Belong to the nearest preceding **Global Label** and remain visible only until the next global label. Use local labels for loop targets to avoid name collisions across subroutines.
-- **Scope Labels**: Belong to a custom scope block (such as a procedure or block). Code outside the scope must reference them as `scope_name.label_name`.
-
-Press ++l++ to open the label dialog. Press ++tab++ to focus the local scope checkbox. Press ++space++ to toggle it.
-
-### How do I navigate the disassembly?
-
-| Action                | Shortcut                |
-|:----------------------|:------------------------|
-| Jump to address       | ++ctrl+g++ or ++alt+g++ |
-| Jump to line number   | ++ctrl+shift+g++        |
-| Follow a jump/branch  | ++enter++               |
-| Go back in history    | ++backspace++           |
-| Go to symbol by name  | ++ctrl+p++              |
-| Find cross-references | ++ctrl+x++              |
-| Search (Vim-style)    | ++slash++               |
-| Search dialog         | ++ctrl+f++              |
-| Next / previous match | ++n++ / ++shift+n++     |
-
-### What are arrows in the disassembly view?
-
-The left columns of the disassembly view draw arrows for jump (`JMP`) and branch (`BNE`, `BEQ`, `BCC`) targets. These arrows show loops and conditional paths. Change the "Arrow Columns" value in **Document Settings** to adjust the number of columns.
-
-### How does undo/redo work?
-
-Press ++u++ to undo the last action. Press ++ctrl+r++ to redo it. Regenerator 2000 records every block change, label edit, and comment edit on the undo stack and saves it in the project file.
-
-### What is "Patch BRK"?
-
-The 6502 `BRK` instruction occupies 2 bytes, but most C64 programs use it as a 1-byte instruction. By default, Regenerator 2000 enables **BRK single byte**. If your program uses 2-byte `BRK` instructions, clear **BRK single byte** in Document Settings. Then enable **Patch BRK** to preserve the padding byte. See [Settings](settings.md) for details.
-
----
-
-## Labels & Comments
-
-### How do I add a comment?
-
-- **Side comment** (inline after the instruction): Press ++semicolon++. Type your comment.
-- **Line comment** (on a separate line above the instruction): Press ++colon++. Type your comment.
-
-Line comments also act as **splitters** that prevent adjacent blocks of the same type from merging.
-
-### Can I write multi-line comments?
-
-Yes. In the line comment dialog, press ++ctrl+j++ (or ++shift+enter++) to insert a line break. Use these shortcuts to insert separator lines:
-
-- ++alt+minus++: Insert a dash separator (`---`).
-- ++alt+equal++: Insert an equals separator (`===`).
-- ++alt+backslash++: Insert a mixed separator (`-=-`).
-
-### What are bookmarks and how do I use them?
-
-Bookmarks mark specific addresses so you can return to them quickly:
-
-- ++ctrl+b++: Toggle a bookmark at the current address.
-- ++ctrl+shift+b++ (or ++alt+b++): Open the Bookmarks dialog to jump to a saved bookmark.
-
----
-
-## Scopes
-
-### What are scopes?
-
-Scopes (also called namespaces or procedures) group code into logical blocks such as subroutines. Labels inside a scope remain local to that scope, so two routines can both use a label named `loop` without conflict.
-
-### How do I create a scope?
-
-1. Press ++shift+v++ to select the code range in Visual Mode.
-2. Press ++r++ to create a scope over the selection.
-
-If the start address has no label, Regenerator 2000 creates a default label. Press ++l++ to rename it.
-
-### How do I remove a scope?
-
-Move the cursor to the first or last line of the scope and press ++delete++.
-
-If you place the cursor on an external label, ++delete++ excludes that external address from analysis instead.
-
-### Which assemblers support scopes?
-
-| Assembler     | Scope Syntax            |
-|:--------------|:------------------------|
-| 64tass        | `.block` / `.bend`      |
-| KickAssembler | `{` / `}`               |
-| ca65          | `.proc` / `.endproc`    |
-| ACME          | Not supported (ignored) |
-
-See [Block Types — Scopes](blocks.md#scopes) for syntax examples in each assembler.
-
----
-
-## Views
-
-### How do I switch between views?
-
-Press ++tab++ to switch focus between the Disassembly View (left pane) and the right pane. Use these shortcuts to select the active view in the right pane:
-
-| Shortcut                | View     |
-|:------------------------|:---------|
-| ++alt+1++ or ++ctrl+1++ | Blocks   |
-| ++alt+2++ or ++ctrl+2++ | Hex Dump |
-| ++alt+3++ or ++ctrl+3++ | Sprites  |
-| ++alt+4++ or ++ctrl+4++ | Charset  |
-| ++alt+5++ or ++ctrl+5++ | Bitmap   |
-| ++alt+6++ or ++ctrl+6++ | Debugger |
-
-### How do I sync the right pane with the disassembly?
-
-By default, the [Hex Dump](views.md#hexdump-view) and Blocks views follow the Disassembly cursor. Open **File → Settings** (++alt+p++ or ++ctrl+comma++) to toggle cursor synchronization for each view.
-
----
-
-## Exporting
-
-### Which assemblers are supported for export?
-
-Regenerator 2000 exports assembly code for four assemblers:
-
-1. **64tass**
-2. **ACME**
-3. **KickAssembler**
-4. **ca65**
-
-See [Assemblers](assemblers.md) for command-line flags and linker configurations.
-
-### How do I export my project?
-
-- ++ctrl+e++: Export to ASM with the previous filename. If no previous filename exists, Regenerator 2000 prompts for one.
-- ++alt+e++ (or ++ctrl+shift+e++): Prompt for a filename and export.
-
-Run exports from the command line in headless mode:
-
-```bash
-# Export to ASM:
-regenerator2000 --headless --export_asm output.asm my_file.regen2000proj
-
-# Override assembler format:
-regenerator2000 --headless --assembler acme --export_asm output.asm my_file.regen2000proj
-```
-
-### Can I export VICE labels?
-
-Yes. Select **File → Export VICE Labels...** to generate a `.lbl` file for the VICE monitor.
-
-### What is the "External File" block type for?
-
-When you mark a memory region as "External File" (++e++), the exporter writes those bytes to a separate `.bin` file. It then emits a `.binary "filename.bin"` directive in the `.asm` output to keep large binary assets (such as music or graphics) separate.
-
----
-
-## VICE Debugger
-
-### How do I connect to VICE?
-
-1. Start VICE with the binary monitor active: `x64 -binarymonitor my_program.prg`
-2. Load the **same** binary in Regenerator 2000: `regenerator2000 my_program.prg`
-3. Select **Debugger → Connect to VICE...**.
-4. Press ++enter++ to connect (default: `localhost:6502`).
-5. Press ++alt+6++ to open the Debugger panel.
-
-!!! warning
-
-    Run the **same binary** in both VICE and Regenerator 2000. If the binaries differ, breakpoints and the PC display will not align.
-
-### What debugging operations are supported?
-
-| Action               | Shortcut     |
-|:---------------------|:-------------|
-| Toggle Breakpoint    | ++f2++       |
-| Toggle Breakpoint... | ++shift+f2++ |
-| Run to Cursor        | ++f4++       |
-| Watchpoint           | ++f6++       |
-| Step Instruction     | ++f7++       |
-| Step Over            | ++f8++       |
-| Step Out             | ++shift+f8++ |
-| Run / Continue       | ++f9++       |
-
-See [Debugger (VICE Integration)](debugger.md) for full details.
-
----
-
-## MCP Integration
-
-### What is MCP?
-
-The **Model Context Protocol (MCP)** is an open standard that lets AI assistants control tools programmatically. Regenerator 2000 includes an MCP server so AI agents can read disassembly, set labels, add comments, and change block types.
-
-### How do I start the MCP server?
-
-- **HTTP mode** (port 3000): `regenerator2000 --mcp-server my_project.regen2000proj`
-- **stdio mode** (headless): `regenerator2000 --mcp-server-stdio my_project.regen2000proj`
-
-See [MCP Integration](mcp.md) for the complete list of tools and resources.
+Yes—grab pre-built binaries from [GitHub Releases](https://github.com/ricardoquesada/regenerator2000/releases/latest) or install with `cargo install regenerator2000`.
+///
 
 ---
 
 ## Troubleshooting
 
-### Some keyboard shortcuts don't work in my terminal
+/// details | Some keyboard shortcuts don't work in my terminal or tmux
+    type: warning
 
-Terminals process key combinations differently. If a ++ctrl++ shortcut fails, use the ++alt++ shortcut instead. Use one of these modern terminals for full shortcut support:
+Terminals intercept certain `Ctrl` chords differently (for example, ++ctrl+2++ inside `tmux`). Every conflicting shortcut provides an `Alt` alternative—such as ++alt+2++ for Hexdump or ++alt+d++ for Document Settings.
 
-- **macOS**: iTerm2, Ghostty, Alacritty, kitty, WezTerm
-- **Windows**: Windows Terminal, Alacritty, WezTerm
-- **Linux**: Ghostty, Alacritty, kitty, WezTerm, GNOME Terminal
+For full key reporting and true-color rendering, use one of the [Recommended Terminals](install.md#recommended-terminals).
+///
 
-### The display looks garbled or colors are wrong
+/// details | The display looks garbled or colors look wrong
+    type: warning
 
-Verify that your terminal supports 256 colors or 24-bit true color. If you use `tmux`, add `set -g default-terminal "tmux-256color"` to your `tmux` configuration file.
+Verify your terminal supports 256 colors or 24-bit true color. Inside `tmux`, add `set -g default-terminal "tmux-256color"` to `~/.tmux.conf`.
+///
 
-### Why is my BASIC program disassembling as illegal opcodes?
+/// details | Why is my BASIC program disassembling as illegal opcodes?
+    type: warning
 
-Commodore BASIC programs store tokenized byte sequences, and 2-byte pointers link these sequences. If you convert a BASIC line to 6502 code (++c++), the decoder interprets BASIC tokens (such as `$99` for `PRINT` or `$8F` for `REM`) as opcodes.
+Commodore BASIC stores tokenized byte sequences (like `$99` for `PRINT` or `$8F` for `REM`) linked by 2-byte pointers—so forcing **Code** (++c++) decodes tokens as nonsense opcodes.
 
-To fix this, select the BASIC memory range. Press ++p++ (**PETSCII Text**) or ++w++ (**Word**). Alternatively, run the `r2000-analyze-basic` skill to format BASIC pointers and decode tokens into side comments automatically.
+**Fix:** Select the BASIC range and press ++p++ (**PETSCII**) or ++w++ (**Word**), or let an AI agent run the `r2000-analyze-basic` skill.
+///
 
-### Why did VICE binary monitor fail to connect?
+/// details | Why did the VICE binary monitor fail to connect?
+    type: warning
 
-Regenerator 2000 connects to the VICE **Binary Monitor Protocol** over TCP (default port `6502`), not the plain-text monitor:
+Regenerator 2000 speaks the VICE **Binary Monitor Protocol** (default port `6502`), not the plain-text monitor (port `6510`).
 
-- **Enable Binary Monitor mode**: Start VICE with `x64 -binarymonitor` or enable **Settings → Monitor → Enable binary monitor**.
-- **Check the port type**: The binary monitor sends 4-byte binary headers (`0x02`, `0x00`, little-endian length). If you connect to a plain-text monitor port (such as `6510`), the handshake fails.
-- **Load identical binaries**: Load the exact same `.prg` file in both VICE and Regenerator 2000 so PC addresses and breakpoints match.
+- Start VICE with `x64 -binarymonitor my_program.prg` (or enable **Settings → Monitor → Enable binary monitor**).
+- Match `--vice <HOST:PORT>` if you changed VICE's `-binarymonitoraddress`.
+- Load the exact same `.prg` in both VICE and Regenerator 2000 so PC addresses and breakpoints align.
+///
 
-### Why does roundtrip assembler export verification fail?
+/// details | Why does roundtrip export verification (--verify) fail?
+    type: warning
 
-Roundtrip verification (`cargo test --test roundtrip_export_test` or `--verify`) compares the reassembled output byte-for-byte against the original binary. Common failure causes include:
+`--verify` exports to each assembler, assembles the output, and checks byte-for-byte parity against the original binary. Common mismatches come from:
 
-- **Symbol Scoping**: A local label (such as `.skip`) resolves to a different global label scope in the target assembler.
-- **Branch Bounds**: An assembler expands a relative branch (`BNE`) into a long jump (`JMP`) when the offset exceeds -128/+127 bytes.
-- **BRK Padding**: The 6502 `BRK` opcode takes 2 bytes (`$00 $00`), whereas C64 code often treats it as 1 byte. If your binary requires 2-byte `BRK` alignment, enable **Patch BRK** in Document Settings.
+- **Symbol scoping:** A local label resolving under a different global scope in a target assembler.
+- **Branch bounds:** A relative branch exceeding `-128/+127` bytes and expanding to a long jump.
+- **2-byte `BRK` padding:** Disable **BRK single byte** and enable **Patch BRK** in [Document Settings](settings.md) if your program expects 2-byte `BRK` alignment.
+///
 
-### Why does the Binary Unpacker fail or timeout?
+/// details | Why does the Binary Unpacker fail or time out?
+    type: warning
 
-The unpacker runs a cycle-accurate 6502 emulation sandbox (`src/unpacker/`) to decompress binaries:
+The unpacker emulates a sandboxed 6502 CPU and aborts after **50,000,000 instructions** (`max_instructions`) so infinite wait loops cannot hang the UI.
 
-- **Timeout Safety**: The unpacker stops after **50,000,000 instructions** (`max_instructions`). If a depacker stub waits on an unemulated hardware condition (such as raster line `$D012`), emulation reaches the instruction limit and stops.
-- **Vector Traps**: The unpacker traps KERNAL ROM vectors (`$FFE4` GETIN and `$FFD2` CHROUT) to supply keystrokes and execute `RTS`. For non-standard depackers, enter explicit **Entry Point** or **Depacker Address** values in the Unpack Options dialog.
+If a custom stub waits on unemulated hardware (like raster `$D012`) or lacks a `SYS` header, open **File → Unpack Binary...** and raise **Max Instructions** or specify **Entry Point**, **Depacker Address**, or **Return Address** explicitly. See [Binary Unpacker](unpacker.md).
+///
 
-### How do I report a bug or request a feature?
+/// details | How do I report a bug or ask a question?
+    type: question
 
-Open an issue on GitHub: [https://github.com/ricardoquesada/regenerator2000/issues](https://github.com/ricardoquesada/regenerator2000/issues).
+Open an issue on [GitHub Issues](https://github.com/ricardoquesada/regenerator2000/issues) or drop into `#regenerator2000` (under *Misc Projects*) on [Discord](https://discord.gg/r5aMn6Cw5q).
+///
 
-You can also join the `#regenerator2000` channel under "Misc Projects" on the [Discord](https://discord.gg/r5aMn6Cw5q) server.
+---
+
+## Disassembly & Block Types
+
+/// details | How do I convert a range of bytes into code, data, or text?
+    type: question
+
+Put the cursor on a single line—or press ++shift+v++ first to select a range in **Visual Mode**—then hit the target key (++d++ flow disassemble, ++c++ code, ++b++ byte, ++w++ word, ++a++ address, ++p++ PETSCII, ++s++ screencode, ++shift+e++ external file, or ++question-mark++ reset). See [Block Types — Quick Reference](blocks.md#quick-reference).
+///
+
+/// details | What do the auto-generated label prefixes mean?
+    type: question
+
+Prefixes encode how the address was referenced (`s_` subroutine, `j_` jump, `b_` branch, `r_` return, `e_` external jump, `a_` absolute, `f_` indexed field, `p_` pointer, and `zpa_`/`zpf_`/`zpp_` zero-page variants). Press ++l++ to rename any label—your names are never overwritten. See [Analysis — Label Prefixes](analysis.md#label-prefixes).
+///
+
+/// details | How do I navigate jumps, symbols, and cross-references?
+    type: question
+
+Press ++enter++ to follow a jump, call, or address table entry (++backspace++ jumps back), ++ctrl+g++ to jump by hex address, ++ctrl+p++ for **Go to Symbol**, ++ctrl+x++ for **Find Cross References**, and ++slash++ or ++ctrl+f++ to search. See [Keyboard Shortcuts](keyboard_shortcuts.md#disassembly-navigation).
+///
+
+/// details | What are the arrows in the left margin, and how does Undo/Redo work?
+    type: question
+
+Left-margin arrows visualize jump and branch targets (adjust width via **Arrow Columns** in [Document Settings](settings.md)). Press ++u++ to undo and ++ctrl+r++ to redo—every edit is saved in `.regen2000proj`.
+///
+
+/// details | What is "Patch BRK"?
+    type: question
+
+6502 hardware treats `BRK` as 2 bytes, though most C64 code treats it as 1 byte (`BRK single byte` enabled by default). Disable **BRK single byte** and enable **Patch BRK** when your binary relies on 2-byte `BRK` signatures so assemblers emit an explicit padding `.byte`. See [Settings — BRK Handling](settings.md#brk-handling).
+///
+
+---
+
+## Labels, Comments & Scopes
+
+/// details | What is the difference between global, local, and scope labels?
+    type: question
+
+- **Global labels:** Visible anywhere in the program.
+- **Local labels** (such as `_loop` or `.skip`): Belong to the nearest preceding global label (toggle inside the ++l++ dialog with ++tab++ then ++space++).
+- **Scope labels:** Belong to an explicit scope range and are referenced externally as `scope_name.label_name` (or `::` in ca65).
+///
+
+/// details | How do comments and bookmarks work?
+    type: question
+
+- **Side comment (++semicolon++):** Inline note after the instruction.
+- **Line comment (++colon++):** Multi-line header above the address (++ctrl+j++ / ++shift+enter++ for newlines; ++alt+minus++, ++alt+equal++, ++alt+backslash++ for dividers). Also splits `Address`/`Word` tables.
+- **Bookmarks:** Press ++ctrl+b++ to toggle and ++ctrl+shift+b++ (or ++alt+b++) to jump between saved bookmarks.
+///
+
+/// details | How do scopes work, and which assemblers support them?
+    type: question
+
+Select a range in Visual Mode (++shift+v++) and press ++r++ to isolate local labels inside a routine; press ++delete++ on a scope boundary to remove it. Supported by **64tass** (`.block`/`.bend`), **KickAssembler** (`{`/`}`), and **ca65** (`.proc`/`.endproc`); omitted on **ACME** exports. See [Block Types — Scopes](blocks.md#scopes).
+///
+
+---
+
+## Views & Exporting
+
+/// details | How do I switch companion views and keep them synced?
+    type: question
+
+Press ++tab++ to move focus between the Disassembly pane and the right pane, and ++alt+1++–++alt+6++ (or ++ctrl+1++–++ctrl+6++) to toggle **Blocks**, **Hexdump**, **Sprites**, **Charset**, **Bitmap**, or **Debugger**. Toggle cursor sync per view in [Settings](settings.md#view-sync) (for Hexdump details, see [Views — Hexdump](views.md#hexdump-view)).
+///
+
+/// details | Which assemblers can I export to, and how do I automate exports?
+    type: question
+
+Export directly to **64tass**, **ACME**, **KickAssembler**, and **ca65** via ++ctrl+e++ (or ++alt+e++ for *Export As*). For scripts and CI, run headless mode:
+
+```bash
+regenerator2000 --headless --export_asm output.asm my_file.regen2000proj
+regenerator2000 --headless --assembler acme --export_asm output.asm my_file.regen2000proj
+```
+
+You can also export VICE `.lbl` files from **File → Export VICE Labels...**, or isolate large binary assets into separate `.bin` includes with **External File** (++shift+e++). See [Target Assemblers](assemblers.md).
+///
+
+---
+
+## VICE Debugger & MCP
+
+/// details | How do I connect and use the VICE live debugger?
+    type: question
+
+Start VICE with `x64 -binarymonitor my_program.prg`, launch Regenerator 2000 with `--vice localhost:6502 my_program.prg` (or connect via **Debugger → Connect to VICE...**), and toggle the panel with ++alt+6++. Supports breakpoints (++f2++), watchpoints (++f6++), run-to-cursor (++f4++), stepping (++f7++ / ++f8++ / ++shift+f8++), and live memory dumps. See [Live Debugger](debugger.md).
+///
+
+/// details | How do I connect an AI assistant via MCP?
+    type: question
+
+Start Regenerator 2000 with `--mcp-server` (HTTP/SSE on port `3000`, live alongside the TUI) or `--mcp-server-stdio` (headless subprocess), then register `http://127.0.0.1:3000/mcp` in Claude Code or Antigravity. See [MCP Integration](mcp.md) for all 29 tools and analysis skills.
+///

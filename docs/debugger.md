@@ -1,94 +1,89 @@
+---
+icon: material/bug-outline
+description: Connect Regenerator 2000 to VICE over the Binary Monitor Protocol for breakpoints, watchpoints, stepping, and live chip register inspection.
+---
+
 # Debugger (VICE Integration)
 
-Regenerator 2000 connects to the [VICE](https://vice-emu.sourceforge.io/) emulator for live debugging. You can inspect the program counter (PC), registers, and disassembly, and use breakpoints, step commands, and run-to-cursor from the TUI.
+Connect Regenerator 2000 directly to the [VICE](https://vice-emu.sourceforge.io/) emulator over its Binary Monitor Protocol to step instructions, inspect live registers and chip state, and set breakpoints or watchpoints right from the Disassembly View.
+
+---
 
 ## Connecting to VICE
 
-!!! note
+!!! warning "Run the Exact Same Binary"
 
-    Run the same binary in both VICE and Regenerator 2000:
+    VICE and Regenerator 2000 must run the **identical binary** so program counter (`PC`) addresses and breakpoints align.
+
+=== "Auto-Connect via CLI"
+
+    Launch VICE with `-binarymonitor` (default TCP port `6502`) and pass `--vice` to Regenerator 2000:
 
     ```bash
-    # Start VICE
+    # Terminal 1: Start VICE with binary monitor enabled
     x64 -binarymonitor my_program.prg
 
-    # Start Regenerator 2000
-    regenerator2000 my_program.prg
+    # Terminal 2: Start Regenerator 2000 and auto-connect
+    regenerator2000 --vice localhost:6502 my_program.prg
     ```
 
-1. Start VICE with the `-binarymonitor` flag so it listens for a TCP connection (for example, `x64 -binarymonitor`).
-2. In Regenerator 2000, open the **Debugger** menu and select **Connect to VICE...**.
-3. Keep the default `localhost:6502` address or enter a custom address.
-4. Press **Enter** to connect.
-5. Select **View → Toggle Debugger View** (or press ++alt+6++ / ++ctrl+6++) to open the Debugger panel in the right pane.
-6. If the Debugger pane is visible, press **Tab** to switch focus to it.
+    If you changed VICE's port with `-binarymonitoraddress`, pass the matching `<HOST:PORT>` to `--vice`.
 
-### Auto-connecting via CLI
+=== "Connect from the Menu"
 
-Pass `--vice <HOST:PORT>` on the command line to connect to VICE automatically at startup:
-
-```bash
-# Start VICE
-x64 -binarymonitor my_program.prg
-
-# Start Regenerator 2000 and auto-connect
-regenerator2000 --vice localhost:6502 my_program.prg
-```
-
-The default VICE binary monitor port is **6502**. If you change the port in VICE with `-binarymonitoraddress`, pass the matching address to `--vice`.
-
-When connected and paused, the Debugger panel displays the connection status, live disassembly around the PC, registers, and breakpoints.
+    1. Start VICE with `-binarymonitor` (`x64 -binarymonitor my_program.prg`).
+    2. In Regenerator 2000, open **Debugger → Connect to VICE...**.
+    3. Confirm `localhost:6502` (or your custom host/port) and press ++enter++.
+    4. Press ++alt+6++ (or ++ctrl+6++) to open the Debugger pane, then ++tab++ to focus it.
 
 ![Debugger View](regenerator2000_debugger_screenshot.png)
 
+---
+
 ## Debugger Panel Contents
 
-- **Connection status**: Shows the VICE connection state and whether the emulator runs or pauses. When paused, the panel displays the stop reason (such as a triggered watchpoint) next to the `PAUSED` indicator.
-- **Live disassembly**: Shows disassembly around the current PC and highlights the active instruction when the emulator pauses.
-- **Registers**: Displays CPU registers (A, X, Y, SP, and P).
-- **Hardware Registers**: Displays platform-specific registers to monitor hardware state:
-    - **C64/C128**: VIC-II registers, CIA 1 and CIA 2 registers, and the 6510/8502 I/O port ($00/$01).
-    - **VIC-20**: VIC-I registers ($9000–$900F).
-    - **Plus/4**: TED chip registers ($FF00–$FF3F).
-    - **All platforms**: 6502 hardware vectors (NMI at $FFFA, RESET at $FFFC, and IRQ at $FFFE).
-- **Change Highlighting**: Highlights modified register values, memory bytes, and hardware vectors in a distinct color after each step.
-- **Breakpoints**: Lists active execution breakpoints in VICE.
-- **Watchpoints**: Lists active memory watchpoints in VICE.
+When connected, the main **Disassembly View** highlights the active `PC` and marks active breakpoints, while the right-hand Debugger pane shows:
 
-!!! note
+**Connection & Live Disassembly**
+:   Shows connection state (`RUNNING` / `PAUSED` plus stop reason such as a triggered watchpoint) and disassembly centered on the current `PC`.
 
-    On wide terminals, the debugger panel uses a multi-column layout to display the Stack and Hardware Registers side-by-side. The screenshot below shows the single-column layout.
+**CPU Registers & Stack**
+:   Displays `A`, `X`, `Y`, `SP`, and `P` status flags, plus the top 5 entries from the hardware stack (`$0100`–`$01FF`).
 
-![Debugger Only](regenerator2000_debugger_screenshot_only.png)
+**Hardware Registers & Vectors**
+:   Displays 6502 vectors (`NMI` `$FFFA`, `RESET` `$FFFC`, `IRQ` `$FFFE`) alongside platform chips: 6510/8502 `$00`/`$01` port, VIC-II, CIA 1 & CIA 2 (C64/C128), VIC-I `$9000–$900F` (VIC-20), and TED `$FF00–$FF3F` (Plus/4).
 
-When connected, the main **Disassembly** view also highlights the current PC and marks active breakpoints. Press ++f2++ to toggle a breakpoint at the cursor. Press ++shift+f2++ to toggle a breakpoint at a specific address. Press ++f6++ to toggle a watchpoint.
+**Change Highlighting**
+:   Highlights any register, memory byte, stack entry, or vector modified on the latest step.
 
-## Memory Dump
+**Breakpoints & Watchpoints**
+:   Lists active execution breakpoints and memory read/write watchpoints registered in VICE.
 
-When connected and paused, the Debugger panel can display a **Memory Dump** next to the live disassembly. Focus the Debugger pane. Press ++m++ to open the **Memory Dump Address** dialog. Enter a hexadecimal address (such as `0400` or `D000`).
+**Memory Dump (64 bytes)**
+:   Displays an 8×8 byte hex grid at any address when paused—focus the Debugger pane, press ++m++, and enter a hex address (such as `0400` or `D000`). Refreshes automatically on every step.
 
-The dump displays 64 bytes (8 rows of 8 bytes) from the specified address. Regenerator 2000 refreshes this dump automatically each time the emulator pauses.
+![Debugger Only](regenerator2000_debugger_screenshot_only.png){ loading=lazy }
 
-If you do not set a memory dump address, the panel displays `(press 'm' to config)`.
+/// caption
+Single-column Debugger View (wide terminals lay out Stack and Hardware Registers side-by-side).
+///
 
-## Stack
-
-When connected and paused, the Debugger panel displays the **Stack** contents. It shows the current stack pointer value and up to 5 entries from the top of the stack.
+---
 
 ## Keyboard Shortcuts
 
-Access all debugger actions from the **Debugger** menu or through keyboard shortcuts. See [Keyboard Shortcuts](keyboard_shortcuts.md) for the complete list:
+All controls are also available under the **Debugger** menu (see [Keyboard Shortcuts](keyboard_shortcuts.md#live-debugger-vice)):
 
-| Action               | Shortcut     |
-|----------------------|--------------|
-| Toggle Breakpoint    | ++f2++       |
-| Toggle Breakpoint... | ++shift+f2++ |
-| Run to Cursor        | ++f4++       |
-| Watchpoint           | ++f6++       |
-| Memory Dump...       | ++m++        |
-| Step Into            | ++f7++       |
-| Step Over            | ++f8++       |
-| Step Out             | ++shift+f8++ |
-| Run / Continue       | ++f9++       |
+| Action | Shortcut |
+| :--- | :--- |
+| **Toggle Breakpoint** | ++f2++ |
+| **Toggle Breakpoint...** *(address)* | ++shift+f2++ |
+| **Watchpoint** | ++f6++ |
+| **Run to Cursor** | ++f4++ |
+| **Memory Dump...** *(focus Debugger pane)* | ++m++ |
+| **Step Into** | ++f7++ |
+| **Step Over** | ++f8++ |
+| **Step Out** | ++shift+f8++ |
+| **Run / Pause (Continue)** | ++f9++ |
 
-Select **Debugger → Disconnect from VICE** to close the connection.
+Select **Debugger → Disconnect from VICE** anytime to detach cleanly.

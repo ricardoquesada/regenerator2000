@@ -1,313 +1,293 @@
+---
+icon: material/eye-outline
+description: "Explore all seven workspace views: Disassembly, Blocks, Hexdump, Sprites, Charset, Bitmap, and the live VICE Debugger pane."
+---
+
 # Views
 
-Regenerator 2000 provides specialized views to analyze Commodore 8-bit binaries. The **Disassembly View** occupies the main left pane, while the right pane displays one of the companion views (**Blocks**, **Hexdump**, **Sprites**, **Charset**, **Bitmap**, or **Debugger**). Press ++tab++ to switch focus between the Disassembly View and the active right pane.
+Regenerator 2000 splits the workspace into the **Disassembly View** on the left and a switchable companion view on the right (**Blocks**, **Hexdump**, **Sprites**, **Charset**, **Bitmap**, or **Debugger**). Press ++tab++ anytime to move focus between panes.
 
-All scrollable views (**Disassembly**, **Blocks**, **Hexdump**, **Sprites**, **Charset**, and **Bitmap**) support standard cursor navigation:
+All scrollable views share standard cursor navigation:
 
-| Action                          | Shortcut                                           |
-|:--------------------------------|:---------------------------------------------------|
-| **Move Cursor**                 | ++up++ / ++down++ / ++j++ / ++k++                  |
-| **Page Up / Down**              | ++page-up++ / ++page-down++ or ++ctrl+u++ / ++ctrl+d++ |
-| **Start / End**                 | ++home++ / ++end++                                 |
-| **Jump to Item / End**          | number + ++shift+g++                               |
-| **Switch Pane**                 | ++tab++                                            |
+| Action | Shortcut |
+| :--- | :--- |
+| **Move Cursor** | ++up++ / ++down++ / ++j++ / ++k++ |
+| **Page Up / Down** | ++page-up++ / ++page-down++ or ++ctrl+u++ / ++ctrl+d++ |
+| **Start / End** | ++home++ / ++end++ |
+| **Jump to Item / End** | number + ++shift+g++ |
+| **Switch Pane** | ++tab++ |
+
+---
 
 ## Disassembly View
 
-The Disassembly View is the primary workspace in Regenerator 2000. It displays disassembled code, data blocks, and text.
+The **Disassembly View** is your primary workspace for decoding instructions, defining data blocks, adding comments, and tracing control flow:
 
-Use this view to perform the following tasks:
-
-- **Navigate Memory**: Move through the address space, jump to addresses or labels, and follow execution paths.
-- **Define Block Types**: Convert memory regions into Code, Byte, Word, Address, External File, or Text blocks.
-- **Annotate**: Add side or line comments, rename labels, apply enums, and format immediate operands.
-- **Analyze Flow**: Follow jump and branch arrows in the left margin. Regenerator 2000 dims unreferenced code blocks for visual contrast.
-- **Minimap Bar**: Inspect the horizontal minimap bar below the menu bar to see block types across the entire address space. Click the minimap to jump to any location.
+- **Control-Flow Margin:** Draws jump and branch arrows alongside the listing and dims unreferenced code blocks for visual contrast.
+- **Interactive Minimap:** Displays block classification across the entire address space just below the menu bar—click anywhere on it to jump directly.
 
 ![Disassembly View](regenerator2000_disassembly_screenshot.png)
 
-The Disassembly View contains these columns:
+/// caption
+Split workspace with the Disassembly View on the left and the Hexdump companion pane on the right.
+///
 
-- **a**: Decimal line number.
-- **b**: Control-flow arrows for jumps and branches.
-- **c**: Hexadecimal memory address.
-- **d**: Hexadecimal instruction or data bytes.
-- **e**: Optional label with a type prefix.
-- **f**: Instruction mnemonic (for example, `lda`).
-- **g**: Instruction operand (for example, `#$05`).
-- **h**: Optional side comment (for example, `; this is a comment`).
+### Column Anatomy
 
-![Disassembly Only](regenerator2000_disassembly_only.png)
+![Disassembly Only](regenerator2000_disassembly_only.png){ loading=lazy }
 
-Auto-generated labels start with a prefix. The prefix shows how the code references the address (such as `s_` for subroutines, `j_` for jumps, and `a_` for absolute addresses). See [Analysis — Label Prefixes](analysis.md#label-prefixes) for the complete list of prefixes.
+/// caption
+Column breakdown (`a`–`h`) in the Disassembly View.
+///
 
-### Keyboard Shortcuts
+`a` — **Line number**
+:   Decimal row index used for line-number jumps.
 
-| Action                                      | Shortcut                          |
-|:--------------------------------------------|:----------------------------------|
-| **Disassemble Address (flow analysis)**     | ++d++                             |
-| **Convert to Code**                         | ++c++                             |
-| **Convert to Byte**                         | ++b++                             |
-| **Convert to Word**                         | ++w++                             |
-| **Convert to Address**                      | ++a++                             |
-| **Convert to PETSCII Text**                 | ++p++                             |
-| **Convert to Screencode Text**              | ++s++                             |
-| **Convert to External File**                | ++shift+e++                       |
-| **Convert to Undefined**                    | ++question-mark++                 |
-| **Set Lo/Hi Address Table**                 | ++less-than++                     |
-| **Set Hi/Lo Address Table**                 | ++greater-than++                  |
-| **Set Lo/Hi Word Table**                    | ++comma++                         |
-| **Set Hi/Lo Word Table**                    | ++period++                        |
-| **Create Scope**                            | ++r++                             |
-| **Remove Scope / Exclude External Address** | ++delete++                        |
-| **Nudge Scope Boundary**                    | ++alt+up++ / ++alt+down++         |
-| **Set Label**                               | ++l++                             |
-| **Set Symbolic Offset**                     | ++o++                             |
-| **Increment/Decrement Symbolic Offset**     | ++plus++ / ++minus++              |
-| **Add Side Comment**                        | ++semicolon++                     |
-| **Add Line Comment**                        | ++colon++                         |
-| **Next/Prev Immediate Format**              | ++i++ / ++shift+i++               |
-| **Apply Enum**                              | ++e++                             |
-| **Pack Lo/Hi Address**                      | ++open-bracket++                  |
-| **Pack Hi/Lo Address**                      | ++close-bracket++                 |
-| **Toggle Visual Mode**                      | ++shift+v++                       |
-| **Select Text**                             | ++shift+up++ / ++shift+down++     |
-| **Clear Selection**                         | ++escape++                        |
-| **Toggle Splitter**                         | ++pipe++                          |
-| **Toggle Collapsed Block**                  | ++ctrl+k++                        |
-| **Toggle Bookmark**                         | ++ctrl+b++                        |
-| **List Bookmarks**                          | ++ctrl+shift+b++ or ++alt+b++     |
-| **Analyze**                                 | ++ctrl+a++                        |
-| **Jump to Address**                         | ++ctrl+g++ or ++alt+g++           |
-| **Jump to Line**                            | ++ctrl+shift+g++ or ++alt+shift+g++ |
-| **Jump to Line / End of File**              | number + ++shift+g++              |
-| **Jump to Operand**                         | ++enter++                         |
-| **Jump Back (History)**                     | ++backspace++                     |
-| **Next Unexplored Block**                   | ++ctrl+n++                        |
-| **Prev Unexplored Block**                   | ++ctrl+shift+n++                  |
-| **Vim Search**                              | ++slash++                         |
-| **Search Dialog**                           | ++ctrl+f++                        |
-| **Find Next**                               | ++n++ or ++f3++                   |
-| **Find Previous**                           | ++shift+n++ or ++shift+f3++       |
-| **Go to Symbol**                            | ++ctrl+p++                        |
-| **Find Cross References**                   | ++ctrl+x++                        |
+`b` — **Flow arrows**
+:   Jump and branch paths rendered along the left margin.
+
+`c` — **Address**
+:   Hexadecimal memory address (`$XXXX`).
+
+`d` — **Raw bytes**
+:   Hexadecimal machine bytes for the instruction or data row.
+
+`e` — **Label**
+:   Optional symbol with auto-prefix (`s_`, `j_`, `a_`, etc.; see [Analysis — Label Prefixes](analysis.md#label-prefixes)).
+
+`f` — **Mnemonic**
+:   Decoded 6502 instruction or assembler directive.
+
+`g` — **Operand**
+:   Target address, immediate constant, enum constant, or data values.
+
+`h` — **Side comment**
+:   Inline user comment, system register note, or `; x-ref:` callers.
+
+/// details | Disassembly View Keyboard Shortcuts
+    type: tip
+
+| Action | Shortcut |
+| :--- | :--- |
+| **Disassemble Address (flow analysis)** | ++d++ |
+| **Convert to Code** | ++c++ |
+| **Convert to Byte** | ++b++ |
+| **Convert to Word** | ++w++ |
+| **Convert to Address** | ++a++ |
+| **Convert to PETSCII Text** | ++p++ |
+| **Convert to Screencode Text** | ++s++ |
+| **Convert to External File** | ++shift+e++ |
+| **Convert to Undefined** | ++question-mark++ |
+| **Set Lo/Hi Address Table** | ++less-than++ |
+| **Set Hi/Lo Address Table** | ++greater-than++ |
+| **Set Lo/Hi Word Table** | ++comma++ |
+| **Set Hi/Lo Word Table** | ++period++ |
+| **Create Scope** | ++r++ |
+| **Remove Scope / Exclude External Address** | ++delete++ |
+| **Nudge Scope Boundary** | ++alt+up++ / ++alt+down++ |
+| **Set Label** | ++l++ |
+| **Set Symbolic Offset** | ++o++ |
+| **Increment/Decrement Symbolic Offset** | ++plus++ / ++minus++ |
+| **Add Side Comment** | ++semicolon++ |
+| **Add Line Comment** | ++colon++ |
+| **Next/Prev Immediate Format** | ++i++ / ++shift+i++ |
+| **Apply Enum** | ++e++ |
+| **Pack Lo/Hi Address** | ++open-bracket++ |
+| **Pack Hi/Lo Address** | ++close-bracket++ |
+| **Toggle Visual Mode** | ++shift+v++ |
+| **Select Text** | ++shift+up++ / ++shift+down++ |
+| **Clear Selection** | ++escape++ |
+| **Toggle Splitter** | ++pipe++ |
+| **Toggle Collapsed Block** | ++ctrl+k++ |
+| **Toggle Bookmark** | ++ctrl+b++ |
+| **List Bookmarks** | ++ctrl+shift+b++ or ++alt+b++ |
+| **Analyze** | ++ctrl+a++ |
+| **Jump to Address** | ++ctrl+g++ or ++alt+g++ |
+| **Jump to Line** | ++ctrl+shift+g++ or ++alt+shift+g++ |
+| **Jump to Line / End of File** | number + ++shift+g++ |
+| **Jump to Operand** | ++enter++ |
+| **Jump Back (History)** | ++backspace++ |
+| **Next Unexplored Block** | ++ctrl+n++ |
+| **Prev Unexplored Block** | ++ctrl+shift+n++ |
+| **Vim Search** | ++slash++ |
+| **Search Dialog** | ++ctrl+f++ |
+| **Find Next** | ++n++ or ++f3++ |
+| **Find Previous** | ++shift+n++ or ++shift+f3++ |
+| **Go to Symbol** | ++ctrl+p++ |
+| **Find Cross References** | ++ctrl+x++ |
+
+///
 
 ### Jump to Operand
 
-Press ++enter++ (or select **Jump → Jump to Operand**) in the Disassembly View to jump to an operand address:
+Press ++enter++ (or **Jump → Jump to Operand**) in the Disassembly View to follow an operand:
 
-- **Single target (`1`)**: Jumps at once and records the current line in navigation history (press ++backspace++ to return). This rule covers `Code` instructions with an address, branch, or `<`/`>` immediate label operand, plus redirected external equates. It also covers single-entry **Address** or split-table lines, and multi-entry lines where every entry resolves to one address.
-- **Multiple distinct targets (`2+`)**: Opens the **Jump to Operand** picker (`Jump to Operand from $XXXX`) when a line resolves to two or more addresses. This happens on multi-entry **Address** lines and on either half (`.byte <...` or `.byte >...`) of split address tables. Targets appear left to right and deduplicate by final address while keeping the leftmost operand text. When a symbolic offset applies (such as `(handler - 1)`), the picker shows the expression and jumps to its base.
-- **No navigable target (`0`)**: Shows `"No valid operand to jump to"` in the status bar. This happens on instructions without an address operand, numeric data blocks, text blocks, collapsed rows, orphan bytes, and unmapped equates.
+- **Single target (`1`):** Jumps immediately and saves history (++backspace++ returns). Works on instructions with an address, branch, or `#<`/`#>` label operand, redirected external equates, and single-target `Address` / split-table rows.
+- **Multiple distinct targets (`2+`):** Opens the **Jump to Operand** picker (`Jump to Operand from $XXXX`) for multi-entry **Address** rows and split address tables (`.byte <...` / `.byte >...`), listed left to right and deduplicated by resolved address.
+- **No navigable target (`0`):** Displays `"No valid operand to jump to"` in the status bar.
 
-*(To inspect incoming `; x-ref:` callers instead of outgoing operands, press ++ctrl+x++ for **Find Cross References**.)*
+*(For incoming `; x-ref:` callers instead of outgoing operands, press ++ctrl+x++ for **Find Cross References**.)*
 
-#### Picker Dialog Controls
+/// details | Picker Dialog Controls
+    type: info
 
-When the **Jump to Operand** picker opens:
+The modal shows `Jump to Operand from $XXXX` (with `[current/total]` if scrollable), `[1]`–`[9]` hotkey badges, `$XXXX` target addresses, operand text, and disassembly previews (or `(out of range)` for external targets):
 
-- **Title**: Shows `Jump to Operand from $XXXX` and a clickable `[x]` close button. When the list exceeds the modal height, the title appends `[current/total]`.
-- **Target Rows**: Each row shows a `[1]`–`[9]` hotkey badge (blank on row `10+`) and the uppercase `$XXXX` target address. It also shows the operand text (unless raw `$XXXX` hex repeats the address) and a preview after `│`. External targets without a body row show `(out of range)`.
+- **Move Selection:** ++up++ / ++k++, ++down++ / ++j++ (wraps at ends), ++page-up++ / ++page-down++, ++home++ / ++end++, or mouse wheel.
+- **Jump:** Press `1`–`9` for targets 1–9, press ++enter++ on the active row, or left-click any row.
+- **Cancel:** Press ++escape++, click `[x]`, or click outside the modal.
+///
 
-Use these controls inside the picker:
-
-- **Move Selection**: Press `Up` / `k`, `Down` / `j` (wraps at ends), `PageUp` / `PageDown` (steps by page), `Home` / `End`, or scroll the mouse wheel.
-- **Jump**: Press `1`–`9` for targets 1–9, press `Enter` on the highlighted row, or left-click any target row.
-- **Cancel**: Press `Esc`, click `[x]`, or left-click outside the dialog.
+---
 
 ## Blocks View
 
-The Blocks View displays the structural layout of your project as a list of memory blocks, lexical scopes, and manual splitters:
+Toggle with ++alt+1++ (or ++ctrl+1++). Displays your project's macro layout—**Code** (Blue), **Data** (Green/Yellow), **Undefined** (Grey), **Scopes** (`Scope: $XXXX - $XXXX [name]`), **Splitters**, and **Collapsed blocks** (`+`). Click any entry or press ++enter++ to jump there in the Disassembly View.
 
-- **Code regions** (Blue)
-- **Data regions** (Green/Yellow)
-- **Undefined/Unknown regions** (Grey)
-- **Scopes**: Displays lexical scope ranges (`Scope: $XXXX - $XXXX [name]`) and indents blocks and splitters nested inside the scope.
-- **Splitters**: Displays manual block splitters (`$XXXX -----------------`).
-- **Collapsed blocks**: Marks collapsed blocks with a leading `+` indicator.
+![Blocks View](regenerator2000_blocks_screenshot.png){ loading=lazy }
 
-Press ++alt+1++ (or ++ctrl+1++) to toggle the Blocks View. Use this view to inspect the structure of the binary and locate unanalyzed data blocks. Click any item (or press ++enter++) to jump to that address in the Disassembly View.
+| Action | Shortcut |
+| :--- | :--- |
+| **Toggle view** | ++alt+1++ or ++ctrl+1++ |
+| **Toggle Collapsed Block** | ++ctrl+k++ |
+| **Jump to Disassembly** | ++enter++ |
 
-![Blocks View](regenerator2000_blocks_screenshot.png)
-
-### Keyboard Shortcuts
-
-| Action                     | Shortcut                |
-|:---------------------------|:------------------------|
-| **Toggle view**            | ++alt+1++ or ++ctrl+1++ |
-| **Toggle Collapsed Block** | ++ctrl+k++              |
-| **Jump to Disassembly**    | ++enter++               |
+---
 
 ## Hexdump View
 
-The Hexdump View displays raw hexadecimal bytes alongside their decoded text characters. Use it to inspect unformatted data and verify byte values.
-
-Press ++alt+2++ (or ++ctrl+2++) to cycle through three layout modes: **wide (16-byte)**, **narrow (8-byte)**, and **disabled** (hidden).
-
-Press ++m++ or ++shift+m++ to switch between PETSCII and Screencode character decoding modes. Regenerator 2000 colors each byte with a **byte-value color palette** (based on [Color-code your bytes](https://simonomi.dev/blog/color-code-your-bytes/)). This palette helps you find repeated values and data structures.
+Press ++alt+2++ (or ++ctrl+2++) to cycle **16-byte wide → 8-byte narrow → hidden**. Bytes use a value-based color palette (inspired by [Color-code your bytes](https://simonomi.dev/blog/color-code-your-bytes/)) alongside live PETSCII or Screencode text decoding (++m++ / ++shift+m++).
 
 === "16-byte hexdump"
 
-    ![Hexdump 16-byte View](../regenerator2000_hexdump_screenshot.png)
+    ![Hexdump 16-byte View](regenerator2000_hexdump_screenshot.png){ loading=lazy }
 
 === "8-byte hexdump"
 
-    ![Hexdump 8-byte View](../regenerator2000_hexdump_narrow_screenshot.png)
+    ![Hexdump 8-byte View](regenerator2000_hexdump_narrow_screenshot.png){ loading=lazy }
 
-The Hexdump View contains these columns:
+![Hexdump Only](regenerator2000_hexdump_only.png){ loading=lazy }
 
-- **a**: Hexadecimal row address.
-- **b**: 16 bytes or 8 bytes of hexadecimal data.
-- **c**: Decoded text ("Screencode shifted", "Screencode unshifted", "PETSCII shifted", or "PETSCII unshifted").
+/// caption
+Hexdump columns: `a` row address · `b` 8/16 raw hex bytes · `c` Screencode/PETSCII text preview.
+///
 
-![Hexdump Only](regenerator2000_hexdump_only.png)
+| Action | Shortcut |
+| :--- | :--- |
+| **Cycle view** *(16-byte, 8-byte, hidden)* | ++alt+2++ or ++ctrl+2++ |
+| **Column Navigation** | ++left++ / ++right++ / ++h++ / ++l++ |
+| **Toggle Visual Mode** | ++shift+v++ |
+| **Select Bytes** | ++shift+up++ / ++shift+down++ / ++shift+left++ / ++shift+right++ |
+| **Clear Selection** | ++escape++ |
+| **Convert to Byte** | ++b++ |
+| **Next / Prev Text Mode** *(Screencode / PETSCII)* | ++m++ / ++shift+m++ |
+| **Jump to Disassembly** | ++enter++ |
 
-### Keyboard Shortcuts
-
-| Action                                   | Shortcut                                                 |
-|:-----------------------------------------|:---------------------------------------------------------|
-| **Cycle view** (16-byte, 8-byte, hidden) | ++alt+2++ or ++ctrl+2++                                  |
-| **Column Navigation**                    | ++left++ / ++right++ / ++h++ / ++l++                     |
-| **Toggle Visual Mode**                   | ++shift+v++                                              |
-| **Select Bytes**                         | ++shift+up++ / ++shift+down++ / ++shift+left++ / ++shift+right++ |
-| **Clear Selection**                      | ++escape++                                               |
-| **Convert to Byte**                      | ++b++                                                    |
-| **Next Text Mode** (Screencode/PETSCII)  | ++m++                                                    |
-| **Previous Text Mode**                   | ++shift+m++                                              |
-| **Jump to Disassembly**                  | ++enter++                                                |
+---
 
 ## Sprites View
 
-The Sprites View renders memory as hardware sprites. Press ++alt+3++ (or ++ctrl+3++) to cycle through three layouts: **wide (2-sprites)**, **narrow (1-sprite)**, and **disabled** (hidden).
-
-- **64-byte Chunks**: Renders each 64-byte block as a 24x21 sprite.
-- **Multicolor Support**: Press ++m++ to toggle between single-color and multicolor sprite modes.
-- **Asset Discovery**: Locate player sprites, enemies, and graphic objects in the binary.
+Press ++alt+3++ (or ++ctrl+3++) to cycle **2-sprites wide → 1-sprite narrow → hidden**. Renders 64-byte chunks as 24×21 hardware sprites in single-color or multicolor mode (++m++).
 
 === "2-sprites view"
 
-    ![Sprites 2-sprites View](../regenerator2000_sprites_screenshot.png)
+    ![Sprites 2-sprites View](regenerator2000_sprites_screenshot.png){ loading=lazy }
 
 === "1-sprite view"
 
-    ![Sprites 1-sprite View](../regenerator2000_sprites_narrow_screenshot.png)
+    ![Sprites 1-sprite View](regenerator2000_sprites_narrow_screenshot.png){ loading=lazy }
 
-### Keyboard Shortcuts
+| Action | Shortcut |
+| :--- | :--- |
+| **Cycle view** *(2-sprites, 1-sprite, hidden)* | ++alt+3++ or ++ctrl+3++ |
+| **Column Navigation** *(2-sprites mode)* | ++left++ / ++right++ / ++h++ / ++l++ |
+| **Toggle Visual Mode** | ++shift+v++ |
+| **Select Sprites** | ++shift+up++ / ++shift+down++ / ++shift+left++ / ++shift+right++ |
+| **Clear Selection** | ++escape++ |
+| **Convert to Byte** | ++b++ |
+| **Toggle Multicolor** | ++m++ |
+| **Jump to Disassembly** | ++enter++ |
 
-| Action                                       | Shortcut                                                 |
-|:---------------------------------------------|:---------------------------------------------------------|
-| **Cycle view** (2-sprites, 1-sprite, hidden) | ++alt+3++ or ++ctrl+3++                                  |
-| **Column Navigation** (2-sprites mode)       | ++left++ / ++right++ / ++h++ / ++l++                     |
-| **Toggle Visual Mode**                       | ++shift+v++                                              |
-| **Select Sprites**                           | ++shift+up++ / ++shift+down++ / ++shift+left++ / ++shift+right++ |
-| **Clear Selection**                          | ++escape++                                               |
-| **Convert to Byte**                          | ++b++                                                    |
-| **Toggle Multicolor**                        | ++m++                                                    |
-| **Jump to Disassembly**                      | ++enter++                                                |
+---
 
 ## Charset View
 
-The Charset View renders memory as 8x8 character tiles to help you locate custom fonts and tile sets.
-
-Press ++alt+4++ (or ++ctrl+4++) to cycle through three layouts: **wide (8-chars)**, **narrow (4-chars)**, and **disabled** (hidden).
-
-- **Standard & Multicolor**: Press ++m++ to toggle between high-resolution and multicolor character modes.
-- **Pattern Recognition**: Identify character graphics stored in raw byte regions.
+Press ++alt+4++ (or ++ctrl+4++) to cycle **8-chars wide → 4-chars narrow → hidden**. Renders memory as 8×8 character tiles in high-resolution or multicolor mode (++m++) to spot custom fonts.
 
 === "8-chars view"
 
-    ![Charset 8-chars View](../regenerator2000_charset_screenshot.png)
+    ![Charset 8-chars View](regenerator2000_charset_screenshot.png){ loading=lazy }
 
 === "4-chars view"
 
-    ![Charset 4-chars View](../regenerator2000_charset_narrow_screenshot.png)
+    ![Charset 4-chars View](regenerator2000_charset_narrow_screenshot.png){ loading=lazy }
 
-### Keyboard Shortcuts
+| Action | Shortcut |
+| :--- | :--- |
+| **Cycle view** *(8-chars, 4-chars, hidden)* | ++alt+4++ or ++ctrl+4++ |
+| **Column Navigation** | ++left++ / ++right++ / ++h++ / ++l++ |
+| **Toggle Visual Mode** | ++shift+v++ |
+| **Select Characters** | ++shift+up++ / ++shift+down++ / ++shift+left++ / ++shift+right++ |
+| **Clear Selection** | ++escape++ |
+| **Convert to Byte** | ++b++ |
+| **Toggle Multicolor** | ++m++ |
+| **Jump to Disassembly** | ++enter++ |
 
-| Action                                    | Shortcut                                                 |
-|:------------------------------------------|:---------------------------------------------------------|
-| **Cycle view** (8-chars, 4-chars, hidden) | ++alt+4++ or ++ctrl+4++                                  |
-| **Column Navigation**                     | ++left++ / ++right++ / ++h++ / ++l++                     |
-| **Toggle Visual Mode**                    | ++shift+v++                                              |
-| **Select Characters**                     | ++shift+up++ / ++shift+down++ / ++shift+left++ / ++shift+right++ |
-| **Clear Selection**                       | ++escape++                                               |
-| **Convert to Byte**                       | ++b++                                                    |
-| **Toggle Multicolor**                     | ++m++                                                    |
-| **Jump to Disassembly**                   | ++enter++                                                |
+---
 
 ## Bitmap View
 
-The Bitmap View renders memory as a full-screen bitmap image. Press ++alt+5++ (or ++ctrl+5++) to toggle the Bitmap View:
+Press ++alt+5++ (or ++ctrl+5++) to toggle full-screen 320×200 / 160×200 bitmap rendering.
 
-- **Asset Discovery**: Locate title screens, background graphics, and loading screens.
-- **Format Identification**: Identify the layout of large binary data blocks visually.
-- **Screen RAM Overlay**: Press ++s++ or ++shift+s++ to cycle through Screen RAM addresses and preview bitmap color attributes, or press ++x++ to place Screen RAM immediately after the bitmap (`+8000` bytes).
+![Bitmap View](regenerator2000_bitmap_screenshot.png){ loading=lazy }
 
-![Bitmap View](regenerator2000_bitmap_screenshot.png)
+!!! note "Automatic Pixel Graphics Detection"
 
-!!! note
+    Regenerator 2000 detects **Kitty**, **iTerm2**, and **Sixel** terminal protocols at startup and falls back cleanly to Unicode halfblocks when unsupported.
 
-    Regenerator 2000 automatically detects your terminal's pixel graphics protocol (Kitty, iTerm2, or Sixel) at startup and falls back to Halfblocks on terminals without pixel graphics. Press ++alt+5++ (or ++ctrl+5++) to hide the Bitmap View when not needed.
+![Bitmap Only](regenerator2000_bitmap_only.png){ loading=lazy }
 
-The Bitmap View contains these elements:
+/// caption
+Bitmap View elements: `a` mode & terminal renderer · `b` bitmap & Screen RAM addresses · `c` rendered canvas · `d` Screen RAM selector.
+///
 
-- **a**: Bitmap mode (Multicolor or High-Res) and terminal renderer (Kitty, iTerm2, Sixel, or Halfblocks).
-- **b**: Bitmap address and Screen RAM address.
-- **c**: Rendered bitmap canvas.
-- **d**: Screen RAM position indicator.
+| Action | Shortcut |
+| :--- | :--- |
+| **Toggle view** | ++alt+5++ or ++ctrl+5++ |
+| **Toggle Visual Mode** | ++shift+v++ |
+| **Select Bitmaps** | ++shift+up++ / ++shift+down++ |
+| **Clear Selection** | ++escape++ |
+| **Convert to Byte** | ++b++ |
+| **Toggle Multicolor** | ++m++ |
+| **Next / Previous Screen RAM** | ++s++ / ++shift+s++ |
+| **Screen RAM after Bitmap (`+8000`)** | ++x++ |
+| **Jump to Disassembly** | ++enter++ |
 
-![Bitmap Only](regenerator2000_bitmap_only.png)
-
-### Keyboard Shortcuts
-
-| Action                      | Shortcut                      |
-|:----------------------------|:------------------------------|
-| **Toggle view**             | ++alt+5++ or ++ctrl+5++       |
-| **Toggle Visual Mode**      | ++shift+v++                   |
-| **Select Bitmaps**          | ++shift+up++ / ++shift+down++ |
-| **Clear Selection**         | ++escape++                    |
-| **Convert to Byte**         | ++b++                         |
-| **Toggle Multicolor**       | ++m++                         |
-| **Next Screen RAM**         | ++s++                         |
-| **Previous Screen RAM**     | ++shift+s++                   |
-| **Screen RAM after Bitmap** | ++x++                         |
-| **Jump to Disassembly**     | ++enter++                     |
+---
 
 ## Debugger View
 
-The Debugger View connects to the [VICE](https://vice-emu.sourceforge.io/) emulator for live debugging inside Regenerator 2000.
+Press ++alt+6++ (or ++ctrl+6++) to toggle the live [VICE](https://vice-emu.sourceforge.io/) debugger panel—showing connection state, stop reason, live disassembly around `PC`, configurable 64-byte Memory Dump (++m++), CPU registers (`A`, `X`, `Y`, `SP`, `P`), stack top (`$0100`–`$01FF`), active breakpoints/watchpoints, hardware vectors (`NMI`/`RES`/`IRQ`), and platform chip registers with change highlighting after every step.
 
-Press ++alt+6++ (or ++ctrl+6++) to toggle the Debugger View. When the connection to VICE is active, the panel displays:
+![Debugger View](regenerator2000_debugger_screenshot.png){ loading=lazy }
 
-- **Connection status**: Shows the VICE connection state and whether the emulator runs or pauses, including the stop reason when paused.
-- **Live disassembly**: Shows disassembly around the current PC and highlights the active instruction when the emulator pauses.
-- **Memory Dump**: Displays 64 bytes (8 rows of 8 bytes) from a configurable memory address next to the live disassembly (press ++m++ to set the address).
-- **Registers**: Displays CPU registers A, X, Y, SP, and P (status).
-- **Breakpoints**: Lists active execution breakpoints in VICE.
-- **Watchpoints**: Lists active memory watchpoints in VICE.
-- **Stack**: Displays the current stack pointer (`SP`) and up to 5 entries from the top of the hardware stack (`$0100`–`$01FF`).
-- **Hardware Registers & Vectors**: Displays 6502 hardware vectors (`NMI`, `RES`, `IRQ`) and platform-specific hardware registers (6510/8502 `$00`/`$01` port, VIC-II, CIA 1, and CIA 2 on C64/C128; VIC-I on VIC-20; TED on Plus/4).
-- **Change Highlighting**: Highlights modified register values, memory bytes, stack entries, and hardware vectors after each step.
+![Debugger Only](regenerator2000_debugger_screenshot_only.png){ loading=lazy }
 
-![Debugger View](regenerator2000_debugger_screenshot.png)
+/// caption
+Single-column Debugger View (wide terminals arrange Stack and Hardware Registers side-by-side).
+///
 
-![Debugger Only](regenerator2000_debugger_screenshot_only.png)
+See [Live Debugger (VICE)](debugger.md) for connection instructions and full details.
 
-When the connection to VICE is active, the main **Disassembly** view also highlights the current PC and marks active breakpoints.
-
-See [Debugger (VICE Integration)](debugger.md) for connection instructions and debugger features.
-
-### Keyboard Shortcuts
-
-| Action                   | Shortcut                |
-|:-------------------------|:------------------------|
-| **Toggle view**          | ++alt+6++ or ++ctrl+6++ |
-| **Toggle Breakpoint**    | ++f2++                  |
-| **Toggle Breakpoint...** | ++shift+f2++            |
-| **Run to Cursor**        | ++f4++                  |
-| **Watchpoint**           | ++f6++                  |
-| **Memory Dump...**       | ++m++                   |
-| **Step Instruction**     | ++f7++                  |
-| **Step Over**            | ++f8++                  |
-| **Step Out**             | ++shift+f8++            |
-| **Run / Continue**       | ++f9++                  |
+| Action | Shortcut |
+| :--- | :--- |
+| **Toggle view** | ++alt+6++ or ++ctrl+6++ |
+| **Toggle Breakpoint** | ++f2++ |
+| **Toggle Breakpoint...** | ++shift+f2++ |
+| **Run to Cursor** | ++f4++ |
+| **Watchpoint** | ++f6++ |
+| **Memory Dump...** | ++m++ |
+| **Step Instruction** | ++f7++ |
+| **Step Over** | ++f8++ |
+| **Step Out** | ++shift+f8++ |
+| **Run / Continue** | ++f9++ |
