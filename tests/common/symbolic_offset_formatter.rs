@@ -12,7 +12,7 @@ pub fn format_raw_instruction(
     operands: &[u8],
     address: u16,
 ) -> (String, String) {
-    let opcodes = regenerator2000_core::cpu::get_opcodes();
+    let opcodes = regenerator2000_core::cpu::opcodes();
     let labels = BTreeMap::new();
     let annotations = AnnotationManager::default();
     let empty_enums = BTreeMap::new();

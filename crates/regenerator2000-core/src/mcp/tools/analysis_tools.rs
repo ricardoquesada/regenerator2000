@@ -7,13 +7,16 @@
 
 use crate::commands::Command;
 use crate::config::SystemConfig;
+use crate::disassembler::symbols;
 use crate::mcp::tools::common::{
-    get_address, get_optional_address_range, make_mcp_error, parse_address_value,
+    make_mcp_error, parse_address_arg, parse_address_value, parse_optional_address_range_arg,
 };
 use crate::mcp::types::McpError;
-use crate::state::AppState;
-use crate::state::types::{Addr, BlockType};
-use crate::view_state::CoreViewState;
+use crate::state::types::{
+    Addr, BlockType, LabelKind, LabelLocality, OffsetAddressing, SymbolicOffset,
+};
+use crate::state::{AddressEntry, AppState, search};
+use crate::view_state::{CoreViewState, RightPane};
 use serde_json::{Value, json};
 use std::fmt::Write as _;
 
@@ -246,7 +249,7 @@ pub fn handle_call(
             })))
         }
         "r2000_get_address_details" => {
-            let address = match get_address(args, "address") {
+            let address = match parse_address_arg(args, "address") {
                 Ok(addr) => addr,
                 Err(err) => return Some(Err(err)),
             };
@@ -268,7 +271,7 @@ pub fn handle_call(
             })
         })),
         "r2000_get_cross_references" => {
-            let address = match get_address(args, "address") {
+            let address = match parse_address_arg(args, "address") {
                 Ok(addr) => addr,
                 Err(err) => return Some(Err(err)),
             };
@@ -343,7 +346,7 @@ pub(crate) fn get_comments_impl(
         }
     };
 
-    let range_filter = get_optional_address_range(args)?;
+    let range_filter = parse_optional_address_range_arg(args)?;
 
     let type_filter = match args.get("type").and_then(|v| v.as_str()) {
         Some("line") => Some("line"),
@@ -359,8 +362,8 @@ pub(crate) fn get_comments_impl(
 
     let mut comments = Vec::new();
     for (addr, entry) in app_state.annotations.iter() {
-        if let Some((s, e)) = range_filter
-            && (addr < s || addr > e)
+        if let Some(range) = range_filter
+            && (addr < range.start || addr > range.end)
         {
             continue;
         }
@@ -441,8 +444,8 @@ pub(crate) fn get_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec
 /// - `"address"`: Numeric source address (`u16`).
 /// - `"from_address"`: Numeric source address (`u16`).
 /// - `"from_hex"`: Uppercase 4-digit hex string (for example, `"$C010"`).
-/// - `"kind"`: Snake-case [`XRefKind::as_str`](crate::state::XRefKind::as_str) classification.
-/// - `"badge"`: Bracketed [`XRefKind::badge`](crate::state::XRefKind::badge) label.
+/// - `"kind"`: Snake-case [`XRefKind::as_str`](XRefKind::as_str) classification.
+/// - `"badge"`: Bracketed [`XRefKind::badge`](XRefKind::badge) label.
 #[must_use]
 pub(crate) fn get_cross_references_impl(app_state: &AppState, address: Addr) -> Vec<Value> {
     let Some(refs) = app_state.cross_refs.get(&address) else {
@@ -486,7 +489,7 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
         }
     };
 
-    let range_filter = get_optional_address_range(args)?;
+    let range_filter = parse_optional_address_range_arg(args)?;
 
     let kind_raw = args.get("kind").and_then(|v| v.as_str());
     let kind_lower = kind_raw.map(str::to_ascii_lowercase);
@@ -510,20 +513,17 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
     let mut symbols = Vec::new();
     if kind_filter != Some("derived") {
         for (&addr, labels) in &app_state.labels {
-            if let Some((s, e)) = range_filter
-                && (addr < s || addr > e)
+            if let Some(range) = range_filter
+                && (addr < range.start || addr > range.end)
             {
                 continue;
             }
 
-            let suppressed = crate::disassembler::symbols::has_active_address_offset(
-                addr,
-                &app_state.labels,
-                &app_state.annotations,
-            );
+            let suppressed =
+                symbols::has_active_address_offset(addr, &app_state.labels, &app_state.annotations);
 
             for label in labels {
-                if label.kind != crate::state::LabelKind::User && suppressed {
+                if label.kind != LabelKind::User && suppressed {
                     continue;
                 }
 
@@ -558,17 +558,14 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
 
     if kind_filter.is_none() || kind_filter == Some("derived") {
         for (addr, entry) in app_state.annotations.iter() {
-            if let Some((s, e)) = range_filter
-                && (addr < s || addr > e)
+            if let Some(range) = range_filter
+                && (addr < range.start || addr > range.end)
             {
                 continue;
             }
 
-            if !crate::disassembler::symbols::has_active_address_offset(
-                addr,
-                &app_state.labels,
-                &app_state.annotations,
-            ) {
+            if !symbols::has_active_address_offset(addr, &app_state.labels, &app_state.annotations)
+            {
                 continue;
             }
 
@@ -576,10 +573,11 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
                 continue;
             };
 
-            let expr = app_state.format_symbolic_offset(sym, None, addr.0 <= 0x00FF);
+            let expr =
+                app_state.format_symbolic_offset(sym, None, OffsetAddressing::for_address(addr));
             // Match `names` and `name` filters against both the formatted expression (`"zp_ptr + 1"`)
             // and any unsuppressed base symbol at `sym.base` (`"zp_ptr"`).
-            let base_suppressed = crate::disassembler::symbols::has_active_address_offset(
+            let base_suppressed = symbols::has_active_address_offset(
                 sym.base,
                 &app_state.labels,
                 &app_state.annotations,
@@ -589,10 +587,9 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
             if let Some(ref names) = name_filter {
                 let matches_any = names.iter().any(|&n| {
                     n == expr
-                        || base_labels.iter().any(|l| {
-                            (l.kind == crate::state::LabelKind::User || !base_suppressed)
-                                && l.name == n
-                        })
+                        || base_labels
+                            .iter()
+                            .any(|l| (l.kind == LabelKind::User || !base_suppressed) && l.name == n)
                 });
                 if !matches_any {
                     continue;
@@ -602,8 +599,7 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
             if let Some(sub) = single_name_filter {
                 let matches_sub = expr.contains(sub)
                     || base_labels.iter().any(|l| {
-                        (l.kind == crate::state::LabelKind::User || !base_suppressed)
-                            && l.name.contains(sub)
+                        (l.kind == LabelKind::User || !base_suppressed) && l.name.contains(sub)
                     });
                 if !matches_sub {
                     continue;
@@ -632,7 +628,7 @@ pub(crate) fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec
 #[must_use]
 fn resolve_address_details_symbolic_offset(app_state: &AppState, address: Addr) -> Option<Value> {
     struct ResolvedOffsetMeta {
-        sym: crate::state::SymbolicOffset,
+        sym: SymbolicOffset,
         site_addr: Option<Addr>,
         is_zero_page_mode: bool,
         scope: &'static str,
@@ -662,7 +658,7 @@ fn resolve_address_details_symbolic_offset(app_state: &AppState, address: Addr) 
                     is_zero_page_mode: false,
                     scope: "operand",
                 });
-            } else if crate::disassembler::symbols::has_active_address_offset(
+            } else if symbols::has_active_address_offset(
                 raw_target,
                 &app_state.labels,
                 &app_state.annotations,
@@ -679,10 +675,12 @@ fn resolve_address_details_symbolic_offset(app_state: &AppState, address: Addr) 
                     scope: "address",
                 });
             }
-        } else if let Some((site_addr, raw_target, is_zp_mode)) =
-            app_state.effective_target_at_address(address)
-            && site_addr == address
+        } else if let Some(target) = app_state.effective_target_at_address(address)
+            && target.site_addr == address
         {
+            let site_addr = target.site_addr;
+            let raw_target = target.raw_target;
+            let is_zp_mode = target.addressing == OffsetAddressing::ZeroPage;
             if let Some(sym) = app_state
                 .annotations
                 .get(site_addr)
@@ -695,7 +693,7 @@ fn resolve_address_details_symbolic_offset(app_state: &AppState, address: Addr) 
                     is_zero_page_mode: is_zp_mode,
                     scope: "operand",
                 });
-            } else if crate::disassembler::symbols::has_active_address_offset(
+            } else if symbols::has_active_address_offset(
                 raw_target,
                 &app_state.labels,
                 &app_state.annotations,
@@ -716,11 +714,7 @@ fn resolve_address_details_symbolic_offset(app_state: &AppState, address: Addr) 
     }
 
     if resolved.is_none()
-        && crate::disassembler::symbols::has_active_address_offset(
-            address,
-            &app_state.labels,
-            &app_state.annotations,
-        )
+        && symbols::has_active_address_offset(address, &app_state.labels, &app_state.annotations)
         && let Some(sym) = app_state
             .annotations
             .get(address)
@@ -737,7 +731,11 @@ fn resolve_address_details_symbolic_offset(app_state: &AppState, address: Addr) 
 
     let meta = resolved?;
     Some(json!({
-        "expression": app_state.format_symbolic_offset(meta.sym, meta.site_addr, meta.is_zero_page_mode),
+        "expression": app_state.format_symbolic_offset(
+            meta.sym,
+            meta.site_addr,
+            OffsetAddressing::from_zero_page(meta.is_zero_page_mode),
+        ),
         "base_address": meta.sym.base.0,
         "base_hex": format!("${:04X}", meta.sym.base.0),
         "offset": meta.sym.offset,
@@ -754,7 +752,7 @@ fn resolve_address_details_symbolic_offset(app_state: &AppState, address: Addr) 
 /// - `"cross_refs_in"`: Sorted, deduplicated array of numeric source addresses (`Vec<Addr>`).
 /// - `"typed_cross_refs_in"`: Array of typed cross-reference objects from [`get_cross_references_impl`].
 ///
-/// When an active Tier 1 or Tier 2 [`SymbolicOffset`](crate::state::SymbolicOffset) applies,
+/// When an active Tier 1 or Tier 2 [`SymbolicOffset`](SymbolicOffset) applies,
 /// `metadata["symbolic_offset"]` includes `expression`, `base_address`, `base_hex`, `offset`,
 /// `radix`, and `scope`.
 ///
@@ -774,7 +772,7 @@ pub(crate) fn get_address_details_impl(
         && !app_state
             .annotations
             .get(address)
-            .is_some_and(crate::state::AddressEntry::is_persistent)
+            .is_some_and(AddressEntry::is_persistent)
     {
         return Err(make_mcp_error(
             -32602,
@@ -844,14 +842,11 @@ pub(crate) fn get_address_details_impl(
     }
 
     if let Some(labels) = app_state.labels.get(&address) {
-        let suppressed = crate::disassembler::symbols::has_active_address_offset(
-            address,
-            &app_state.labels,
-            &app_state.annotations,
-        );
+        let suppressed =
+            symbols::has_active_address_offset(address, &app_state.labels, &app_state.annotations);
         let label_names: Vec<String> = labels
             .iter()
-            .filter(|l| l.kind == crate::state::LabelKind::User || !suppressed)
+            .filter(|l| l.kind == LabelKind::User || !suppressed)
             .map(|l| l.name.clone())
             .collect();
         if !label_names.is_empty() {
@@ -892,8 +887,8 @@ pub(crate) fn get_address_details_impl(
 /// Returns [`McpError`] if `start_address > end_address`, if the range is outside the
 /// loaded binary bounds, or if the range overlaps an existing scope.
 fn add_scope_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpError> {
-    let start_addr = get_address(args, "start_address")?;
-    let end_addr = get_address(args, "end_address")?;
+    let start_addr = parse_address_arg(args, "start_address")?;
+    let end_addr = parse_address_arg(args, "end_address")?;
 
     if start_addr > end_addr {
         return Err(make_mcp_error(
@@ -930,7 +925,7 @@ fn add_scope_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpEr
     if !has_label {
         let default_name = format!("scope_{:04X}", start_addr.0);
         let label_cmd = app_state
-            .create_set_user_label_command(start_addr, &default_name, false)
+            .create_set_user_label_command(start_addr, &default_name, LabelLocality::Global)
             .map_err(|msg| make_mcp_error(-32602, msg))?;
         commands.push(label_cmd);
     }
@@ -949,13 +944,13 @@ fn add_scope_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpEr
     };
 
     command.apply(app_state);
-    let (analysis_cmd, msg) = app_state.perform_analysis();
-    app_state.push_command(Command::Batch(vec![analysis_cmd, command]));
+    let outcome = app_state.perform_analysis();
+    app_state.push_command(Command::Batch(vec![outcome.command, command]));
 
     Ok(json!({
         "content": [{
             "type": "text",
-            "text": format!("Added Scope from {start_addr} to {end_addr}. {msg}")
+            "text": format!("Added Scope from {start_addr} to {end_addr}. {}", outcome.status_message)
         }]
     }))
 }
@@ -971,7 +966,7 @@ fn search_memory_impl(app_state: &AppState, args: &Value) -> Result<Value, McpEr
         .and_then(|v| v.as_str())
         .ok_or_else(|| make_mcp_error(-32602, "Missing 'query'"))?;
     let encoding = args.get("encoding").and_then(|v| v.as_str());
-    let matches = crate::state::search::search_memory_raw(app_state, query, encoding, 100)
+    let matches = search::search_memory_raw(app_state, query, encoding, 100)
         .map_err(|msg| make_mcp_error(-32602, msg))?;
     Ok(json!({
         "content": [{
@@ -995,20 +990,20 @@ fn search_disassembly_impl(app_state: &AppState, args: &Value) -> Result<Value, 
         .ok_or_else(|| make_mcp_error(-32602, "Missing 'query'"))?;
     let use_regex = args
         .get("use_regex")
-        .and_then(|v| v.as_bool())
+        .and_then(Value::as_bool)
         .unwrap_or(false);
     let filters = SearchFilters {
         labels: args
             .get("search_labels")
-            .and_then(|v| v.as_bool())
+            .and_then(Value::as_bool)
             .unwrap_or(true),
         comments: args
             .get("search_comments")
-            .and_then(|v| v.as_bool())
+            .and_then(Value::as_bool)
             .unwrap_or(true),
         instructions: args
             .get("search_instructions")
-            .and_then(|v| v.as_bool())
+            .and_then(Value::as_bool)
             .unwrap_or(true),
         hex_bytes: false,
         text: false,
@@ -1016,7 +1011,7 @@ fn search_disassembly_impl(app_state: &AppState, args: &Value) -> Result<Value, 
     };
     let max_results = args
         .get("max_results")
-        .and_then(|v| v.as_u64())
+        .and_then(Value::as_u64)
         .and_then(|n| usize::try_from(n).ok())
         .unwrap_or(50);
 
@@ -1051,8 +1046,8 @@ fn search_disassembly_impl(app_state: &AppState, args: &Value) -> Result<Value, 
 ///
 /// Returns [`McpError`] if the address range or `"view"` parameter is invalid.
 fn read_region_impl(app_state: &AppState, args: &Value) -> Result<Value, McpError> {
-    let start_addr = get_address(args, "start_address")?;
-    let end_addr = get_address(args, "end_address")?;
+    let start_addr = parse_address_arg(args, "start_address")?;
+    let end_addr = parse_address_arg(args, "end_address")?;
 
     if start_addr > end_addr {
         return Err(make_mcp_error(
@@ -1100,7 +1095,7 @@ fn read_selected_impl(
             get_disassembly_text(app_state, start, end)
         }
         "hexdump" => {
-            let (start, end) = get_selection_range_hexdump(app_state, view_state)?;
+            let (start, end) = get_selection_range_hexdump(app_state, view_state);
             get_hexdump_text(app_state, start, end)
         }
         other => {
@@ -1195,14 +1190,7 @@ fn get_selection_range_disasm(
 }
 
 /// Computes the inclusive `(start, end)` address range for the hexdump selection in `view_state`.
-///
-/// # Errors
-///
-/// Returns [`McpError`] if the selection bounds cannot be resolved.
-fn get_selection_range_hexdump(
-    app_state: &AppState,
-    view_state: &CoreViewState,
-) -> Result<(Addr, Addr), McpError> {
+fn get_selection_range_hexdump(app_state: &AppState, view_state: &CoreViewState) -> (Addr, Addr) {
     let cursor_row = view_state.hex_cursor_index;
     let (start_row, end_row) = match view_state.hex_selection_start {
         Some(sel_start) => (sel_start.min(cursor_row), sel_start.max(cursor_row)),
@@ -1210,10 +1198,7 @@ fn get_selection_range_hexdump(
     };
 
     let origin = app_state.origin;
-    let bytes_per_row: usize = if matches!(
-        view_state.right_pane,
-        crate::view_state::RightPane::HexDump8
-    ) {
+    let bytes_per_row: usize = if matches!(view_state.right_pane, RightPane::HexDump8) {
         8
     } else {
         16
@@ -1251,7 +1236,7 @@ fn get_selection_range_hexdump(
         _ => end_limit,
     };
 
-    Ok((final_start, final_end))
+    (final_start, final_end)
 }
 
 /// Formats `start_addr..=end_addr` as 16-byte hexdump rows.
@@ -1289,6 +1274,8 @@ pub(crate) fn get_hexdump_text(app_state: &AppState, start_addr: Addr, end_addr:
 mod tests {
     use super::*;
     use crate::mcp::tools::common::{make_app_state, make_view_state};
+    use crate::state::{Label, LabelType, OffsetRadix, XRef, XRefKind};
+    use rmcp::model::CallToolResult;
 
     #[test]
     fn test_r2000_get_blocks_valid_range() {
@@ -1305,18 +1292,18 @@ mod tests {
         let mut app_state = make_app_state(0x1000, 256);
         app_state.labels.insert(
             Addr(0x1000),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "entry_point".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         app_state.labels.insert(
             Addr(0x1020),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "later_label".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
 
@@ -1332,8 +1319,8 @@ mod tests {
         app_state.cross_refs.insert(
             Addr(0x1000),
             vec![
-                crate::state::XRef::new(Addr(0x1020), crate::state::XRefKind::Call),
-                crate::state::XRef::new(Addr(0x1050), crate::state::XRefKind::Read),
+                XRef::new(Addr(0x1020), XRefKind::Call),
+                XRef::new(Addr(0x1050), XRefKind::Read),
             ],
         );
         let refs = get_cross_references_impl(&app_state, Addr(0x1000));
@@ -1352,9 +1339,9 @@ mod tests {
         app_state.cross_refs.insert(
             Addr(0x1000),
             vec![
-                crate::state::XRef::new(Addr(0x1050), crate::state::XRefKind::Write),
-                crate::state::XRef::new(Addr(0x1020), crate::state::XRefKind::Read),
-                crate::state::XRef::new(Addr(0x1050), crate::state::XRefKind::Write),
+                XRef::new(Addr(0x1050), XRefKind::Write),
+                XRef::new(Addr(0x1020), XRefKind::Read),
+                XRef::new(Addr(0x1050), XRefKind::Write),
             ],
         );
         let refs = get_cross_references_impl(&app_state, Addr(0x1000));
@@ -1377,9 +1364,9 @@ mod tests {
         app_state.cross_refs.insert(
             Addr(0x1000),
             vec![
-                crate::state::XRef::new(Addr(0x1010), crate::state::XRefKind::ReadModifyWrite),
-                crate::state::XRef::new(Addr(0x1005), crate::state::XRefKind::Call),
-                crate::state::XRef::new(Addr(0x1005), crate::state::XRefKind::Offset),
+                XRef::new(Addr(0x1010), XRefKind::ReadModifyWrite),
+                XRef::new(Addr(0x1005), XRefKind::Call),
+                XRef::new(Addr(0x1005), XRefKind::Offset),
             ],
         );
         let details = get_address_details_impl(&app_state, Addr(0x1000))
@@ -1458,7 +1445,9 @@ mod tests {
         )
         .expect("Tool call should match")
         .expect("Call should succeed");
-        let res_text = res["content"][0]["text"].as_str().unwrap();
+        let res_text = res["content"][0]["text"]
+            .as_str()
+            .expect("tool content text should be string");
         assert!(res_text.contains("\"origin\": 4096"));
     }
 
@@ -1500,8 +1489,8 @@ mod tests {
             &mut app_state,
             &view_state,
         )
-        .unwrap()
-        .unwrap();
+        .expect("MCP call should match tool")
+        .expect("MCP tool call should succeed");
         let line_comments = parse_comments(line_res);
         assert_eq!(line_comments.len(), 2);
         assert_eq!(line_comments[0]["comment"], "Header line comment");
@@ -1513,8 +1502,8 @@ mod tests {
             &mut app_state,
             &view_state,
         )
-        .unwrap()
-        .unwrap();
+        .expect("MCP call should match tool")
+        .expect("MCP tool call should succeed");
         let side_comments = parse_comments(side_res);
         assert_eq!(side_comments.len(), 1);
         assert_eq!(side_comments[0]["comment"], "Inline side comment");
@@ -1526,8 +1515,8 @@ mod tests {
             &mut app_state,
             &view_state,
         )
-        .unwrap()
-        .unwrap();
+        .expect("MCP call should match tool")
+        .expect("MCP tool call should succeed");
         let range_comments = parse_comments(range_res);
         assert_eq!(range_comments.len(), 2);
 
@@ -1538,8 +1527,8 @@ mod tests {
             &mut app_state,
             &view_state,
         )
-        .unwrap()
-        .unwrap();
+        .expect("MCP call should match tool")
+        .expect("MCP tool call should succeed");
         let addrs_comments = parse_comments(addrs_res);
         assert_eq!(addrs_comments.len(), 1);
         assert_eq!(addrs_comments[0]["comment"], "Another comment");
@@ -1565,7 +1554,7 @@ mod tests {
             let res = handle_call(tool_name, &args, &mut app_state, &view_state)
                 .expect("Tool call should match")
                 .expect("Tool call should succeed");
-            serde_json::from_value::<rmcp::model::CallToolResult>(res)
+            serde_json::from_value::<CallToolResult>(res)
                 .unwrap_or_else(|e| panic!("{tool_name} did not return CallToolResult: {e}"));
         }
     }
@@ -1585,7 +1574,9 @@ mod tests {
         .expect("Tool call should match")
         .expect("Call should succeed");
 
-        let text = res["content"][0]["text"].as_str().unwrap();
+        let text = res["content"][0]["text"]
+            .as_str()
+            .expect("tool content text should be string");
         assert!(text.contains("4096"));
     }
 
@@ -1627,7 +1618,9 @@ mod tests {
         .expect("Tool call should match")
         .expect("Call should succeed");
 
-        let text = res["content"][0]["text"].as_str().unwrap();
+        let text = res["content"][0]["text"]
+            .as_str()
+            .expect("tool content text should be string");
         assert!(text.contains("* = $1000"));
     }
 
@@ -1635,18 +1628,16 @@ mod tests {
     fn test_r2000_read_selected_hexdump8_and_overflow_clamping() {
         let app_state = make_app_state(0x1000, 32);
         let mut view_state = make_view_state();
-        view_state.right_pane = crate::view_state::RightPane::HexDump8;
+        view_state.right_pane = RightPane::HexDump8;
         view_state.hex_cursor_index = 1;
 
-        let (start, end) = get_selection_range_hexdump(&app_state, &view_state)
-            .expect("hexdump8 selection range should succeed");
+        let (start, end) = get_selection_range_hexdump(&app_state, &view_state);
         assert_eq!((start, end), (Addr(0x1008), Addr(0x100F)));
 
         // Row index 4096 would wrap modulo 65536 to $1000 if truncated before bounds checking.
-        view_state.right_pane = crate::view_state::RightPane::HexDump16;
+        view_state.right_pane = RightPane::HexDump16;
         view_state.hex_cursor_index = 4096;
-        let (clamped_start, clamped_end) = get_selection_range_hexdump(&app_state, &view_state)
-            .expect("overflowing row index should clamp to binary end");
+        let (clamped_start, clamped_end) = get_selection_range_hexdump(&app_state, &view_state);
         assert_eq!((clamped_start, clamped_end), (Addr(0x101F), Addr(0x101F)));
     }
 
@@ -1717,10 +1708,10 @@ mod tests {
     #[test]
     fn test_r2000_get_blocks_filter_aliases() {
         let mut app_state = make_app_state(0x1000, 32);
-        app_state.block_types[0..8].fill(crate::state::BlockType::PetsciiText);
-        app_state.block_types[8..16].fill(crate::state::BlockType::ScreencodeText);
-        app_state.block_types[16..24].fill(crate::state::BlockType::LoHiAddress);
-        app_state.block_types[24..32].fill(crate::state::BlockType::Undefined);
+        app_state.block_types[0..8].fill(BlockType::PetsciiText);
+        app_state.block_types[8..16].fill(BlockType::ScreencodeText);
+        app_state.block_types[16..24].fill(BlockType::LoHiAddress);
+        app_state.block_types[24..32].fill(BlockType::Undefined);
 
         for alias in ["PETSCII Text", "PETSCII", "petscii"] {
             let blocks = get_blocks_impl(&app_state, Some(alias));
@@ -1754,38 +1745,38 @@ mod tests {
 
         app_state.labels.insert(
             Addr(0x00FB),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "zp_ptr".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         app_state.labels.insert(
             Addr(0x2000),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "table".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
 
         app_state.apply_address_offsets(
             &[(
                 Addr(0x00FC),
-                Some(crate::state::SymbolicOffset {
+                Some(SymbolicOffset {
                     base: Addr(0x00FB),
                     offset: 1,
-                    radix: crate::state::OffsetRadix::Decimal,
+                    radix: OffsetRadix::Decimal,
                 }),
             )],
             None,
         );
         app_state.apply_operand_offsets(&[(
             Addr(0x1000),
-            Some(crate::state::SymbolicOffset {
+            Some(SymbolicOffset {
                 base: Addr(0x2000),
                 offset: -1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             }),
         )]);
 
@@ -1848,41 +1839,41 @@ mod tests {
         let mut app_state = make_app_state(0x1000, 256);
         app_state.labels.insert(
             Addr(0x00FB),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "zp_ptr".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         app_state.labels.insert(
             Addr(0x0400),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "SCREEN_RAM".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         app_state.labels.insert(
             Addr(0x1010),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "s_1010".to_string(),
-                kind: crate::state::LabelKind::Auto,
-                label_type: crate::state::LabelType::Subroutine,
+                kind: LabelKind::Auto,
+                label_type: LabelType::Subroutine,
             }],
         );
 
         app_state.annotations.update(Addr(0x00FC), |e| {
-            e.address_offset = Some(crate::state::SymbolicOffset {
+            e.address_offset = Some(SymbolicOffset {
                 base: Addr(0x00FB),
                 offset: 1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             });
         });
         app_state.annotations.update(Addr(0x0428), |e| {
-            e.address_offset = Some(crate::state::SymbolicOffset {
+            e.address_offset = Some(SymbolicOffset {
                 base: Addr(0x0400),
                 offset: 0x28,
-                radix: crate::state::OffsetRadix::Hex,
+                radix: OffsetRadix::Hex,
             });
         });
 
@@ -1978,10 +1969,10 @@ mod tests {
                 label_type: LabelType::Field,
             }],
         );
-        let non_zp_sym = crate::state::SymbolicOffset {
+        let non_zp_sym = SymbolicOffset {
             base: Addr(0x0100),
             offset: -1,
-            radix: crate::state::OffsetRadix::Decimal,
+            radix: OffsetRadix::Decimal,
         };
         app_state
             .annotations
@@ -2075,30 +2066,45 @@ mod tests {
 
         // 1. Direct `format_symbolic_offset` formats scoped `LocalLabel` as `l00`, never `ll1005`.
         assert_eq!(
-            app_state.format_symbolic_offset(anon_sym, Some(Addr(0x1008)), false),
+            app_state.format_symbolic_offset(
+                anon_sym,
+                Some(Addr(0x1008)),
+                OffsetAddressing::Absolute
+            ),
             "l00 + 1"
         );
         assert_eq!(
-            app_state.format_symbolic_offset(named_sym, Some(Addr(0x2008)), false),
+            app_state.format_symbolic_offset(
+                named_sym,
+                Some(Addr(0x2008)),
+                OffsetAddressing::Absolute
+            ),
             "l00 + 1"
         );
         assert_eq!(
-            app_state.format_symbolic_offset(named_sym, Some(Addr(0x2015)), false),
+            app_state.format_symbolic_offset(
+                named_sym,
+                Some(Addr(0x2015)),
+                OffsetAddressing::Absolute
+            ),
             "irq.l00 + 1"
         );
 
         // 2. `r2000_get_address_details` honors call-site scope (`l00 + 1` inside vs `irq.l00 + 1` outside).
-        let anon_details = get_address_details_impl(&app_state, Addr(0x1008)).unwrap();
+        let anon_details = get_address_details_impl(&app_state, Addr(0x1008))
+            .expect("address details at $1008 should succeed");
         assert_eq!(
             anon_details["metadata"]["symbolic_offset"]["expression"],
             "l00 + 1"
         );
-        let inside_irq = get_address_details_impl(&app_state, Addr(0x2008)).unwrap();
+        let inside_irq = get_address_details_impl(&app_state, Addr(0x2008))
+            .expect("address details at $2008 should succeed");
         assert_eq!(
             inside_irq["metadata"]["symbolic_offset"]["expression"],
             "l00 + 1"
         );
-        let outside_irq = get_address_details_impl(&app_state, Addr(0x2015)).unwrap();
+        let outside_irq = get_address_details_impl(&app_state, Addr(0x2015))
+            .expect("address details at $2015 should succeed");
         assert_eq!(
             outside_irq["metadata"]["symbolic_offset"]["expression"],
             "irq.l00 + 1"

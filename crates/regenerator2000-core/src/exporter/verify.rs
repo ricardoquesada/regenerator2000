@@ -8,14 +8,20 @@
 
 use super::asm::render_asm_with_options;
 use super::ir::ExportOptions;
-use std::fmt::Write as _;
+use crate::state::{Addr, AppState, Assembler};
+use std::env;
+use std::fmt::{self, Display, Write as _};
+use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+use std::process::{self, Command};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Result of a roundtrip verification for one cross-assembler.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifyResult {
     /// Target cross-assembler that ran verification.
-    pub assembler: crate::state::Assembler,
+    pub assembler: Assembler,
     /// `true` when the 2-byte PRG load address and reassembled payload match `state`.
     pub success: bool,
     /// Diagnostic message when `success` is `false` (empty on success).
@@ -26,8 +32,8 @@ pub struct VerifyResult {
     pub total_bytes: usize,
 }
 
-impl std::fmt::Display for VerifyResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for VerifyResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.success {
             write!(
                 f,
@@ -54,32 +60,29 @@ impl std::fmt::Display for VerifyResult {
 ///    against `state.raw_data`.
 /// 5. Deletes the temporary directory.
 #[must_use]
-pub fn verify_roundtrip(
-    state: &crate::state::AppState,
-    assembler: crate::state::Assembler,
-) -> VerifyResult {
+pub fn verify_roundtrip(state: &AppState, assembler: Assembler) -> VerifyResult {
     // Create a unique subdirectory per call to prevent parallel test collisions.
-    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let unique_id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!(
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let unique_id = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = env::temp_dir().join(format!(
         "regenerator2000_verify_{}_{}",
-        std::process::id(),
+        process::id(),
         unique_id
     ));
-    let _ = std::fs::create_dir_all(&dir);
+    let _ = fs::create_dir_all(&dir);
 
     let asm_stem = format!("verify_{}", assembler_file_suffix(assembler));
     let asm_file = dir.join(format!("{asm_stem}.asm"));
     let prg_file = dir.join(format!("{asm_stem}.prg"));
 
     // Remove stale files from prior runs if present.
-    let _ = std::fs::remove_file(&asm_file);
-    let _ = std::fs::remove_file(&prg_file);
+    let _ = fs::remove_file(&asm_file);
+    let _ = fs::remove_file(&prg_file);
 
     // 1. Export ASM using ExportOptions::for_assembler without cloning AppState.
     let options = ExportOptions::for_assembler(state, &asm_file, assembler);
     if let Err(e) = render_asm_with_options(state, &asm_file, &options).write_to_disk() {
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = fs::remove_dir_all(&dir);
         return VerifyResult {
             assembler,
             success: false,
@@ -99,7 +102,7 @@ pub fn verify_roundtrip(
     );
     match assemble_result {
         Err(e) => {
-            let _ = std::fs::remove_dir_all(&dir);
+            let _ = fs::remove_dir_all(&dir);
             return VerifyResult {
                 assembler,
                 success: false,
@@ -116,7 +119,7 @@ pub fn verify_roundtrip(
     }
 
     // 3. Compare the assembled PRG output against `state.origin` and `state.raw_data`.
-    let result = match std::fs::read(&prg_file) {
+    let result = match fs::read(&prg_file) {
         Ok(assembled_bytes) => {
             compare_assembled_prg(state.origin, &state.raw_data, &assembled_bytes, assembler)
         }
@@ -130,15 +133,14 @@ pub fn verify_roundtrip(
     };
 
     // 4. Delete the temporary directory.
-    let _ = std::fs::remove_dir_all(&dir);
+    let _ = fs::remove_dir_all(&dir);
 
     result
 }
 
 /// Verifies roundtrip assembly for all four supported assemblers.
 #[must_use]
-pub fn verify_all_assemblers(state: &crate::state::AppState) -> Vec<VerifyResult> {
-    use crate::state::Assembler;
+pub fn verify_all_assemblers(state: &AppState) -> Vec<VerifyResult> {
     Assembler::all()
         .iter()
         .map(|asm| verify_roundtrip(state, *asm))
@@ -148,10 +150,10 @@ pub fn verify_all_assemblers(state: &crate::state::AppState) -> Vec<VerifyResult
 // ---- Helper functions for verification ----
 
 fn compare_assembled_prg(
-    origin: crate::state::Addr,
+    origin: Addr,
     expected: &[u8],
     assembled_bytes: &[u8],
-    assembler: crate::state::Assembler,
+    assembler: Assembler,
 ) -> VerifyResult {
     let total = expected.len();
     if assembled_bytes.len() < 2 {
@@ -170,7 +172,7 @@ fn compare_assembled_prg(
     let assembled_origin = u16::from_le_bytes([assembled_bytes[0], assembled_bytes[1]]);
     // In 64tass, ACME, and KickAssembler, the origin directive sets the 2-byte PRG header.
     // In ca65, `c64-asm.cfg` always writes its default `$0801` linker start address.
-    let origin_matches = assembler == crate::state::Assembler::Ca65 || assembled_origin == origin.0;
+    let origin_matches = assembler == Assembler::Ca65 || assembled_origin == origin.0;
     let payload = &assembled_bytes[2..];
     let diff_count = count_diffs(expected, payload);
 
@@ -234,8 +236,7 @@ fn compare_assembled_prg(
     }
 }
 
-fn assembler_file_suffix(asm: crate::state::Assembler) -> &'static str {
-    use crate::state::Assembler;
+fn assembler_file_suffix(asm: Assembler) -> &'static str {
     match asm {
         Assembler::Tass64 => "64tass",
         Assembler::Acme => "acme",
@@ -246,15 +247,12 @@ fn assembler_file_suffix(asm: crate::state::Assembler) -> &'static str {
 
 /// Runs the external cross-assembler to produce a PRG file and returns `Ok(stderr)` on success.
 fn run_assembler(
-    assembler: crate::state::Assembler,
+    assembler: Assembler,
     asm_file: &Path,
     prg_file: &Path,
     work_dir: &Path,
     use_illegal_opcodes: bool,
 ) -> Result<String, String> {
-    use crate::state::Assembler;
-    use std::process::Command;
-
     let output = match assembler {
         Assembler::Tass64 => {
             let mut cmd = Command::new("64tass");
@@ -298,10 +296,8 @@ fn run_assembler(
         }
         Assembler::Kick => {
             // Resolve relative KICKASS_JAR paths before changing current_dir to work_dir.
-            let raw_jar =
-                std::env::var("KICKASS_JAR").unwrap_or_else(|_| "KickAss.jar".to_string());
-            let jar_path =
-                std::fs::canonicalize(&raw_jar).unwrap_or_else(|_| PathBuf::from(&raw_jar));
+            let raw_jar = env::var("KICKASS_JAR").unwrap_or_else(|_| "KickAss.jar".to_string());
+            let jar_path = fs::canonicalize(&raw_jar).unwrap_or_else(|_| PathBuf::from(&raw_jar));
             Command::new("java")
                 .arg("-jar")
                 .arg(&jar_path)
@@ -333,7 +329,7 @@ fn run_assembler(
             }
         }
         Err(e) => {
-            if e.kind() == std::io::ErrorKind::NotFound {
+            if e.kind() == ErrorKind::NotFound {
                 Err(format!("{assembler} not found in PATH (skipped)"))
             } else {
                 Err(format!("failed to execute {assembler}: {e}"))

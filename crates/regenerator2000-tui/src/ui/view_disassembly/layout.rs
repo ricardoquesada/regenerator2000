@@ -102,7 +102,7 @@ pub fn get_index_for_visual_line(app_state: &AppState, target_line: usize) -> Op
 
 /// Resolves the visual sub-cursor index within `line` corresponding to `target_addr`.
 ///
-/// Delegates to [`DisassemblyLine::get_sub_index_for_address`], returning either the matching
+/// Delegates to [`DisassemblyLine::sub_index_for_address`], returning either the matching
 /// mid-instruction relative label sub-index (`0..labels`) or [`VisualLineCounts::opcode_sub_index`].
 ///
 /// # Arguments
@@ -120,7 +120,7 @@ pub fn get_sub_index_for_address(
     app_state: &AppState,
     target_addr: u16,
 ) -> usize {
-    line.get_sub_index_for_address(app_state, regenerator2000_core::state::Addr(target_addr))
+    line.sub_index_for_address(app_state, regenerator2000_core::state::Addr(target_addr))
 }
 
 #[cfg(test)]

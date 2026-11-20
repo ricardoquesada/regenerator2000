@@ -341,7 +341,7 @@ impl Widget for DisassemblyView {
                     }
 
                     // Priority 2: Scope removal
-                    let formatter = app_state.get_formatter();
+                    let formatter = app_state.formatter();
                     if !line.is_splitter()
                         && line.external_label_address.is_none()
                         && !line.is_enum_definition(formatter.comment_prefix())

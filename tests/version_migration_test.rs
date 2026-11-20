@@ -91,7 +91,7 @@ mod tests {
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                 },
-                false,
+                regenerator2000_core::state::GlobalConfigUpdate::Skip,
             )
             .expect("Save failed");
 

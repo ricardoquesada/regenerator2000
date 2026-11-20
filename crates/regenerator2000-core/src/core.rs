@@ -4,10 +4,11 @@ use crate::action_handlers::{
     ActionContext, DebugActionHandler, DisassemblyActionHandler, DomainActionHandler,
     FileActionHandler, NavigationActionHandler,
 };
-use crate::event::CoreEvent;
-use crate::state::AppState;
+use crate::event::{CoreEvent, DialogType};
+use crate::navigation;
 use crate::state::actions::AppAction;
-use crate::view_state::CoreViewState;
+use crate::state::{AppState, ProjectSaveContext};
+use crate::view_state::{ActivePane, CoreViewState};
 
 /// Owns the persistent [`AppState`] and transient [`CoreViewState`] for a session.
 ///
@@ -35,13 +36,11 @@ impl Core {
 
         // Request user confirmation before running a destructive action with unsaved changes.
         if action.is_destructive() && self.state.is_dirty() {
-            events.push(CoreEvent::DialogRequested(
-                crate::event::DialogType::Confirmation {
-                    title: "Unsaved Changes".to_string(),
-                    message: "You have unsaved changes. Proceed anyway?".to_string(),
-                    action,
-                },
-            ));
+            events.push(CoreEvent::DialogRequested(DialogType::Confirmation {
+                title: "Unsaved Changes".to_string(),
+                message: "You have unsaved changes. Proceed anyway?".to_string(),
+                action,
+            }));
             return events;
         }
 
@@ -55,9 +54,7 @@ impl Core {
             return events;
         }
 
-        if action == AppAction::FindReferences
-            && self.view.active_pane != crate::view_state::ActivePane::Disassembly
-        {
+        if action == AppAction::FindReferences && self.view.active_pane != ActivePane::Disassembly {
             events.push(CoreEvent::StatusMessage(
                 "Action only available in Disassembly View".to_string(),
             ));
@@ -103,15 +100,15 @@ impl Core {
         events
     }
 
-    /// Creates a [`crate::state::ProjectSaveContext`] from the current application and view state.
+    /// Creates a [`ProjectSaveContext`] from the current application and view state.
     #[must_use]
-    pub fn create_save_context(&self) -> crate::state::ProjectSaveContext {
-        crate::navigation::create_save_context(&self.state, &self.view)
+    pub fn create_save_context(&self) -> ProjectSaveContext {
+        navigation::create_save_context(&self.state, &self.view)
     }
 
     /// Returns the default filename stem from the loaded file path, if present.
     #[must_use]
-    pub fn get_default_filename_stem(&self) -> Option<String> {
+    pub fn default_filename_stem(&self) -> Option<String> {
         self.state
             .file_path
             .as_ref()
@@ -129,8 +126,9 @@ impl Default for Core {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::Addr;
+    use crate::state::{Addr, BlockType, Label, LabelKind, LabelType};
     use crate::view_state::ActivePane;
+    use std::collections::BTreeMap;
 
     #[test]
     fn test_handle_add_scope_default_label() {
@@ -139,7 +137,9 @@ mod tests {
         let code_data = vec![0xEA, 0xEA, 0xEA, 0xEA]; // A few NOPs
 
         // Use state.load_binary which handles setup
-        core.state.load_binary(origin, code_data).unwrap();
+        core.state
+            .load_binary(origin, code_data)
+            .expect("test binary should load");
 
         core.view.active_pane = ActivePane::Disassembly;
         core.view.cursor_index = 0; // Pointing to first instruction
@@ -155,8 +155,8 @@ mod tests {
         let first_label = label.first().expect("Expected at least one label");
 
         assert_eq!(first_label.name, format!("scope_{:04X}", origin.0));
-        assert_eq!(first_label.kind, crate::state::LabelKind::User);
-        assert_eq!(first_label.label_type, crate::state::LabelType::UserDefined);
+        assert_eq!(first_label.kind, LabelKind::User);
+        assert_eq!(first_label.label_type, LabelType::UserDefined);
     }
 
     #[test]
@@ -165,7 +165,9 @@ mod tests {
         let origin = Addr(0x1000);
         let code_data = vec![0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA];
 
-        core.state.load_binary(origin, code_data).unwrap();
+        core.state
+            .load_binary(origin, code_data)
+            .expect("test binary should load");
 
         core.state
             .annotations
@@ -253,10 +255,12 @@ mod tests {
             0x54, 0xA1, 0xDA, 0x19, 0x19, 0x19, // 6 bytes
             0x51, 0x9E, 0xD7, 0x19, 0x19, 0x19, // 6 bytes
         ];
-        core.state.load_binary(origin, data).unwrap();
+        core.state
+            .load_binary(origin, data)
+            .expect("test binary should load");
 
         // Set block types to DataByte so they show up as individual bytes (1 line per byte)
-        core.state.block_types = vec![crate::state::BlockType::DataByte; 12];
+        core.state.block_types = vec![BlockType::DataByte; 12];
 
         // Disassemble to populate disassembly vector
         core.state.disassemble();
@@ -273,7 +277,7 @@ mod tests {
         core.view.selection_start = Some(0); // $1000
         core.view.cursor_index = 12; // $100B (last byte, line index 12 because of splitter at index 6)
 
-        let events = core.apply_action(crate::state::AppAction::SetLoHiAddress);
+        let events = core.apply_action(AppAction::SetLoHiAddress);
 
         // Verify that we did NOT get the error message
         let has_error = events.iter().any(|e| match e {
@@ -291,7 +295,9 @@ mod tests {
         let origin = Addr(0x1000);
         let code_data = vec![0xA9, 0x05]; // LDA #$05
 
-        core.state.load_binary(origin, code_data).unwrap();
+        core.state
+            .load_binary(origin, code_data)
+            .expect("test binary should load");
 
         core.view.active_pane = ActivePane::Disassembly;
         core.view.cursor_index = 0; // Pointing to the LDA instruction
@@ -396,7 +402,9 @@ mod tests {
         let mut core = Core::new();
         let origin = Addr(0x1000);
         let data = vec![0xEA; 10];
-        core.state.load_binary(origin, data).unwrap();
+        core.state
+            .load_binary(origin, data)
+            .expect("test binary should load");
 
         // Pattern: C C U U C C U U C C (C=Code, U=Undefined)
         core.state.block_types = vec![
@@ -463,7 +471,7 @@ mod tests {
         let mut core = Core::new();
         core.state
             .load_binary(Addr(0x0801), vec![0xA9, 0x00, 0x85, 0x02, 0x60])
-            .unwrap();
+            .expect("test binary should load");
         core.state.block_types = vec![BlockType::Code; 5];
 
         // External label outside the loaded range
@@ -506,10 +514,10 @@ mod tests {
         );
     }
 
-    /// Regression test: Ctrl+K (ToggleCollapsedBlock) on a DataByte block that
+    /// Regression test: Ctrl+K (`ToggleCollapsedBlock`) on a `DataByte` block that
     /// has a splitter in the middle must collapse only the sub-block the cursor
     /// is in, not the entire merged block.  Previously `toggle_collapsed_block`
-    /// used `get_compressed_blocks()` which ignores splitters.
+    /// used `compressed_blocks()` which ignores splitters.
     #[test]
     fn test_toggle_collapse_respects_splitter() {
         use crate::state::types::BlockType;
@@ -518,7 +526,7 @@ mod tests {
         // 10 data bytes at $1000–$1009
         core.state
             .load_binary(Addr(0x1000), vec![0x00; 10])
-            .unwrap();
+            .expect("test binary should load");
         core.state.block_types = vec![BlockType::DataByte; 10];
 
         // Splitter at $1005 → two virtual sub-blocks: $1000–$1004 and $1005–$1009
@@ -570,7 +578,7 @@ mod tests {
         let mut core = Core::new();
         core.state
             .load_binary(Addr(0x0801), vec![0xA9, 0x00, 0x60])
-            .unwrap();
+            .expect("test binary should load");
         core.state.block_types = vec![BlockType::Code; 3];
 
         // Add an external label so the header/separator lines are generated
@@ -614,14 +622,17 @@ mod tests {
                 Addr(0x1000),
                 vec![0xA9, 0x01, 0x8D, 0x20, 0xD0, 0xA9, 0x00, 0x8D, 0x21, 0xD0],
             )
-            .unwrap();
+            .expect("test binary should load");
         core.state.block_types = vec![BlockType::Code; 10];
         core.state.settings.all_labels = false;
         core.state.disassemble();
 
         // Find the index of line with address 0x1002 (STA $D020)
         let addr_1002 = Addr(0x1002);
-        let idx = core.state.get_line_index_for_address(addr_1002).unwrap();
+        let idx = core
+            .state
+            .line_index_for_address(addr_1002)
+            .expect("line index for $1002 should exist");
         core.view.cursor_index = idx;
         core.view.active_pane = ActivePane::Disassembly;
 
@@ -637,7 +648,7 @@ mod tests {
             name: "MyEnum".to_string(),
             description: None,
             source_file: None,
-            variants: std::collections::BTreeMap::from([(1, "ONE".to_string())]),
+            variants: BTreeMap::from([(1, "ONE".to_string())]),
         };
         core.apply_action(AppAction::ApplyEnumDefinition {
             name: "MyEnum".to_string(),
@@ -673,8 +684,6 @@ mod tests {
         // 5. Change Document Settings (all_labels = true) and Analyze
         core.state.settings.all_labels = true;
         // Need an external label to see effect
-        use crate::state::project::Label;
-        use crate::state::types::{LabelKind, LabelType};
         core.state.labels.insert(
             Addr(0xD020),
             vec![Label {
@@ -707,7 +716,7 @@ mod tests {
         let mut core = Core::new();
         core.state.origin = Addr(0x1000);
         core.state.raw_data = vec![0xEA; 5];
-        core.state.block_types = vec![crate::state::BlockType::Code; 5];
+        core.state.block_types = vec![BlockType::Code; 5];
         core.state.disassemble();
 
         // Convert offset 1 through 3 to bytes via HexDump selection.
@@ -718,11 +727,11 @@ mod tests {
         core.view.hex_col_cursor = 3;
         core.apply_action(AppAction::Byte);
 
-        assert_eq!(core.state.block_types[0], crate::state::BlockType::Code);
-        assert_eq!(core.state.block_types[1], crate::state::BlockType::DataByte);
-        assert_eq!(core.state.block_types[2], crate::state::BlockType::DataByte);
-        assert_eq!(core.state.block_types[3], crate::state::BlockType::DataByte);
-        assert_eq!(core.state.block_types[4], crate::state::BlockType::Code);
+        assert_eq!(core.state.block_types[0], BlockType::Code);
+        assert_eq!(core.state.block_types[1], BlockType::DataByte);
+        assert_eq!(core.state.block_types[2], BlockType::DataByte);
+        assert_eq!(core.state.block_types[3], BlockType::DataByte);
+        assert_eq!(core.state.block_types[4], BlockType::Code);
         assert!(!core.view.has_any_selection());
     }
 
@@ -730,10 +739,10 @@ mod tests {
     /// clears `selection_start`.
     #[test]
     fn test_apply_block_type_shift_selection_without_visual_mode() {
-        use crate::state::types::BlockType;
-
         let mut core = Core::new();
-        core.state.load_binary(Addr(0x1000), vec![0xEA; 6]).unwrap();
+        core.state
+            .load_binary(Addr(0x1000), vec![0xEA; 6])
+            .expect("test binary should load");
         core.state.block_types = vec![BlockType::Code; 6];
         core.state.disassemble();
 
@@ -767,7 +776,9 @@ mod tests {
         use crate::state::types::BlockType;
 
         let mut core = Core::new();
-        core.state.load_binary(Addr(0x1000), vec![0xEA; 3]).unwrap();
+        core.state
+            .load_binary(Addr(0x1000), vec![0xEA; 3])
+            .expect("test binary should load");
         core.state.block_types = vec![BlockType::Code; 3];
         core.state.disassemble();
 
@@ -794,7 +805,9 @@ mod tests {
         use crate::state::types::BlockType;
 
         let mut core = Core::new();
-        core.state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        core.state
+            .load_binary(Addr(0x1000), vec![0xEA; 4])
+            .expect("test binary should load");
         core.state.block_types = vec![BlockType::Code; 4];
         core.state.disassemble();
 
@@ -823,7 +836,9 @@ mod tests {
         use crate::state::types::BlockType;
 
         let mut core = Core::new();
-        core.state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        core.state
+            .load_binary(Addr(0x1000), vec![0xEA; 4])
+            .expect("test binary should load");
         core.state.block_types = vec![
             BlockType::Code,
             BlockType::Code,
@@ -852,7 +867,7 @@ mod tests {
         let mut core = Core::new();
         core.state
             .load_binary(Addr(0x1000), vec![0xEA, 0xA9, 0x42, 0x60])
-            .unwrap();
+            .expect("test binary should load");
         core.state.block_types = vec![BlockType::Code; 4];
         core.state.collapsed_blocks.push((1, 2));
         core.state.disassemble();

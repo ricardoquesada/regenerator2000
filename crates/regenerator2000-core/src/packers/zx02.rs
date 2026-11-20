@@ -118,8 +118,8 @@ mod tests {
 
     #[test]
     fn zx02_resolves_hints_and_rejects_short_or_corrupted_images() {
-        let (mem, load_addr, load_end) = SPEC.build_fixture_memory();
-        let view = LoadedImage::for_c64(&mem, load_addr, load_end);
+        let fixture = SPEC.build_fixture_memory();
+        let view = LoadedImage::for_c64(&fixture.mem, fixture.load_addr, fixture.load_end);
         let sig_match = SPEC.detect(&view).expect("ZX02 fixture must match");
         let info = PackerInfo::resolve(&view, &sig_match);
         assert_eq!(info.name, "ZX02");
@@ -132,7 +132,7 @@ mod tests {
             Some(AddrSource::Const(0x080D))
         );
 
-        let short_view = LoadedImage::for_c64(&mem[..0x08CA], 0x0801, 0x08CA);
+        let short_view = LoadedImage::for_c64(&fixture.mem[..0x08CA], 0x0801, 0x08CA);
         assert!(SPEC.detect(&short_view).is_none());
     }
 }

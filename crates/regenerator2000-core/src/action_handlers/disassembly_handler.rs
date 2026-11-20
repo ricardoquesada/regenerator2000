@@ -2,15 +2,26 @@
 //! comments, scopes, immediate operand packing, bookmarks, and auto-analysis.
 
 use super::{ActionContext, CoreError, DomainActionHandler};
+use crate::analyzer;
+use crate::assets;
 use crate::commands::Command;
-use crate::event::CoreEvent;
+use crate::cpu::AddressingMode;
+use crate::disassembler::symbols;
+use crate::disassembler::{DisassemblyLine, resolve_label};
+use crate::event::{CoreEvent, DialogType};
 use crate::navigation::{
     active_pane_byte_offset_range, line_byte_offset_range, slice_byte_offset_range,
 };
 use crate::state::actions::AppAction;
+use crate::state::app_state::SymbolicBaseCache;
 use crate::state::types::CommentKind;
-use crate::state::{Addr, BlockType};
+use crate::state::{
+    Addr, AddrSpan, AppState, BlockItem, BlockType, ImmediateFormat, LabelKind, LabelLocality,
+    LabelType, OffsetAddressing, OffsetRadix, OperandTargetSite, SymbolicOffset,
+};
 use crate::view_state::ActivePane;
+use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Range;
 
 /// Handler for disassembly manipulation actions.
 #[derive(Debug, Default)]
@@ -25,24 +36,18 @@ impl DisassemblyActionHandler {
 }
 
 /// Applies `block_cmd`, records the pre-command analysis snapshot, rebuilds disassembly, and pushes a batch command.
-fn apply_block_command_with_analysis(
-    state: &mut crate::state::AppState,
-    block_cmd: crate::commands::Command,
-) {
+fn apply_block_command_with_analysis(state: &mut AppState, block_cmd: Command) {
     let old_labels = state.labels.clone();
     let old_cross_refs = state.cross_refs.clone();
     block_cmd.apply(state);
-    let analysis_cmd = crate::commands::Command::SetAnalysisData {
+    let analysis_cmd = Command::SetAnalysisData {
         labels: state.labels.clone(),
         cross_refs: state.cross_refs.clone(),
         old_labels,
         old_cross_refs,
     };
     state.disassemble();
-    state.push_command(crate::commands::Command::Batch(vec![
-        analysis_cmd,
-        block_cmd,
-    ]));
+    state.push_command(Command::Batch(vec![analysis_cmd, block_cmd]));
 }
 
 /// Applies `new_type` to the active selection or focused item in the active pane.
@@ -73,9 +78,9 @@ fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: BlockType) {
             active_pane_byte_offset_range(ctx.state, ctx.view)
         }
         ActivePane::Blocks => {
-            let blocks = ctx.state.get_blocks_view_items();
+            let blocks = ctx.state.blocks_view_items();
             let idx = ctx.view.blocks_selected_index.unwrap_or(0);
-            if let Some(crate::state::BlockItem::Block { start, end, .. }) = blocks.get(idx)
+            if let Some(BlockItem::Block { start, end, .. }) = blocks.get(idx)
                 && !ctx.state.is_external(*start)
                 && !ctx.state.is_external(*end)
             {
@@ -134,10 +139,7 @@ fn apply_block_type(ctx: &mut ActionContext<'_>, new_type: BlockType) {
 }
 
 /// Returns `true` if `line` represents in-range binary content that can anchor a lexical scope.
-fn is_scope_content_line(
-    state: &crate::state::AppState,
-    line: &crate::disassembler::DisassemblyLine,
-) -> bool {
+fn is_scope_content_line(state: &AppState, line: &DisassemblyLine) -> bool {
     line.external_label_address.is_none()
         && !state.is_external(line.address)
         && (!line.bytes.is_empty() || line.is_collapsed)
@@ -231,26 +233,27 @@ fn handle_add_scope(ctx: &mut ActionContext<'_>) {
 
         if !has_label {
             let default_name = format!("scope_{:04X}", start_addr.0);
-            if let Ok(cmd_label) =
-                ctx.state
-                    .create_set_user_label_command(start_addr, &default_name, false)
-            {
+            if let Ok(cmd_label) = ctx.state.create_set_user_label_command(
+                start_addr,
+                &default_name,
+                LabelLocality::Global,
+            ) {
                 commands.push(cmd_label);
             }
         }
 
         let old_scope_end = ctx.state.annotations.get(start_addr).and_then(|e| e.scope);
-        commands.push(crate::commands::Command::AddScope {
+        commands.push(Command::AddScope {
             start: start_addr,
             end: end_addr,
             old_end: old_scope_end,
         });
 
-        let batch = crate::commands::Command::Batch(commands);
+        let batch = Command::Batch(commands);
         ctx.preserve_cursor(|c| {
             batch.apply(c.state);
-            let (analysis_cmd, _) = c.state.perform_analysis();
-            let final_cmd = crate::commands::Command::Batch(vec![batch, analysis_cmd]);
+            let outcome = c.state.perform_analysis();
+            let final_cmd = Command::Batch(vec![batch, outcome.command]);
             c.state.push_command(final_cmd);
             c.view.clear_all_selections();
         });
@@ -287,8 +290,8 @@ fn handle_nudge_scope_boundary(ctx: &mut ActionContext<'_>, expand: bool) {
 
     let Some(end_idx) = ctx
         .state
-        .get_line_index_containing_address(end_addr)
-        .or_else(|| ctx.state.get_line_index_for_address(end_addr))
+        .line_index_containing_address(end_addr)
+        .or_else(|| ctx.state.line_index_for_address(end_addr))
     else {
         return;
     };
@@ -324,7 +327,7 @@ fn handle_nudge_scope_boundary(ctx: &mut ActionContext<'_>, expand: bool) {
         return;
     }
 
-    let cmd_scope = crate::commands::Command::AddScope {
+    let cmd_scope = Command::AddScope {
         start: start_addr,
         end: new_end_addr,
         old_end: Some(end_addr),
@@ -332,8 +335,8 @@ fn handle_nudge_scope_boundary(ctx: &mut ActionContext<'_>, expand: bool) {
 
     ctx.preserve_cursor(|c| {
         cmd_scope.apply(c.state);
-        let (analysis_cmd, _) = c.state.perform_analysis();
-        let final_cmd = crate::commands::Command::Batch(vec![cmd_scope, analysis_cmd]);
+        let outcome = c.state.perform_analysis();
+        let final_cmd = Command::Batch(vec![cmd_scope, outcome.command]);
         c.state.push_command(final_cmd);
     });
 
@@ -351,22 +354,22 @@ fn handle_remove_scope(ctx: &mut ActionContext<'_>) {
         let current_addr = line.address;
         let active_scope = ctx.state.enclosing_scope_for_address(current_addr);
 
-        if let Some((start_addr, end_addr)) = active_scope {
-            let cmd_scope = crate::commands::Command::RemoveScope {
-                address: start_addr,
-                old_end: end_addr,
+        if let Some(scope) = active_scope {
+            let cmd_scope = Command::RemoveScope {
+                address: scope.start,
+                old_end: scope.end,
             };
 
             ctx.preserve_cursor(|c| {
                 cmd_scope.apply(c.state);
-                let (analysis_cmd, _) = c.state.perform_analysis();
-                let final_cmd = crate::commands::Command::Batch(vec![cmd_scope, analysis_cmd]);
+                let outcome = c.state.perform_analysis();
+                let final_cmd = Command::Batch(vec![cmd_scope, outcome.command]);
                 c.state.push_command(final_cmd);
             });
 
             ctx.events.push(CoreEvent::StatusMessage(format!(
                 "Removed scope at ${:04X}",
-                start_addr.0
+                scope.start.0
             )));
             ctx.events.push(CoreEvent::StateChanged);
             ctx.events.push(CoreEvent::ViewChanged);
@@ -388,18 +391,23 @@ fn handle_apply_label(ctx: &mut ActionContext<'_>, address: Addr, name: &str, is
         .filter(|l| l.external_label_address.is_none() && !ctx.state.is_external(l.address))
         .map(|l| l.address);
 
-    let mut outcome: Result<Option<crate::state::SymbolicOffset>, String> = Ok(None);
+    let mut outcome: Result<Option<SymbolicOffset>, String> = Ok(None);
     ctx.preserve_cursor(|c| {
-        outcome = c
-            .state
-            .apply_user_label_or_address_offset(address, trimmed, is_local, site_addr);
+        outcome = c.state.apply_user_label_or_address_offset(
+            address,
+            trimmed,
+            LabelLocality::from_local(is_local),
+            site_addr,
+        );
     });
 
     match outcome {
         Ok(Some(sym)) => {
-            let expr = ctx
-                .state
-                .format_symbolic_offset(sym, site_addr, address.0 <= 0x00FF);
+            let expr = ctx.state.format_symbolic_offset(
+                sym,
+                site_addr,
+                OffsetAddressing::for_address(address),
+            );
             ctx.events.push(CoreEvent::StatusMessage(format!(
                 "Applied symbolic offset '{expr}' to ${address:04X}"
             )));
@@ -431,7 +439,7 @@ fn handle_apply_enum_usage(ctx: &mut ActionContext<'_>, address: Addr, enum_name
         .annotations
         .get(address)
         .and_then(|e| e.enum_usage.clone());
-    let command = crate::commands::Command::SetEnumUsage {
+    let command = Command::SetEnumUsage {
         address,
         new_enum: enum_name.map(String::from),
         old_enum,
@@ -451,15 +459,10 @@ fn handle_apply_enum_usage(ctx: &mut ActionContext<'_>, address: Addr, enum_name
 }
 
 /// Applies a user side comment or line comment at `address`.
-fn handle_apply_comment(
-    ctx: &mut ActionContext<'_>,
-    address: Addr,
-    text: String,
-    kind: CommentKind,
-) {
+fn handle_apply_comment(ctx: &mut ActionContext<'_>, address: Addr, text: &str, kind: CommentKind) {
     let command = ctx
         .state
-        .create_set_comment_command(address, Some(&text), kind);
+        .create_set_comment_command(address, Some(text), kind);
     ctx.preserve_cursor(|c| {
         command.apply(c.state);
         c.state.push_command(command);
@@ -474,7 +477,7 @@ fn handle_apply_comment(
 
 /// Opens the label editor dialog for the 6502 [`Addr`] at `(cursor_index, sub_cursor_index)`.
 ///
-/// Uses [`DisassemblyLine::address_at_sub_index`](crate::disassembler::DisassemblyLine::address_at_sub_index)
+/// Uses [`DisassemblyLine::address_at_sub_index`](DisassemblyLine::address_at_sub_index)
 /// so mid-instruction label rows (`* + offset`) edit the intermediate byte label. When no user
 /// label exists and a Tier 2 `address_offset` is active, pre-fills `initial_name` with the
 /// formatted offset expression.
@@ -488,10 +491,10 @@ fn handle_set_label(ctx: &mut ActionContext<'_>) {
         .state
         .labels
         .get(&target_addr)
-        .and_then(|v| v.iter().find(|l| l.kind == crate::state::LabelKind::User));
+        .and_then(|v| v.iter().find(|l| l.kind == LabelKind::User));
 
     let active_addr_offset = if user_label.is_none()
-        && crate::disassembler::symbols::has_active_address_offset(
+        && symbols::has_active_address_offset(
             target_addr,
             &ctx.state.labels,
             &ctx.state.annotations,
@@ -508,51 +511,53 @@ fn handle_set_label(ctx: &mut ActionContext<'_>) {
     if is_external {
         let (initial_name, is_local) = if let Some(sym) = active_addr_offset {
             (
-                ctx.state
-                    .format_symbolic_offset(sym, None, target_addr.0 <= 0x00FF),
+                ctx.state.format_symbolic_offset(
+                    sym,
+                    None,
+                    OffsetAddressing::for_address(target_addr),
+                ),
                 false,
             )
         } else {
             let existing =
                 user_label.or_else(|| ctx.state.labels.get(&target_addr).and_then(|v| v.first()));
-            let local =
-                existing.is_some_and(|l| l.label_type == crate::state::LabelType::LocalUserDefined);
+            let local = existing.is_some_and(|l| l.label_type == LabelType::LocalUserDefined);
             (existing.map(|l| l.name.clone()).unwrap_or_default(), local)
         };
-        ctx.events.push(CoreEvent::DialogRequested(
-            crate::event::DialogType::Label {
+        ctx.events
+            .push(CoreEvent::DialogRequested(DialogType::Label {
                 address: target_addr,
                 initial_name,
                 is_local,
                 is_external: true,
-            },
-        ));
+            }));
         ctx.events.push(CoreEvent::StatusMessage(format!(
             "Edit External Label for ${target_addr:04X}"
         )));
     } else {
         let (initial_name, is_local) = if let Some(sym) = active_addr_offset {
             (
-                ctx.state
-                    .format_symbolic_offset(sym, Some(target_addr), target_addr.0 <= 0x00FF),
+                ctx.state.format_symbolic_offset(
+                    sym,
+                    Some(target_addr),
+                    OffsetAddressing::for_address(target_addr),
+                ),
                 false,
             )
         } else {
-            let local = user_label
-                .is_some_and(|l| l.label_type == crate::state::LabelType::LocalUserDefined);
+            let local = user_label.is_some_and(|l| l.label_type == LabelType::LocalUserDefined);
             (
                 user_label.map(|l| l.name.clone()).unwrap_or_default(),
                 local,
             )
         };
-        ctx.events.push(CoreEvent::DialogRequested(
-            crate::event::DialogType::Label {
+        ctx.events
+            .push(CoreEvent::DialogRequested(DialogType::Label {
                 address: target_addr,
                 initial_name,
                 is_local,
                 is_external: false,
-            },
-        ));
+            }));
         ctx.events.push(CoreEvent::StatusMessage(format!(
             "Set User Label at ${target_addr:04X}"
         )));
@@ -562,7 +567,7 @@ fn handle_set_label(ctx: &mut ActionContext<'_>) {
 /// Submission payload checked by [`validate_symbolic_offset_submission`] and applied by
 /// [`AppAction::ApplySymbolicOffset`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SymbolicOffsetSubmission<'a> {
+pub struct SymbolicOffsetSubmission<'app> {
     /// Referencing instruction or table entry [`Addr`], when editing an operand site.
     pub site_address: Option<Addr>,
     /// Primary effective target [`Addr`].
@@ -570,22 +575,22 @@ pub struct SymbolicOffsetSubmission<'a> {
     /// Optional inclusive `(start, end)` [`Addr`] range when applying across a visual selection.
     pub address_range: Option<(Addr, Addr)>,
     /// Raw user-entered expression (empty or `"0"` clears the offset).
-    pub input: &'a str,
+    pub input: &'app str,
     /// `true` to apply Tier 2 (`address_offset`) globally, or `false` to apply Tier 1 (`operand_offset`).
     pub is_global: bool,
     /// `true` when checking a 2-byte zero-page instruction operand (`base <= $00FF`).
     pub is_zero_page_mode: bool,
 }
 
-/// Checked symbolic offset mutation plan ready for execution on [`AppState`](crate::state::AppState).
+/// Checked symbolic offset mutation plan ready for execution on [`AppState`](AppState).
 enum SymbolicOffsetPlan {
     Operand {
-        updates: Vec<(Addr, Option<crate::state::SymbolicOffset>)>,
+        updates: Vec<(Addr, Option<SymbolicOffset>)>,
         site_count: usize,
         is_clear: bool,
     },
     Address {
-        updates: Vec<(Addr, Option<crate::state::SymbolicOffset>)>,
+        updates: Vec<(Addr, Option<SymbolicOffset>)>,
         site_addresses: Vec<Addr>,
         is_clear: bool,
     },
@@ -593,10 +598,10 @@ enum SymbolicOffsetPlan {
 
 /// Checks `req` against `state` and produces the exact Tier 1 or Tier 2 update plan.
 fn plan_symbolic_offset_submission(
-    state: &crate::state::AppState,
+    state: &AppState,
     req: &SymbolicOffsetSubmission<'_>,
 ) -> Result<SymbolicOffsetPlan, String> {
-    let is_clear = crate::state::AppState::is_symbolic_clear_input(req.input);
+    let is_clear = AppState::is_symbolic_clear_input(req.input);
 
     let Some((start_addr, end_addr)) = req.address_range else {
         if !req.is_global {
@@ -610,7 +615,7 @@ fn plan_symbolic_offset_submission(
             let parsed = state.parse_symbolic_offset_input(
                 req.input,
                 req.target_address,
-                req.is_zero_page_mode,
+                OffsetAddressing::from_zero_page(req.is_zero_page_mode),
                 scope,
             )?;
             let mut updates = Vec::with_capacity(2);
@@ -644,7 +649,9 @@ fn plan_symbolic_offset_submission(
         let parsed = state.parse_symbolic_offset_input(
             req.input,
             req.target_address,
-            req.is_zero_page_mode || req.target_address.0 <= 0x00FF,
+            OffsetAddressing::from_zero_page(
+                req.is_zero_page_mode || req.target_address.0 <= 0x00FF,
+            ),
             scope,
         )?;
         return Ok(SymbolicOffsetPlan::Address {
@@ -662,7 +669,7 @@ fn plan_symbolic_offset_submission(
 
     // Share `SymbolicBaseCache` across the range so `K` entries against `L` labels and `S` scopes
     // resolve in `O(L + K log S)` rather than `O(K * L)`.
-    let mut base_cache = crate::state::app_state::SymbolicBaseCache::default();
+    let mut base_cache = SymbolicBaseCache::default();
 
     if !req.is_global {
         if state.is_external(start_addr) || state.is_external(end_addr) {
@@ -712,7 +719,7 @@ fn plan_symbolic_offset_submission(
     {
         let targets = state.effective_targets_with_pair_in_range(start_addr, end_addr);
         if !targets.is_empty() {
-            let mut target_reqs = std::collections::BTreeMap::<Addr, (Addr, bool)>::new();
+            let mut target_reqs = BTreeMap::<Addr, (Addr, bool)>::new();
             let mut site_addresses = Vec::with_capacity(targets.len() * 2);
             for t in &targets {
                 let zp = t.is_zero_page_mode || t.raw_target.0 <= 0x00FF;
@@ -779,7 +786,7 @@ fn plan_symbolic_offset_submission(
     })
 }
 
-/// Checks a symbolic offset dialog submission without mutating [`AppState`](crate::state::AppState).
+/// Checks a symbolic offset dialog submission without mutating [`AppState`].
 ///
 /// Frontends call this before emitting [`AppAction::ApplySymbolicOffset`]. Invalid expressions
 /// show an inline error and keep the dialog open with user text intact.
@@ -824,7 +831,7 @@ fn plan_symbolic_offset_submission(
 /// assert!(validate_symbolic_offset_submission(&state, &mismatch).is_err());
 /// ```
 pub fn validate_symbolic_offset_submission(
-    state: &crate::state::AppState,
+    state: &AppState,
     req: &SymbolicOffsetSubmission<'_>,
 ) -> Result<(), String> {
     plan_symbolic_offset_submission(state, req).map(|_| ())
@@ -832,27 +839,23 @@ pub fn validate_symbolic_offset_submission(
 
 /// Suggests an initial expression for a multi-target operand range (such as an `RTS` dispatch table).
 #[must_use]
-fn suggest_multi_operand_expression(
-    state: &crate::state::AppState,
-    targets: &[crate::state::OperandTargetSite],
-) -> String {
+fn suggest_multi_operand_expression(state: &AppState, targets: &[OperandTargetSite]) -> String {
     let Some(&first) = targets.first() else {
         return String::new();
     };
 
-    let resolve_tier1 =
-        |t: crate::state::OperandTargetSite| -> Option<crate::state::SymbolicOffset> {
-            state
-                .annotations
-                .get(t.site_addr)
-                .and_then(|e| e.operand_offset)
-                .or_else(|| {
-                    t.second_pair_addr
-                        .and_then(|s| state.annotations.get(s))
-                        .and_then(|e| e.operand_offset)
-                })
-                .filter(|sym| sym.matches_target(t.raw_target))
-        };
+    let resolve_tier1 = |t: OperandTargetSite| -> Option<SymbolicOffset> {
+        state
+            .annotations
+            .get(t.site_addr)
+            .and_then(|e| e.operand_offset)
+            .or_else(|| {
+                t.second_pair_addr
+                    .and_then(|s| state.annotations.get(s))
+                    .and_then(|e| e.operand_offset)
+            })
+            .filter(|sym| sym.matches_target(t.raw_target))
+    };
 
     if let Some(first_sym) = resolve_tier1(first) {
         let same_base = targets
@@ -862,7 +865,7 @@ fn suggest_multi_operand_expression(
             let full = state.format_symbolic_offset(
                 first_sym,
                 Some(first.site_addr),
-                first.is_zero_page_mode,
+                OffsetAddressing::from_zero_page(first.is_zero_page_mode),
             );
             if let Some(op_idx) = full.find(['+', '-']) {
                 return full[..op_idx].trim().to_string();
@@ -875,8 +878,8 @@ fn suggest_multi_operand_expression(
             let sign = if first_sym.offset >= 0 { '+' } else { '-' };
             let mag = first_sym.offset.unsigned_abs();
             return match first_sym.radix {
-                crate::state::OffsetRadix::Decimal => format!("{sign}{mag}"),
-                crate::state::OffsetRadix::Hex => format!("{sign}${mag:x}"),
+                OffsetRadix::Decimal => format!("{sign}{mag}"),
+                OffsetRadix::Hex => format!("{sign}${mag:x}"),
             };
         }
     }
@@ -887,11 +890,7 @@ fn suggest_multi_operand_expression(
             let cand = Addr(t.raw_target.0 + 1);
             (!t.is_zero_page_mode || cand.0 <= 0x00FF)
                 && !state.effective_labels_at(cand).is_empty()
-                && !crate::disassembler::symbols::has_active_address_offset(
-                    cand,
-                    &state.labels,
-                    &state.annotations,
-                )
+                && !symbols::has_active_address_offset(cand, &state.labels, &state.annotations)
         }
     });
     if all_plus1_labelled {
@@ -913,29 +912,18 @@ fn extract_base_token(expr: &str) -> String {
 
 /// Suggests a bare struct base symbol name when opening `SymbolicOffsetDialog` across `start_addr..=end_addr`.
 #[must_use]
-fn suggest_struct_range_base(
-    state: &crate::state::AppState,
-    start_addr: Addr,
-    end_addr: Addr,
-) -> String {
-    let start_suppressed = crate::disassembler::symbols::has_active_address_offset(
-        start_addr,
-        &state.labels,
-        &state.annotations,
-    );
+fn suggest_struct_range_base(state: &AppState, start_addr: Addr, end_addr: Addr) -> String {
+    let start_suppressed =
+        symbols::has_active_address_offset(start_addr, &state.labels, &state.annotations);
     if !start_suppressed {
         if let Some(label) = state
             .labels
             .get(&start_addr)
             .filter(|v| {
-                v.iter().any(|l| {
-                    matches!(
-                        l.kind,
-                        crate::state::LabelKind::User | crate::state::LabelKind::System
-                    )
-                })
+                v.iter()
+                    .any(|l| matches!(l.kind, LabelKind::User | LabelKind::System))
             })
-            .and_then(|v| crate::disassembler::resolve_label(v, start_addr.0, &state.settings))
+            .and_then(|v| resolve_label(v, start_addr.0, &state.settings))
         {
             return label.name.clone();
         }
@@ -943,7 +931,7 @@ fn suggest_struct_range_base(
             && let Some(sys_label) = state
                 .system_labels
                 .get(&start_addr)
-                .and_then(|v| crate::disassembler::resolve_label(v, start_addr.0, &state.settings))
+                .and_then(|v| resolve_label(v, start_addr.0, &state.settings))
         {
             return sys_label.name.clone();
         }
@@ -956,26 +944,23 @@ fn suggest_struct_range_base(
         return extract_base_token(&state.format_symbolic_offset(
             sym,
             None,
-            start_addr.0 <= 0x00FF,
+            OffsetAddressing::for_address(start_addr),
         ));
     }
 
     if start_addr < end_addr && start_addr.0 < 0xFFFF {
         let next_addr = Addr(start_addr.0 + 1);
-        if crate::disassembler::symbols::has_active_address_offset(
-            next_addr,
-            &state.labels,
-            &state.annotations,
-        ) && let Some(sym) = state
-            .annotations
-            .get(next_addr)
-            .and_then(|e| e.address_offset)
-            .filter(|sym| sym.matches_target(next_addr))
+        if symbols::has_active_address_offset(next_addr, &state.labels, &state.annotations)
+            && let Some(sym) = state
+                .annotations
+                .get(next_addr)
+                .and_then(|e| e.address_offset)
+                .filter(|sym| sym.matches_target(next_addr))
         {
             return extract_base_token(&state.format_symbolic_offset(
                 sym,
                 None,
-                next_addr.0 <= 0x00FF,
+                OffsetAddressing::for_address(next_addr),
             ));
         }
     }
@@ -984,30 +969,32 @@ fn suggest_struct_range_base(
         && let Some(auto_label) = state
             .labels
             .get(&start_addr)
-            .and_then(|v| crate::disassembler::resolve_label(v, start_addr.0, &state.settings))
+            .and_then(|v| resolve_label(v, start_addr.0, &state.settings))
     {
         return auto_label.name.clone();
     }
 
-    let (suggested, _) = state.suggest_symbolic_offset(None, start_addr, start_addr.0 <= 0x00FF);
-    extract_base_token(&suggested)
+    let suggestion =
+        state.suggest_symbolic_offset(None, start_addr, OffsetAddressing::for_address(start_addr));
+    extract_base_token(&suggestion.expression)
 }
 
 /// Opens a single-address global Tier 2 `DialogType::SymbolicOffset` for `addr`.
 fn open_single_global_symbolic_offset_dialog(ctx: &mut ActionContext<'_>, addr: Addr) {
     let is_zp = addr.0 <= 0x00FF;
-    let (initial_input, _) = ctx.state.suggest_symbolic_offset(None, addr, is_zp);
-    ctx.events.push(CoreEvent::DialogRequested(
-        crate::event::DialogType::SymbolicOffset {
+    let suggestion =
+        ctx.state
+            .suggest_symbolic_offset(None, addr, OffsetAddressing::from_zero_page(is_zp));
+    ctx.events
+        .push(CoreEvent::DialogRequested(DialogType::SymbolicOffset {
             site_address: None,
             target_address: addr,
             address_range: None,
-            initial_input,
+            initial_input: suggestion.expression,
             is_global: true,
             lock_global: true,
             is_zero_page_mode: is_zp,
-        },
-    ));
+        }));
     ctx.events.push(CoreEvent::StatusMessage(format!(
         "Set Symbolic Offset for ${addr:04X}"
     )));
@@ -1016,7 +1003,7 @@ fn open_single_global_symbolic_offset_dialog(ctx: &mut ActionContext<'_>, addr: 
 /// Dispatches `DialogType::SymbolicOffset` across an in-binary byte offset range `byte_range`.
 fn open_symbolic_offset_dialog_for_byte_range(
     ctx: &mut ActionContext<'_>,
-    byte_range: std::ops::Range<usize>,
+    byte_range: Range<usize>,
     has_selection: bool,
 ) {
     let start_addr = ctx.state.origin.wrapping_add(byte_range.start as u16);
@@ -1027,20 +1014,21 @@ fn open_symbolic_offset_dialog_for_byte_range(
 
     if targets.len() == 1 {
         let t = targets[0];
-        let (initial_input, is_global) =
-            ctx.state
-                .suggest_symbolic_offset(Some(t.site_addr), t.raw_target, t.is_zero_page_mode);
-        ctx.events.push(CoreEvent::DialogRequested(
-            crate::event::DialogType::SymbolicOffset {
+        let suggestion = ctx.state.suggest_symbolic_offset(
+            Some(t.site_addr),
+            t.raw_target,
+            OffsetAddressing::from_zero_page(t.is_zero_page_mode),
+        );
+        ctx.events
+            .push(CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 site_address: Some(t.site_addr),
                 target_address: t.raw_target,
                 address_range: None,
-                initial_input,
-                is_global,
+                initial_input: suggestion.expression,
+                is_global: suggestion.default_is_global,
                 lock_global: false,
                 is_zero_page_mode: t.is_zero_page_mode,
-            },
-        ));
+            }));
         ctx.events.push(CoreEvent::StatusMessage(format!(
             "Set Symbolic Offset for ${:04X}",
             t.raw_target.0
@@ -1051,8 +1039,8 @@ fn open_symbolic_offset_dialog_for_byte_range(
     if targets.len() > 1 {
         let first = targets[0];
         let initial_input = suggest_multi_operand_expression(ctx.state, &targets);
-        ctx.events.push(CoreEvent::DialogRequested(
-            crate::event::DialogType::SymbolicOffset {
+        ctx.events
+            .push(CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 site_address: Some(first.site_addr),
                 target_address: first.raw_target,
                 address_range: Some((start_addr, end_addr)),
@@ -1060,8 +1048,7 @@ fn open_symbolic_offset_dialog_for_byte_range(
                 is_global: false,
                 lock_global: false,
                 is_zero_page_mode: first.is_zero_page_mode,
-            },
-        ));
+            }));
         ctx.events.push(CoreEvent::StatusMessage(format!(
             "Set Symbolic Offset for {} entries (${start_addr:04X}..=${end_addr:04X})",
             targets.len()
@@ -1070,7 +1057,7 @@ fn open_symbolic_offset_dialog_for_byte_range(
     }
 
     let has_non_code = (byte_range.start..byte_range.end)
-        .any(|pc| ctx.state.block_types.get(pc) != Some(&crate::state::BlockType::Code));
+        .any(|pc| ctx.state.block_types.get(pc) != Some(&BlockType::Code));
     let has_existing_offset = (byte_range.start..byte_range.end).any(|pc| {
         let addr = ctx.state.origin.wrapping_add(pc as u16);
         ctx.state
@@ -1092,8 +1079,8 @@ fn open_symbolic_offset_dialog_for_byte_range(
 
     if start_addr < end_addr && (has_non_code || has_selection) {
         let initial_input = suggest_struct_range_base(ctx.state, start_addr, end_addr);
-        ctx.events.push(CoreEvent::DialogRequested(
-            crate::event::DialogType::SymbolicOffset {
+        ctx.events
+            .push(CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 site_address: None,
                 target_address: start_addr,
                 address_range: Some((start_addr, end_addr)),
@@ -1101,8 +1088,7 @@ fn open_symbolic_offset_dialog_for_byte_range(
                 is_global: true,
                 lock_global: true,
                 is_zero_page_mode: start_addr.0 <= 0x00FF,
-            },
-        ));
+            }));
         ctx.events.push(CoreEvent::StatusMessage(format!(
             "Set Symbolic Offset for ${start_addr:04X}..=${end_addr:04X}"
         )));
@@ -1111,7 +1097,7 @@ fn open_symbolic_offset_dialog_for_byte_range(
     }
 }
 
-/// Opens [`DialogType::SymbolicOffset`](crate::event::DialogType::SymbolicOffset) prefilled for the
+/// Opens [`DialogType::SymbolicOffset`](DialogType::SymbolicOffset) prefilled for the
 /// current operand, pointer table, external equate, or data/struct selection.
 fn handle_symbolic_offset_dialog(ctx: &mut ActionContext<'_>) {
     let has_selection = ctx.view.is_visual_mode || ctx.view.selection_start.is_some();
@@ -1142,8 +1128,8 @@ fn handle_symbolic_offset_dialog(ctx: &mut ActionContext<'_>) {
                 open_single_global_symbolic_offset_dialog(ctx, min_ext);
             } else {
                 let initial_input = suggest_struct_range_base(ctx.state, min_ext, max_ext);
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::SymbolicOffset {
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                         site_address: None,
                         target_address: min_ext,
                         address_range: Some((min_ext, max_ext)),
@@ -1151,8 +1137,7 @@ fn handle_symbolic_offset_dialog(ctx: &mut ActionContext<'_>) {
                         is_global: true,
                         lock_global: true,
                         is_zero_page_mode: min_ext.0 <= 0x00FF,
-                    },
-                ));
+                    }));
                 ctx.events.push(CoreEvent::StatusMessage(format!(
                     "Set Symbolic Offset for ${min_ext:04X}..=${max_ext:04X}"
                 )));
@@ -1232,9 +1217,11 @@ fn handle_apply_symbolic_offset(ctx: &mut ActionContext<'_>, req: &SymbolicOffse
                     format!("Cleared operand symbolic offset on {site_count} entries")
                 }
             } else if let Some(sym) = single_formatted {
-                let expr =
-                    ctx.state
-                        .format_symbolic_offset(sym, req.site_address, req.is_zero_page_mode);
+                let expr = ctx.state.format_symbolic_offset(
+                    sym,
+                    req.site_address,
+                    OffsetAddressing::from_zero_page(req.is_zero_page_mode),
+                );
                 format!("Set operand symbolic offset to '{expr}'")
             } else {
                 format!("Applied operand symbolic offset to {site_count} entries")
@@ -1266,9 +1253,11 @@ fn handle_apply_symbolic_offset(ctx: &mut ActionContext<'_>, req: &SymbolicOffse
                     format!("Cleared symbolic offset on {count} addresses")
                 }
             } else if let Some((addr, sym)) = single_formatted {
-                let expr = ctx
-                    .state
-                    .format_symbolic_offset(sym, first_site, addr.0 <= 0x00FF);
+                let expr = ctx.state.format_symbolic_offset(
+                    sym,
+                    first_site,
+                    OffsetAddressing::for_address(addr),
+                );
                 format!("Applied symbolic offset '{expr}' globally to ${addr:04X}")
             } else {
                 format!("Applied global symbolic offset to {count} addresses")
@@ -1281,17 +1270,17 @@ fn handle_apply_symbolic_offset(ctx: &mut ActionContext<'_>, req: &SymbolicOffse
     ctx.events.push(CoreEvent::ViewChanged);
 }
 
-/// Computes the nudged [`SymbolicOffset`](crate::state::SymbolicOffset) (`new_offset = current_offset + delta`,
+/// Computes the nudged [`SymbolicOffset`](SymbolicOffset) (`new_offset = current_offset + delta`,
 /// `new_base = effective_target - new_offset`), returning `Ok(None)` when `new_offset == 0`.
 fn compute_nudged_symbolic_offset(
     effective_target: Addr,
-    current: Option<crate::state::SymbolicOffset>,
+    current: Option<SymbolicOffset>,
     delta: i16,
     is_zero_page_mode: bool,
-) -> Result<Option<crate::state::SymbolicOffset>, String> {
+) -> Result<Option<SymbolicOffset>, String> {
     let valid_current = current.filter(|sym| sym.matches_target(effective_target));
     let current_offset = valid_current.map_or(0i16, |sym| sym.offset);
-    let radix = valid_current.map_or(crate::state::OffsetRadix::Decimal, |sym| sym.radix);
+    let radix = valid_current.map_or(OffsetRadix::Decimal, |sym| sym.radix);
 
     let new_offset_i32 = i32::from(current_offset) + i32::from(delta);
     let new_offset = i16::try_from(new_offset_i32).map_err(|_| {
@@ -1318,7 +1307,7 @@ fn compute_nudged_symbolic_offset(
         ));
     }
 
-    Ok(Some(crate::state::SymbolicOffset {
+    Ok(Some(SymbolicOffset {
         base,
         offset: new_offset,
         radix,
@@ -1327,9 +1316,9 @@ fn compute_nudged_symbolic_offset(
 
 /// Resolves either Tier 1 operand sites or active Tier 2 addresses inside `byte_range`.
 fn resolve_nudge_targets_in_byte_range(
-    state: &crate::state::AppState,
-    byte_range: std::ops::Range<usize>,
-) -> (Vec<crate::state::OperandTargetSite>, Vec<Addr>) {
+    state: &AppState,
+    byte_range: Range<usize>,
+) -> (Vec<OperandTargetSite>, Vec<Addr>) {
     let start_addr = state.origin.wrapping_add(byte_range.start as u16);
     let end_addr = state.origin.wrapping_add((byte_range.end - 1) as u16);
     let targets = state.effective_targets_with_pair_in_range(start_addr, end_addr);
@@ -1338,13 +1327,7 @@ fn resolve_nudge_targets_in_byte_range(
     }
     let tier2 = (start_addr.0..=end_addr.0)
         .map(Addr)
-        .filter(|&a| {
-            crate::disassembler::symbols::has_active_address_offset(
-                a,
-                &state.labels,
-                &state.annotations,
-            )
-        })
+        .filter(|&a| symbols::has_active_address_offset(a, &state.labels, &state.annotations))
         .collect();
     (Vec::new(), tier2)
 }
@@ -1369,7 +1352,7 @@ fn handle_nudge_symbolic_offset(ctx: &mut ActionContext<'_>, delta: i16) {
         if let Some(byte_range) = slice_byte_offset_range(ctx.state, slice) {
             resolve_nudge_targets_in_byte_range(ctx.state, byte_range)
         } else {
-            let ext_set: std::collections::BTreeSet<Addr> = slice
+            let ext_set: BTreeSet<Addr> = slice
                 .iter()
                 .filter_map(|l| l.external_label_address)
                 .collect();
@@ -1394,7 +1377,7 @@ fn handle_nudge_symbolic_offset(ctx: &mut ActionContext<'_>, delta: i16) {
     if !tier1_targets.is_empty() {
         let mut tier1_updates = Vec::with_capacity(tier1_targets.len() * 2);
         let mut tier1_sites = Vec::with_capacity(tier1_targets.len());
-        let mut tier2_reqs = std::collections::BTreeMap::<Addr, (Addr, bool)>::new();
+        let mut tier2_reqs = BTreeMap::<Addr, (Addr, bool)>::new();
 
         for t in &tier1_targets {
             let current_tier1 = ctx
@@ -1413,7 +1396,7 @@ fn handle_nudge_symbolic_offset(ctx: &mut ActionContext<'_>, delta: i16) {
                 });
 
             if current_tier1.is_none()
-                && crate::disassembler::symbols::has_active_address_offset(
+                && symbols::has_active_address_offset(
                     t.raw_target,
                     &ctx.state.labels,
                     &ctx.state.annotations,
@@ -1490,18 +1473,22 @@ fn handle_nudge_symbolic_offset(ctx: &mut ActionContext<'_>, delta: i16) {
 
         let msg = if let Some((site_addr, raw_target, is_zp_mode, maybe_sym)) = single_tier1 {
             if let Some(sym) = maybe_sym {
-                let expr = ctx
-                    .state
-                    .format_symbolic_offset(sym, Some(site_addr), is_zp_mode);
+                let expr = ctx.state.format_symbolic_offset(
+                    sym,
+                    Some(site_addr),
+                    OffsetAddressing::from_zero_page(is_zp_mode),
+                );
                 format!("Symbolic offset: {expr}")
             } else {
                 format!("Cleared symbolic offset for ${raw_target:04X}")
             }
         } else if let Some((target_addr, maybe_sym, site_opt)) = single_tier2 {
             if let Some(sym) = maybe_sym {
-                let expr = ctx
-                    .state
-                    .format_symbolic_offset(sym, site_opt, target_addr.0 <= 0x00FF);
+                let expr = ctx.state.format_symbolic_offset(
+                    sym,
+                    site_opt,
+                    OffsetAddressing::for_address(target_addr),
+                );
                 format!("Global symbolic offset for ${target_addr:04X}: {expr}")
             } else {
                 format!("Cleared symbolic offset at ${target_addr:04X}")
@@ -1548,9 +1535,11 @@ fn handle_nudge_symbolic_offset(ctx: &mut ActionContext<'_>, delta: i16) {
 
         let msg = if let Some((target_addr, maybe_sym)) = first_summary {
             if let Some(sym) = maybe_sym {
-                let expr = ctx
-                    .state
-                    .format_symbolic_offset(sym, None, target_addr.0 <= 0x00FF);
+                let expr = ctx.state.format_symbolic_offset(
+                    sym,
+                    None,
+                    OffsetAddressing::for_address(target_addr),
+                );
                 format!("Global symbolic offset for ${target_addr:04X}: {expr}")
             } else {
                 format!("Cleared symbolic offset at ${target_addr:04X}")
@@ -1571,9 +1560,9 @@ fn handle_nudge_symbolic_offset(ctx: &mut ActionContext<'_>, delta: i16) {
 }
 
 /// Returns the immediate operand byte if `line` is an immediate `LDA`, `LDX`, or `LDY` instruction.
-fn extract_immediate_load_byte(line: &crate::disassembler::DisassemblyLine) -> Option<u8> {
+fn extract_immediate_load_byte(line: &DisassemblyLine) -> Option<u8> {
     if let Some(op) = &line.opcode
-        && op.mode == crate::cpu::AddressingMode::Immediate
+        && op.mode == AddressingMode::Immediate
         && matches!(op.mnemonic, "LDA" | "LDX" | "LDY")
     {
         line.bytes.get(1).copied()
@@ -1638,14 +1627,14 @@ fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
                 let addr2 = ctx.state.disassembly[idx2].address;
 
                 let fmt1 = if lo_first {
-                    crate::state::ImmediateFormat::LowByte(crate::state::Addr(target))
+                    ImmediateFormat::LowByte(Addr(target))
                 } else {
-                    crate::state::ImmediateFormat::HighByte(crate::state::Addr(target))
+                    ImmediateFormat::HighByte(Addr(target))
                 };
                 let fmt2 = if lo_first {
-                    crate::state::ImmediateFormat::HighByte(crate::state::Addr(target))
+                    ImmediateFormat::HighByte(Addr(target))
                 } else {
-                    crate::state::ImmediateFormat::LowByte(crate::state::Addr(target))
+                    ImmediateFormat::LowByte(Addr(target))
                 };
 
                 // Route through `build_set_immediate_format_commands` so any stale non-matching
@@ -1672,10 +1661,10 @@ fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
 
     if !batch_commands.is_empty() {
         ctx.preserve_cursor(|c| {
-            let batch = crate::commands::Command::Batch(batch_commands);
+            let batch = Command::Batch(batch_commands);
             batch.apply(c.state);
-            let (analysis_cmd, _) = c.state.perform_analysis();
-            let final_cmd = crate::commands::Command::Batch(vec![batch, analysis_cmd]);
+            let outcome = c.state.perform_analysis();
+            let final_cmd = Command::Batch(vec![batch, outcome.command]);
             c.state.push_command(final_cmd);
 
             c.view.clear_all_selections();
@@ -1691,13 +1680,12 @@ fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
         if let Some(line) = ctx.state.disassembly.get(idx)
             && let Some(known_byte) = extract_immediate_load_byte(line)
         {
-            ctx.events.push(CoreEvent::DialogRequested(
-                crate::event::DialogType::CompleteAddress {
+            ctx.events
+                .push(CoreEvent::DialogRequested(DialogType::CompleteAddress {
                     known_byte,
                     lo_first,
                     address: line.address,
-                },
-            ));
+                }));
         } else {
             ctx.events
                 .push(CoreEvent::StatusMessage("No Lo/Hi pairs found".to_string()));
@@ -1709,7 +1697,7 @@ fn handle_lo_hi_packing(ctx: &mut ActionContext<'_>, lo_first: bool) {
 }
 
 /// Cycles the immediate operand format on the current line. Calls
-/// [`AppState::apply_immediate_format`](crate::state::AppState::apply_immediate_format) to clear
+/// [`AppState::apply_immediate_format`](AppState::apply_immediate_format) to clear
 /// any stale Tier 1 `operand_offset` in the same undo batch.
 fn cycle_immediate_format(ctx: &mut ActionContext<'_>, forward: bool) {
     use crate::state::types::ImmediateFormat;
@@ -1758,10 +1746,13 @@ fn toggle_collapsed_block(ctx: &mut ActionContext<'_>) {
     // In the Blocks pane (`Ctrl+K`), resolve the block from `blocks_selected_index`.
     // This targets the highlighted block even when `sync_blocks_view` is disabled.
     let block_range = if ctx.view.active_pane == ActivePane::Blocks {
-        let blocks = ctx.state.get_blocks_view_items();
+        let blocks = ctx.state.blocks_view_items();
         let idx = ctx.view.blocks_selected_index.unwrap_or(0);
-        if let Some(crate::state::BlockItem::Block { start, end, .. }) = blocks.get(idx) {
-            Some((*start, *end))
+        if let Some(BlockItem::Block { start, end, .. }) = blocks.get(idx) {
+            Some(AddrSpan {
+                start: *start,
+                end: *end,
+            })
         } else {
             None
         }
@@ -1769,19 +1760,19 @@ fn toggle_collapsed_block(ctx: &mut ActionContext<'_>) {
         ctx.state
             .disassembly
             .get(ctx.view.cursor_index)
-            .and_then(|line| ctx.state.get_block_range(line.address))
+            .and_then(|line| ctx.state.block_range(line.address))
     };
 
-    if let Some((start_addr, end_addr)) = block_range {
+    if let Some(span) = block_range {
         let origin = ctx.state.origin;
-        let start = start_addr.offset_from(origin);
-        let end = end_addr.offset_from(origin);
+        let start = span.start.offset_from(origin);
+        let end = span.end.offset_from(origin);
         let range = (start, end);
         let is_collapsed = ctx.state.collapsed_blocks.contains(&range);
         let command = if is_collapsed {
-            crate::commands::Command::UncollapseBlock { range }
+            Command::UncollapseBlock { range }
         } else {
-            crate::commands::Command::CollapseBlock { range }
+            Command::CollapseBlock { range }
         };
         ctx.preserve_cursor(|c| {
             command.apply(c.state);
@@ -1795,7 +1786,7 @@ fn toggle_collapsed_block(ctx: &mut ActionContext<'_>) {
         };
         ctx.events.push(CoreEvent::StatusMessage(format!(
             "{action_str} block ${:04X}-${:04X}",
-            start_addr.0, end_addr.0
+            span.start.0, span.end.0
         )));
         ctx.events.push(CoreEvent::StateChanged);
         ctx.events.push(CoreEvent::ViewChanged);
@@ -1812,9 +1803,9 @@ impl DomainActionHandler for DisassemblyActionHandler {
             AppAction::Analyze => {
                 let mut msg = String::new();
                 ctx.preserve_cursor(|c| {
-                    let (cmd, m) = c.state.perform_analysis();
-                    c.state.push_command(cmd);
-                    msg = m;
+                    let outcome = c.state.perform_analysis();
+                    c.state.push_command(outcome.command);
+                    msg = outcome.status_message;
                 });
                 ctx.events.push(CoreEvent::StatusMessage(msg));
                 ctx.events.push(CoreEvent::StateChanged);
@@ -1842,51 +1833,51 @@ impl DomainActionHandler for DisassemblyActionHandler {
                 Ok(true)
             }
             AppAction::Code => {
-                apply_block_type(ctx, crate::state::BlockType::Code);
+                apply_block_type(ctx, BlockType::Code);
                 Ok(true)
             }
             AppAction::Byte => {
-                apply_block_type(ctx, crate::state::BlockType::DataByte);
+                apply_block_type(ctx, BlockType::DataByte);
                 Ok(true)
             }
             AppAction::Word => {
-                apply_block_type(ctx, crate::state::BlockType::DataWord);
+                apply_block_type(ctx, BlockType::DataWord);
                 Ok(true)
             }
             AppAction::Address => {
-                apply_block_type(ctx, crate::state::BlockType::Address);
+                apply_block_type(ctx, BlockType::Address);
                 Ok(true)
             }
             AppAction::PetsciiText => {
-                apply_block_type(ctx, crate::state::BlockType::PetsciiText);
+                apply_block_type(ctx, BlockType::PetsciiText);
                 Ok(true)
             }
             AppAction::ScreencodeText => {
-                apply_block_type(ctx, crate::state::BlockType::ScreencodeText);
+                apply_block_type(ctx, BlockType::ScreencodeText);
                 Ok(true)
             }
             AppAction::Undefined => {
-                apply_block_type(ctx, crate::state::BlockType::Undefined);
+                apply_block_type(ctx, BlockType::Undefined);
                 Ok(true)
             }
             AppAction::SetLoHiAddress => {
-                apply_block_type(ctx, crate::state::BlockType::LoHiAddress);
+                apply_block_type(ctx, BlockType::LoHiAddress);
                 Ok(true)
             }
             AppAction::SetHiLoAddress => {
-                apply_block_type(ctx, crate::state::BlockType::HiLoAddress);
+                apply_block_type(ctx, BlockType::HiLoAddress);
                 Ok(true)
             }
             AppAction::SetLoHiWord => {
-                apply_block_type(ctx, crate::state::BlockType::LoHiWord);
+                apply_block_type(ctx, BlockType::LoHiWord);
                 Ok(true)
             }
             AppAction::SetHiLoWord => {
-                apply_block_type(ctx, crate::state::BlockType::HiLoWord);
+                apply_block_type(ctx, BlockType::HiLoWord);
                 Ok(true)
             }
             AppAction::SetExternalFile => {
-                apply_block_type(ctx, crate::state::BlockType::ExternalFile);
+                apply_block_type(ctx, BlockType::ExternalFile);
                 Ok(true)
             }
             AppAction::DisassembleAddress => {
@@ -1898,18 +1889,18 @@ impl DomainActionHandler for DisassemblyActionHandler {
                     ));
                     return Ok(true);
                 };
-                let ranges = crate::analyzer::flow_analyze(ctx.state, addr);
+                let ranges = analyzer::flow_analyze(ctx.state, addr);
                 let mut commands = Vec::new();
                 for range in ranges {
                     let old_types = ctx.state.block_types[range.start..range.end].to_vec();
-                    commands.push(crate::commands::Command::SetBlockType {
-                        range: range.clone(),
-                        new_type: crate::state::BlockType::Code,
+                    commands.push(Command::SetBlockType {
+                        range,
+                        new_type: BlockType::Code,
                         old_types,
                     });
                 }
                 if !commands.is_empty() {
-                    let batch = crate::commands::Command::Batch(commands);
+                    let batch = Command::Batch(commands);
                     ctx.preserve_cursor(|c| {
                         apply_block_command_with_analysis(c.state, batch);
                     });
@@ -1968,13 +1959,12 @@ impl DomainActionHandler for DisassemblyActionHandler {
                         .annotations
                         .get(address)
                         .and_then(|e| e.user_side_comment.clone());
-                    ctx.events.push(CoreEvent::DialogRequested(
-                        crate::event::DialogType::Comment {
+                    ctx.events
+                        .push(CoreEvent::DialogRequested(DialogType::Comment {
                             address,
                             current,
                             kind: CommentKind::Side,
-                        },
-                    ));
+                        }));
                     ctx.events.push(CoreEvent::StatusMessage(format!(
                         "Edit Side Comment at ${address:04X}"
                     )));
@@ -1989,13 +1979,12 @@ impl DomainActionHandler for DisassemblyActionHandler {
                         .annotations
                         .get(address)
                         .and_then(|e| e.user_line_comment.clone());
-                    ctx.events.push(CoreEvent::DialogRequested(
-                        crate::event::DialogType::Comment {
+                    ctx.events
+                        .push(CoreEvent::DialogRequested(DialogType::Comment {
                             address,
                             current,
                             kind: CommentKind::Line,
-                        },
-                    ));
+                        }));
                     ctx.events.push(CoreEvent::StatusMessage(format!(
                         "Edit Line Comment at ${address:04X}"
                     )));
@@ -2007,7 +1996,7 @@ impl DomainActionHandler for DisassemblyActionHandler {
                 text,
                 kind,
             } => {
-                handle_apply_comment(ctx, *address, text.clone(), *kind);
+                handle_apply_comment(ctx, *address, text, *kind);
                 Ok(true)
             }
             AppAction::ApplyEnumUsage { address, enum_name } => {
@@ -2020,7 +2009,7 @@ impl DomainActionHandler for DisassemblyActionHandler {
                     if offset >= 0 && (offset as usize) < ctx.state.block_types.len() {
                         let current_type = ctx.state.block_types[offset as usize];
                         let value = match current_type {
-                            crate::state::BlockType::DataWord => {
+                            BlockType::DataWord => {
                                 if offset + 1 < ctx.state.raw_data.len() as isize {
                                     let low = ctx.state.raw_data[offset as usize];
                                     let high = ctx.state.raw_data[offset as usize + 1];
@@ -2031,7 +2020,7 @@ impl DomainActionHandler for DisassemblyActionHandler {
                             }
                             _ => {
                                 if let Some(opcode) = &line.opcode {
-                                    if opcode.mode == crate::cpu::AddressingMode::Immediate
+                                    if opcode.mode == AddressingMode::Immediate
                                         && line.bytes.len() >= 2
                                     {
                                         u16::from(line.bytes[1])
@@ -2043,12 +2032,11 @@ impl DomainActionHandler for DisassemblyActionHandler {
                                 }
                             }
                         };
-                        ctx.events.push(CoreEvent::DialogRequested(
-                            crate::event::DialogType::ApplyEnum {
+                        ctx.events
+                            .push(CoreEvent::DialogRequested(DialogType::ApplyEnum {
                                 address: line.address,
                                 value,
-                            },
-                        ));
+                            }));
                         ctx.events
                             .push(CoreEvent::StatusMessage("Apply Enum".to_string()));
                     }
@@ -2056,9 +2044,8 @@ impl DomainActionHandler for DisassemblyActionHandler {
                 Ok(true)
             }
             AppAction::ManageEnums => {
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::ManageEnums,
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::ManageEnums));
                 ctx.events
                     .push(CoreEvent::StatusMessage("Manage Enums".to_string()));
                 Ok(true)
@@ -2073,20 +2060,20 @@ impl DomainActionHandler for DisassemblyActionHandler {
                         && old_name != name
                     {
                         let old_definition = c.state.enums.get(old_name).cloned();
-                        let cmd_remove = crate::commands::Command::SetEnumDefinition {
+                        let cmd_remove = Command::SetEnumDefinition {
                             name: old_name.clone(),
                             new_definition: None,
                             old_definition,
                         };
-                        let cmd_add = crate::commands::Command::SetEnumDefinition {
+                        let cmd_add = Command::SetEnumDefinition {
                             name: name.clone(),
                             new_definition: definition.clone(),
                             old_definition: None,
                         };
-                        crate::commands::Command::Batch(vec![cmd_remove, cmd_add])
+                        Command::Batch(vec![cmd_remove, cmd_add])
                     } else {
                         let old_definition = c.state.enums.get(name).cloned();
-                        crate::commands::Command::SetEnumDefinition {
+                        Command::SetEnumDefinition {
                             name: name.clone(),
                             new_definition: definition.clone(),
                             old_definition,
@@ -2119,12 +2106,12 @@ impl DomainActionHandler for DisassemblyActionHandler {
                     if let Some(old_name) = &rename_from
                         && old_name != name
                     {
-                        let _ = crate::assets::delete_global_enum(old_name, old_def.as_ref());
+                        let _ = assets::delete_global_enum(old_name, old_def.as_ref());
                         c.state.user_global_enums.remove(old_name);
                     }
 
                     if let Some(mut def) = definition.clone() {
-                        match crate::assets::save_global_enum(&mut def) {
+                        match assets::save_global_enum(&mut def) {
                             Ok(_) => {
                                 c.state.user_global_enums.insert(name.clone(), def);
                                 status_msg = format!("Saved global enum '{name}'");
@@ -2134,7 +2121,7 @@ impl DomainActionHandler for DisassemblyActionHandler {
                             }
                         }
                     } else {
-                        match crate::assets::delete_global_enum(name, old_def.as_ref()) {
+                        match assets::delete_global_enum(name, old_def.as_ref()) {
                             Ok(_) => {
                                 c.state.user_global_enums.remove(name);
                                 status_msg = format!("Deleted global enum '{name}'");
@@ -2192,9 +2179,8 @@ impl DomainActionHandler for DisassemblyActionHandler {
                 Ok(true)
             }
             AppAction::ListBookmarks => {
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::Bookmarks,
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::Bookmarks));
                 Ok(true)
             }
             AppAction::ExcludeExternalAddress => {
@@ -2208,7 +2194,7 @@ impl DomainActionHandler for DisassemblyActionHandler {
                     } else {
                         let old_labels = ctx.state.labels.clone();
                         let old_cross_refs = ctx.state.cross_refs.clone();
-                        let command = crate::commands::Command::SetUserExcludedAddress {
+                        let command = Command::SetUserExcludedAddress {
                             address: ext_addr,
                             add: true,
                             old_labels,
@@ -2237,24 +2223,22 @@ impl DomainActionHandler for DisassemblyActionHandler {
             }
             AppAction::ChangeOrigin => {
                 ctx.events
-                    .push(CoreEvent::DialogRequested(crate::event::DialogType::Origin));
+                    .push(CoreEvent::DialogRequested(DialogType::Origin));
                 ctx.events
                     .push(CoreEvent::StatusMessage("Change Origin...".to_string()));
                 Ok(true)
             }
             AppAction::ApplyOrigin(new_origin) => {
                 let old_origin = ctx.state.origin;
-                let cmd_origin = crate::commands::Command::ChangeOrigin {
+                let cmd_origin = Command::ChangeOrigin {
                     new_origin: *new_origin,
                     old_origin,
                 };
                 let saved_index = ctx.view.cursor_index;
                 cmd_origin.apply(ctx.state);
-                let (cmd_analysis, _) = ctx.state.perform_analysis();
-                ctx.state.push_command(crate::commands::Command::Batch(vec![
-                    cmd_origin,
-                    cmd_analysis,
-                ]));
+                let outcome = ctx.state.perform_analysis();
+                ctx.state
+                    .push_command(Command::Batch(vec![cmd_origin, outcome.command]));
                 let max_idx = ctx.state.disassembly.len().saturating_sub(1);
                 ctx.view.cursor_index = saved_index.min(max_idx);
                 ctx.events.push(CoreEvent::StatusMessage(format!(
@@ -2307,6 +2291,7 @@ mod tests {
     use crate::Core;
     use crate::state::actions::AppAction;
     use crate::state::types::Addr;
+    use crate::state::{Label, SymbolicOffsetSuggestion};
     use crate::view_state::CoreViewState;
 
     #[test]
@@ -2315,7 +2300,7 @@ mod tests {
         // LDA #$88 ($A9, $88), NOP ($EA), LDA #$16 ($A9, $16)
         let prg = vec![0xA9, 0x88, 0xEA, 0xA9, 0x16];
         let _ = core.state.load_binary(Addr(0x1000), prg);
-        core.state.block_types = vec![crate::state::BlockType::Code; 5];
+        core.state.block_types = vec![BlockType::Code; 5];
         core.state.disassemble();
 
         // Line 0 is at 0x1000 (LDA #$88), Line 1 is at 0x1002 (NOP), Line 2 is at 0x1003 (LDA #$16)
@@ -2336,14 +2321,14 @@ mod tests {
                 .annotations
                 .get(Addr(0x1000))
                 .and_then(|e| e.immediate_format),
-            Some(crate::state::ImmediateFormat::LowByte(Addr(0x1688)))
+            Some(ImmediateFormat::LowByte(Addr(0x1688)))
         );
         assert_eq!(
             core.state
                 .annotations
                 .get(Addr(0x1003))
                 .and_then(|e| e.immediate_format),
-            Some(crate::state::ImmediateFormat::HighByte(Addr(0x1688)))
+            Some(ImmediateFormat::HighByte(Addr(0x1688)))
         );
     }
 
@@ -2353,7 +2338,7 @@ mod tests {
         // LDA #$16 ($A9, $16), LDA #$88 ($A9, $88)
         let prg = vec![0xA9, 0x16, 0xA9, 0x88];
         let _ = core.state.load_binary(Addr(0x1000), prg);
-        core.state.block_types = vec![crate::state::BlockType::Code; 4];
+        core.state.block_types = vec![BlockType::Code; 4];
         core.state.disassemble();
 
         // Cursor on line 0 (LDA #$16), consecutive line 1 is LDA #$88
@@ -2373,14 +2358,14 @@ mod tests {
                 .annotations
                 .get(Addr(0x1000))
                 .and_then(|e| e.immediate_format),
-            Some(crate::state::ImmediateFormat::HighByte(Addr(0x1688)))
+            Some(ImmediateFormat::HighByte(Addr(0x1688)))
         );
         assert_eq!(
             core.state
                 .annotations
                 .get(Addr(0x1002))
                 .and_then(|e| e.immediate_format),
-            Some(crate::state::ImmediateFormat::LowByte(Addr(0x1688)))
+            Some(ImmediateFormat::LowByte(Addr(0x1688)))
         );
     }
 
@@ -2389,13 +2374,13 @@ mod tests {
         let mut core = Core::new();
         let prg = vec![0x4C, 0x00, 0x20]; // JMP $2000 at $1000..=$1002
         let _ = core.state.load_binary(Addr(0x1000), prg);
-        core.state.block_types = vec![crate::state::BlockType::Code; 3];
+        core.state.block_types = vec![BlockType::Code; 3];
         core.state.labels.insert(
             Addr(0x1001),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "mid_target".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         core.state.disassemble();
@@ -2453,28 +2438,28 @@ mod tests {
         let mut core = Core::new();
         let prg = vec![0x4C, 0x00, 0x20]; // JMP $2000 at $1000..=$1002
         let _ = core.state.load_binary(Addr(0x1000), prg);
-        core.state.block_types = vec![crate::state::BlockType::Code; 3];
+        core.state.block_types = vec![BlockType::Code; 3];
         core.state.labels.insert(
             Addr(0x1001),
             vec![
-                crate::state::Label {
+                Label {
                     name: "a1001".to_string(),
-                    kind: crate::state::LabelKind::Auto,
-                    label_type: crate::state::LabelType::AbsoluteAddress,
+                    kind: LabelKind::Auto,
+                    label_type: LabelType::AbsoluteAddress,
                 },
-                crate::state::Label {
+                Label {
                     name: "user_1001".to_string(),
-                    kind: crate::state::LabelKind::User,
-                    label_type: crate::state::LabelType::UserDefined,
+                    kind: LabelKind::User,
+                    label_type: LabelType::UserDefined,
                 },
             ],
         );
         core.state.labels.insert(
             Addr(0x1002),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "user_1002".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         core.state.disassemble();
@@ -2486,7 +2471,7 @@ mod tests {
         let events0 = core.apply_action(AppAction::SetLabel);
         assert!(events0.iter().any(|e| matches!(
             e,
-            CoreEvent::DialogRequested(crate::event::DialogType::Label {
+            CoreEvent::DialogRequested(DialogType::Label {
                 address: Addr(0x1001),
                 ..
             })
@@ -2497,7 +2482,7 @@ mod tests {
         let events1 = core.apply_action(AppAction::SetLabel);
         assert!(events1.iter().any(|e| matches!(
             e,
-            CoreEvent::DialogRequested(crate::event::DialogType::Label {
+            CoreEvent::DialogRequested(DialogType::Label {
                 address: Addr(0x1002),
                 ..
             })
@@ -2508,7 +2493,7 @@ mod tests {
         let events2 = core.apply_action(AppAction::SetLabel);
         assert!(events2.iter().any(|e| matches!(
             e,
-            CoreEvent::DialogRequested(crate::event::DialogType::Label {
+            CoreEvent::DialogRequested(DialogType::Label {
                 address: Addr(0x1000),
                 ..
             })
@@ -2520,7 +2505,7 @@ mod tests {
         let mut core = Core::new();
         core.state
             .load_binary(Addr(0x1000), vec![0xEA, 0xEA])
-            .unwrap();
+            .expect("test binary should load");
 
         let events1 = core.apply_action(AppAction::ApplyLabel {
             address: Addr(0x1000),
@@ -2546,7 +2531,9 @@ mod tests {
     #[test]
     fn test_apply_block_type_on_collapsed_block_converts_entire_range() {
         let mut core = Core::new();
-        core.state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        core.state
+            .load_binary(Addr(0x1000), vec![0xEA; 4])
+            .expect("test binary should load");
         core.state.collapsed_blocks.push((0, 3));
         core.state.disassemble();
 
@@ -2554,10 +2541,7 @@ mod tests {
         core.view.cursor_index = 0;
 
         core.apply_action(AppAction::Byte);
-        assert_eq!(
-            core.state.block_types,
-            vec![crate::state::BlockType::DataByte; 4]
-        );
+        assert_eq!(core.state.block_types, vec![BlockType::DataByte; 4]);
     }
 
     #[test]
@@ -2566,8 +2550,8 @@ mod tests {
         // BNE +1 ($D0, $01), NOP ($EA), RTS ($60)
         core.state
             .load_binary(Addr(0x1000), vec![0xD0, 0x01, 0xEA, 0x60])
-            .unwrap();
-        core.state.block_types = vec![crate::state::BlockType::Code; 4];
+            .expect("test binary should load");
+        core.state.block_types = vec![BlockType::Code; 4];
         core.state.perform_analysis();
         assert!(core.state.labels.contains_key(&Addr(0x1003)));
 
@@ -2588,17 +2572,14 @@ mod tests {
         let mut core = Core::new();
         core.state
             .load_binary(Addr(0x1000), vec![0xEA, 0x60])
-            .unwrap();
+            .expect("test binary should load");
         core.state
             .annotations
             .update(Addr(0x1000), |e| e.scope = Some(Addr(0x1000)));
         core.state.disassemble();
 
         let undo_before = core.state.undo_stack.can_undo();
-        core.view.cursor_index = core
-            .state
-            .get_line_index_for_address(Addr(0x1000))
-            .unwrap_or(0);
+        core.view.cursor_index = core.state.line_index_for_address(Addr(0x1000)).unwrap_or(0);
         let events = core.apply_action(AppAction::NudgeScopeBoundary { expand: false });
         assert!(events.is_empty());
         assert_eq!(core.state.undo_stack.can_undo(), undo_before);
@@ -2616,23 +2597,25 @@ mod tests {
         prg[0..11].copy_from_slice(&[
             0x85, 0xFC, 0xBD, 0x1F, 0x10, 0xB5, 0xFF, 0xBD, 0xFF, 0xFF, 0x60,
         ]);
-        core.state.load_binary(Addr(0x1000), prg).unwrap();
-        core.state.block_types = vec![crate::state::BlockType::DataByte; 0x28];
-        core.state.block_types[0..11].fill(crate::state::BlockType::Code);
+        core.state
+            .load_binary(Addr(0x1000), prg)
+            .expect("test binary should load");
+        core.state.block_types = vec![BlockType::DataByte; 0x28];
+        core.state.block_types[0..11].fill(BlockType::Code);
         core.state.labels.insert(
             Addr(0x00FB),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "zp_ptr".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         core.state.labels.insert(
             Addr(0x1020),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "table".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         core.state.settings.all_labels = true;
@@ -2647,7 +2630,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.view.cursor_index = idx_1002;
 
         let ev_dec = core.apply_action(AppAction::NudgeSymbolicOffset { delta: -1 });
@@ -2657,10 +2640,10 @@ mod tests {
                 .annotations
                 .get(Addr(0x1002))
                 .and_then(|e| e.operand_offset),
-            Some(crate::state::SymbolicOffset {
+            Some(SymbolicOffset {
                 base: Addr(0x1020),
                 offset: -1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             })
         );
         let line_1002 = core
@@ -2668,7 +2651,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         assert_eq!(line_1002.operand, "table - 1,x");
 
         core.view.cursor_index = core
@@ -2676,7 +2659,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.apply_action(AppAction::NudgeSymbolicOffset { delta: 1 });
         assert_eq!(
             core.state
@@ -2691,17 +2674,17 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.apply_action(AppAction::NudgeSymbolicOffset { delta: 1 });
         assert_eq!(
             core.state
                 .annotations
                 .get(Addr(0x1002))
                 .and_then(|e| e.operand_offset),
-            Some(crate::state::SymbolicOffset {
+            Some(SymbolicOffset {
                 base: Addr(0x101E),
                 offset: 1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             })
         );
 
@@ -2721,10 +2704,10 @@ mod tests {
                 .annotations
                 .get(Addr(0x00FC))
                 .and_then(|e| e.address_offset),
-            Some(crate::state::SymbolicOffset {
+            Some(SymbolicOffset {
                 base: Addr(0x00FB),
                 offset: 1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             })
         );
         assert!(
@@ -2739,7 +2722,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         assert_eq!(sta_fc_line.operand, "zp_ptr + 1");
 
         // 3. Boundary guards:
@@ -2749,7 +2732,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1005) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.view.cursor_index = idx_zp_ff;
         let ev_zp_oob = core.apply_action(AppAction::NudgeSymbolicOffset { delta: -1 });
         assert!(!ev_zp_oob.contains(&CoreEvent::StateChanged));
@@ -2772,7 +2755,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1007) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.view.cursor_index = idx_ffff;
         let ev_16_oob = core.apply_action(AppAction::NudgeSymbolicOffset { delta: -1 });
         assert!(!ev_16_oob.contains(&CoreEvent::StateChanged));
@@ -2800,9 +2783,11 @@ mod tests {
         let mut prg = vec![0xEA; 0x30];
         prg[0..6].copy_from_slice(&[0x1F, 0x23, 0x27, 0x10, 0x10, 0x10]);
         prg[6..12].copy_from_slice(&[0xBD, 0x1F, 0x10, 0xCA, 0xD0, 0xF9]);
-        core.state.load_binary(Addr(0x1000), prg).unwrap();
-        core.state.block_types = vec![crate::state::BlockType::Code; 0x30];
-        core.state.block_types[0..6].fill(crate::state::BlockType::LoHiAddress);
+        core.state
+            .load_binary(Addr(0x1000), prg)
+            .expect("test binary should load");
+        core.state.block_types = vec![BlockType::Code; 0x30];
+        core.state.block_types[0..6].fill(BlockType::LoHiAddress);
         for (addr, name) in [
             (Addr(0x1020), "sub_a"),
             (Addr(0x1024), "sub_b"),
@@ -2810,10 +2795,10 @@ mod tests {
         ] {
             core.state.labels.insert(
                 addr,
-                vec![crate::state::Label {
+                vec![Label {
                     name: name.to_string(),
-                    kind: crate::state::LabelKind::User,
-                    label_type: crate::state::LabelType::Subroutine,
+                    kind: LabelKind::User,
+                    label_type: LabelType::Subroutine,
                 }],
             );
         }
@@ -2826,13 +2811,13 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let bne_idx = core
             .state
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x100A) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
 
         core.view.is_visual_mode = true;
         core.view.selection_start = Some(lo_idx);
@@ -2853,10 +2838,10 @@ mod tests {
                     .annotations
                     .get(site)
                     .and_then(|e| e.operand_offset),
-                Some(crate::state::SymbolicOffset {
+                Some(SymbolicOffset {
                     base: expected_base,
                     offset: -1,
-                    radix: crate::state::OffsetRadix::Decimal,
+                    radix: OffsetRadix::Decimal,
                 }),
                 "Expected single -1 nudge at {site:?}"
             );
@@ -2897,10 +2882,10 @@ mod tests {
                     .annotations
                     .get(site)
                     .and_then(|e| e.operand_offset),
-                Some(crate::state::SymbolicOffset {
+                Some(SymbolicOffset {
                     base: expected_base,
                     offset: -2,
-                    radix: crate::state::OffsetRadix::Decimal,
+                    radix: OffsetRadix::Decimal,
                 }),
                 "Expected -2 offset after second nudge at {site:?}"
             );
@@ -2915,39 +2900,41 @@ mod tests {
         // $1004: NOP (EA) -> unsupported implied instruction
         // $1005..=$1006: internal struct bytes ($1005 = "struct_base", $1006 = struct_base + 1)
         let prg = vec![0x85, 0xFC, 0xFF, 0xC0, 0xEA, 0x00, 0x00];
-        core.state.load_binary(Addr(0x1000), prg).unwrap();
+        core.state
+            .load_binary(Addr(0x1000), prg)
+            .expect("test binary should load");
         core.state.block_types = vec![
-            crate::state::BlockType::Code,
-            crate::state::BlockType::Code,
-            crate::state::BlockType::LoHiAddress,
-            crate::state::BlockType::LoHiAddress,
-            crate::state::BlockType::Code,
-            crate::state::BlockType::DataByte,
-            crate::state::BlockType::DataByte,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress,
+            BlockType::Code,
+            BlockType::DataByte,
+            BlockType::DataByte,
         ];
         core.state.settings.bytes_per_line = 1;
         core.state.labels.insert(
             Addr(0x00FB),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "zp_ptr".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         core.state.labels.insert(
             Addr(0xC100),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "sub_C100".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::Subroutine,
+                kind: LabelKind::User,
+                label_type: LabelType::Subroutine,
             }],
         );
         core.state.labels.insert(
             Addr(0x1005),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "struct_base".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         core.state.perform_analysis();
@@ -2958,11 +2945,11 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let ev_sta = core.apply_action(AppAction::SymbolicOffsetDialog);
         assert!(ev_sta.iter().any(|e| matches!(
             e,
-            CoreEvent::DialogRequested(crate::event::DialogType::SymbolicOffset {
+            CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 site_address: Some(Addr(0x1000)),
                 target_address: Addr(0x00FC),
                 initial_input,
@@ -2979,11 +2966,11 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let ev_lohi = core.apply_action(AppAction::SymbolicOffsetDialog);
         assert!(ev_lohi.iter().any(|e| matches!(
             e,
-            CoreEvent::DialogRequested(crate::event::DialogType::SymbolicOffset {
+            CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 site_address: Some(Addr(0x1002)),
                 target_address: Addr(0xC0FF),
                 initial_input,
@@ -3000,7 +2987,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1004) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let ev_nop = core.apply_action(AppAction::SymbolicOffsetDialog);
         assert!(
             !ev_nop
@@ -3015,10 +3002,10 @@ mod tests {
         core.state.apply_address_offsets(
             &[(
                 Addr(0x1006),
-                Some(crate::state::SymbolicOffset {
+                Some(SymbolicOffset {
                     base: Addr(0x1005),
                     offset: 1,
-                    radix: crate::state::OffsetRadix::Decimal,
+                    radix: OffsetRadix::Decimal,
                 }),
             )],
             None,
@@ -3028,11 +3015,11 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1006) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let ev_lbl_internal = core.apply_action(AppAction::SetLabel);
         assert!(ev_lbl_internal.iter().any(|e| matches!(
             e,
-            CoreEvent::DialogRequested(crate::event::DialogType::Label {
+            CoreEvent::DialogRequested(DialogType::Label {
                 address: Addr(0x1006),
                 initial_name,
                 is_local: false,
@@ -3042,15 +3029,15 @@ mod tests {
 
         // Also verify external `$00FC` row when Tier 2 `zp_ptr + 1` is active on an external equate line.
         core.state.annotations.update(Addr(0x00FC), |e| {
-            e.address_offset = Some(crate::state::SymbolicOffset {
+            e.address_offset = Some(SymbolicOffset {
                 base: Addr(0x00FB),
                 offset: 1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             });
         });
         core.state.disassembly.insert(
             0,
-            crate::disassembler::DisassemblyLine {
+            DisassemblyLine {
                 address: Addr(0x00FC),
                 bytes: Vec::new(),
                 mnemonic: String::new(),
@@ -3069,7 +3056,7 @@ mod tests {
         let ev_lbl_fc = core.apply_action(AppAction::SetLabel);
         assert!(ev_lbl_fc.iter().any(|e| matches!(
             e,
-            CoreEvent::DialogRequested(crate::event::DialogType::Label {
+            CoreEvent::DialogRequested(DialogType::Label {
                 address: Addr(0x00FC),
                 initial_name,
                 is_local: false,
@@ -3086,18 +3073,20 @@ mod tests {
         // $1004..=$1005: LoHiAddress pair ($C0FF) with legacy Tier 1 on second half $1005
         // $1006..=$1009: 4-byte DataByte struct (`player` at $1006, fields at $1007..=$1009)
         let prg = vec![0xA9, 0xFF, 0x85, 0xFC, 0xFF, 0xC0, 0x01, 0x02, 0x03, 0x04];
-        core.state.load_binary(Addr(0x1000), prg).unwrap();
+        core.state
+            .load_binary(Addr(0x1000), prg)
+            .expect("test binary should load");
         core.state.block_types = vec![
-            crate::state::BlockType::Code,
-            crate::state::BlockType::Code,
-            crate::state::BlockType::Code,
-            crate::state::BlockType::Code,
-            crate::state::BlockType::LoHiAddress,
-            crate::state::BlockType::LoHiAddress,
-            crate::state::BlockType::DataByte,
-            crate::state::BlockType::DataByte,
-            crate::state::BlockType::DataByte,
-            crate::state::BlockType::DataByte,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::LoHiAddress,
+            BlockType::LoHiAddress,
+            BlockType::DataByte,
+            BlockType::DataByte,
+            BlockType::DataByte,
+            BlockType::DataByte,
         ];
         for (addr, name) in [
             (Addr(0x00FA), "zp_alt"),
@@ -3107,20 +3096,20 @@ mod tests {
         ] {
             core.state.labels.insert(
                 addr,
-                vec![crate::state::Label {
+                vec![Label {
                     name: name.to_string(),
-                    kind: crate::state::LabelKind::User,
-                    label_type: crate::state::LabelType::UserDefined,
+                    kind: LabelKind::User,
+                    label_type: LabelType::UserDefined,
                 }],
             );
         }
         core.state.apply_immediate_format_with_offset(
             Addr(0x1000),
-            Some(crate::state::ImmediateFormat::LowByte(Addr(0xC0FF))),
-            Some(crate::state::SymbolicOffset {
+            Some(ImmediateFormat::LowByte(Addr(0xC0FF))),
+            Some(SymbolicOffset {
                 base: Addr(0xC100),
                 offset: -1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             }),
         );
 
@@ -3154,20 +3143,20 @@ mod tests {
                     .annotations
                     .get(Addr(0x1006 + off))
                     .and_then(|e| e.address_offset),
-                Some(crate::state::SymbolicOffset {
+                Some(SymbolicOffset {
                     base: Addr(0x1006),
                     offset: off as i16,
-                    radix: crate::state::OffsetRadix::Decimal,
+                    radix: OffsetRadix::Decimal,
                 })
             );
         }
 
         // 2. Secondary split-pair `operand_offset` on `$1005` is cleared when applying Tier 1 via `$1004`/`$1005`.
         core.state.annotations.update(Addr(0x1005), |e| {
-            e.operand_offset = Some(crate::state::SymbolicOffset {
+            e.operand_offset = Some(SymbolicOffset {
                 base: Addr(0xC100),
                 offset: -1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             });
         });
         core.apply_action(AppAction::ApplySymbolicOffset {
@@ -3183,10 +3172,10 @@ mod tests {
                 .annotations
                 .get(Addr(0x1004))
                 .and_then(|e| e.operand_offset),
-            Some(crate::state::SymbolicOffset {
+            Some(SymbolicOffset {
                 base: Addr(0xC100),
                 offset: -1,
-                radix: crate::state::OffsetRadix::Hex,
+                radix: OffsetRadix::Hex,
             })
         );
         assert_eq!(
@@ -3201,10 +3190,10 @@ mod tests {
         // 3. `ApplyLabel` with `"zp_ptr + 1"` while cursor is on `$1002` (`STA $FC`) clears shadowing Tier 1 at `$1002`!
         core.state.apply_operand_offsets(&[(
             Addr(0x1002),
-            Some(crate::state::SymbolicOffset {
+            Some(SymbolicOffset {
                 base: Addr(0x00FA),
                 offset: 2,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             }),
         )]);
         core.view.cursor_index = core
@@ -3212,7 +3201,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.apply_action(AppAction::ApplyLabel {
             address: Addr(0x00FC),
             name: "zp_ptr + 1".to_string(),
@@ -3230,10 +3219,10 @@ mod tests {
                 .annotations
                 .get(Addr(0x00FC))
                 .and_then(|e| e.address_offset),
-            Some(crate::state::SymbolicOffset {
+            Some(SymbolicOffset {
                 base: Addr(0x00FB),
                 offset: 1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             })
         );
 
@@ -3243,7 +3232,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.apply_action(AppAction::NextImmediateFormat);
         assert_eq!(
             core.state
@@ -3259,17 +3248,17 @@ mod tests {
                 .annotations
                 .get(Addr(0x1000))
                 .and_then(|e| e.immediate_format),
-            Some(crate::state::ImmediateFormat::LowByte(Addr(0xC0FF)))
+            Some(ImmediateFormat::LowByte(Addr(0xC0FF)))
         );
         assert_eq!(
             core.state
                 .annotations
                 .get(Addr(0x1000))
                 .and_then(|e| e.operand_offset),
-            Some(crate::state::SymbolicOffset {
+            Some(SymbolicOffset {
                 base: Addr(0xC100),
                 offset: -1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             })
         );
     }
@@ -3280,46 +3269,48 @@ mod tests {
         // $1000: LDA #$FF (A9 FF)
         // $1002: LDY #$D0 (A0 D0)
         let prg = vec![0xA9, 0xFF, 0xA0, 0xD0];
-        core.state.load_binary(Addr(0x1000), prg).unwrap();
-        core.state.block_types = vec![crate::state::BlockType::Code; 4];
+        core.state
+            .load_binary(Addr(0x1000), prg)
+            .expect("test binary should load");
+        core.state.block_types = vec![BlockType::Code; 4];
         core.state.labels.insert(
             Addr(0xC100),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "sub_C100".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::Subroutine,
+                kind: LabelKind::User,
+                label_type: LabelType::Subroutine,
             }],
         );
         core.state.labels.insert(
             Addr(0xD100),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "sub_D100".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::Subroutine,
+                kind: LabelKind::User,
+                label_type: LabelType::Subroutine,
             }],
         );
         core.state.perform_analysis();
 
         // Seed `$1000` with `LowByte($C0FF)` + `operand_offset: sub_C100 - 1` (`$C0FF`),
         // and `$1002` with `HighByte($D000)` + `operand_offset: sub_D100 - $100` (`$D000`).
-        let old_sym_1000 = crate::state::SymbolicOffset {
+        let old_sym_1000 = SymbolicOffset {
             base: Addr(0xC100),
             offset: -1,
-            radix: crate::state::OffsetRadix::Decimal,
+            radix: OffsetRadix::Decimal,
         };
-        let old_sym_1002 = crate::state::SymbolicOffset {
+        let old_sym_1002 = SymbolicOffset {
             base: Addr(0xD100),
             offset: -256,
-            radix: crate::state::OffsetRadix::Hex,
+            radix: OffsetRadix::Hex,
         };
         core.state.apply_immediate_format_with_offset(
             Addr(0x1000),
-            Some(crate::state::ImmediateFormat::LowByte(Addr(0xC0FF))),
+            Some(ImmediateFormat::LowByte(Addr(0xC0FF))),
             Some(old_sym_1000),
         );
         core.state.apply_immediate_format_with_offset(
             Addr(0x1002),
-            Some(crate::state::ImmediateFormat::HighByte(Addr(0xD000))),
+            Some(ImmediateFormat::HighByte(Addr(0xD000))),
             Some(old_sym_1002),
         );
 
@@ -3331,7 +3322,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let ev_pack = core.apply_action(AppAction::PackLoHiAddress);
         assert!(ev_pack.contains(&CoreEvent::StateChanged));
 
@@ -3340,14 +3331,14 @@ mod tests {
                 .annotations
                 .get(Addr(0x1000))
                 .and_then(|e| e.immediate_format),
-            Some(crate::state::ImmediateFormat::LowByte(Addr(0xD0FF)))
+            Some(ImmediateFormat::LowByte(Addr(0xD0FF)))
         );
         assert_eq!(
             core.state
                 .annotations
                 .get(Addr(0x1002))
                 .and_then(|e| e.immediate_format),
-            Some(crate::state::ImmediateFormat::HighByte(Addr(0xD0FF)))
+            Some(ImmediateFormat::HighByte(Addr(0xD0FF)))
         );
         assert_eq!(
             core.state
@@ -3373,7 +3364,7 @@ mod tests {
                 .annotations
                 .get(Addr(0x1000))
                 .and_then(|e| e.immediate_format),
-            Some(crate::state::ImmediateFormat::LowByte(Addr(0xC0FF)))
+            Some(ImmediateFormat::LowByte(Addr(0xC0FF)))
         );
         assert_eq!(
             core.state
@@ -3387,7 +3378,7 @@ mod tests {
                 .annotations
                 .get(Addr(0x1002))
                 .and_then(|e| e.immediate_format),
-            Some(crate::state::ImmediateFormat::HighByte(Addr(0xD000)))
+            Some(ImmediateFormat::HighByte(Addr(0xD000)))
         );
         assert_eq!(
             core.state
@@ -3404,7 +3395,7 @@ mod tests {
                 .annotations
                 .get(Addr(0x1000))
                 .and_then(|e| e.immediate_format),
-            Some(crate::state::ImmediateFormat::LowByte(Addr(0xD0FF)))
+            Some(ImmediateFormat::LowByte(Addr(0xD0FF)))
         );
         assert_eq!(
             core.state
@@ -3424,18 +3415,18 @@ mod tests {
 
     #[test]
     fn test_tier2_zp_rejects_non_zp_base_while_tier1_forced_absolute_allows_it() {
-        let mut core = crate::Core::new();
+        let mut core = Core::new();
         core.state.origin = Addr(0x1000);
         core.state.settings.all_labels = true;
         // $1000: LDA $FF (A5 FF), $1002: LDA $00FF,X (BD FF 00), $1005: RTS (60)
         core.state.raw_data = vec![0xA5, 0xFF, 0xBD, 0xFF, 0x00, 0x60];
-        core.state.block_types = vec![crate::state::BlockType::Code; 6];
+        core.state.block_types = vec![BlockType::Code; 6];
         core.state.labels.insert(
             Addr(0x0100),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "table_0100".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::Field,
+                kind: LabelKind::User,
+                label_type: LabelType::Field,
             }],
         );
         let _ = core.state.perform_analysis();
@@ -3446,7 +3437,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.external_label_address == Some(Addr(0x00FF)))
-            .unwrap();
+            .expect("disassembly line referencing $00FF should exist");
         let ev_nudge = core.apply_action(AppAction::NudgeSymbolicOffset { delta: -1 });
         assert!(ev_nudge.iter().any(|ev| matches!(
             ev,
@@ -3463,7 +3454,12 @@ mod tests {
         // 2. `validate_user_label_or_address_offset` (`l`) rejects `"$0100 - 1"` on `$00FF`.
         assert!(
             core.state
-                .validate_user_label_or_address_offset(Addr(0x00FF), "$0100 - 1", false, None)
+                .validate_user_label_or_address_offset(
+                    Addr(0x00FF),
+                    "$0100 - 1",
+                    LabelLocality::Global,
+                    None,
+                )
                 .is_err()
         );
 
@@ -3486,25 +3482,31 @@ mod tests {
         assert!(validate_symbolic_offset_submission(&core.state, &tier1_req).is_ok());
 
         // 4. Suggestion and `+` nudge ignore legacy `base = $0100` Tier 1 on 2-byte `LDA $FF` (`$1000`).
-        let legacy_non_zp = crate::state::SymbolicOffset {
+        let legacy_non_zp = SymbolicOffset {
             base: Addr(0x0100),
             offset: -1,
-            radix: crate::state::OffsetRadix::Decimal,
+            radix: OffsetRadix::Decimal,
         };
         core.state
             .annotations
             .update(Addr(0x1000), |e| e.operand_offset = Some(legacy_non_zp));
         assert_eq!(
-            core.state
-                .suggest_symbolic_offset(Some(Addr(0x1000)), Addr(0x00FF), true),
-            (String::new(), true)
+            core.state.suggest_symbolic_offset(
+                Some(Addr(0x1000)),
+                Addr(0x00FF),
+                OffsetAddressing::ZeroPage,
+            ),
+            SymbolicOffsetSuggestion {
+                expression: String::new(),
+                default_is_global: true,
+            }
         );
         core.view.cursor_index = core
             .state
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.apply_action(AppAction::NudgeSymbolicOffset { delta: 1 });
         assert_eq!(
             core.state
@@ -3518,31 +3520,36 @@ mod tests {
 
     #[test]
     fn test_nudge_operand_with_active_tier2_address_offset_and_single_step_undo() {
-        let mut core = crate::Core::new();
+        let mut core = Core::new();
         core.state.origin = Addr(0x1000);
         // $1000: LDA ($FB),Y (B1 FB), $1002: STA $FC (85 FC), $1004: LDA $FC (A5 FC), $1006: RTS (60)
         core.state.raw_data = vec![0xB1, 0xFB, 0x85, 0xFC, 0xA5, 0xFC, 0x60];
-        core.state.block_types = vec![crate::state::BlockType::Code; 7];
+        core.state.block_types = vec![BlockType::Code; 7];
         core.state.labels.insert(
             Addr(0x00FB),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "zp_ptr".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::ZeroPagePointer,
+                kind: LabelKind::User,
+                label_type: LabelType::ZeroPagePointer,
             }],
         );
         let _ = core.state.perform_analysis();
 
         // Apply default `o` -> `Enter` (`zp_ptr + 1`, Tier 2) on `STA $FC`.
-        let (suggested, default_global) =
-            core.state
-                .suggest_symbolic_offset(Some(Addr(0x1002)), Addr(0x00FC), true);
-        assert_eq!((suggested.as_str(), default_global), ("zp_ptr + 1", true));
+        let suggestion = core.state.suggest_symbolic_offset(
+            Some(Addr(0x1002)),
+            Addr(0x00FC),
+            OffsetAddressing::ZeroPage,
+        );
+        assert_eq!(
+            (suggestion.expression.as_str(), suggestion.default_is_global),
+            ("zp_ptr + 1", true)
+        );
         core.apply_action(AppAction::ApplySymbolicOffset {
             site_address: Some(Addr(0x1002)),
             target_address: Addr(0x00FC),
             address_range: None,
-            input: suggested,
+            input: suggestion.expression,
             is_global: true,
             is_zero_page_mode: true,
         });
@@ -3553,7 +3560,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.apply_action(AppAction::NudgeSymbolicOffset { delta: 1 });
 
         assert_eq!(
@@ -3578,7 +3585,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.apply_action(AppAction::NudgeSymbolicOffset { delta: -1 });
         assert_eq!(
             core.state
@@ -3594,7 +3601,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.apply_action(AppAction::NudgeSymbolicOffset { delta: -1 });
         assert!(
             core.state
@@ -3608,7 +3615,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         assert_eq!(cleared_line.operand, "zpa_FC");
 
         // Single-step `Undo` restores `+ 1`, then `+ 2`, then `+ 1`.
@@ -3646,13 +3653,13 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let idx_1004 = core
             .state
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1004) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.view.selection_start = Some(idx_1002);
         core.view.cursor_index = idx_1004;
         core.view.is_visual_mode = true;
@@ -3669,7 +3676,7 @@ mod tests {
 
     #[test]
     fn test_symbolic_offset_uncollapsed_multi_entry_lines_and_grouped_selected_byte_structs() {
-        let mut core = crate::Core::new();
+        let mut core = Core::new();
         // Verify default `DocumentSettings` (`addresses_per_line == 5`, `bytes_per_line == 8`).
         assert_eq!(core.state.settings.addresses_per_line, 5);
         assert_eq!(core.state.settings.bytes_per_line, 8);
@@ -3690,10 +3697,10 @@ mod tests {
         raw.push(0x60); // $1020
         core.state.raw_data = raw;
 
-        let mut btypes = vec![crate::state::BlockType::Address; 6];
-        btypes.extend(vec![crate::state::BlockType::LoHiAddress; 6]);
-        btypes.extend(vec![crate::state::BlockType::DataByte; 14]);
-        btypes.extend(vec![crate::state::BlockType::Code; 7]);
+        let mut btypes = vec![BlockType::Address; 6];
+        btypes.extend(vec![BlockType::LoHiAddress; 6]);
+        btypes.extend(vec![BlockType::DataByte; 14]);
+        btypes.extend(vec![BlockType::Code; 7]);
         core.state.block_types = btypes;
         core.state.splitters.insert(Addr(0x1010));
 
@@ -3710,11 +3717,11 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let ev_word = core.apply_action(AppAction::SymbolicOffsetDialog);
         assert!(ev_word.iter().any(|ev| matches!(
             ev,
-            CoreEvent::DialogRequested(crate::event::DialogType::SymbolicOffset {
+            CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 address_range: Some((Addr(0x1000), Addr(0x1005))),
                 initial_input,
                 is_global: false,
@@ -3728,11 +3735,11 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1006) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let ev_lohi = core.apply_action(AppAction::SymbolicOffsetDialog);
         assert!(ev_lohi.iter().any(|ev| matches!(
             ev,
-            CoreEvent::DialogRequested(crate::event::DialogType::SymbolicOffset {
+            CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 address_range: Some((Addr(0x1006), Addr(0x1008))),
                 initial_input,
                 is_global: false,
@@ -3746,11 +3753,11 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x100C) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let ev_struct = core.apply_action(AppAction::SymbolicOffsetDialog);
         assert!(ev_struct.iter().any(|ev| matches!(
             ev,
-            CoreEvent::DialogRequested(crate::event::DialogType::SymbolicOffset {
+            CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 address_range: Some((Addr(0x100C), Addr(0x100F))),
                 initial_input,
                 is_global: true,
@@ -3782,7 +3789,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x100C) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.apply_action(AppAction::NudgeSymbolicOffset { delta: 1 });
         assert_eq!(
             core.state
@@ -3793,7 +3800,11 @@ mod tests {
             Some((Addr(0x100B), 2))
         );
         assert_eq!(
-            core.state.labels.get(&Addr(0x100C)).unwrap()[0].name,
+            core.state
+                .labels
+                .get(&Addr(0x100C))
+                .expect("player label should exist at $100C")[0]
+                .name,
             "player"
         );
         core.apply_action(AppAction::NudgeSymbolicOffset { delta: -1 });
@@ -3820,13 +3831,13 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1010) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         let idx_1018 = core
             .state
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1018) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.view.selection_start = Some(idx_1010);
         core.view.cursor_index = idx_1018;
         core.view.is_visual_mode = true;
@@ -3842,12 +3853,12 @@ mod tests {
     }
 
     fn build_two_equate_preamble_core() -> crate::Core {
-        let mut core = crate::Core::new();
+        let mut core = Core::new();
         core.state.origin = Addr(0x1000);
         core.state.settings.all_labels = true;
         // $1000: JSR $1007 (20 07 10), $1003: STA $FC (85 FC), $1005: STA $FD (85 FD), $1007: RTS (60)
         core.state.raw_data = vec![0x20, 0x07, 0x10, 0x85, 0xFC, 0x85, 0xFD, 0x60];
-        core.state.block_types = vec![crate::state::BlockType::Code; 8];
+        core.state.block_types = vec![BlockType::Code; 8];
         let _ = core.state.perform_analysis();
         core
     }
@@ -3861,7 +3872,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.external_label_address == Some(Addr(0x00FD)))
-            .unwrap();
+            .expect("disassembly line referencing $00FD should exist");
         core.apply_action(AppAction::NudgeSymbolicOffset { delta: 1 });
         assert_eq!(
             core.state.disassembly[core.view.cursor_index].external_label_address,
@@ -3874,7 +3885,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.external_label_address == Some(Addr(0x00FD)))
-            .unwrap();
+            .expect("disassembly line referencing $00FD should exist");
         core.apply_action(AppAction::ApplySymbolicOffset {
             site_address: None,
             target_address: Addr(0x00FD),
@@ -3894,7 +3905,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.external_label_address == Some(Addr(0x00FD)))
-            .unwrap();
+            .expect("disassembly line referencing $00FD should exist");
         core.apply_action(AppAction::ApplyLabel {
             address: Addr(0x00FD),
             name: "$fc + 1".to_string(),
@@ -3930,13 +3941,13 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.external_label_address == Some(Addr(0x00FC)))
-            .unwrap();
+            .expect("disassembly line referencing $00FC should exist");
         let fd_idx = core
             .state
             .disassembly
             .iter()
             .position(|l| l.external_label_address == Some(Addr(0x00FD)))
-            .unwrap();
+            .expect("disassembly line referencing $00FD should exist");
         core.view.selection_start = Some(fc_idx);
         core.view.cursor_index = fd_idx;
         core.view.is_visual_mode = true;
@@ -3964,7 +3975,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         assert_eq!(jsr_line.operand, "r_1007");
     }
 
@@ -3982,7 +3993,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         core.view.cursor_index = body_idx;
         core.view.sub_cursor_index = 1;
         core.view.scroll_index = core.state.disassembly.len() + 10;
@@ -4000,16 +4011,13 @@ mod tests {
 
     #[test]
     fn test_nudge_symbolic_offset_targets_mid_instruction_sub_cursor_row() {
-        let mut core = crate::Core::new();
+        let mut core = Core::new();
         core.state.origin = Addr(0x1000);
         // $1000: LDA $1234 (AD 34 12), $1003: STA $1001 (8D 01 10 -> SMC writes $1001), $1006: RTS (60)
         core.state.raw_data = vec![0xAD, 0x34, 0x12, 0x8D, 0x01, 0x10, 0x60];
-        core.state.block_types = vec![crate::state::BlockType::Code; 7];
-        core.state.insert_typed_user_labels(&[(
-            0x1000,
-            "smc_load",
-            crate::state::LabelType::Subroutine,
-        )]);
+        core.state.block_types = vec![BlockType::Code; 7];
+        core.state
+            .insert_typed_user_labels(&[(0x1000, "smc_load", LabelType::Subroutine)]);
         let _ = core.state.perform_analysis();
 
         let lda_idx = core
@@ -4017,7 +4025,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         // Sub-row 0 is `smc_load = * + 1` (`f_1001 = * + 1` at `$1001`); find the sub-index for `$1001`.
         let line = &core.state.disassembly[lda_idx];
         let sub_idx = (0..10)
@@ -4034,10 +4042,10 @@ mod tests {
                 .annotations
                 .get(Addr(0x1001))
                 .and_then(|e| e.address_offset),
-            Some(crate::state::SymbolicOffset {
+            Some(SymbolicOffset {
                 base: Addr(0x1000),
                 offset: 1,
-                radix: crate::state::OffsetRadix::Decimal,
+                radix: OffsetRadix::Decimal,
             })
         );
         assert!(
@@ -4052,34 +4060,31 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1003) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at target address should exist");
         assert_eq!(sta_line.operand, "smc_load + 1");
     }
 
     #[test]
     fn test_multi_line_tier2_promotion_clears_all_shadowing_tier1_offsets_and_undoes() {
-        let mut core = crate::Core::new();
+        let mut core = Core::new();
         core.state.origin = Addr(0x1000);
         // $1000: LDA $FC (A5 FC), $1002: STA $FD (85 FD), $1004: RTS (60)
         core.state.raw_data = vec![0xA5, 0xFC, 0x85, 0xFD, 0x60];
-        core.state.block_types = vec![crate::state::BlockType::Code; 5];
-        core.state.insert_typed_user_labels(&[(
-            0x00FB,
-            "zp_ptr",
-            crate::state::LabelType::ZeroPagePointer,
-        )]);
+        core.state.block_types = vec![BlockType::Code; 5];
+        core.state
+            .insert_typed_user_labels(&[(0x00FB, "zp_ptr", LabelType::ZeroPagePointer)]);
         let _ = core.state.perform_analysis();
 
         // Seed shadowing Tier 1 `operand_offset` entries on BOTH `$1000` and `$1002`.
-        let t1_1000 = crate::state::SymbolicOffset {
+        let t1_1000 = SymbolicOffset {
             base: Addr(0x00FA),
             offset: 2,
-            radix: crate::state::OffsetRadix::Decimal,
+            radix: OffsetRadix::Decimal,
         };
-        let t1_1002 = crate::state::SymbolicOffset {
+        let t1_1002 = SymbolicOffset {
             base: Addr(0x00FA),
             offset: 3,
-            radix: crate::state::OffsetRadix::Decimal,
+            radix: OffsetRadix::Decimal,
         };
         core.state
             .apply_operand_offsets(&[(Addr(0x1000), Some(t1_1000)), (Addr(0x1002), Some(t1_1002))]);
@@ -4159,7 +4164,7 @@ mod tests {
 
     #[test]
     fn test_symbolic_offset_dialog_on_collapsed_blocks_and_mid_instruction_sub_cursor() {
-        let mut core = crate::Core::new();
+        let mut core = Core::new();
         core.state.origin = Addr(0x1000);
         // $1000..=$1002: LDA $1234 (AD 34 12) with two mid-instruction labels ($1001, $1002)
         // $1003..=$1008: 3-pair LoHiAddress table ($100F, $100F, $100F)
@@ -4172,10 +4177,10 @@ mod tests {
             0xEA, 0xEA, 0xEA, // $100D..=$100F
             0x60, // $1010
         ];
-        let mut btypes = vec![crate::state::BlockType::Code; 3];
-        btypes.extend(vec![crate::state::BlockType::LoHiAddress; 6]);
-        btypes.extend(vec![crate::state::BlockType::DataByte; 4]);
-        btypes.extend(vec![crate::state::BlockType::Code; 4]);
+        let mut btypes = vec![BlockType::Code; 3];
+        btypes.extend(vec![BlockType::LoHiAddress; 6]);
+        btypes.extend(vec![BlockType::DataByte; 4]);
+        btypes.extend(vec![BlockType::Code; 4]);
         core.state.block_types = btypes;
         core.state.insert_user_labels(&[
             (0x1000, "self_mod"),
@@ -4199,7 +4204,7 @@ mod tests {
         let ev_collapsed_lohi = core.apply_action(AppAction::SymbolicOffsetDialog);
         assert!(ev_collapsed_lohi.iter().any(|ev| matches!(
             ev,
-            CoreEvent::DialogRequested(crate::event::DialogType::SymbolicOffset {
+            CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 site_address: Some(Addr(0x1003)),
                 target_address: Addr(0x100F),
                 address_range: Some((Addr(0x1003), Addr(0x1008))),
@@ -4221,7 +4226,7 @@ mod tests {
         let ev_collapsed_struct = core.apply_action(AppAction::SymbolicOffsetDialog);
         assert!(ev_collapsed_struct.iter().any(|ev| matches!(
             ev,
-            CoreEvent::DialogRequested(crate::event::DialogType::SymbolicOffset {
+            CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 site_address: None,
                 target_address: Addr(0x1009),
                 address_range: Some((Addr(0x1009), Addr(0x100C))),
@@ -4249,7 +4254,7 @@ mod tests {
         let ev_mid_sub = core.apply_action(AppAction::SymbolicOffsetDialog);
         assert!(ev_mid_sub.iter().any(|ev| matches!(
             ev,
-            CoreEvent::DialogRequested(crate::event::DialogType::SymbolicOffset {
+            CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 site_address: None,
                 target_address: Addr(0x1002),
                 address_range: None,
@@ -4264,7 +4269,7 @@ mod tests {
         let ev_opcode_sub = core.apply_action(AppAction::SymbolicOffsetDialog);
         assert!(ev_opcode_sub.iter().any(|ev| matches!(
             ev,
-            CoreEvent::DialogRequested(crate::event::DialogType::SymbolicOffset {
+            CoreEvent::DialogRequested(DialogType::SymbolicOffset {
                 site_address: Some(Addr(0x1000)),
                 target_address: Addr(0x1234),
                 address_range: None,
@@ -4454,11 +4459,11 @@ mod tests {
             .expect("binary should load at $1000");
         core.state.block_types = vec![BlockType::Code; 9];
         core.state
-            .create_set_user_label_command(Addr(0xC000), "tbl_base", /* is_local= */ false)
+            .create_set_user_label_command(Addr(0xC000), "tbl_base", LabelLocality::Global)
             .expect("create tbl_base label command")
             .apply(&mut core.state);
         core.state
-            .create_set_user_label_command(Addr(0x1007), "buf_base", /* is_local= */ false)
+            .create_set_user_label_command(Addr(0x1007), "buf_base", LabelLocality::Global)
             .expect("create buf_base label command")
             .apply(&mut core.state);
         core.state.disassemble();

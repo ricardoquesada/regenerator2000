@@ -4,13 +4,17 @@
 //! lists tools and resources, and dispatches tool calls to analysis, navigation, modification,
 //! and session tool submodules.
 
-use crate::mcp::tools::{
-    analysis_tools, common::make_mcp_error, modification_tools, navigation_tools, session_tools,
-};
+use crate::action_handlers::DisassemblyViewAnchor;
+use crate::config::SystemConfig;
+use crate::mcp::tools::common::make_mcp_error;
+use crate::mcp::tools::{analysis_tools, modification_tools, navigation_tools, session_tools};
 use crate::mcp::types::{McpError, McpRequest, McpResponse};
-use crate::state::AppState;
-use crate::state::types::Addr;
+use crate::state::{Addr, AppState};
+#[cfg(test)]
+use crate::state::{BlockType, Label, LabelKind, LabelType};
 use crate::view_state::CoreViewState;
+use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 use serde_json::{Value, json};
 
 /// Canonical MCP server name for initialization and discovery responses.
@@ -65,8 +69,8 @@ pub(crate) fn handle_method(
         }
         "notifications/initialized" => Ok(json!(true)),
         "ping" => Ok(json!({})),
-        "tools/list" => list_tools(&app_state.system_config),
-        "resources/list" => list_resources(),
+        "tools/list" => Ok(list_tools(&app_state.system_config)),
+        "resources/list" => Ok(list_resources()),
         "tools/call" => handle_tool_call(params, app_state, view_state),
         "resources/read" => handle_resource_read(params, app_state),
         _ => Err(make_mcp_error(
@@ -88,11 +92,7 @@ pub(crate) fn handle_method(
 }
 
 /// Collects tool schemas from all tool submodules into a JSON list response.
-///
-/// # Errors
-///
-/// Returns [`McpError`] if schema generation fails.
-fn list_tools(system_config: &crate::config::SystemConfig) -> Result<Value, McpError> {
+fn list_tools(system_config: &SystemConfig) -> Value {
     let mut tools = Vec::new();
 
     tools.extend(analysis_tools::tool_schemas(system_config));
@@ -123,7 +123,7 @@ fn list_tools(system_config: &crate::config::SystemConfig) -> Result<Value, McpE
         }
     }));
 
-    Ok(json!({ "tools": tools }))
+    json!({ "tools": tools })
 }
 
 /// Extracts parameters from a `tools/call` request and executes the requested tool.
@@ -189,7 +189,7 @@ pub(crate) fn handle_tool_call_internal(
     }
 
     if name == "r2000_add_scope" {
-        let anchor = crate::action_handlers::DisassemblyViewAnchor::capture(app_state, view_state);
+        let anchor = DisassemblyViewAnchor::capture(app_state, view_state);
         if let Some(res) = analysis_tools::handle_call(name, args, app_state, view_state) {
             if res.is_ok() {
                 anchor.restore(app_state, view_state);
@@ -205,7 +205,7 @@ pub(crate) fn handle_tool_call_internal(
     }
 
     {
-        let anchor = crate::action_handlers::DisassemblyViewAnchor::capture(app_state, view_state);
+        let anchor = DisassemblyViewAnchor::capture(app_state, view_state);
         if let Some(res) = modification_tools::handle_call(name, args, app_state) {
             if res.is_ok() {
                 anchor.restore(app_state, view_state);
@@ -215,7 +215,7 @@ pub(crate) fn handle_tool_call_internal(
     }
 
     if matches!(name, "r2000_undo" | "r2000_redo") {
-        let anchor = crate::action_handlers::DisassemblyViewAnchor::capture(app_state, view_state);
+        let anchor = DisassemblyViewAnchor::capture(app_state, view_state);
         if let Some(res) = session_tools::handle_call(name, args, app_state, view_state) {
             if res.is_ok() {
                 anchor.restore(app_state, view_state);
@@ -230,12 +230,8 @@ pub(crate) fn handle_tool_call_internal(
 }
 
 /// Returns the list of available MCP resource definitions.
-///
-/// # Errors
-///
-/// Returns [`McpError`] if resource list construction fails.
-fn list_resources() -> Result<Value, McpError> {
-    Ok(json!({
+fn list_resources() -> Value {
+    json!({
         "resources": [
             {
                 "uri": "binary://main",
@@ -274,7 +270,7 @@ fn list_resources() -> Result<Value, McpError> {
                 "mimeType": "application/json"
             }
         ]
-    }))
+    })
 }
 
 /// Returns the inclusive `(start, end)` address bounds for the loaded binary in `app_state`.
@@ -307,8 +303,7 @@ fn handle_resource_read(params: &Value, app_state: &mut AppState) -> Result<Valu
         let mut payload = Vec::with_capacity(2 + app_state.raw_data.len());
         payload.extend_from_slice(&app_state.origin.0.to_le_bytes());
         payload.extend_from_slice(&app_state.raw_data);
-        use base64::Engine;
-        let blob_b64 = base64::prelude::BASE64_STANDARD.encode(&payload);
+        let blob_b64 = BASE64_STANDARD.encode(&payload);
         return Ok(json!({
             "contents": [{
                 "uri": "binary://main",
@@ -372,12 +367,13 @@ fn handle_resource_read(params: &Value, app_state: &mut AppState) -> Result<Valu
 mod tests {
     use super::*;
     use crate::mcp::tools::common::{make_app_state, make_view_state};
+    use tokio::sync::oneshot;
 
     #[test]
     fn test_handle_request_initialize() {
         let mut app_state = make_app_state(0x1000, 256);
         let mut view_state = make_view_state();
-        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let (tx, _rx) = oneshot::channel();
         let req = McpRequest {
             method: "initialize".to_string(),
             params: json!({}),
@@ -393,7 +389,7 @@ mod tests {
     fn test_handle_request_list_tools() {
         let mut app_state = make_app_state(0x1000, 256);
         let mut view_state = make_view_state();
-        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let (tx, _rx) = oneshot::channel();
         let req = McpRequest {
             method: "tools/list".to_string(),
             params: json!({}),
@@ -402,8 +398,17 @@ mod tests {
 
         let resp = handle_request(&req, &mut app_state, &mut view_state);
         assert!(resp.error.is_none());
-        let res = resp.result.unwrap();
-        assert!(res.get("tools").unwrap().as_array().unwrap().len() >= 20);
+        let res = resp
+            .result
+            .expect("tools/list response should contain result");
+        assert!(
+            res.get("tools")
+                .expect("tools field")
+                .as_array()
+                .expect("tools should be JSON array")
+                .len()
+                >= 20
+        );
     }
 
     #[test]
@@ -413,7 +418,7 @@ mod tests {
         let mut view_state = make_view_state();
 
         // 1. Verify resource listing includes binary://main
-        let (tx1, _rx1) = tokio::sync::oneshot::channel();
+        let (tx1, _rx1) = oneshot::channel();
         let list_req = McpRequest {
             method: "resources/list".to_string(),
             params: json!({}),
@@ -421,23 +426,37 @@ mod tests {
         };
         let list_resp = handle_request(&list_req, &mut app_state, &mut view_state);
         assert!(list_resp.error.is_none());
-        let list_val = list_resp.result.unwrap();
-        let resources = list_val.get("resources").unwrap().as_array().unwrap();
+        let list_val = list_resp
+            .result
+            .expect("resources/list response should contain result");
+        let resources = list_val
+            .get("resources")
+            .expect("resources field")
+            .as_array()
+            .expect("resources should be JSON array");
         let binary_res = resources
             .iter()
             .find(|r| r.get("uri").and_then(|u| u.as_str()) == Some("binary://main"))
             .expect("binary://main should be listed in resources");
         assert_eq!(
-            binary_res.get("name").unwrap().as_str().unwrap(),
+            binary_res
+                .get("name")
+                .expect("resource name field")
+                .as_str()
+                .expect("name should be string"),
             "Main Binary Data"
         );
         assert_eq!(
-            binary_res.get("mimeType").unwrap().as_str().unwrap(),
+            binary_res
+                .get("mimeType")
+                .expect("resource mimeType field")
+                .as_str()
+                .expect("mimeType should be string"),
             "application/octet-stream"
         );
 
         // 2. Verify reading binary://main returns base64 blob containing origin header + raw data
-        let (tx2, _rx2) = tokio::sync::oneshot::channel();
+        let (tx2, _rx2) = oneshot::channel();
         let read_req = McpRequest {
             method: "resources/read".to_string(),
             params: json!({ "uri": "binary://main" }),
@@ -445,22 +464,39 @@ mod tests {
         };
         let read_resp = handle_request(&read_req, &mut app_state, &mut view_state);
         assert!(read_resp.error.is_none());
-        let read_val = read_resp.result.unwrap();
-        let contents = read_val.get("contents").unwrap().as_array().unwrap();
+        let read_val = read_resp
+            .result
+            .expect("resources/read response should contain result");
+        let contents = read_val
+            .get("contents")
+            .expect("contents field")
+            .as_array()
+            .expect("contents should be JSON array");
         assert_eq!(contents.len(), 1);
         let content = &contents[0];
         assert_eq!(
-            content.get("uri").unwrap().as_str().unwrap(),
+            content
+                .get("uri")
+                .expect("content uri field")
+                .as_str()
+                .expect("uri should be string"),
             "binary://main"
         );
         assert_eq!(
-            content.get("mimeType").unwrap().as_str().unwrap(),
+            content
+                .get("mimeType")
+                .expect("content mimeType field")
+                .as_str()
+                .expect("mimeType should be string"),
             "application/octet-stream"
         );
 
-        let blob_b64 = content.get("blob").unwrap().as_str().unwrap();
-        use base64::Engine;
-        let decoded = base64::prelude::BASE64_STANDARD
+        let blob_b64 = content
+            .get("blob")
+            .expect("content blob field")
+            .as_str()
+            .expect("blob should be string");
+        let decoded = BASE64_STANDARD
             .decode(blob_b64)
             .expect("blob should be valid base64");
 
@@ -473,13 +509,11 @@ mod tests {
         let mut app_state = make_app_state(0x1000, 256);
         let mut view_state = make_view_state();
 
-        app_state
-            .annotations
-            .update(crate::state::types::Addr(0x1000), |e| {
-                e.user_line_comment = Some("Resource comment test".to_string());
-            });
+        app_state.annotations.update(Addr(0x1000), |e| {
+            e.user_line_comment = Some("Resource comment test".to_string());
+        });
 
-        let (tx, _rx) = tokio::sync::oneshot::channel();
+        let (tx, _rx) = oneshot::channel();
         let read_req = McpRequest {
             method: "resources/read".to_string(),
             params: json!({ "uri": "comments://current" }),
@@ -488,13 +522,19 @@ mod tests {
 
         let resp = handle_request(&read_req, &mut app_state, &mut view_state);
         assert!(resp.error.is_none());
-        let val = resp.result.unwrap();
-        let contents = val.get("contents").unwrap().as_array().unwrap();
+        let val = resp
+            .result
+            .expect("resources/read response should contain result");
+        let contents = val
+            .get("contents")
+            .expect("contents field")
+            .as_array()
+            .expect("contents should be JSON array");
         assert_eq!(contents[0]["mimeType"], "application/json");
         assert!(
             contents[0]["text"]
                 .as_str()
-                .unwrap()
+                .expect("resource text should be string")
                 .contains("Resource comment test")
         );
     }
@@ -504,7 +544,7 @@ mod tests {
         let mut app_state = make_app_state(0x0000, 65536);
         let mut view_state = make_view_state();
 
-        let (tx1, _rx1) = tokio::sync::oneshot::channel();
+        let (tx1, _rx1) = oneshot::channel();
         let req1 = McpRequest {
             method: "resources/read".to_string(),
             params: json!({ "uri": "disassembly://current" }),
@@ -512,14 +552,16 @@ mod tests {
         };
         let resp1 = handle_request(&req1, &mut app_state, &mut view_state);
         assert!(resp1.error.is_none());
-        let text1 = resp1.result.unwrap()["contents"][0]["text"]
+        let text1 = resp1
+            .result
+            .expect("resources/read response should contain result")["contents"][0]["text"]
             .as_str()
-            .unwrap()
+            .expect("resource text should be string")
             .to_string();
         assert!(text1.contains("* = $0000"));
         assert!(text1.contains("$FFFF"));
 
-        let (tx2, _rx2) = tokio::sync::oneshot::channel();
+        let (tx2, _rx2) = oneshot::channel();
         let req2 = McpRequest {
             method: "resources/read".to_string(),
             params: json!({ "uri": "hexdump://current" }),
@@ -527,9 +569,11 @@ mod tests {
         };
         let resp2 = handle_request(&req2, &mut app_state, &mut view_state);
         assert!(resp2.error.is_none());
-        let text2 = resp2.result.unwrap()["contents"][0]["text"]
+        let text2 = resp2
+            .result
+            .expect("resources/read response should contain result")["contents"][0]["text"]
             .as_str()
-            .unwrap()
+            .expect("resource text should be string")
             .to_string();
         assert!(text2.contains("$0000:"));
         assert!(text2.contains("$FFF0:"));
@@ -541,13 +585,13 @@ mod tests {
         app_state.settings.all_labels = true;
         // $1000: LDA ($FB),Y (B1 FB), $1002: STA $FC (85 FC), $1004: RTS (60)
         app_state.raw_data = vec![0xB1, 0xFB, 0x85, 0xFC, 0x60];
-        app_state.block_types = vec![crate::state::BlockType::Code; 5];
+        app_state.block_types = vec![BlockType::Code; 5];
         app_state.labels.insert(
             Addr(0x00FB),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "zp_ptr".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::ZeroPagePointer,
+                kind: LabelKind::User,
+                label_type: LabelType::ZeroPagePointer,
             }],
         );
         let _ = app_state.perform_analysis();
@@ -595,7 +639,7 @@ mod tests {
         assert!(
             sel_val["content"][0]["text"]
                 .as_str()
-                .unwrap()
+                .expect("tool content text should be string")
                 .contains("$1004")
         );
 

@@ -80,9 +80,12 @@ impl ViceClient {
 
                         loop {
                             match ViceMessage::decode(&read_buf[consumed..]) {
-                                Ok(Some((msg, size))) => {
-                                    consumed += size;
-                                    if app_tx_read.send(ViceEvent::Message(msg)).is_err() {
+                                Ok(Some(packet)) => {
+                                    consumed += packet.consumed_bytes;
+                                    if app_tx_read
+                                        .send(ViceEvent::Message(packet.message))
+                                        .is_err()
+                                    {
                                         let _ = read_stream.shutdown(Shutdown::Both);
                                         return;
                                     }
@@ -287,15 +290,23 @@ mod tests {
 
     #[test]
     fn client_receives_coalesced_frames_and_reports_protocol_errors() {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let addr = listener.local_addr().unwrap().to_string();
+        let listener =
+            TcpListener::bind("127.0.0.1:0").expect("ephemeral localhost TcpListener should bind");
+        let addr = listener
+            .local_addr()
+            .expect("listener local_addr should resolve")
+            .to_string();
 
         let (tx, rx) = mpsc::channel();
-        let _client = ViceClient::connect(&addr, tx).unwrap();
-        let (mut server_stream, _) = listener.accept().unwrap();
+        let _client =
+            ViceClient::connect(&addr, tx).expect("ViceClient should connect to test listener");
+        let (mut server_stream, _) = listener
+            .accept()
+            .expect("test listener should accept client connection");
 
         assert_eq!(
-            rx.recv_timeout(Duration::from_secs(1)).unwrap(),
+            rx.recv_timeout(Duration::from_secs(1))
+                .expect("expected ViceEvent within timeout"),
             ViceEvent::Connected
         );
 
@@ -311,11 +322,19 @@ mod tests {
             wire.push(0xAA);
         }
         wire.extend_from_slice(&[0xFF; 12]);
-        server_stream.write_all(&wire).unwrap();
+        server_stream
+            .write_all(&wire)
+            .expect("test server should write coalesced frames");
 
-        let ev1 = rx.recv_timeout(Duration::from_secs(1)).unwrap();
-        let ev2 = rx.recv_timeout(Duration::from_secs(1)).unwrap();
-        let ev3 = rx.recv_timeout(Duration::from_secs(1)).unwrap();
+        let ev1 = rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("expected ViceEvent within timeout");
+        let ev2 = rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("expected ViceEvent within timeout");
+        let ev3 = rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("expected ViceEvent within timeout");
 
         assert!(matches!(
             ev1,

@@ -4,13 +4,17 @@
 //! matching, wildcard hex-byte pattern scanning, and PETSCII/Screencode string matching across
 //! [`AppState::disassembly`](crate::state::AppState::disassembly) and collapsed memory blocks.
 //!
-//! [`get_line_matches`] computes visual sub-line indices via
+//! [`line_matches`] computes visual sub-line indices via
 //! [`DisassemblyLine::visual_line_counts`](crate::disassembler::DisassemblyLine::visual_line_counts).
 //! This keeps TUI search highlights aligned with [`LabelPlacement::OwnLine`](crate::disassembler::LabelPlacement::OwnLine)
 //! label rows and main opcode rows across all four assemblers.
 
-use crate::state::AppState;
-use crate::utils::{petscii_to_unicode, screencode_to_petscii};
+use crate::disassembler::context::DisassemblyContext;
+use crate::disassembler::{Disassembler, DisassemblyLine};
+use crate::state::{Addr, AppState};
+#[cfg(test)]
+use crate::state::{BlockType, Label, LabelKind, LabelType};
+use crate::utils::{PetsciiCharset, petscii_to_unicode, screencode_to_petscii};
 use regex::Regex;
 
 // ---------------------------------------------------------------------------
@@ -104,7 +108,7 @@ impl SearchFilters {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchResult {
     /// Address of the matching disassembly line.
-    pub address: crate::state::Addr,
+    pub address: Addr,
     /// Label at this address, if any.
     pub label: Option<String>,
     /// Mnemonic text (e.g. `"LDA"`).
@@ -173,11 +177,7 @@ pub fn compile_regex(query: &str) -> Result<Regex, regex::Error> {
 
 /// Returns `true` if `pattern` matches `app_state.raw_data` starting at `address`.
 #[must_use]
-pub fn check_hex_pattern(
-    address: crate::state::Addr,
-    pattern: &[Option<u8>],
-    app_state: &AppState,
-) -> bool {
+pub fn check_hex_pattern(address: Addr, pattern: &[Option<u8>], app_state: &AppState) -> bool {
     let raw_len = app_state.raw_data.len();
     if raw_len == 0 {
         return false;
@@ -213,7 +213,7 @@ pub fn check_hex_pattern(
 /// Checks if `query` matches the raw bytes at `address` in PETSCII or Screencode encoding.
 #[must_use]
 pub fn check_string_pattern(
-    address: crate::state::Addr,
+    address: Addr,
     query: &str,
     app_state: &AppState,
     filters: &SearchFilters,
@@ -243,37 +243,39 @@ pub fn check_string_pattern(
     // Check PETSCII encoding (both shifted and unshifted).
     // `petscii_to_unicode` maps non-printable control codes to '.', so require `byte == b'.'`
     // when `query_char == '.'`.
-    let petscii_match = (0..=1).any(|shift| {
-        let shifted = shift == 1;
-        query_chars.iter().enumerate().all(|(i, &query_char)| {
-            let idx = start_offset + i;
-            let byte = app_state.raw_data[idx];
-            if query_char == '.' && byte != b'.' {
-                return false;
-            }
-            let petscii_char = petscii_to_unicode(byte, shifted);
-            petscii_char.eq_ignore_ascii_case(&query_char)
-        })
-    });
+    let petscii_match = [PetsciiCharset::Unshifted, PetsciiCharset::Shifted]
+        .into_iter()
+        .any(|charset| {
+            query_chars.iter().enumerate().all(|(i, &query_char)| {
+                let idx = start_offset + i;
+                let byte = app_state.raw_data[idx];
+                if query_char == '.' && byte != b'.' {
+                    return false;
+                }
+                let petscii_char = petscii_to_unicode(byte, charset);
+                petscii_char.eq_ignore_ascii_case(&query_char)
+            })
+        });
 
     if petscii_match {
         return true;
     }
 
     // Check Screencode encoding (convert to PETSCII first, then to Unicode).
-    (0..=1).any(|shift| {
-        let shifted = shift == 1;
-        query_chars.iter().enumerate().all(|(i, &query_char)| {
-            let idx = start_offset + i;
-            let screencode_byte = app_state.raw_data[idx];
-            let petscii_byte = screencode_to_petscii(screencode_byte);
-            if query_char == '.' && petscii_byte != b'.' {
-                return false;
-            }
-            let sc_char = petscii_to_unicode(petscii_byte, shifted);
-            sc_char.eq_ignore_ascii_case(&query_char)
+    [PetsciiCharset::Unshifted, PetsciiCharset::Shifted]
+        .into_iter()
+        .any(|charset| {
+            query_chars.iter().enumerate().all(|(i, &query_char)| {
+                let idx = start_offset + i;
+                let screencode_byte = app_state.raw_data[idx];
+                let petscii_byte = screencode_to_petscii(screencode_byte);
+                if query_char == '.' && petscii_byte != b'.' {
+                    return false;
+                }
+                let sc_char = petscii_to_unicode(petscii_byte, charset);
+                sc_char.eq_ignore_ascii_case(&query_char)
+            })
         })
-    })
 }
 
 // ---------------------------------------------------------------------------
@@ -299,18 +301,18 @@ fn text_matches(haystack: &str, query_lower: &str, regex: Option<&Regex>) -> boo
 /// standalone `OwnLine` labels do not also match the opcode row.
 #[must_use]
 fn match_instruction_content_without_label(
-    line: &crate::disassembler::DisassemblyLine,
+    line: &DisassemblyLine,
     query_lower: &str,
     regex: Option<&Regex>,
     filters: &SearchFilters,
 ) -> bool {
     // Hex-byte scan is plain-text only; skip when using regex.
     if filters.hex_bytes && regex.is_none() {
-        let bytes_hex = line
-            .bytes
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect::<String>();
+        use std::fmt::Write;
+        let mut bytes_hex = String::with_capacity(line.bytes.len() * 2);
+        for b in &line.bytes {
+            let _ = write!(bytes_hex, "{b:02x}");
+        }
         if bytes_hex
             .match_indices(query_lower)
             .any(|(idx, _)| idx % 2 == 0)
@@ -350,7 +352,7 @@ fn match_instruction_content_without_label(
 /// comment, and label fields use text or regex matching.
 #[must_use]
 pub fn match_instruction_content(
-    line: &crate::disassembler::DisassemblyLine,
+    line: &DisassemblyLine,
     query_lower: &str,
     regex: Option<&Regex>,
     filters: &SearchFilters,
@@ -386,8 +388,8 @@ pub fn match_instruction_content(
 /// * `hex_pattern` – Pre-parsed hex byte pattern (`None` in regex mode).
 /// * `regex`       – Compiled case-insensitive regex (`None` in plain-text mode).
 #[must_use]
-pub fn get_line_matches(
-    line: &crate::disassembler::DisassemblyLine,
+pub fn line_matches(
+    line: &DisassemblyLine,
     app_state: &AppState,
     query_lower: &str,
     hex_pattern: Option<&[Option<u8>]>,
@@ -395,7 +397,7 @@ pub fn get_line_matches(
     filters: &SearchFilters,
 ) -> Vec<usize> {
     let mut matches = Vec::new();
-    let formatter = crate::disassembler::Disassembler::formatter(app_state.settings.assembler);
+    let formatter = Disassembler::formatter(app_state.settings.assembler);
     let counts = line.visual_line_counts(app_state, formatter);
 
     // 1. Mid-instruction relative labels (`0..counts.labels`):
@@ -513,7 +515,7 @@ pub fn search_collapsed_content(
     }
     let block_slice = &app_state.block_types[start..=end];
 
-    let ctx = crate::disassembler::context::DisassemblyContext {
+    let ctx = DisassemblyContext {
         data: data_slice,
         block_types: block_slice,
         labels: &app_state.labels,
@@ -531,8 +533,7 @@ pub fn search_collapsed_content(
     let expanded_lines = app_state.disassembler.disassemble_ctx(&ctx);
 
     for line in expanded_lines {
-        if !get_line_matches(&line, app_state, query_lower, hex_pattern, regex, filters).is_empty()
-        {
+        if !line_matches(&line, app_state, query_lower, hex_pattern, regex, filters).is_empty() {
             return true;
         }
     }
@@ -664,8 +665,7 @@ pub fn search_disassembly(
         if results.len() >= max_results {
             break;
         }
-        let matches =
-            get_line_matches(line, app_state, &query_lower, None, regex.as_ref(), filters);
+        let matches = line_matches(line, app_state, &query_lower, None, regex.as_ref(), filters);
         if !matches.is_empty() {
             results.push(SearchResult {
                 address: line.address,
@@ -692,7 +692,7 @@ mod tests {
     #[test]
     fn test_match_instruction_content_bytes_alignment() {
         let line = DisassemblyLine {
-            address: crate::state::Addr(0x1000),
+            address: Addr(0x1000),
             bytes: vec![0x8D, 0x02, 0x08], // 8d0208
             mnemonic: "STA".to_string(),
             operand: "$0802".to_string(),
@@ -725,20 +725,19 @@ mod tests {
 
     #[test]
     fn test_get_line_matches_sub_indices() {
-        use crate::state::Label;
         let mut app_state = AppState::new();
         // Mid-address label at 0x1001
         app_state.labels.insert(
-            crate::state::Addr(0x1001),
+            Addr(0x1001),
             vec![Label {
                 name: "mid_label".to_string(),
-                label_type: crate::state::LabelType::AbsoluteAddress,
-                kind: crate::state::LabelKind::User,
+                label_type: LabelType::AbsoluteAddress,
+                kind: LabelKind::User,
             }],
         );
 
         let line = DisassemblyLine {
-            address: crate::state::Addr(0x1000),
+            address: Addr(0x1000),
             bytes: vec![0xA9, 0x00], // LDA #$00
             mnemonic: "LDA".to_string(),
             operand: "#$00".to_string(),
@@ -761,36 +760,36 @@ mod tests {
 
         // Test label match
         let filters = SearchFilters::default();
-        let matches = get_line_matches(&line, &app_state, "mid_label", None, None, &filters);
+        let matches = line_matches(&line, &app_state, "mid_label", None, None, &filters);
         assert_eq!(matches, vec![0]);
 
         // Test line comment matches
         assert_eq!(
-            get_line_matches(&line, &app_state, "line 1", None, None, &filters),
+            line_matches(&line, &app_state, "line 1", None, None, &filters),
             vec![1]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "line 2", None, None, &filters),
+            line_matches(&line, &app_state, "line 2", None, None, &filters),
             vec![2]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "line 3", None, None, &filters),
+            line_matches(&line, &app_state, "line 3", None, None, &filters),
             vec![3]
         );
 
         // Test instruction matches
         assert_eq!(
-            get_line_matches(&line, &app_state, "lda", None, None, &filters),
+            line_matches(&line, &app_state, "lda", None, None, &filters),
             vec![4]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "side", None, None, &filters),
+            line_matches(&line, &app_state, "side", None, None, &filters),
             vec![4]
         );
 
         // Test multiple matches (e.g. "line" matches all comment lines)
         assert_eq!(
-            get_line_matches(&line, &app_state, "line", None, None, &filters),
+            line_matches(&line, &app_state, "line", None, None, &filters),
             vec![1, 2, 3]
         );
     }
@@ -834,21 +833,21 @@ mod tests {
         let filters = SearchFilters::default();
 
         assert_eq!(
-            get_line_matches(&line, &app_state, "mid_lbl", None, None, &filters),
+            line_matches(&line, &app_state, "mid_lbl", None, None, &filters),
             vec![0]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "=*+$01", None, None, &filters),
+            line_matches(&line, &app_state, "=*+$01", None, None, &filters),
             vec![0]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "header 2", None, None, &filters),
+            line_matches(&line, &app_state, "header 2", None, None, &filters),
             vec![2]
         );
 
         // Standalone OwnLine label match must ONLY return sub-index 3, never [3, 4]
         assert_eq!(
-            get_line_matches(
+            line_matches(
                 &line,
                 &app_state,
                 "nineteen_char_label",
@@ -859,7 +858,7 @@ mod tests {
             vec![3]
         );
         assert_eq!(
-            get_line_matches(
+            line_matches(
                 &line,
                 &app_state,
                 "nineteen_char_label:",
@@ -872,26 +871,26 @@ mod tests {
 
         // Instruction, operand, side comment, and hex bytes must point to opcode_sub_index() == 4
         assert_eq!(
-            get_line_matches(&line, &app_state, "lda", None, None, &filters),
+            line_matches(&line, &app_state, "lda", None, None, &filters),
             vec![4]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "#$00", None, None, &filters),
+            line_matches(&line, &app_state, "#$00", None, None, &filters),
             vec![4]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "load zero", None, None, &filters),
+            line_matches(&line, &app_state, "load zero", None, None, &filters),
             vec![4]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "a900", None, None, &filters),
+            line_matches(&line, &app_state, "a900", None, None, &filters),
             vec![4]
         );
 
         // When side comment also contains the label substring, both rows [3, 4] match
         line.comment = "nineteen_char_label_ref".to_string();
         assert_eq!(
-            get_line_matches(
+            line_matches(
                 &line,
                 &app_state,
                 "nineteen_char_label",
@@ -941,11 +940,11 @@ mod tests {
 
         let filters = SearchFilters::default();
         assert_eq!(
-            get_line_matches(&line, &app_state, "custom_mid", None, None, &filters),
+            line_matches(&line, &app_state, "custom_mid", None, None, &filters),
             vec![0]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "lda", None, None, &filters),
+            line_matches(&line, &app_state, "lda", None, None, &filters),
             vec![1]
         );
     }
@@ -963,7 +962,7 @@ mod tests_regex {
         label: Option<&str>,
     ) -> DisassemblyLine {
         DisassemblyLine {
-            address: crate::state::Addr(0x1000),
+            address: Addr(0x1000),
             bytes: vec![0xEA],
             mnemonic: mnemonic.to_string(),
             operand: operand.to_string(),
@@ -980,7 +979,7 @@ mod tests_regex {
 
     #[test]
     fn test_compile_regex_valid() {
-        let re = compile_regex("lda.*sta").unwrap();
+        let re = compile_regex("lda.*sta").expect("valid regex should compile");
         assert!(re.is_match("LDA #$00 ; STA"));
     }
 
@@ -991,7 +990,7 @@ mod tests_regex {
 
     #[test]
     fn test_compile_regex_case_insensitive() {
-        let re = compile_regex("LDA").unwrap();
+        let re = compile_regex("LDA").expect("valid regex should compile");
         assert!(re.is_match("lda"));
         assert!(re.is_match("LDA"));
         assert!(re.is_match("Lda"));
@@ -1000,7 +999,7 @@ mod tests_regex {
     #[test]
     fn test_regex_matches_mnemonic() {
         let line = make_line("LDA", "#$00", "", None);
-        let re = compile_regex("ld.").unwrap();
+        let re = compile_regex("ld.").expect("valid regex should compile");
         let filters = SearchFilters::default();
         assert!(match_instruction_content(&line, "", Some(&re), &filters));
     }
@@ -1008,7 +1007,7 @@ mod tests_regex {
     #[test]
     fn test_regex_matches_comment() {
         let line = make_line("NOP", "", "TODO: fix this", None);
-        let re = compile_regex("(TODO|FIXME)").unwrap();
+        let re = compile_regex("(TODO|FIXME)").expect("valid regex should compile");
         let filters = SearchFilters::default();
         assert!(match_instruction_content(&line, "", Some(&re), &filters));
     }
@@ -1016,7 +1015,7 @@ mod tests_regex {
     #[test]
     fn test_regex_matches_label() {
         let line = make_line("RTS", "", "", Some("s_init_sprites"));
-        let re = compile_regex("s_.*init").unwrap();
+        let re = compile_regex("s_.*init").expect("valid regex should compile");
         let filters = SearchFilters::default();
         assert!(match_instruction_content(&line, "", Some(&re), &filters));
     }
@@ -1027,7 +1026,7 @@ mod tests_regex {
         // But hex scanning is disabled in regex mode, so this should NOT match
         // via hex bytes — only via mnemonic/operand/comment/label.
         let line = make_line("LDA", "#$09", "", None); // mnemonic won't match "a."
-        let re = compile_regex("^a.$").unwrap(); // matches "a9" if hex scan were active
+        let re = compile_regex("^a.$").expect("valid regex should compile"); // matches "a9" if hex scan were active
         let filters = SearchFilters {
             instructions: false,
             comments: false,
@@ -1040,7 +1039,7 @@ mod tests_regex {
     #[test]
     fn test_regex_no_match() {
         let line = make_line("STA", "$D020", "", None);
-        let re = compile_regex("^lda$").unwrap();
+        let re = compile_regex("^lda$").expect("valid regex should compile");
         let filters = SearchFilters::default();
         assert!(!match_instruction_content(&line, "", Some(&re), &filters));
     }
@@ -1089,24 +1088,24 @@ mod tests_string {
             0x48, 0x45, 0x4C, 0x4C, 0x4F, // "HELLO" in PETSCII (unshifted)
             0x08, 0x05, 0x0C, 0x0C, 0x0F, // "hello" in Screencodes (Shifted/Lowercase)
         ];
-        app_state.origin = crate::state::Addr(0x1000);
+        app_state.origin = Addr(0x1000);
 
         // 1. PETSCII match (unshifted)
         let filters = SearchFilters::default();
         assert!(check_string_pattern(
-            crate::state::Addr(0x1000),
+            Addr(0x1000),
             "HELLO",
             &app_state,
             &filters
         ));
         assert!(check_string_pattern(
-            crate::state::Addr(0x1000),
+            Addr(0x1000),
             "hello",
             &app_state,
             &filters
         )); // Case-insensitive
         assert!(check_string_pattern(
-            crate::state::Addr(0x1000),
+            Addr(0x1000),
             "HellO",
             &app_state,
             &filters
@@ -1115,13 +1114,13 @@ mod tests_string {
         // 2. Screencode match
         // Note: screencode_to_petscii(0x08) -> 0x48 ('H' or 'h' shifted)
         assert!(check_string_pattern(
-            crate::state::Addr(0x1005),
+            Addr(0x1005),
             "hello",
             &app_state,
             &filters
         ));
         assert!(check_string_pattern(
-            crate::state::Addr(0x1005),
+            Addr(0x1005),
             "HELLO",
             &app_state,
             &filters
@@ -1129,13 +1128,13 @@ mod tests_string {
 
         // 3. No match
         assert!(!check_string_pattern(
-            crate::state::Addr(0x1000),
+            Addr(0x1000),
             "WORLD",
             &app_state,
             &filters
         ));
         assert!(!check_string_pattern(
-            crate::state::Addr(0x1008),
+            Addr(0x1008),
             "HELLO",
             &app_state,
             &filters
@@ -1150,10 +1149,10 @@ mod tests_string {
         // Screencode for "LANDING": 0C 01 0E 04 09 0E 07
         // Let's put a dummy byte at the start to force an offset
         app_state.raw_data = vec![0x00, 0x0C, 0x01, 0x0E, 0x04, 0x09, 0x0E, 0x07];
-        app_state.origin = crate::state::Addr(0x1000);
+        app_state.origin = Addr(0x1000);
 
         let line = DisassemblyLine {
-            address: crate::state::Addr(0x1000),
+            address: Addr(0x1000),
             bytes: app_state.raw_data.clone(),
             mnemonic: String::new(),
             operand: String::new(),
@@ -1167,7 +1166,7 @@ mod tests_string {
             is_collapsed: false,
         };
 
-        // This is what get_line_matches CURRENTLY does (simplified)
+        // This is what line_matches CURRENTLY does (simplified)
         let query = "landing";
         let filters = SearchFilters::default();
         let found_at_start = check_string_pattern(line.address, query, &app_state, &filters);
@@ -1196,29 +1195,29 @@ mod tests_string {
     fn test_check_string_pattern_dot_does_not_match_control_bytes() {
         let mut app_state = AppState::new();
         app_state.raw_data = vec![0x00, 0x0D, 0x80, b'.'];
-        app_state.origin = crate::state::Addr(0x1000);
+        app_state.origin = Addr(0x1000);
         let filters = SearchFilters::default();
 
         assert!(!check_string_pattern(
-            crate::state::Addr(0x1000),
+            Addr(0x1000),
             ".",
             &app_state,
             &filters,
         ));
         assert!(!check_string_pattern(
-            crate::state::Addr(0x1001),
+            Addr(0x1001),
             ".",
             &app_state,
             &filters,
         ));
         assert!(!check_string_pattern(
-            crate::state::Addr(0x1002),
+            Addr(0x1002),
             ".",
             &app_state,
             &filters,
         ));
         assert!(check_string_pattern(
-            crate::state::Addr(0x1003),
+            Addr(0x1003),
             ".",
             &app_state,
             &filters,
@@ -1235,23 +1234,27 @@ mod tests_string {
             0xA9, 0x00, 0x8D, 0x20, 0xD0, 0x48, 0x45, 0x4C, 0x4C, 0x4F, 0x08, 0x05, 0x0C, 0x0C,
             0x0F,
         ];
-        app_state.origin = crate::state::Addr(0x1000);
+        app_state.origin = Addr(0x1000);
 
         // Hex search (spaced, prefixed, unspaced, wildcard)
         assert_eq!(
-            search_memory_raw(&app_state, "A9 00", Some("hex"), 10).unwrap(),
+            search_memory_raw(&app_state, "A9 00", Some("hex"), 10)
+                .expect("valid hex search should succeed"),
             vec![0x1000]
         );
         assert_eq!(
-            search_memory_raw(&app_state, "0x8D $20", Some("hex"), 10).unwrap(),
+            search_memory_raw(&app_state, "0x8D $20", Some("hex"), 10)
+                .expect("valid hex search should succeed"),
             vec![0x1002]
         );
         assert_eq!(
-            search_memory_raw(&app_state, "8D20D0", Some("hex"), 10).unwrap(),
+            search_memory_raw(&app_state, "8D20D0", Some("hex"), 10)
+                .expect("valid unspaced hex search should succeed"),
             vec![0x1002]
         );
         assert_eq!(
-            search_memory_raw(&app_state, "A9 ?? 8D", Some("hex"), 10).unwrap(),
+            search_memory_raw(&app_state, "A9 ?? 8D", Some("hex"), 10)
+                .expect("valid wildcard hex search should succeed"),
             vec![0x1000]
         );
 
@@ -1259,7 +1262,8 @@ mod tests_string {
         assert!(search_memory_raw(&app_state, "A9 ZZ", Some("hex"), 10).is_err());
 
         // Text search matches both PETSCII and Screencode case-insensitively
-        let text_hits = search_memory_raw(&app_state, "hello", Some("text"), 10).unwrap();
+        let text_hits = search_memory_raw(&app_state, "hello", Some("text"), 10)
+            .expect("valid text search should succeed");
         assert_eq!(text_hits, vec![0x1005, 0x100A]);
 
         // Unknown encoding returns Err
@@ -1273,30 +1277,29 @@ mod tests_string {
         // $1002: STA $D020 (8D 20 D0)
         // $1005: RTS (60)
         app_state.raw_data = vec![0xA9, 0x00, 0x8D, 0x20, 0xD0, 0x60];
-        app_state.origin = crate::state::Addr(0x1000);
-        app_state.block_types = vec![crate::state::BlockType::Code; 6];
-        app_state
-            .annotations
-            .update(crate::state::Addr(0x1002), |e| {
-                e.user_side_comment = Some("border_color_write".to_string());
-            });
+        app_state.origin = Addr(0x1000);
+        app_state.block_types = vec![BlockType::Code; 6];
+        app_state.annotations.update(Addr(0x1002), |e| {
+            e.user_side_comment = Some("border_color_write".to_string());
+        });
         app_state.disassemble();
 
         // Plain-text disassembly search
         let default_filters = SearchFilters::default();
-        let hits =
-            search_disassembly(&app_state, "border_color_write", &default_filters, 10).unwrap();
+        let hits = search_disassembly(&app_state, "border_color_write", &default_filters, 10)
+            .expect("label search should succeed");
         assert_eq!(hits.len(), 1);
-        assert_eq!(hits[0].address, crate::state::Addr(0x1002));
+        assert_eq!(hits[0].address, Addr(0x1002));
 
         // Regex disassembly search
         let regex_filters = SearchFilters {
             use_regex: true,
             ..SearchFilters::default()
         };
-        let regex_hits = search_disassembly(&app_state, r"^\$d020$", &regex_filters, 10).unwrap();
+        let regex_hits = search_disassembly(&app_state, r"^\$d020$", &regex_filters, 10)
+            .expect("regex operand search should succeed");
         assert_eq!(regex_hits.len(), 1);
-        assert_eq!(regex_hits[0].address, crate::state::Addr(0x1002));
+        assert_eq!(regex_hits[0].address, Addr(0x1002));
 
         // Invalid regex returns Err
         assert!(search_disassembly(&app_state, "[unclosed", &regex_filters, 10).is_err());

@@ -1,4 +1,4 @@
-//! Time Cruncher and Time Cruncher v3.1 / SpeedPacker specification.
+//! Time Cruncher and Time Cruncher v3.1 / `SpeedPacker` specification.
 //!
 //! Targets [`TargetSystem::C64`] images. Probes `BasicStart + 0x0F` (`$0810` on C64) for the
 //! legacy stub and `$0818` for `v3.1` and `v3.1 / SpeedPacker`, extracting split `end_addr`
@@ -44,7 +44,7 @@ const BASE_HINTS: Hints = Hints {
     ..Hints::NONE
 };
 
-/// Resolves legacy `$0810` Time Cruncher or Time Cruncher v3.1 / SpeedPacker at `$0818`.
+/// Resolves legacy `$0810` Time Cruncher or Time Cruncher v3.1 / `SpeedPacker` at `$0818`.
 #[must_use]
 fn resolve_time_cruncher(
     image: &LoadedImage<'_>,
@@ -144,7 +144,7 @@ fn resolve_time_cruncher(
     ))
 }
 
-/// Declarative specification for the Time Cruncher stub at `$0810` and v3.1 / SpeedPacker at `$0818`.
+/// Declarative specification for the Time Cruncher stub at `$0810` and v3.1 / `SpeedPacker` at `$0818`.
 pub static SPEC: PackerSpec = PackerSpec {
     id: "time_cruncher",
     name: "Time Cruncher",

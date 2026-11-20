@@ -66,7 +66,7 @@ pub fn sync_pane_to_disassembly(
         return;
     };
 
-    let containing = app_state.get_line_index_containing_address(cursor_addr);
+    let containing = app_state.line_index_containing_address(cursor_addr);
     let inst_idx = if let Some(row_raw) = row_floor_raw_addr
         && let Some(row_addr) = grid.clamped_addr(row_raw)
     {
@@ -74,7 +74,7 @@ pub fn sync_pane_to_disassembly(
             .filter(|&idx| app_state.disassembly[idx].address >= row_addr.0)
             .or_else(|| {
                 app_state
-                    .get_line_index_for_address(row_addr)
+                    .line_index_for_address(row_addr)
                     .filter(|&idx| !app_state.disassembly[idx].bytes.is_empty())
                     .or(containing)
             })
@@ -90,7 +90,7 @@ pub fn sync_pane_to_disassembly(
 
         ui_state.selection_start = selection_raw_addr
             .and_then(|raw| grid.clamped_addr(raw))
-            .and_then(|anchor_addr| app_state.get_line_index_containing_address(anchor_addr));
+            .and_then(|anchor_addr| app_state.line_index_containing_address(anchor_addr));
     }
 }
 
@@ -115,8 +115,7 @@ pub fn sync_grid_item_to_disassembly(
     }
 
     if let Some(anchor_index) = selection_start {
-        let Some((start_addr, end_addr)) = grid.clamped_item_addr_range(anchor_index, cursor_index)
-        else {
+        let Some(span) = grid.clamped_item_addr_range(anchor_index, cursor_index) else {
             // Item lies in alignment padding before `origin`. Clear the disassembly selection.
             sync_pane_to_disassembly(
                 app_state,
@@ -131,9 +130,9 @@ pub fn sync_grid_item_to_disassembly(
 
         // Place the disassembly cursor on the moving edge so the viewport scrolls with it.
         let (cursor_raw, anchor_raw) = if cursor_index > anchor_index {
-            (usize::from(end_addr.0), usize::from(start_addr.0))
+            (usize::from(span.end.0), usize::from(span.start.0))
         } else {
-            (usize::from(start_addr.0), usize::from(end_addr.0))
+            (usize::from(span.start.0), usize::from(span.end.0))
         };
         sync_pane_to_disassembly(
             app_state,
@@ -705,10 +704,22 @@ mod tests {
         assert_eq!(grid.byte_at(&app_state.raw_data, 0x0801), 0xEA);
         assert_eq!(grid.clamped_item_addr(0), Some(Addr(0x0801)));
 
-        // Item 0 covers [$0800..=$083F]; clamped to origin $0801 it yields offsets (0, 0x3E).
-        assert_eq!(grid.item_range_byte_offsets(0, 0), Some((0, 0x3E)));
+        // Item 0 covers [$0800..=$083F]; clamped to origin $0801 it yields offsets 0..=0x3E.
+        assert_eq!(
+            grid.item_range_byte_offsets(0, 0),
+            Some(regenerator2000_core::navigation::OffsetSpan {
+                start: 0,
+                end: 0x3E
+            })
+        );
         // Reversed anchor/cursor order produces the same inclusive offset range.
-        assert_eq!(grid.item_range_byte_offsets(1, 0), Some((0, 0x7E)));
+        assert_eq!(
+            grid.item_range_byte_offsets(1, 0),
+            Some(regenerator2000_core::navigation::OffsetSpan {
+                start: 0,
+                end: 0x7E
+            })
+        );
     }
 
     #[test]

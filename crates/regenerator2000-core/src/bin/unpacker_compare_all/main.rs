@@ -31,7 +31,7 @@ use std::env;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
+use std::process::{self, ExitCode};
 
 use cli::{Command, Markdown, Mode, ToolStatus, USAGE};
 use corpus::{Corpus, CorpusError, CorpusFilter, DirFixtures, Schedule, run_cases};
@@ -175,7 +175,7 @@ fn observe(
     let cases = CorpusFilter::All.select(corpus)?;
     let results = run_cases(&cases, fixtures, Schedule::Parallel).map_err(ToolError::Corpus)?;
     let tmp_dir = env::temp_dir();
-    let process_id = std::process::id();
+    let process_id = process::id();
     cases
         .iter()
         .zip(results)

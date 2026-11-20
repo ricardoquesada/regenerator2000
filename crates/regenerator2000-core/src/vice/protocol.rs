@@ -109,14 +109,14 @@ impl ViceMessage {
     /// Decodes the next complete VICE response frame from `buf`.
     ///
     /// Returns `Ok(None)` if `buf` holds fewer than 12 header bytes or fewer than
-    /// `12 + payload_length` total bytes. Returns `Ok(Some((message, consumed_bytes)))`
-    /// when a complete frame is available.
+    /// `12 + payload_length` total bytes. Returns `Ok(Some(packet))` with the decoded
+    /// [`ViceMessage`] and total byte count when a complete frame is available.
     ///
     /// # Errors
     ///
     /// Returns [`ViceError::ProtocolFraming`] if `buf[0]` is not [`STX`] or if the
     /// declared payload length exceeds [`MAX_PAYLOAD_LEN`].
-    pub fn decode(buf: &[u8]) -> Result<Option<(Self, usize)>, ViceError> {
+    pub fn decode(buf: &[u8]) -> Result<Option<DecodedPacket>, ViceError> {
         if buf.len() < 12 {
             return Ok(None);
         }
@@ -143,16 +143,25 @@ impl ViceMessage {
         let request_id = u32::from_le_bytes([buf[8], buf[9], buf[10], buf[11]]);
         let payload = buf[12..total_size].to_vec();
 
-        Ok(Some((
-            Self {
+        Ok(Some(DecodedPacket {
+            message: Self {
                 command,
                 payload,
                 request_id,
                 error_code,
             },
-            total_size,
-        )))
+            consumed_bytes: total_size,
+        }))
     }
+}
+
+/// Complete decoded VICE monitor frame and its encoded byte length.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecodedPacket {
+    /// Decoded VICE monitor response message.
+    pub message: ViceMessage,
+    /// Number of bytes consumed from the input buffer for this frame.
+    pub consumed_bytes: usize,
 }
 
 /// CPU register values parsed from a [`ViceCommand::REGISTERS_GET`] response.
@@ -229,7 +238,7 @@ pub fn parse_registers(payload: &[u8]) -> Option<Registers> {
 }
 
 /// Checkpoint descriptor parsed from a [`ViceCommand::CHECKPOINT_SET`] or [`ViceCommand::CHECKPOINT_GET`] response.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct CheckpointInfo {
     /// Checkpoint number assigned by VICE.
     pub id: u32,
@@ -317,12 +326,14 @@ mod tests {
         buf.extend_from_slice(&42u32.to_le_bytes());
         buf.extend_from_slice(&payload);
 
-        let (decoded, size) = ViceMessage::decode(&buf).unwrap().unwrap();
-        assert_eq!(size, buf.len());
-        assert_eq!(decoded.command, ViceCommand::MEMORY_GET);
-        assert_eq!(decoded.request_id, 42);
-        assert_eq!(decoded.error_code, 0);
-        assert_eq!(decoded.payload, vec![1, 2, 3]);
+        let packet = ViceMessage::decode(&buf)
+            .expect("packet decode should succeed")
+            .expect("complete VICE packet should be returned");
+        assert_eq!(packet.consumed_bytes, buf.len());
+        assert_eq!(packet.message.command, ViceCommand::MEMORY_GET);
+        assert_eq!(packet.message.request_id, 42);
+        assert_eq!(packet.message.error_code, 0);
+        assert_eq!(packet.message.payload, vec![1, 2, 3]);
     }
 
     #[test]
@@ -341,7 +352,11 @@ mod tests {
 
     #[test]
     fn decode_incomplete_returns_none() {
-        assert!(ViceMessage::decode(&[0x02, 0x02]).unwrap().is_none());
+        assert!(
+            ViceMessage::decode(&[0x02, 0x02])
+                .expect("incomplete packet header should return Ok(None)")
+                .is_none()
+        );
     }
 
     #[test]
@@ -384,7 +399,7 @@ mod tests {
         payload.extend_from_slice(&[2, 0x04, 0xFF]);
         payload.extend_from_slice(&[2, 0x05, 0x24]);
 
-        let regs = parse_registers(&payload).unwrap();
+        let regs = parse_registers(&payload).expect("register payload should parse");
         assert_eq!(regs.a, Some(0x42));
         assert_eq!(regs.x, Some(0x10));
         assert_eq!(regs.y, Some(0x20));
@@ -401,7 +416,7 @@ mod tests {
         payload.extend_from_slice(&[3, 0x03]);
         payload.extend_from_slice(&0x0800u16.to_le_bytes());
 
-        let regs = parse_registers(&payload).unwrap();
+        let regs = parse_registers(&payload).expect("register payload should parse");
         assert_eq!(regs.a, Some(0xAA));
         assert_eq!(regs.pc, Some(0x0800));
         assert_eq!(regs.x, None);
@@ -417,7 +432,7 @@ mod tests {
         payload.extend_from_slice(&[2, 0x00, 0x42]);
         payload.extend_from_slice(&[3, 0x03]);
 
-        let regs = parse_registers(&payload).unwrap();
+        let regs = parse_registers(&payload).expect("register payload should parse");
         assert_eq!(regs.a, Some(0x42));
         assert_eq!(regs.pc, None);
     }
@@ -426,12 +441,13 @@ mod tests {
     fn parse_registers_zero_item_size_does_not_panic() {
         // item_size == 0 at end of slice previously caused an out-of-bounds panic at payload[offset + 1].
         let payload = [1u8, 0, 0];
-        let regs = parse_registers(&payload).unwrap();
+        let regs = parse_registers(&payload).expect("register payload should parse");
         assert_eq!(regs, Registers::default());
 
         // item_size == 0 after a valid item stops parsing cleanly without corrupting prior items.
         let payload_with_valid = [2u8, 0, 2, 0x00, 0x42, 0, 2, 0x01, 0x99];
-        let regs2 = parse_registers(&payload_with_valid).unwrap();
+        let regs2 = parse_registers(&payload_with_valid)
+            .expect("register payload before zero-size terminator should parse");
         assert_eq!(regs2.a, Some(0x42));
         assert_eq!(regs2.x, None);
     }
@@ -442,7 +458,7 @@ mod tests {
         payload.extend_from_slice(&1u16.to_le_bytes());
         payload.extend_from_slice(&[2, 0xFF, 0x42]);
 
-        let regs = parse_registers(&payload).unwrap();
+        let regs = parse_registers(&payload).expect("register payload should parse");
         assert_eq!(regs, Registers::default());
     }
 
@@ -468,7 +484,7 @@ mod tests {
         p.push(0x04);
         p.push(0);
 
-        let info = parse_checkpoint_info(&p).unwrap();
+        let info = parse_checkpoint_info(&p).expect("checkpoint info payload should parse");
         assert_eq!(info.id, 1);
         assert!(!info.currently_hit);
         assert_eq!(info.address, 0xC000);
@@ -489,7 +505,7 @@ mod tests {
         p.push(0x01);
         p.push(0);
 
-        let info = parse_checkpoint_info(&p).unwrap();
+        let info = parse_checkpoint_info(&p).expect("checkpoint info payload should parse");
         assert_eq!(info.id, 3);
         assert!(info.currently_hit);
         assert_eq!(info.address, 0xD015);
@@ -504,7 +520,7 @@ mod tests {
         p[11] = 0x04;
         p[12] = 1;
 
-        let info = parse_checkpoint_info(&p).unwrap();
+        let info = parse_checkpoint_info(&p).expect("checkpoint info payload should parse");
         assert_eq!(info.id, 7);
         assert!(!info.currently_hit);
         assert!(info.temporary);
@@ -526,7 +542,7 @@ mod tests {
         payload.extend_from_slice(&4u16.to_le_bytes());
         payload.extend_from_slice(&[0xAA, 0xBB, 0xCC, 0xDD]);
 
-        let resp = parse_memory_get(&payload).unwrap();
+        let resp = parse_memory_get(&payload).expect("memory get payload should parse");
         assert_eq!(resp.bytes, vec![0xAA, 0xBB, 0xCC, 0xDD]);
     }
 

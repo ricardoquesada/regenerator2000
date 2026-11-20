@@ -105,7 +105,12 @@ mod tests {
             splitters: Default::default(),
             blocks_view_cursor: None,
         };
-        app_state.save_project(context, false).expect("Save failed");
+        app_state
+            .save_project(
+                context,
+                regenerator2000_core::state::GlobalConfigUpdate::Skip,
+            )
+            .expect("Save failed");
 
         // Load
         let mut loaded_state = AppState::new();

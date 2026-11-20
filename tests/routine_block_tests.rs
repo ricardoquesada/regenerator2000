@@ -197,12 +197,8 @@ fn test_routine_split_by_bytes() {
         .update(start_addr, |e| e.scope = Some(end_addr));
 
     // Split with Bytes at $1040-$104F (offset 0x40 to 0x4F)
-    let byte_start_idx = state
-        .get_line_index_containing_address(Addr(0x1040))
-        .unwrap();
-    let byte_end_idx = state
-        .get_line_index_containing_address(Addr(0x104F))
-        .unwrap();
+    let byte_start_idx = state.line_index_containing_address(Addr(0x1040)).unwrap();
+    let byte_end_idx = state.line_index_containing_address(Addr(0x104F)).unwrap();
     state.set_block_type_region(BlockType::DataByte, Some(byte_start_idx), byte_end_idx);
 
     // Add an explicit label at $1000 that is a Subroutine to start the scope

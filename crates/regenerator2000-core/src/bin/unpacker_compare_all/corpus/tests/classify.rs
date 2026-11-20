@@ -105,7 +105,7 @@ fn classify_padding_byte_both_directions() {
 }
 
 /// Checks that `padding_byte` keeps both anchors: the engine BASIC start from
-/// `unpacker::machine::get_basic_start` and the system default BASIC start.
+/// `unpacker::machine::basic_start` and the system default BASIC start.
 #[test]
 fn padding_byte_anchors_on_engine_and_default_basic_start() {
     use super::super::kinds::{padding_byte_holds, padding_byte_pairs};

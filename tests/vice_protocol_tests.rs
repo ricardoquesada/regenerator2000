@@ -54,12 +54,12 @@ mod protocol_tests {
 
         let result = ViceMessage::decode(&buf).unwrap();
         assert!(result.is_some());
-        let (msg, consumed) = result.unwrap();
-        assert_eq!(consumed, 15); // 12 header + 3 payload
-        assert_eq!(msg.command, ViceCommand::PING);
-        assert_eq!(msg.error_code, 0x00);
-        assert_eq!(msg.request_id, 99);
-        assert_eq!(msg.payload, vec![0xAA, 0xBB, 0xCC]);
+        let packet = result.unwrap();
+        assert_eq!(packet.consumed_bytes, 15); // 12 header + 3 payload
+        assert_eq!(packet.message.command, ViceCommand::PING);
+        assert_eq!(packet.message.error_code, 0x00);
+        assert_eq!(packet.message.request_id, 99);
+        assert_eq!(packet.message.payload, vec![0xAA, 0xBB, 0xCC]);
     }
 
     #[test]
@@ -134,10 +134,10 @@ mod protocol_tests {
 
         let result = ViceMessage::decode(&buf).unwrap();
         assert!(result.is_some());
-        let (msg, consumed) = result.unwrap();
-        assert_eq!(consumed, 12);
-        assert_eq!(msg.payload.len(), 0);
-        assert_eq!(msg.command, ViceCommand::EXIT_MONITOR);
+        let packet = result.unwrap();
+        assert_eq!(packet.consumed_bytes, 12);
+        assert_eq!(packet.message.payload.len(), 0);
+        assert_eq!(packet.message.command, ViceCommand::EXIT_MONITOR);
     }
 
     #[test]
@@ -163,15 +163,17 @@ mod protocol_tests {
         buf.extend_from_slice(&[0xDE, 0xAD]);
 
         // Decode first
-        let (msg1, size1) = ViceMessage::decode(&buf).unwrap().unwrap();
-        assert_eq!(msg1.command, ViceCommand::PING);
-        assert_eq!(size1, 12);
+        let packet1 = ViceMessage::decode(&buf).unwrap().unwrap();
+        assert_eq!(packet1.message.command, ViceCommand::PING);
+        assert_eq!(packet1.consumed_bytes, 12);
 
         // Decode second
-        let (msg2, size2) = ViceMessage::decode(&buf[size1..]).unwrap().unwrap();
-        assert_eq!(msg2.command, ViceCommand::STOPPED);
-        assert_eq!(size2, 14);
-        assert_eq!(msg2.payload, vec![0xDE, 0xAD]);
+        let packet2 = ViceMessage::decode(&buf[packet1.consumed_bytes..])
+            .unwrap()
+            .unwrap();
+        assert_eq!(packet2.message.command, ViceCommand::STOPPED);
+        assert_eq!(packet2.consumed_bytes, 14);
+        assert_eq!(packet2.message.payload, vec![0xDE, 0xAD]);
     }
 
     #[test]

@@ -1,7 +1,7 @@
 //! `64tass` cross-assembler syntax formatter.
 
 use super::formatter::{Formatter, TextFragment};
-use crate::state::Addr;
+use crate::state::{Addr, EnumDefinition};
 use std::fmt::Write;
 
 /// Syntax formatter for the `64tass` cross-assembler.
@@ -156,7 +156,7 @@ impl Formatter for TassFormatter {
         format!("{enum_name}.{variant_name}")
     }
 
-    fn format_enum_definition(&self, enum_def: &crate::state::EnumDefinition) -> String {
+    fn format_enum_definition(&self, enum_def: &EnumDefinition) -> String {
         let mut s = format!("{} .block\n", enum_def.name);
         for (&val, variant) in &enum_def.variants {
             let val_str = if val <= 0xFF {

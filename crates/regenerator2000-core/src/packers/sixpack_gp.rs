@@ -152,8 +152,8 @@ mod tests {
     #[test]
     fn sixpack_gp_resolves_both_variants_and_inclusive_end_ptr() {
         // Variant 1 ($0854)
-        let (mem1, load_addr, load_end) = SPEC.build_fixture_memory();
-        let view1 = LoadedImage::for_c64(&mem1, load_addr, load_end);
+        let fixture = SPEC.build_fixture_memory();
+        let view1 = LoadedImage::for_c64(&fixture.mem, fixture.load_addr, fixture.load_end);
         let m1 = SPEC.detect(&view1).expect("variant 1 must match");
         let info1 = PackerInfo::resolve(&view1, &m1);
         assert_eq!(info1.name, "6Pack/G*P");
@@ -163,18 +163,18 @@ mod tests {
         assert_eq!(info1.end_addr_ptr, Some(0x00FA));
 
         // Variant 2 ($0861 -> entry at $08D0..=$08D1)
-        let mut mem2 = mem1.clone();
+        let mut mem2 = fixture.mem.clone();
         mem2[0x0854] = 0x00;
         mem2[0x0861..=0x0864].copy_from_slice(&[0xF5, 0x4C, 0x00, 0x01]);
         mem2[0x08D0..=0x08D1].copy_from_slice(&0x3456_u16.to_le_bytes());
-        let view2 = LoadedImage::for_c64(&mem2, load_addr, 0x08D2);
+        let view2 = LoadedImage::for_c64(&mem2, fixture.load_addr, 0x08D2);
         let m2 = SPEC.detect(&view2).expect("variant 2 must match");
         assert_eq!(PackerInfo::resolve(&view2, &m2).entry_point, Some(0x3456));
 
         // Short buffer (`<= $08C4`), `load_addr > $0801`, and missing variant tag reject cleanly.
-        let short_v1 = LoadedImage::for_c64(&mem1[..0x08C4], 0x0801, 0x08C4);
+        let short_v1 = LoadedImage::for_c64(&fixture.mem[..0x08C4], 0x0801, 0x08C4);
         assert!(SPEC.detect(&short_v1).is_none());
-        let high_load = LoadedImage::for_c64(&mem1, 0x0802, load_end);
+        let high_load = LoadedImage::for_c64(&fixture.mem, 0x0802, fixture.load_end);
         assert!(SPEC.detect(&high_load).is_none());
         mem2[0x0861] = 0x00;
         let broken = LoadedImage::for_c64(&mem2, 0x0801, 0x08D2);

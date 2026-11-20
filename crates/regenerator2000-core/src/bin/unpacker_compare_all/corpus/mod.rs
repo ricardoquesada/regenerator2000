@@ -52,6 +52,7 @@
 
 mod baseline;
 mod classify;
+mod constants;
 mod error;
 mod filter;
 mod fixtures;
@@ -72,60 +73,43 @@ mod tests;
 // `unused_imports` on this re-export statement only so stray imports inside
 // submodules still fail the build.
 #[allow(unused_imports)]
-pub use self::{
-    baseline::{
-        Baseline, BaselineDiff, BaselineField, BaselineOutcome, BaselineRow, BaselineUnpacked,
-    },
-    classify::{Divergence, Unp64Observation, classify},
-    error::CorpusError,
-    filter::CorpusFilter,
-    fixtures::{DirFixtures, FixtureResolver},
-    kinds::{DivergenceKind, ExpectedFailReason, Field, FieldSet},
-    manifest::{
-        AcceptedDivergence, Case, Corpus, Group, Overlap, ReviewState, Unp64Failed, Unp64Record,
-        Unp64Saved,
-    },
-    oracle::{Evaluator, GroundTruth},
-    report::{render_action_items, render_failure_table},
-    result::{CaseResult, R2000Error, UnpackedImage, unpack_error_variant},
-    runner::{Schedule, run_case, run_cases, unpack_config_for},
-    values::{AddrRange, Fnv64, HexAddr, Unp64Entry, ValueFormatError, fnv1a64, hash_window},
-    verdict::{
-        CaseFailure, CaseReport, ConsensusProperty, CorpusOutcome, FailureReason, Oracle,
-        ReportNote, Subject,
-    },
+pub use self::baseline::{
+    Baseline, BaselineDiff, BaselineField, BaselineOutcome, BaselineRow, BaselineUnpacked,
 };
-
-/// Directory that holds the fixtures, manifest, and baseline.
-///
-/// The compiler resolves this path from `CARGO_MANIFEST_DIR` so the compare
-/// tool and the corpus test find it from any working directory.
-pub const FIXTURE_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tests/6502");
-
-/// File name of the corpus manifest inside [`FIXTURE_DIR`].
-pub const MANIFEST_FILE: &str = "unpack_corpus.toml";
-
-/// File name of the baseline inside [`FIXTURE_DIR`].
-pub const BASELINE_FILE: &str = "unpack_baseline.toml";
-
-/// Length in bytes of the little-endian load address at the start of a PRG.
-pub const PRG_HEADER_LEN: usize = 2;
-
-/// `reviewed_by` value for exceptions from the initial classification that
-/// still await user review.
-///
-/// This marker counts as signed so CI passes, while reports list the case as a
-/// user action item.
-pub const INITIAL_REVIEW_MARKER: &str = "initial-classification-2026-10-28 (pending ricardoq)";
-
-/// Lowest end address that `unp64` produces when no end scanner fires.
-///
-/// `unp64` does not track memory writes. Without a scanner end address, it
-/// saves up to `$FFFF` (or a few bytes below), so an `unp64` end on the top
-/// page indicates its default rather than a real program boundary.
-pub const UNP64_TOP_PAGE: u16 = 0xFF00;
-
-/// Instruction budget for cases that omit `max_instructions`.
-///
-/// This constant equals `UnpackConfig::default().max_instructions`.
-pub const DEFAULT_MAX_INSTRUCTIONS: u64 = 50_000_000;
+#[allow(unused_imports)]
+pub use self::classify::{Divergence, Unp64Observation, classify};
+#[allow(unused_imports)]
+pub use self::constants::{
+    BASELINE_FILE, DEFAULT_MAX_INSTRUCTIONS, FIXTURE_DIR, INITIAL_REVIEW_MARKER, MANIFEST_FILE,
+    PRG_HEADER_LEN, UNP64_TOP_PAGE,
+};
+#[allow(unused_imports)]
+pub use self::error::CorpusError;
+#[allow(unused_imports)]
+pub use self::filter::CorpusFilter;
+#[allow(unused_imports)]
+pub use self::fixtures::{DirFixtures, FixtureResolver};
+#[allow(unused_imports)]
+pub use self::kinds::{DivergenceKind, ExpectedFailReason, Field, FieldSet};
+#[allow(unused_imports)]
+pub use self::manifest::{
+    AcceptedDivergence, Case, Corpus, Group, Overlap, ReviewState, Unp64Failed, Unp64Record,
+    Unp64Saved,
+};
+#[allow(unused_imports)]
+pub use self::oracle::{Evaluator, GroundTruth};
+#[allow(unused_imports)]
+pub use self::report::{render_action_items, render_failure_table};
+#[allow(unused_imports)]
+pub use self::result::{CaseResult, R2000Error, UnpackedImage, unpack_error_variant};
+#[allow(unused_imports)]
+pub use self::runner::{Schedule, run_case, run_cases, unpack_config_for};
+#[allow(unused_imports)]
+pub use self::values::{
+    AddrRange, Fnv64, HexAddr, Unp64Entry, ValueFormatError, fnv1a64, hash_window,
+};
+#[allow(unused_imports)]
+pub use self::verdict::{
+    CaseFailure, CaseReport, ConsensusProperty, CorpusOutcome, FailureReason, Oracle, ReportNote,
+    Subject,
+};

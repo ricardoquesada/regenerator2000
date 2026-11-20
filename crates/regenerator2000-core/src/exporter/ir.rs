@@ -8,12 +8,20 @@
 
 use crate::cpu::AddressingMode;
 pub use crate::disassembler::LabelPlacement;
+use crate::disassembler::context::DisassemblyContext;
+use crate::disassembler::formatter::Formatter;
+use crate::disassembler::symbols;
 use crate::disassembler::{
     Disassembler, DisassemblyLine, DisassemblyLineKind, format_cross_references,
 };
 use crate::error::{CoreError, ExportError};
-use crate::state::{Addr, AppState, Assembler, BlockType, DocumentSettings, LabelType, XRef};
+use crate::state::{
+    Addr, AppState, Assembler, BlockType, DocumentSettings, ExternalXRefs, LabelType, XRef,
+};
 use std::collections::HashMap;
+use std::fs;
+use std::hash::BuildHasher;
+use std::mem;
 use std::path::{Path, PathBuf};
 
 /// Escapes `&`, `<`, and `>` for safe insertion into HTML text nodes.
@@ -25,7 +33,7 @@ pub fn html_escape(s: &str) -> String {
 }
 
 /// Configuration options that control export lowering and target assembler formatting.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ExportOptions {
     /// Target cross-assembler dialect.
     pub assembler: Assembler,
@@ -99,7 +107,7 @@ impl ExportSidecar {
     /// Returns the sidecar payload as a UTF-8 string slice if the bytes are valid UTF-8.
     #[must_use]
     pub fn content_utf8(&self) -> Option<&str> {
-        std::str::from_utf8(&self.bytes).ok()
+        str::from_utf8(&self.bytes).ok()
     }
 }
 
@@ -126,16 +134,14 @@ impl ExportBundle {
     /// Returns [`CoreError::Export`] with [`ExportError::Io`] if any disk write fails.
     pub fn write_to_disk(&self) -> Result<(), CoreError> {
         for sidecar in &self.sidecars {
-            std::fs::write(&sidecar.path, &sidecar.bytes).map_err(|source| ExportError::Io {
+            fs::write(&sidecar.path, &sidecar.bytes).map_err(|source| ExportError::Io {
                 path: sidecar.path.clone(),
                 source,
             })?;
         }
-        std::fs::write(&self.primary_path, &self.primary_content).map_err(|source| {
-            ExportError::Io {
-                path: self.primary_path.clone(),
-                source,
-            }
+        fs::write(&self.primary_path, &self.primary_content).map_err(|source| ExportError::Io {
+            path: self.primary_path.clone(),
+            source,
         })?;
         Ok(())
     }
@@ -157,7 +163,7 @@ pub struct ExportHeader {
     /// Official homepage URL of the target assembler.
     pub assembler_url: String,
     /// Commented build-command lines from
-    /// [`Formatter::format_file_header`](crate::disassembler::formatter::Formatter::format_file_header).
+    /// [`Formatter::format_file_header`].
     pub build_command_lines: Vec<String>,
 }
 
@@ -419,7 +425,7 @@ pub struct InstructionRow {
     pub label: Option<String>,
     /// Column placement for `label` (`None`, `Inline`, or `OwnLine`).
     pub label_placement: LabelPlacement,
-    /// `true` when `mnemonic` is a KickAssembler scope brace (`"{"` or `"}"`).
+    /// `true` when `mnemonic` is a `KickAssembler` scope brace (`"{"` or `"}"`).
     pub is_scope_brace: bool,
     /// Formatted instruction mnemonic or directive name.
     pub mnemonic: String,
@@ -460,7 +466,7 @@ pub enum ExportRow {
     /// One line of a formatted enum definition block.
     EnumLine {
         /// Line text from
-        /// [`Formatter::format_enum_definition`](crate::disassembler::formatter::Formatter::format_enum_definition).
+        /// [`Formatter::format_enum_definition`].
         text: String,
     },
     /// Program origin directive (`* = $xxxx` or `.org $xxxx`).
@@ -512,11 +518,7 @@ pub fn build_label_lookup_map(state: &AppState, assembler: Assembler) -> HashMap
     for (addr, label_vec) in &state.labels {
         // Skip labels suppressed by an active Tier 2 `address_offset` so HTML anchors never
         // point to suppressed equate/body label IDs when `settings.auto_analyze` is `false`.
-        if crate::disassembler::symbols::has_active_address_offset(
-            *addr,
-            &state.labels,
-            &state.annotations,
-        ) {
+        if symbols::has_active_address_offset(*addr, &state.labels, &state.annotations) {
             continue;
         }
         for l in label_vec {
@@ -546,7 +548,7 @@ pub fn build_label_lookup_map(state: &AppState, assembler: Assembler) -> HashMap
 ///   [`OperandToken::InternalLink`] to `sym.base`, while ` + 3` / ` - 1)` remains plain text.
 /// - Resolves local labels prefixed with `_` (`64tass`), `.` (`ACME`), or `@` (`ca65`).
 #[must_use]
-pub fn tokenize_operand<S: std::hash::BuildHasher>(
+pub fn tokenize_operand<S: BuildHasher>(
     operand: &str,
     target_address: Option<Addr>,
     assembler: Assembler,
@@ -643,7 +645,7 @@ pub fn tokenize_operand<S: std::hash::BuildHasher>(
                 && !state.is_external(addr)
             {
                 if !text_buf.is_empty() {
-                    tokens.push(OperandToken::Text(std::mem::take(&mut text_buf)));
+                    tokens.push(OperandToken::Text(mem::take(&mut text_buf)));
                 }
                 tokens.push(OperandToken::InternalLink {
                     text: prefixed,
@@ -653,7 +655,7 @@ pub fn tokenize_operand<S: std::hash::BuildHasher>(
                 && !state.is_external(addr)
             {
                 text_buf.push(c);
-                tokens.push(OperandToken::Text(std::mem::take(&mut text_buf)));
+                tokens.push(OperandToken::Text(mem::take(&mut text_buf)));
                 tokens.push(OperandToken::InternalLink {
                     text: ident,
                     target: addr,
@@ -701,7 +703,7 @@ pub fn tokenize_operand<S: std::hash::BuildHasher>(
                 && !state.is_external(addr)
             {
                 if !text_buf.is_empty() {
-                    tokens.push(OperandToken::Text(std::mem::take(&mut text_buf)));
+                    tokens.push(OperandToken::Text(mem::take(&mut text_buf)));
                 }
                 tokens.push(OperandToken::InternalLink {
                     text: word,
@@ -730,7 +732,7 @@ fn lower_instruction_row(
     line: &DisassemblyLine,
     state: &AppState,
     settings: &DocumentSettings,
-    formatter: &dyn crate::disassembler::formatter::Formatter,
+    formatter: &dyn Formatter,
     comment_prefix: &str,
     label_name_to_addr: &HashMap<String, Addr>,
 ) -> InstructionRow {
@@ -868,7 +870,8 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
     }
 
     // 2. External and `ExternalFile` label equates.
-    let external_lines = state.get_external_label_definitions_with_formatter(true, formatter);
+    let external_lines =
+        state.external_label_definitions_with_formatter(ExternalXRefs::Include, formatter);
     for line in &external_lines {
         match line.classify_kind(&comment_prefix) {
             DisassemblyLineKind::Blank => rows.push(ExportRow::Blank),
@@ -894,7 +897,7 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
     }
 
     // 3. Enum definitions.
-    let enum_lines = state.get_enum_definition_lines_with_formatter(formatter);
+    let enum_lines = state.enum_definition_lines_with_formatter(formatter);
     for line in &enum_lines {
         match line.classify_kind(&comment_prefix) {
             DisassemblyLineKind::Blank => rows.push(ExportRow::Blank),
@@ -908,7 +911,7 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
     }
 
     // 4. Disassemble the body without collapsed blocks.
-    let ctx = crate::disassembler::context::DisassemblyContext {
+    let ctx = DisassemblyContext {
         data: &state.raw_data,
         block_types: &state.block_types,
         labels: &state.labels,
@@ -1046,8 +1049,11 @@ pub fn build_export_document(state: &AppState, options: &ExportOptions) -> Expor
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{EnumDefinition, Label, LabelKind};
+    use crate::state::{EnumDefinition, Label, LabelKind, XRefKind};
     use std::collections::BTreeMap;
+    use std::env;
+    use std::process;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     fn make_state_with_internal_labels(
         origin: u16,
@@ -1409,7 +1415,7 @@ mod tests {
                 ExportRow::Instruction(i) if i.address == Addr(0x1010) => Some(i),
                 _ => None,
             })
-            .unwrap();
+            .expect("target disassembly line should exist");
         assert_eq!(
             asl_row.operand_tokens,
             vec![OperandToken::Text("a".to_string())]
@@ -1422,7 +1428,7 @@ mod tests {
                 ExportRow::Instruction(i) if i.address == Addr(0x1016) => Some(i),
                 _ => None,
             })
-            .unwrap();
+            .expect("target disassembly line should exist");
         assert_eq!(
             jmp_row.operand_tokens,
             vec![OperandToken::InternalLink {
@@ -1584,10 +1590,10 @@ mod tests {
         state.cross_refs.insert(
             Addr(0x1000),
             vec![
-                crate::state::XRef::new(Addr(0xC000), crate::state::XRefKind::Read),
-                crate::state::XRef::new(Addr(0x1500), crate::state::XRefKind::Read),
-                crate::state::XRef::new(Addr(0x1800), crate::state::XRefKind::Read),
-                crate::state::XRef::new(Addr(0x1500), crate::state::XRefKind::Read),
+                XRef::new(Addr(0xC000), XRefKind::Read),
+                XRef::new(Addr(0x1500), XRefKind::Read),
+                XRef::new(Addr(0x1800), XRefKind::Read),
+                XRef::new(Addr(0x1500), XRefKind::Read),
             ],
         );
 
@@ -1599,7 +1605,7 @@ mod tests {
             &state,
             &state.settings,
         )
-        .unwrap();
+        .expect("line comment should decompose");
         assert_eq!(c_prefix.prefix_text.as_deref(), Some("User note <A & B>"));
         assert!(c_prefix.xrefs.is_empty());
         assert!(!c_prefix.xrefs_truncated);
@@ -1614,7 +1620,7 @@ mod tests {
             &state,
             &state.settings,
         )
-        .unwrap();
+        .expect("line comment should decompose");
         assert_eq!(c_xrefs.prefix_text, None);
         assert_eq!(
             c_xrefs.xrefs,
@@ -1640,7 +1646,7 @@ mod tests {
             &state,
             &state.settings,
         )
-        .unwrap();
+        .expect("line comment should decompose");
         assert_eq!(c_full.prefix_text.as_deref(), Some("Init border"));
         assert!(c_full.xrefs_truncated);
         assert_eq!(c_full.suffix_text.as_deref(), Some("Border color"));
@@ -1652,7 +1658,7 @@ mod tests {
             &state,
             &state.settings,
         )
-        .unwrap();
+        .expect("line comment should decompose");
         assert_eq!(c_kick.prefix_text.as_deref(), Some("Init border"));
         assert_eq!(
             c_kick.suffix_text.as_deref(),
@@ -1674,9 +1680,9 @@ mod tests {
         state.cross_refs.insert(
             Addr(0x1000),
             vec![
-                crate::state::XRef::new(Addr(0x1500), crate::state::XRefKind::Read),
-                crate::state::XRef::new(Addr(0xC000), crate::state::XRefKind::Read),
-                crate::state::XRef::new(Addr(0xD000), crate::state::XRefKind::Read),
+                XRef::new(Addr(0x1500), XRefKind::Read),
+                XRef::new(Addr(0xC000), XRefKind::Read),
+                XRef::new(Addr(0xD000), XRefKind::Read),
             ],
         );
 
@@ -1690,7 +1696,7 @@ mod tests {
             let raw = format!("Check <A & B> {cp} x-ref: $1500, $c000, ...; Target > $00");
             let comment =
                 ExportComment::from_line_comment(&raw, Addr(0x1000), cp, &state, &state.settings)
-                    .unwrap();
+                    .expect("line comment should decompose");
 
             // format_plain reconstructs `raw` byte-for-byte
             assert_eq!(comment.format_plain(cp), raw);
@@ -1712,13 +1718,9 @@ mod tests {
         // `line.comment` fields, and only `.text "HI"` carries the comment.
         state.raw_data = vec![0x48, 0x49];
         state.block_types = vec![BlockType::PetsciiText; 2];
-        state.cross_refs.insert(
-            Addr(0x1000),
-            vec![crate::state::XRef::new(
-                Addr(0x1001),
-                crate::state::XRefKind::Read,
-            )],
-        );
+        state
+            .cross_refs
+            .insert(Addr(0x1000), vec![XRef::new(Addr(0x1001), XRefKind::Read)]);
         state.annotations.update(Addr(0x1000), |e| {
             e.user_side_comment = Some("Greeting".to_string());
         });
@@ -1738,7 +1740,10 @@ mod tests {
 
         // Expect `.encode`, `.enc`, `.text`, `.endencode`
         assert!(inst_rows.len() >= 3);
-        let encode_row = inst_rows.iter().find(|r| r.mnemonic == ".encode").unwrap();
+        let encode_row = inst_rows
+            .iter()
+            .find(|r| r.mnemonic == ".encode")
+            .expect("expected .encode directive row");
         assert_eq!(
             encode_row.side_comment, None,
             "Wrapper line .encode must have side_comment == None"
@@ -1746,12 +1751,15 @@ mod tests {
         let endencode_row = inst_rows
             .iter()
             .find(|r| r.mnemonic == ".endencode")
-            .unwrap();
+            .expect("expected .endencode directive row");
         assert_eq!(
             endencode_row.side_comment, None,
             "Wrapper line .endencode must have side_comment == None"
         );
-        let text_row = inst_rows.iter().find(|r| r.mnemonic == ".text").unwrap();
+        let text_row = inst_rows
+            .iter()
+            .find(|r| r.mnemonic == ".text")
+            .expect("expected .text directive row");
         assert!(
             text_row.side_comment.is_some(),
             "Primary .text row must retain its side comment"
@@ -1929,14 +1937,12 @@ mod tests {
 
     #[test]
     fn test_export_bundle_write_to_disk_and_error_handling() {
-        static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-        let id = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let temp_dir = std::env::temp_dir().join(format!(
-            "regen2000_ir_bundle_test_{}_{id}",
-            std::process::id()
-        ));
-        let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let id = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let temp_dir =
+            env::temp_dir().join(format!("regen2000_ir_bundle_test_{}_{id}", process::id()));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).expect("temp directory should be created");
 
         let primary_path = temp_dir.join("main.asm");
         let sidecar = ExportSidecar::new(&primary_path, "main_1000_1001.bin", vec![0xAA, 0x55]);
@@ -1946,14 +1952,19 @@ mod tests {
             sidecars: vec![sidecar.clone()],
         };
 
-        bundle.write_to_disk().unwrap();
+        bundle
+            .write_to_disk()
+            .expect("export bundle should write to disk");
         assert_eq!(
-            std::fs::read_to_string(&primary_path).unwrap(),
+            fs::read_to_string(&primary_path).expect("primary ASM file should be readable"),
             bundle.primary_content
         );
-        assert_eq!(std::fs::read(&sidecar.path).unwrap(), vec![0xAA, 0x55]);
+        assert_eq!(
+            fs::read(&sidecar.path).expect("sidecar binary file should be readable"),
+            vec![0xAA, 0x55]
+        );
 
-        let _ = std::fs::remove_dir_all(&temp_dir);
+        let _ = fs::remove_dir_all(&temp_dir);
 
         // Verify error handling on non-existent parent directory
         let bad_primary = temp_dir.join("nonexistent_subdir").join("should_fail.asm");
@@ -1962,7 +1973,9 @@ mod tests {
             primary_content: "nop\n".to_string(),
             sidecars: Vec::new(),
         };
-        let err = bad_bundle.write_to_disk().unwrap_err();
+        let err = bad_bundle
+            .write_to_disk()
+            .expect_err("writing to nonexistent directory should fail");
         assert!(matches!(err, CoreError::Export(ExportError::Io { .. })));
     }
 

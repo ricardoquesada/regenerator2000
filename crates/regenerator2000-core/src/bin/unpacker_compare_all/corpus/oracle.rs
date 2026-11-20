@@ -85,12 +85,12 @@ impl GroundTruth {
 /// [`Evaluator::new`] loads the original binary of every group once so
 /// evaluation performs no file I/O.
 #[derive(Debug)]
-pub struct Evaluator<'c> {
-    corpus: &'c Corpus,
+pub struct Evaluator<'corpus> {
+    corpus: &'corpus Corpus,
     truths: BTreeMap<String, GroundTruth>,
 }
 
-impl<'c> Evaluator<'c> {
+impl<'corpus> Evaluator<'corpus> {
     /// Loads the ground truth of every group through `fixtures`.
     ///
     /// # Errors
@@ -98,7 +98,7 @@ impl<'c> Evaluator<'c> {
     /// Returns all [`CorpusError`] values from reading or decoding the group
     /// originals, sorted by [`CorpusError::sort_key`].
     pub fn new(
-        corpus: &'c Corpus,
+        corpus: &'corpus Corpus,
         fixtures: &dyn FixtureResolver,
     ) -> Result<Self, Vec<CorpusError>> {
         let mut truths = BTreeMap::new();
@@ -238,8 +238,8 @@ impl CaseVerdict {
 
 /// R2000 image whose payload length matches its address range.
 #[derive(Clone, Copy)]
-struct CheckedImage<'a> {
-    image: &'a UnpackedImage,
+struct CheckedImage<'img> {
+    image: &'img UnpackedImage,
     range: AddrRange,
 }
 

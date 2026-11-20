@@ -12,9 +12,11 @@ use crate::disassembler::symbols::{
 use crate::state::{
     Addr, AppState, BlockType, ImmediateFormat, Label, LabelKind, LabelType, XRef, XRefKind,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::ops::Range;
 
 /// Contains the generated label map and typed cross-reference index from [`analyze`].
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AnalysisResult {
     /// Address-keyed map of preserved user/system labels and generated [`LabelKind::Auto`] labels.
     pub labels: BTreeMap<Addr, Vec<Label>>,
@@ -23,7 +25,10 @@ pub struct AnalysisResult {
 }
 
 /// Stores incoming [`XRef`] edges and the first observed [`LabelType`] for a target address.
-type UsageData = (Vec<XRef>, LabelType);
+struct UsageData {
+    xrefs: Vec<XRef>,
+    label_type: LabelType,
+}
 
 /// Redirects `raw_target` to `sym.base` when an active [`SymbolicOffset`](crate::state::SymbolicOffset) applies.
 ///
@@ -187,7 +192,9 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
     }
 
     // Normalize cross-references and build canonical label lists for referenced addresses.
-    for (addr, (mut refs, first_type)) in usage_map {
+    for (addr, usage) in usage_map {
+        let mut refs = usage.xrefs;
+        let first_type = usage.label_type;
         let mut addr_labels = Vec::new();
 
         if !refs.is_empty() {
@@ -441,10 +448,10 @@ fn analyze_instruction(
                             state,
                         );
                         update_usage(usage_map, dest_target, dest_type, xref);
-                        if let Some((_, first_type)) = usage_map.get_mut(&dest_target)
-                            && *first_type == LabelType::AbsoluteAddress
+                        if let Some(usage) = usage_map.get_mut(&dest_target)
+                            && usage.label_type == LabelType::AbsoluteAddress
                         {
-                            *first_type = LabelType::Jump;
+                            usage.label_type = LabelType::Jump;
                         }
                     }
                 }
@@ -471,9 +478,9 @@ fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageD
     let origin = state.origin;
     let data = &state.raw_data;
 
-    for (addr, (_refs, first_type)) in usage_map.iter_mut() {
+    for (addr, usage) in usage_map.iter_mut() {
         if !matches!(
-            first_type,
+            usage.label_type,
             LabelType::Branch | LabelType::Jump | LabelType::Subroutine
         ) {
             continue;
@@ -494,7 +501,7 @@ fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageD
         }
 
         if matches!(data[offset], 0x60 | 0x40) {
-            *first_type = LabelType::Return;
+            usage.label_type = LabelType::Return;
         }
     }
 }
@@ -502,18 +509,21 @@ fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageD
 /// Appends `xref` to `addr` in `map` and retains the first [`LabelType`] recorded for `addr`.
 fn update_usage(map: &mut BTreeMap<Addr, UsageData>, addr: Addr, priority: LabelType, xref: XRef) {
     map.entry(addr)
-        .and_modify(|(refs, _first)| {
-            refs.push(xref);
+        .and_modify(|usage| {
+            usage.xrefs.push(xref);
         })
-        .or_insert_with(|| (vec![xref], priority));
+        .or_insert_with(|| UsageData {
+            xrefs: vec![xref],
+            label_type: priority,
+        });
 }
 
 /// Traces reachable code segments from `start` using breadth-first search and returns their
 /// byte-offset ranges in `state.raw_data`.
 #[must_use]
-pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<std::ops::Range<usize>> {
-    let mut visited = std::collections::HashSet::new();
-    let mut queue = std::collections::VecDeque::new();
+pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<Range<usize>> {
+    let mut visited = HashSet::new();
+    let mut queue = VecDeque::new();
     let mut ranges = Vec::new();
 
     let origin = state.origin;
@@ -1104,7 +1114,7 @@ mod tests {
         app_state.origin = Addr(0x1000);
         app_state.block_types = vec![BlockType::Code; 3];
         // Fill opcodes
-        app_state.disassembler.opcodes[0x8D] = Some(crate::cpu::Opcode {
+        app_state.disassembler.opcodes[0x8D] = Some(Opcode {
             mnemonic: "STA",
             mode: AddressingMode::Absolute,
             size: 3,
@@ -1135,7 +1145,7 @@ mod tests {
         app_state.origin = Addr(0x1000);
         app_state.block_types = vec![BlockType::Code; 3];
         // Fill opcodes
-        app_state.disassembler.opcodes[0x9D] = Some(crate::cpu::Opcode {
+        app_state.disassembler.opcodes[0x9D] = Some(Opcode {
             mnemonic: "STA",
             mode: AddressingMode::AbsoluteX,
             size: 3,
@@ -1177,7 +1187,7 @@ mod tests {
         app_state.block_types = vec![BlockType::Code; 5];
 
         // JMP Indirect
-        app_state.disassembler.opcodes[0x6C] = Some(crate::cpu::Opcode {
+        app_state.disassembler.opcodes[0x6C] = Some(Opcode {
             mnemonic: "JMP",
             mode: AddressingMode::Indirect,
             size: 3,
@@ -1186,7 +1196,7 @@ mod tests {
             illegal: false,
         });
         // LDA IndirectY
-        app_state.disassembler.opcodes[0xB1] = Some(crate::cpu::Opcode {
+        app_state.disassembler.opcodes[0xB1] = Some(Opcode {
             mnemonic: "LDA",
             mode: AddressingMode::IndirectY,
             size: 2,
@@ -1520,10 +1530,10 @@ mod tests {
         state.raw_data = vec![0xA9, 0x34, 0xA0, 0x12];
         state.block_types = vec![BlockType::Code; 4];
         state.annotations.update(Addr(0x1000), |e| {
-            e.immediate_format = Some(crate::state::ImmediateFormat::LowByte(Addr(0x1234)));
+            e.immediate_format = Some(ImmediateFormat::LowByte(Addr(0x1234)));
         });
         state.annotations.update(Addr(0x1002), |e| {
-            e.immediate_format = Some(crate::state::ImmediateFormat::HighByte(Addr(0x1234)));
+            e.immediate_format = Some(ImmediateFormat::HighByte(Addr(0x1234)));
         });
 
         let result = analyze(&state);
@@ -1626,7 +1636,7 @@ mod tests {
         state.raw_data = vec![0xAD, 0x00, 0x20, 0x8D, 0x00, 0x20];
         state.block_types = vec![BlockType::Code; 6];
         state.annotations.update(Addr(0x1000), |e| {
-            e.immediate_format = Some(crate::state::ImmediateFormat::LowByte(Addr(0x2000)));
+            e.immediate_format = Some(ImmediateFormat::LowByte(Addr(0x2000)));
         });
 
         let result = analyze(&state);
@@ -1923,7 +1933,14 @@ mod tests {
             result.cross_refs.get(&Addr(0x1014)),
             Some(&vec![XRef::new(Addr(0x100F), XRefKind::Jump)])
         );
-        assert_eq!(result.labels.get(&Addr(0x101A)).unwrap()[0].name, "j_101A");
+        assert_eq!(
+            result
+                .labels
+                .get(&Addr(0x101A))
+                .expect("jump label at $101A should exist")[0]
+                .name,
+            "j_101A"
+        );
         assert_eq!(
             result.cross_refs.get(&Addr(0x101A)),
             Some(&vec![
@@ -1945,9 +1962,30 @@ mod tests {
         state_no_offset.block_types = vec![BlockType::Code; 9];
 
         let res_a = analyze(&state_no_offset);
-        assert_eq!(res_a.labels.get(&Addr(0x00A0)).unwrap()[0].name, "a_00A0");
-        assert_eq!(res_a.labels.get(&Addr(0x00A1)).unwrap()[0].name, "f_00A1");
-        assert_eq!(res_a.labels.get(&Addr(0x00FB)).unwrap()[0].name, "p_00FB");
+        assert_eq!(
+            res_a
+                .labels
+                .get(&Addr(0x00A0))
+                .expect("label at $00A0 should exist")[0]
+                .name,
+            "a_00A0"
+        );
+        assert_eq!(
+            res_a
+                .labels
+                .get(&Addr(0x00A1))
+                .expect("label at $00A1 should exist")[0]
+                .name,
+            "f_00A1"
+        );
+        assert_eq!(
+            res_a
+                .labels
+                .get(&Addr(0x00FB))
+                .expect("label at $00FB should exist")[0]
+                .name,
+            "p_00FB"
+        );
 
         // Case B: Active symbolic offsets on 3-byte and immediate sites normalize LabelType to base space.
         let mut state_with_offset = AppState::new();
@@ -2004,11 +2042,46 @@ mod tests {
         });
 
         let res_b = analyze(&state_with_offset);
-        assert_eq!(res_b.labels.get(&Addr(0x00FF)).unwrap()[0].name, "zpf_FF");
-        assert_eq!(res_b.labels.get(&Addr(0x00FE)).unwrap()[0].name, "zpp_FE");
-        assert_eq!(res_b.labels.get(&Addr(0x0100)).unwrap()[0].name, "f_0100");
-        assert_eq!(res_b.labels.get(&Addr(0x0101)).unwrap()[0].name, "a_0101");
-        assert_eq!(res_b.labels.get(&Addr(0x0102)).unwrap()[0].name, "p_0102");
+        assert_eq!(
+            res_b
+                .labels
+                .get(&Addr(0x00FF))
+                .expect("label at $00FF should exist")[0]
+                .name,
+            "zpf_FF"
+        );
+        assert_eq!(
+            res_b
+                .labels
+                .get(&Addr(0x00FE))
+                .expect("label at $00FE should exist")[0]
+                .name,
+            "zpp_FE"
+        );
+        assert_eq!(
+            res_b
+                .labels
+                .get(&Addr(0x0100))
+                .expect("label at $0100 should exist")[0]
+                .name,
+            "f_0100"
+        );
+        assert_eq!(
+            res_b
+                .labels
+                .get(&Addr(0x0101))
+                .expect("label at $0101 should exist")[0]
+                .name,
+            "a_0101"
+        );
+        assert_eq!(
+            res_b
+                .labels
+                .get(&Addr(0x0102))
+                .expect("label at $0102 should exist")[0]
+                .name,
+            "p_0102"
+        );
 
         // Case C: 2-byte zero-page instructions ignore out-of-bounds base > $00FF offsets.
         let mut state_zp_oob = AppState::new();
@@ -2042,9 +2115,30 @@ mod tests {
         });
 
         let res_c = analyze(&state_zp_oob);
-        assert_eq!(res_c.labels.get(&Addr(0x00FF)).unwrap()[0].name, "zpf_FF");
-        assert_eq!(res_c.labels.get(&Addr(0x00FD)).unwrap()[0].name, "zpa_FD");
-        assert_eq!(res_c.labels.get(&Addr(0x00FC)).unwrap()[0].name, "zpp_FC");
+        assert_eq!(
+            res_c
+                .labels
+                .get(&Addr(0x00FF))
+                .expect("label at $00FF should exist")[0]
+                .name,
+            "zpf_FF"
+        );
+        assert_eq!(
+            res_c
+                .labels
+                .get(&Addr(0x00FD))
+                .expect("label at $00FD should exist")[0]
+                .name,
+            "zpa_FD"
+        );
+        assert_eq!(
+            res_c
+                .labels
+                .get(&Addr(0x00FC))
+                .expect("label at $00FC should exist")[0]
+                .name,
+            "zpp_FC"
+        );
         assert!(!res_c.labels.contains_key(&Addr(0x0100)));
         assert!(!res_c.labels.contains_key(&Addr(0x0101)));
         assert!(!res_c.labels.contains_key(&Addr(0x0102)));

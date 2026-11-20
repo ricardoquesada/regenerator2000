@@ -1327,7 +1327,7 @@ mod tests {
 
             // Typing numeric prefix '2' must NOT move Disassembly before 'G' is pressed.
             ui_state.cursor_index = app_state
-                .get_line_index_containing_address(Addr(0x4000))
+                .line_index_containing_address(Addr(0x4000))
                 .unwrap();
             press(&mut view, KeyCode::Char('2'), &mut app_state, &mut ui_state);
             assert_eq!(ui_state.input_buffer, "2");

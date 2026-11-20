@@ -2,15 +2,28 @@
 
 use super::app_state::AppState;
 use super::project::{
-    LoadedProjectData, PROJECT_FORMAT_VERSION, ProjectSaveContext, ProjectState,
+    Label, LoadedProjectData, PROJECT_FORMAT_VERSION, ProjectSaveContext, ProjectState,
     compress_block_types, decode_raw_data_from_base64, encode_raw_data_to_base64, expand_blocks,
 };
 use super::settings::DocumentSettings;
-use super::types::{Addr, BlockType, HexdumpViewMode, LabelKind, LabelType, System};
+use super::types::{
+    Addr, BlockType, GlobalConfigUpdate, HexdumpViewMode, LabelKind, LabelLocality, LabelType,
+    System,
+};
 use crate::Result;
+use crate::analyzer;
+use crate::commands::{Command, UndoStack};
 use crate::error::{CoreError, IoResultExt, ProjectError};
-use std::collections::BTreeMap;
-use std::path::PathBuf;
+use crate::parser::vice_lbl::{self, ViceLabel};
+use crate::parser::{crt, dis65, prg, t64, vice_vsf};
+use crate::unpacker::{ExitReason, UnpackResult};
+use crate::utils;
+use std::collections::btree_map::Entry;
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::{self, Display};
+use std::fs;
+use std::io::{self, ErrorKind};
+use std::path::{Path, PathBuf};
 
 /// Controls whether entry-point flow analysis and the `"start"` user label
 /// run when the application loads or imports a binary.
@@ -27,6 +40,15 @@ pub enum EntryAnalysisMode {
 /// Type alias for [`EntryAnalysisMode`] used by unpack entry-point callers.
 pub type UnpackEntryMode = EntryAnalysisMode;
 
+/// Project data and source path returned when loading an initial file or recent project.
+#[derive(Debug, Clone)]
+pub struct InitialLoad {
+    /// Restored view and load diagnostics produced by [`AppState::load_file`].
+    pub data: LoadedProjectData,
+    /// Resolved filesystem path that was loaded.
+    pub path: PathBuf,
+}
+
 /// Summary and metadata returned by [`AppState::apply_unpack_result`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnpackOutcome {
@@ -41,13 +63,13 @@ pub struct UnpackOutcome {
     /// Detected packer display name, if any.
     pub packer_name: Option<String>,
     /// Reason why emulation stopped.
-    pub exit_reason: crate::unpacker::ExitReason,
+    pub exit_reason: ExitReason,
 }
 
 impl UnpackOutcome {
     /// Builds an [`UnpackOutcome`] from a completed [`crate::unpacker::UnpackResult`].
     #[must_use]
-    pub fn from_result(result: &crate::unpacker::UnpackResult) -> Self {
+    pub fn from_result(result: &UnpackResult) -> Self {
         let packer = result.packer_name.as_deref().unwrap_or("Generic");
         let summary = format!(
             "Unpacked [{packer}]: ${:04X}-${:04X} ({} bytes), entry=${:04X}, dep=${:04X}, exit={}, bounds=(start={}, end={}, entry={}), {} instructions",
@@ -73,8 +95,8 @@ impl UnpackOutcome {
     }
 }
 
-impl std::fmt::Display for UnpackOutcome {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for UnpackOutcome {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.summary)
     }
 }
@@ -101,7 +123,7 @@ impl AppState {
         self.last_save_as_filename = None;
         self.last_export_asm_filename = None;
         self.last_export_html_filename = None;
-        self.undo_stack = crate::commands::UndoStack::new();
+        self.undo_stack = UndoStack::new();
         self.last_saved_pointer = 0;
     }
 
@@ -111,7 +133,7 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if `path` has no supported extension, cannot be read, or fails to parse.
-    pub fn load_file(&mut self, path: impl AsRef<std::path::Path>) -> Result<LoadedProjectData> {
+    pub fn load_file(&mut self, path: impl AsRef<Path>) -> Result<LoadedProjectData> {
         let path = path.as_ref();
         let Some(ext) = path.extension().and_then(|e| e.to_str()) else {
             return Err(CoreError::ParseFailed {
@@ -123,7 +145,7 @@ impl AppState {
         if ext.eq_ignore_ascii_case("regen2000proj") {
             let res = self.load_project(path);
             if res.is_ok() {
-                let abs_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+                let abs_path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
                 self.system_config.last_project_path = Some(abs_path.clone());
                 self.system_config.add_recent_project(abs_path);
                 let _ = self.system_config.save();
@@ -134,7 +156,7 @@ impl AppState {
         if ext.eq_ignore_ascii_case("dis65") {
             let res = self.load_dis65_project(path);
             if res.is_ok() {
-                let abs_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+                let abs_path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
                 self.system_config.last_project_path = Some(abs_path);
                 let _ = self.system_config.save();
             }
@@ -157,7 +179,7 @@ impl AppState {
             });
         }
 
-        let data = std::fs::read(path).with_path(path)?;
+        let data = fs::read(path).with_path(path)?;
         let mut cursor_start = None;
         let hex_cursor_start = None;
         let mut suggested_system = None;
@@ -169,18 +191,16 @@ impl AppState {
             let prg_ref = if ext.eq_ignore_ascii_case("prg") {
                 &data
             } else {
-                prg_bytes_holder =
-                    crate::parser::t64::parse_t64(&data).map_err(|e| CoreError::ParseFailed {
-                        format: "t64".to_string(),
-                        message: format!("{e:#}"),
-                    })?;
-                &prg_bytes_holder
-            };
-            let prg_data =
-                crate::parser::prg::parse_prg(prg_ref).map_err(|e| CoreError::ParseFailed {
-                    format: "prg".to_string(),
+                prg_bytes_holder = t64::parse_t64(&data).map_err(|e| CoreError::ParseFailed {
+                    format: "t64".to_string(),
                     message: format!("{e:#}"),
                 })?;
+                &prg_bytes_holder
+            };
+            let prg_data = prg::parse_prg(prg_ref).map_err(|e| CoreError::ParseFailed {
+                format: "prg".to_string(),
+                message: format!("{e:#}"),
+            })?;
             let default_system = if ext.eq_ignore_ascii_case("t64") {
                 Some(System::new(System::C64))
             } else {
@@ -190,18 +210,16 @@ impl AppState {
             cursor_start = prg_data.suggested_entry_point;
             (Addr(prg_data.origin), prg_data.raw_data)
         } else if ext.eq_ignore_ascii_case("crt") {
-            let (origin, raw_data) =
-                crate::parser::crt::parse_crt(&data).map_err(|e| CoreError::ParseFailed {
-                    format: "crt".to_string(),
-                    message: format!("{e:#}"),
-                })?;
-            (Addr(origin), raw_data)
+            let crt = crt::parse_crt(&data).map_err(|e| CoreError::ParseFailed {
+                format: "crt".to_string(),
+                message: format!("{e:#}"),
+            })?;
+            (Addr(crt.origin), crt.memory)
         } else if ext.eq_ignore_ascii_case("vsf") {
-            let vsf_data =
-                crate::parser::vice_vsf::parse_vsf(&data).map_err(|e| CoreError::ParseFailed {
-                    format: "vsf".to_string(),
-                    message: format!("{e:#}"),
-                })?;
+            let vsf_data = vice_vsf::parse_vsf(&data).map_err(|e| CoreError::ParseFailed {
+                format: "vsf".to_string(),
+                message: format!("{e:#}"),
+            })?;
             cursor_start = vsf_data.start_address;
             suggested_system = match vsf_data.machine_name.as_str() {
                 "C64" => Some(System::C64),
@@ -220,7 +238,7 @@ impl AppState {
         self.origin = parsed_origin;
         self.raw_data = parsed_raw_data;
         self.entry_point = cursor_start.map(Addr);
-        self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
+        self.entropy = Some(utils::calculate_entropy(&self.raw_data));
         let initial_block_type = if self.system_config.default_is_unexplored {
             BlockType::Undefined
         } else {
@@ -262,7 +280,7 @@ impl AppState {
         self.reset_document_state(None, None);
         self.origin = origin;
         self.raw_data = data;
-        self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
+        self.entropy = Some(utils::calculate_entropy(&self.raw_data));
         let initial_block_type = if self.system_config.default_is_unexplored {
             BlockType::Undefined
         } else {
@@ -307,14 +325,14 @@ impl AppState {
         self.origin = origin;
         self.raw_data = data;
         self.entry_point = entry_point;
-        self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
+        self.entropy = Some(utils::calculate_entropy(&self.raw_data));
         let initial_block_type = if self.system_config.default_is_unexplored {
             BlockType::Undefined
         } else {
             BlockType::Code
         };
         self.block_types = vec![initial_block_type; self.raw_data.len()];
-        self.undo_stack = crate::commands::UndoStack::new();
+        self.undo_stack = UndoStack::new();
         self.last_saved_pointer = 0;
         self.labels.clear();
         self.annotations.clear();
@@ -370,7 +388,7 @@ impl AppState {
     /// runs flow analysis from [`crate::unpacker::UnpackResult::entry_point`] to mark
     /// reachable ranges as [`BlockType::Code`], adds a `"start"` user label at the entry point,
     /// and runs one analysis or disassembly pass.
-    pub fn apply_unpack_result(&mut self, result: &crate::unpacker::UnpackResult) -> UnpackOutcome {
+    pub fn apply_unpack_result(&mut self, result: &UnpackResult) -> UnpackOutcome {
         self.apply_unpack_result_with_mode(result, EntryAnalysisMode::AnalyzeAndLabel)
     }
 
@@ -380,7 +398,7 @@ impl AppState {
     /// stack when `mode` is [`EntryAnalysisMode::AnalyzeAndLabel`].
     pub fn apply_unpack_result_with_mode(
         &mut self,
-        result: &crate::unpacker::UnpackResult,
+        result: &UnpackResult,
         mode: EntryAnalysisMode,
     ) -> UnpackOutcome {
         let origin = Addr(result.start_addr);
@@ -389,9 +407,9 @@ impl AppState {
         self.mark_entry_code_and_label(entry, mode);
 
         if self.settings.auto_analyze {
-            let (command, _msg) = self.perform_analysis();
+            let outcome = self.perform_analysis();
             if mode == EntryAnalysisMode::AnalyzeAndLabel {
-                self.push_command(command);
+                self.push_command(outcome.command);
             }
         } else {
             self.disassemble();
@@ -423,7 +441,7 @@ impl AppState {
         if !self.has_user_start_label_at(entry) {
             return false;
         }
-        let ranges = crate::analyzer::flow_analyze(self, entry);
+        let ranges = analyzer::flow_analyze(self, entry);
         for range in ranges {
             let end = range.end.min(self.block_types.len());
             if range.start < end
@@ -456,14 +474,14 @@ impl AppState {
 
         if let Some(cmd) = self
             .undo_stack
-            .pop_if_matches(|cmd| matches!(cmd, crate::commands::Command::SetAnalysisData { .. }))
+            .pop_if_matches(|cmd| matches!(cmd, Command::SetAnalysisData { .. }))
         {
             cmd.undo(self);
         }
         if let Some(cmd) = self.undo_stack.pop_if_matches(|cmd| {
             matches!(
                 cmd,
-                crate::commands::Command::SetLabel {
+                Command::SetLabel {
                     new_label: Some(labels),
                     ..
                 } if labels.iter().any(|l| l.name == "start" && l.kind == LabelKind::User)
@@ -474,7 +492,7 @@ impl AppState {
         while let Some(cmd) = self.undo_stack.pop_if_matches(|cmd| {
             matches!(
                 cmd,
-                crate::commands::Command::SetBlockType {
+                Command::SetBlockType {
                     new_type: BlockType::Code,
                     ..
                 }
@@ -489,7 +507,7 @@ impl AppState {
             BlockType::Code
         };
         for old_entry in old_entries {
-            let ranges = crate::analyzer::flow_analyze(self, old_entry);
+            let ranges = analyzer::flow_analyze(self, old_entry);
             for range in ranges {
                 let end = range.end.min(self.block_types.len());
                 if range.start < end {
@@ -530,7 +548,7 @@ impl AppState {
             return;
         }
 
-        let ranges = crate::analyzer::flow_analyze(self, entry);
+        let ranges = analyzer::flow_analyze(self, entry);
         for range in ranges {
             let end = range.end.min(self.block_types.len());
             if let Some(slice) = self.block_types.get_mut(range.start..end) {
@@ -539,7 +557,8 @@ impl AppState {
         }
 
         if !self.has_user_start_label_at(entry)
-            && let Ok(cmd) = self.create_set_user_label_command(entry, "start", false)
+            && let Ok(cmd) =
+                self.create_set_user_label_command(entry, "start", LabelLocality::Global)
         {
             cmd.apply(self);
             self.push_command(cmd);
@@ -591,9 +610,9 @@ impl AppState {
         }
 
         if self.settings.auto_analyze {
-            let (command, _msg) = self.perform_analysis();
+            let outcome = self.perform_analysis();
             if mode == EntryAnalysisMode::AnalyzeAndLabel {
-                self.push_command(command);
+                self.push_command(outcome.command);
             }
         } else {
             self.disassemble();
@@ -601,7 +620,7 @@ impl AppState {
     }
 
     pub(super) fn check_entropy(&self) -> Option<f32> {
-        let entropy = crate::utils::calculate_entropy(&self.raw_data);
+        let entropy = utils::calculate_entropy(&self.raw_data);
         if entropy > self.system_config.entropy_threshold {
             Some(entropy)
         } else {
@@ -616,15 +635,21 @@ impl AppState {
     pub fn resolve_initial_load(
         &mut self,
         file_to_load: Option<&str>,
-    ) -> Option<Result<(LoadedProjectData, PathBuf)>> {
+    ) -> Option<Result<InitialLoad>> {
         if let Some(path_str) = file_to_load {
             let path = PathBuf::from(path_str);
-            Some(self.load_file(path.clone()).map(|d| (d, path)))
+            Some(
+                self.load_file(path.clone())
+                    .map(|data| InitialLoad { data, path }),
+            )
         } else if self.system_config.open_last_project
             && let Some(last_path) = self.system_config.last_project_path.clone()
             && last_path.exists()
         {
-            Some(self.load_file(last_path.clone()).map(|d| (d, last_path)))
+            Some(self.load_file(last_path.clone()).map(|data| InitialLoad {
+                data,
+                path: last_path,
+            }))
         } else {
             None
         }
@@ -634,9 +659,9 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be read, parsed, or uses an unsupported format version.
-    pub fn load_project(&mut self, path: impl AsRef<std::path::Path>) -> Result<LoadedProjectData> {
+    pub fn load_project(&mut self, path: impl AsRef<Path>) -> Result<LoadedProjectData> {
         let path = path.as_ref();
-        let data = std::fs::read_to_string(path).with_path(path)?;
+        let data = fs::read_to_string(path).with_path(path)?;
         let project: ProjectState =
             serde_json::from_str(&data).map_err(|source| ProjectError::InvalidJson {
                 path: path.to_path_buf(),
@@ -663,12 +688,12 @@ impl AppState {
         self.schema_version = project.version;
         self.origin = project.origin;
         self.raw_data = decoded_raw_data;
-        self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
+        self.entropy = Some(utils::calculate_entropy(&self.raw_data));
 
         // Expand address types and collapsed blocks
-        let (block_types, collapsed_ranges) = expand_blocks(&project.blocks, self.raw_data.len());
+        let expanded = expand_blocks(&project.blocks, self.raw_data.len());
 
-        self.block_types = block_types;
+        self.block_types = expanded.block_types;
         self.labels = project.labels;
         self.annotations = project.annotations;
         self.enums = project.enums;
@@ -680,12 +705,12 @@ impl AppState {
 
         // Perform analysis to regenerate autogenerated labels
         if self.settings.auto_analyze {
-            let result = crate::analyzer::analyze(self);
+            let result = analyzer::analyze(self);
             self.labels = result.labels;
             self.cross_refs = result.cross_refs;
         }
 
-        self.collapsed_blocks = collapsed_ranges;
+        self.collapsed_blocks = expanded.collapsed_ranges;
 
         self.disassemble();
         Ok(LoadedProjectData {
@@ -712,33 +737,26 @@ impl AppState {
     /// # Errors
     /// Returns an error if the `.dis65` file or companion binary cannot be read, fails to parse,
     /// or fails CRC32 verification.
-    pub fn load_dis65_project(
-        &mut self,
-        path: impl AsRef<std::path::Path>,
-    ) -> Result<LoadedProjectData> {
+    pub fn load_dis65_project(&mut self, path: impl AsRef<Path>) -> Result<LoadedProjectData> {
         let path = path.as_ref();
-        let content = std::fs::read_to_string(path).with_path(path)?;
-        let project =
-            crate::parser::dis65::parse_dis65(&content).map_err(|e| CoreError::ParseFailed {
-                format: "dis65".to_string(),
-                message: format!("{e:#}"),
-            })?;
+        let content = fs::read_to_string(path).with_path(path)?;
+        let project = dis65::parse_dis65(&content).map_err(|e| CoreError::ParseFailed {
+            format: "dis65".to_string(),
+            message: format!("{e:#}"),
+        })?;
 
         let mut binary_path = path.to_path_buf();
         binary_path.set_extension(""); // Strip .dis65
         if !binary_path.exists() {
             return Err(ProjectError::Io {
                 path: binary_path,
-                source: std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "Binary file not found next to .dis65",
-                ),
+                source: io::Error::new(ErrorKind::NotFound, "Binary file not found next to .dis65"),
             }
             .into());
         }
 
-        let binary_data = std::fs::read(&binary_path).with_path(&binary_path)?;
-        let calculated_crc = crate::utils::calculate_crc32(&binary_data);
+        let binary_data = fs::read(&binary_path).with_path(&binary_path)?;
+        let calculated_crc = utils::calculate_crc32(&binary_data);
         if calculated_crc != project.file_data_crc32 {
             return Err(ProjectError::ChecksumMismatch {
                 expected: format!("{}", project.file_data_crc32),
@@ -749,7 +767,7 @@ impl AppState {
 
         self.reset_document_state(Some(path.to_path_buf()), None);
         self.raw_data = binary_data;
-        self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
+        self.entropy = Some(utils::calculate_entropy(&self.raw_data));
 
         if let Some(first_map) = project.address_map.first() {
             self.origin = Addr(first_map.addr);
@@ -757,12 +775,11 @@ impl AppState {
             self.origin = Addr::ZERO;
         }
 
-        let (block_types, seeds) =
-            project.to_block_types_and_seeds(self.raw_data.len(), self.origin);
-        self.block_types = block_types;
+        let layout = project.to_block_types_and_seeds(self.raw_data.len(), self.origin);
+        self.block_types = layout.block_types;
 
-        for seed_addr in seeds {
-            let ranges = crate::analyzer::flow_analyze(self, seed_addr);
+        for seed_addr in layout.seeds {
+            let ranges = analyzer::flow_analyze(self, seed_addr);
             for range in ranges {
                 for i in range.start..range.end {
                     if i < self.block_types.len() {
@@ -772,8 +789,8 @@ impl AppState {
             }
         }
 
-        let mut candidates = std::collections::BTreeSet::new();
-        let mut trusted_locals = std::collections::BTreeSet::new();
+        let mut candidates = BTreeSet::new();
+        let mut trusted_locals = BTreeSet::new();
 
         for (offset_str, label_entry) in project.user_labels {
             if let Ok(offset) = offset_str.parse::<usize>()
@@ -786,22 +803,19 @@ impl AppState {
                     trusted_locals.insert(addr);
                 }
 
-                self.labels
-                    .entry(addr)
-                    .or_default()
-                    .push(super::project::Label {
-                        name: label_entry.label,
-                        kind: LabelKind::User,
-                        label_type: if label_entry.label_type == "Subroutine" {
-                            LabelType::Subroutine
-                        } else if label_entry.label_type == "NonUniqueLocalAddr"
-                            || label_entry.label_type == "LocalOrGlobalAddr"
-                        {
-                            LabelType::LocalUserDefined
-                        } else {
-                            LabelType::UserDefined
-                        },
-                    });
+                self.labels.entry(addr).or_default().push(Label {
+                    name: label_entry.label,
+                    kind: LabelKind::User,
+                    label_type: if label_entry.label_type == "Subroutine" {
+                        LabelType::Subroutine
+                    } else if label_entry.label_type == "NonUniqueLocalAddr"
+                        || label_entry.label_type == "LocalOrGlobalAddr"
+                    {
+                        LabelType::LocalUserDefined
+                    } else {
+                        LabelType::UserDefined
+                    },
+                });
             }
         }
 
@@ -898,7 +912,7 @@ impl AppState {
     pub fn save_project(
         &mut self,
         ctx: ProjectSaveContext,
-        update_global_config: bool,
+        config_update: GlobalConfigUpdate,
     ) -> Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
@@ -949,11 +963,11 @@ impl AppState {
                     source,
                 }
             })?;
-            std::fs::write(path, data).with_path(path)?;
-            self.last_saved_pointer = self.undo_stack.get_pointer();
+            fs::write(path, data).with_path(path)?;
+            self.last_saved_pointer = self.undo_stack.pointer();
 
-            if update_global_config {
-                let abs_path = std::fs::canonicalize(path).unwrap_or(path.clone());
+            if config_update == GlobalConfigUpdate::Update {
+                let abs_path = fs::canonicalize(path).unwrap_or(path.clone());
                 self.system_config.last_project_path = Some(abs_path.clone());
                 self.system_config.add_recent_project(abs_path);
                 let _ = self.system_config.save();
@@ -969,34 +983,32 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be read or parsed.
-    pub fn import_vice_labels(&mut self, path: impl AsRef<std::path::Path>) -> Result<String> {
+    pub fn import_vice_labels(&mut self, path: impl AsRef<Path>) -> Result<String> {
         let path = path.as_ref();
-        let content = std::fs::read_to_string(path).with_path(path)?;
-        let parsed = crate::parser::vice_lbl::parse_vice_labels(&content).map_err(|e| {
-            CoreError::ParseFailed {
-                format: "vice_lbl".to_string(),
-                message: format!("{e:#}"),
-            }
+        let content = fs::read_to_string(path).with_path(path)?;
+        let parsed = vice_lbl::parse_vice_labels(&content).map_err(|e| CoreError::ParseFailed {
+            format: "vice_lbl".to_string(),
+            message: format!("{e:#}"),
         })?;
 
         let mut new_labels_vec = Vec::new();
         let mut old_labels_map = BTreeMap::new();
 
-        for (raw_addr, name) in parsed {
-            let addr = Addr(raw_addr);
-            let label = super::project::Label {
-                name,
+        for entry in parsed {
+            let addr = Addr(entry.address);
+            let label = Label {
+                name: entry.name,
                 kind: LabelKind::User,
                 label_type: LabelType::UserDefined,
             };
             new_labels_vec.push((addr, label));
 
-            if let std::collections::btree_map::Entry::Vacant(e) = old_labels_map.entry(addr) {
+            if let Entry::Vacant(e) = old_labels_map.entry(addr) {
                 e.insert(self.labels.get(&addr).cloned().unwrap_or_default());
             }
         }
 
-        let command = crate::commands::Command::ImportLabels {
+        let command = Command::ImportLabels {
             new_labels: new_labels_vec.clone(),
             old_labels: old_labels_map,
         };
@@ -1015,28 +1027,39 @@ impl AppState {
     ///
     /// # Errors
     /// Returns an error if the file cannot be written.
-    pub fn export_vice_labels(&self, path: impl AsRef<std::path::Path>) -> Result<String> {
+    pub fn export_vice_labels(&self, path: impl AsRef<Path>) -> Result<String> {
         let path = path.as_ref();
         let mut export_list = Vec::new();
         // Sort by address is automatic due to BTreeMap
         for (addr, labels) in &self.labels {
             for label in labels {
                 if label.kind == LabelKind::User {
-                    export_list.push((addr.0, label.name.clone()));
+                    export_list.push(ViceLabel {
+                        address: addr.0,
+                        name: label.name.clone(),
+                    });
                 }
             }
         }
-        let content = crate::parser::vice_lbl::generate_vice_labels(&export_list);
-        std::fs::write(path, content).with_path(path)?;
+        let content = vice_lbl::generate_vice_labels(&export_list);
+        fs::write(path, content).with_path(path)?;
         Ok(format!("Labels exported to {path:?}"))
     }
 }
 
 #[cfg(test)]
 mod load_file_tests {
+    use super::super::annotations::AnnotationManager;
     use super::super::app_state::AppState;
-    use super::super::types::*;
+    use super::super::project::{ProjectState, encode_raw_data_to_base64};
+    use super::super::settings::DocumentSettings;
+    use super::super::types::{Addr, HexdumpViewMode, System, XRef, XRefKind};
+    use std::collections::{BTreeMap, BTreeSet};
+    use std::env;
+    use std::fs;
     use std::io::Write;
+    use std::path::PathBuf;
+    use std::process;
 
     #[test]
     fn test_load_file_clears_state() {
@@ -1049,18 +1072,19 @@ mod load_file_tests {
         });
         app_state.splitters.insert(Addr(0x2000));
         app_state.collapsed_blocks.push((0, 10));
-        app_state.last_import_labels_path = Some(std::path::PathBuf::from("/tmp/test.lbl"));
+        app_state.last_import_labels_path = Some(PathBuf::from("/tmp/test.lbl"));
         app_state.last_export_labels_filename = Some("test".to_string());
         app_state.last_save_as_filename = Some("test".to_string());
         app_state.last_export_asm_filename = Some("test".to_string());
 
         // Create a temp file with .prg extension
-        let dir = std::env::temp_dir();
+        let dir = env::temp_dir();
         let file_path = dir.join("test_clear_state.prg");
         {
-            let mut f = std::fs::File::create(&file_path).unwrap();
+            let mut f = fs::File::create(&file_path).expect("temp test file should be created");
             // Write load address $0801 + some data
-            f.write_all(&[0x01, 0x08, 0xA9, 0x00]).unwrap();
+            f.write_all(&[0x01, 0x08, 0xA9, 0x00])
+                .expect("temp test PRG should be written");
         }
 
         let result = app_state.load_file(file_path.clone());
@@ -1076,16 +1100,16 @@ mod load_file_tests {
         assert!(app_state.last_export_asm_filename.is_none());
 
         // Cleanup
-        let _ = std::fs::remove_file(file_path);
+        let _ = fs::remove_file(file_path);
     }
 
     #[test]
     fn test_load_file_suggests_platform() {
         let mut app_state = AppState::new();
-        let dir = std::env::temp_dir();
+        let dir = env::temp_dir();
         let file_path = dir.join("test_platform.prg");
         {
-            let mut f = std::fs::File::create(&file_path).unwrap();
+            let mut f = fs::File::create(&file_path).expect("temp test file should be created");
             // Write load address $0801 + BASIC line: 10 SYS 2061
             f.write_all(&[
                 0x01, 0x08, // Load address $0801
@@ -1095,25 +1119,25 @@ mod load_file_tests {
                 0x32, 0x30, 0x36, 0x31, // "2061"
                 0x00, // Terminator
             ])
-            .unwrap();
+            .expect("temp test BASIC PRG should be written");
         }
 
-        let result = app_state.load_file(file_path.clone());
-        assert!(result.is_ok());
-        let data = result.unwrap();
+        let data = app_state
+            .load_file(file_path.clone())
+            .expect("valid PRG file should load");
         assert_eq!(data.suggested_system, Some(System::new(System::C64)));
         assert_eq!(data.suggested_entry_point, Some(Addr(2061)));
 
-        let _ = std::fs::remove_file(file_path);
+        let _ = fs::remove_file(file_path);
     }
 
     #[test]
     fn test_load_file_vsf_suggests_platform() {
         let mut app_state = AppState::new();
-        let dir = std::env::temp_dir();
+        let dir = env::temp_dir();
         let file_path = dir.join("test_platform.vsf");
         {
-            let mut f = std::fs::File::create(&file_path).unwrap();
+            let mut f = fs::File::create(&file_path).expect("temp test file should be created");
 
             let mut data = Vec::new();
             // Magic
@@ -1141,47 +1165,50 @@ mod load_file_tests {
             let ram = vec![0xEA; 65536];
             data.extend_from_slice(&ram);
 
-            f.write_all(&data).unwrap();
+            f.write_all(&data)
+                .expect("temp test VSF snapshot should be written");
         }
 
-        let result = app_state.load_file(file_path.clone());
-        assert!(result.is_ok());
-        let data = result.unwrap();
+        let data = app_state
+            .load_file(file_path.clone())
+            .expect("valid PRG file should load");
         assert_eq!(data.suggested_system, Some(System::new(System::C64)));
 
-        let _ = std::fs::remove_file(file_path);
+        let _ = fs::remove_file(file_path);
     }
 
     #[test]
     fn test_load_file_unsupported_extension() {
         let mut app_state = AppState::new();
 
-        let dir = std::env::temp_dir();
+        let dir = env::temp_dir();
         let file_path = dir.join("test_file.xyz");
-        std::fs::write(&file_path, b"dummy").unwrap();
+        fs::write(&file_path, b"dummy").expect("temp dummy file should be written");
 
-        let result = app_state.load_file(file_path.clone());
-        assert!(result.is_err());
-        let err_msg = result.unwrap_err().to_string();
+        let err_msg = app_state
+            .load_file(file_path.clone())
+            .expect_err("unsupported file extension should fail")
+            .to_string();
         assert!(err_msg.contains("Unsupported file extension"));
 
-        let _ = std::fs::remove_file(file_path);
+        let _ = fs::remove_file(file_path);
     }
 
     #[test]
     fn test_load_file_no_extension() {
         let mut app_state = AppState::new();
 
-        let dir = std::env::temp_dir();
-        let file_path = dir.join(format!("test_file_no_ext_{}", std::process::id()));
-        std::fs::write(&file_path, b"dummy").unwrap();
+        let dir = env::temp_dir();
+        let file_path = dir.join(format!("test_file_no_ext_{}", process::id()));
+        fs::write(&file_path, b"dummy").expect("temp dummy file should be written");
 
-        let result = app_state.load_file(file_path.clone());
-        assert!(result.is_err());
-        let err_msg = result.unwrap_err().to_string();
+        let err_msg = app_state
+            .load_file(file_path.clone())
+            .expect_err("file without extension should fail")
+            .to_string();
         assert!(err_msg.contains("has no extension"));
 
-        let _ = std::fs::remove_file(file_path);
+        let _ = fs::remove_file(file_path);
     }
 
     #[test]
@@ -1194,12 +1221,12 @@ mod load_file_tests {
             e.user_side_comment = Some("keep_me".to_string());
         });
 
-        let dir = std::env::temp_dir();
+        let dir = env::temp_dir();
         let bad_ext_path = dir.join("test_preserve_state.xyz");
         let corrupt_prg_path = dir.join("test_preserve_corrupt.prg");
-        std::fs::write(&bad_ext_path, b"dummy").unwrap();
+        fs::write(&bad_ext_path, b"dummy").expect("temp dummy file should be written");
         // 1-byte .prg is invalid (requires at least 2-byte load address)
-        std::fs::write(&corrupt_prg_path, [0x01]).unwrap();
+        fs::write(&corrupt_prg_path, [0x01]).expect("corrupt test PRG should be written");
 
         assert!(app_state.load_file(&bad_ext_path).is_err());
         assert!(app_state.load_file(&corrupt_prg_path).is_err());
@@ -1215,8 +1242,8 @@ mod load_file_tests {
             Some("keep_me")
         );
 
-        let _ = std::fs::remove_file(bad_ext_path);
-        let _ = std::fs::remove_file(corrupt_prg_path);
+        let _ = fs::remove_file(bad_ext_path);
+        let _ = fs::remove_file(corrupt_prg_path);
     }
 
     #[test]
@@ -1230,7 +1257,9 @@ mod load_file_tests {
 
         // load_binary with auto_analyze = false must clear entry_point and cross_refs
         app_state.settings.auto_analyze = false;
-        let _ = app_state.load_binary(Addr(0x2000), vec![0xEA]).unwrap();
+        let _ = app_state
+            .load_binary(Addr(0x2000), vec![0xEA])
+            .expect("test binary should load");
         assert_eq!(app_state.entry_point, None);
         assert!(app_state.cross_refs.is_empty());
 
@@ -1240,17 +1269,17 @@ mod load_file_tests {
             .cross_refs
             .insert(Addr(0x3000), vec![XRef::new(Addr(0x2000), XRefKind::Jump)]);
 
-        let settings = crate::state::DocumentSettings {
+        let settings = DocumentSettings {
             auto_analyze: false,
             ..Default::default()
         };
-        let project = crate::state::ProjectState {
+        let project = ProjectState {
             version: 1,
             origin: Addr(0x4000),
-            raw_data: crate::state::encode_raw_data_to_base64(&[0x60]).unwrap(),
+            raw_data: encode_raw_data_to_base64(&[0x60]).expect("base64 encoding should succeed"),
             blocks: vec![],
-            labels: std::collections::BTreeMap::new(),
-            annotations: crate::state::AnnotationManager::default(),
+            labels: BTreeMap::new(),
+            annotations: AnnotationManager::default(),
             settings,
             cursor_address: None,
             hex_dump_cursor_address: None,
@@ -1262,28 +1291,38 @@ mod load_file_tests {
             charset_multicolor_mode: false,
             bitmap_multicolor_mode: false,
             hexdump_view_mode: HexdumpViewMode::default(),
-            splitters: std::collections::BTreeSet::new(),
+            splitters: BTreeSet::new(),
             blocks_view_cursor: None,
-            enums: std::collections::BTreeMap::new(),
-            user_excluded_addresses: std::collections::BTreeSet::new(),
+            enums: BTreeMap::new(),
+            user_excluded_addresses: BTreeSet::new(),
         };
-        let dir = std::env::temp_dir();
+        let dir = env::temp_dir();
         let proj_path = dir.join("test_clear_entry_and_xrefs.regen2000proj");
-        std::fs::write(&proj_path, serde_json::to_string(&project).unwrap()).unwrap();
+        fs::write(
+            &proj_path,
+            serde_json::to_string(&project).expect("project fixture should serialize"),
+        )
+        .expect("temp project file should be written");
 
-        let _ = app_state.load_project(&proj_path).unwrap();
+        let _ = app_state
+            .load_project(&proj_path)
+            .expect("test project should load");
         assert_eq!(app_state.entry_point, None);
         assert!(app_state.cross_refs.is_empty());
 
-        let _ = std::fs::remove_file(proj_path);
+        let _ = fs::remove_file(proj_path);
     }
 }
 
 #[cfg(test)]
 mod save_project_tests {
     use super::super::app_state::AppState;
-    use super::super::project::Label;
-    use super::super::types::{Addr, HexdumpViewMode, LabelKind, LabelType};
+    use super::super::project::{Label, ProjectSaveContext, ProjectState};
+    use super::super::types::{Addr, GlobalConfigUpdate, HexdumpViewMode, LabelKind, LabelType};
+    use crate::error::{CoreError, ProjectError};
+    use std::collections::BTreeSet;
+    use std::env;
+    use std::fs;
     use std::io::Write;
 
     #[test]
@@ -1291,11 +1330,12 @@ mod save_project_tests {
         let mut app_state = AppState::new();
 
         // Create a temp .prg file
-        let dir = std::env::temp_dir();
+        let dir = env::temp_dir();
         let file_path = dir.join("test_save_filter.prg");
         {
-            let mut f = std::fs::File::create(&file_path).unwrap();
-            f.write_all(&[0x01, 0x08, 0xA9, 0x00, 0x60]).unwrap();
+            let mut f = fs::File::create(&file_path).expect("temp test file should be created");
+            f.write_all(&[0x01, 0x08, 0xA9, 0x00, 0x60])
+                .expect("temp test PRG should be written");
         }
 
         let _ = app_state.load_file(file_path.clone());
@@ -1336,7 +1376,7 @@ mod save_project_tests {
         // Save project
         let project_path = dir.join("test_save_filter.regen2000proj");
         app_state.project_path = Some(project_path.clone());
-        let ctx = crate::state::project::ProjectSaveContext {
+        let ctx = ProjectSaveContext {
             cursor_address: None,
             hex_dump_cursor_address: None,
             sprites_cursor_address: None,
@@ -1347,15 +1387,17 @@ mod save_project_tests {
             charset_multicolor_mode: false,
             bitmap_multicolor_mode: false,
             hexdump_view_mode: HexdumpViewMode::default(),
-            splitters: std::collections::BTreeSet::new(),
+            splitters: BTreeSet::new(),
             blocks_view_cursor: None,
         };
-        let result = app_state.save_project(ctx, false);
+        let result = app_state.save_project(ctx, GlobalConfigUpdate::Skip);
         assert!(result.is_ok());
 
         // Load saved JSON and verify
-        let saved_data = std::fs::read_to_string(&project_path).unwrap();
-        let saved: crate::state::project::ProjectState = serde_json::from_str(&saved_data).unwrap();
+        let saved_data =
+            fs::read_to_string(&project_path).expect("saved project file should be readable");
+        let saved: ProjectState =
+            serde_json::from_str(&saved_data).expect("saved project should parse");
 
         // Should only have user label at 0x0801
         assert!(saved.labels.contains_key(&Addr(0x0801)));
@@ -1367,8 +1409,8 @@ mod save_project_tests {
         assert_eq!(labels_0801[0].name, "my_label");
 
         // Cleanup
-        let _ = std::fs::remove_file(file_path);
-        let _ = std::fs::remove_file(project_path);
+        let _ = fs::remove_file(file_path);
+        let _ = fs::remove_file(project_path);
     }
 
     #[test]
@@ -1376,7 +1418,7 @@ mod save_project_tests {
         let mut app_state = AppState::new();
         app_state.project_path = None;
 
-        let ctx = crate::state::project::ProjectSaveContext {
+        let ctx = ProjectSaveContext {
             cursor_address: None,
             hex_dump_cursor_address: None,
             sprites_cursor_address: None,
@@ -1387,14 +1429,15 @@ mod save_project_tests {
             charset_multicolor_mode: false,
             bitmap_multicolor_mode: false,
             hexdump_view_mode: HexdumpViewMode::default(),
-            splitters: std::collections::BTreeSet::new(),
+            splitters: BTreeSet::new(),
             blocks_view_cursor: None,
         };
 
-        let result = app_state.save_project(ctx, false);
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            crate::error::CoreError::Project(crate::error::ProjectError::NoProjectPath) => {}
+        match app_state
+            .save_project(ctx, GlobalConfigUpdate::Skip)
+            .expect_err("saving without project_path should fail")
+        {
+            CoreError::Project(ProjectError::NoProjectPath) => {}
             other => panic!("Expected ProjectError::NoProjectPath, got {other:?}"),
         }
     }
@@ -1403,25 +1446,32 @@ mod save_project_tests {
 #[cfg(test)]
 mod config_tests {
     use super::super::app_state::AppState;
+    use super::super::project::ProjectSaveContext;
+    use super::super::types::{GlobalConfigUpdate, HexdumpViewMode};
+    use std::collections::BTreeSet;
+    use std::env;
+    use std::fs;
     use std::io::Write;
+    use std::path::PathBuf;
 
     #[test]
     fn test_last_project_path_is_full_path() {
         let mut app_state = AppState::new();
 
         // Create a temporary .prg file
-        let dir = std::env::temp_dir();
+        let dir = env::temp_dir();
         let file_path = dir.join("test_config_path.prg");
         {
-            let mut f = std::fs::File::create(&file_path).unwrap();
-            f.write_all(&[0x01, 0x08, 0xA9, 0x00, 0x60]).unwrap();
+            let mut f = fs::File::create(&file_path).expect("temp test file should be created");
+            f.write_all(&[0x01, 0x08, 0xA9, 0x00, 0x60])
+                .expect("temp test PRG should be written");
         }
 
         // Save as a project
         let _ = app_state.load_file(file_path.clone());
         let project_path = dir.join("test_config_path.regen2000proj");
         app_state.project_path = Some(project_path.clone());
-        let ctx = crate::state::project::ProjectSaveContext {
+        let ctx = ProjectSaveContext {
             cursor_address: None,
             hex_dump_cursor_address: None,
             sprites_cursor_address: None,
@@ -1431,11 +1481,11 @@ mod config_tests {
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
             bitmap_multicolor_mode: false,
-            hexdump_view_mode: crate::state::types::HexdumpViewMode::default(),
-            splitters: std::collections::BTreeSet::new(),
+            hexdump_view_mode: HexdumpViewMode::default(),
+            splitters: BTreeSet::new(),
             blocks_view_cursor: None,
         };
-        let _result = app_state.save_project(ctx, true);
+        let _result = app_state.save_project(ctx, GlobalConfigUpdate::Update);
 
         // Verify that last_project_path is an absolute canonical path
         if let Some(lpp) = &app_state.system_config.last_project_path {
@@ -1443,8 +1493,8 @@ mod config_tests {
         }
 
         // Cleanup
-        let _ = std::fs::remove_file(file_path);
-        let _ = std::fs::remove_file(project_path);
+        let _ = fs::remove_file(file_path);
+        let _ = fs::remove_file(project_path);
     }
 
     #[test]
@@ -1455,8 +1505,8 @@ mod config_tests {
         app_state.settings.system = System::from("Commodore 128".to_string());
         app_state.settings.assembler = Assembler::Acme;
         app_state.settings.use_illegal_opcodes = true;
-        app_state.file_path = Some(std::path::PathBuf::from("/path/to/packed.prg"));
-        app_state.project_path = Some(std::path::PathBuf::from("/path/to/project.regen2000proj"));
+        app_state.file_path = Some(PathBuf::from("/path/to/packed.prg"));
+        app_state.project_path = Some(PathBuf::from("/path/to/project.regen2000proj"));
 
         let origin = Addr(0x2000);
         let data = vec![0xA9, 0x00, 0x60];
@@ -1472,11 +1522,11 @@ mod config_tests {
         assert!(app_state.settings.use_illegal_opcodes);
         assert_eq!(
             app_state.file_path,
-            Some(std::path::PathBuf::from("/path/to/packed.prg"))
+            Some(PathBuf::from("/path/to/packed.prg"))
         );
         assert_eq!(
             app_state.project_path,
-            Some(std::path::PathBuf::from("/path/to/project.regen2000proj"))
+            Some(PathBuf::from("/path/to/project.regen2000proj"))
         );
     }
 }
@@ -1485,7 +1535,8 @@ mod config_tests {
 mod vice_label_tests {
     use super::super::app_state::AppState;
     use super::super::project::Label;
-    use super::super::types::*;
+    use super::super::types::{Addr, LabelKind, LabelType};
+    use std::fs;
 
     #[test]
     fn test_export_vice_labels() {
@@ -1522,19 +1573,19 @@ mod vice_label_tests {
         // Ensure cleanup if exists
         #[allow(unused_must_use)]
         {
-            std::fs::remove_file(&path);
+            fs::remove_file(&path);
         }
 
         let res = state.export_vice_labels(path.clone());
         assert!(res.is_ok());
 
-        let content = std::fs::read_to_string(&path).unwrap();
+        let content = fs::read_to_string(&path).expect("exported VICE labels should be readable");
         // Check content
         assert!(content.contains("al C:1000 .start"));
         assert!(content.contains("al C:2000 .loop"));
         assert!(!content.contains("CHROUT"));
 
-        let _ = std::fs::remove_file(path);
+        let _ = fs::remove_file(path);
     }
 }
 
@@ -1543,6 +1594,7 @@ mod apply_unpack_result_tests {
     use super::super::app_state::AppState;
     use super::super::types::{Addr, BlockType, LabelKind, LabelType};
     use super::{EntryAnalysisMode, UnpackEntryMode};
+    use crate::analyzer;
     use crate::commands::Command;
     use crate::unpacker::{BoundSource, ExitReason, UnpackReport, UnpackResult};
 
@@ -1594,7 +1646,7 @@ mod apply_unpack_result_tests {
 
         state.apply_unpack_result(&res);
 
-        let ranges = crate::analyzer::flow_analyze(&state, Addr(res.entry_point));
+        let ranges = analyzer::flow_analyze(&state, Addr(res.entry_point));
         assert!(!ranges.is_empty());
         for range in ranges {
             for offset in range {

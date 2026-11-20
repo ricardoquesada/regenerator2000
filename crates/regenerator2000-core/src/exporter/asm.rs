@@ -227,11 +227,15 @@ mod tests {
     use super::*;
     use crate::disassembler::DisassemblyLine;
     use crate::state::{
-        Addr, AppState, Assembler, BlockType, EnumDefinition, Label, LabelKind, LabelType,
+        Addr, AppState, Assembler, BlockType, EnumDefinition, ExternalXRefs, Label, LabelKind,
+        LabelType, XRef, XRefKind,
     };
     use std::collections::BTreeMap;
+    use std::env;
+    use std::fs;
+    use std::io::ErrorKind;
     use std::path::{Path, PathBuf};
-    use std::process::Command;
+    use std::process::{self, Command};
 
     #[test]
     fn test_export_external_file() {
@@ -292,11 +296,10 @@ mod tests {
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
         // 2. Export to a temp file in std::env::temp_dir()
-        let path =
-            std::env::temp_dir().join(format!("test_output_64tass_{}.asm", std::process::id()));
+        let path = env::temp_dir().join(format!("test_output_64tass_{}.asm", process::id()));
 
         if path.exists() {
-            let _ = std::fs::remove_file(&path);
+            let _ = fs::remove_file(&path);
         }
 
         let res = export_asm(&state, &path);
@@ -309,7 +312,7 @@ mod tests {
             Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                let _ = std::fs::remove_file(&path);
+                let _ = fs::remove_file(&path);
 
                 assert!(
                     output.status.success(),
@@ -317,8 +320,8 @@ mod tests {
                 );
             }
             Err(e) => {
-                let _ = std::fs::remove_file(&path);
-                if e.kind() == std::io::ErrorKind::NotFound {
+                let _ = fs::remove_file(&path);
+                if e.kind() == ErrorKind::NotFound {
                     println!("Skipping test: 64tass not found");
                     return;
                 }
@@ -326,7 +329,7 @@ mod tests {
             }
         }
 
-        let _ = std::fs::remove_file(&path);
+        let _ = fs::remove_file(&path);
     }
 
     #[test]
@@ -392,8 +395,8 @@ mod tests {
         state.cross_refs.insert(
             Addr(0x1000),
             vec![
-                crate::state::XRef::new(Addr(0x2000), crate::state::XRefKind::Read),
-                crate::state::XRef::new(Addr(0x3000), crate::state::XRefKind::Read),
+                XRef::new(Addr(0x2000), XRefKind::Read),
+                XRef::new(Addr(0x3000), XRefKind::Read),
             ],
         );
 
@@ -406,7 +409,10 @@ mod tests {
         assert!(content.contains("nop"));
         assert!(content.contains("; x-ref: $2000, $3000"));
 
-        let line = content.lines().find(|l| l.contains("MyLabel")).unwrap();
+        let line = content
+            .lines()
+            .find(|l| l.contains("MyLabel"))
+            .expect("ASM output should contain MyLabel");
         assert!(line.contains("nop"));
         assert!(line.contains("; x-ref"));
     }
@@ -449,7 +455,7 @@ mod tests {
             is_collapsed: false,
         });
 
-        let externals = state.get_external_label_definitions(false);
+        let externals = state.external_label_definitions(ExternalXRefs::Omit);
         state.disassembly = externals.into_iter().chain(state.disassembly).collect();
 
         let bundle = render_asm(&state, Path::new("test_external_fields.asm"));
@@ -615,7 +621,7 @@ mod tests {
             }],
         );
 
-        let externals = state.get_external_label_definitions(false);
+        let externals = state.external_label_definitions(ExternalXRefs::Omit);
         state.disassembly = externals.into_iter().chain(state.disassembly).collect();
 
         let bundle = render_asm(&state, Path::new("test_label_ordering.asm"));
@@ -760,8 +766,12 @@ mod tests {
 
         assert!(content.contains("; Function Start"));
 
-        let comment_idx = content.find("; Function Start").unwrap();
-        let label_idx = content.find("MyLabel").unwrap();
+        let comment_idx = content
+            .find("; Function Start")
+            .expect("ASM output should contain function comment");
+        let label_idx = content
+            .find("MyLabel")
+            .expect("ASM output should contain MyLabel");
 
         assert!(
             comment_idx < label_idx,
@@ -912,7 +922,7 @@ mod tests {
         state.settings.assembler = Assembler::Tass64;
         state.disassemble();
 
-        let definitions = state.get_external_label_definitions(false);
+        let definitions = state.external_label_definitions(ExternalXRefs::Omit);
         let has_label_def = definitions
             .iter()
             .any(|l| l.external_label_address == Some(Addr(0x1001)));
@@ -1116,8 +1126,8 @@ mod tests {
         state.cross_refs.insert(
             Addr(0x1001),
             vec![
-                crate::state::XRef::new(Addr(0x2000), crate::state::XRefKind::Read),
-                crate::state::XRef::new(Addr(0x1003), crate::state::XRefKind::Read),
+                XRef::new(Addr(0x2000), XRefKind::Read),
+                XRef::new(Addr(0x1003), XRefKind::Read),
             ],
         );
 

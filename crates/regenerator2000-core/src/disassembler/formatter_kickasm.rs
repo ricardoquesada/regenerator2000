@@ -1,7 +1,7 @@
 //! `KickAssembler` syntax formatter implementation.
 
-use super::formatter::Formatter;
-use crate::state::Addr;
+use super::formatter::{FormatContext, Formatter, TextFragment};
+use crate::state::{Addr, EnumDefinition};
 use std::fmt::Write;
 
 /// Formatter for the `KickAssembler` 6502/6510 macro assembler.
@@ -54,11 +54,10 @@ impl Formatter for KickAsmFormatter {
 
     fn format_text(
         &self,
-        fragments: &[super::formatter::TextFragment],
+        fragments: &[TextFragment],
         is_start: bool,
         _is_end: bool,
     ) -> Vec<(String, String, bool)> {
-        use super::formatter::TextFragment;
         let mut lines = Vec::new();
 
         if is_start {
@@ -79,7 +78,7 @@ impl Formatter for KickAsmFormatter {
                         lines.push((".byte".to_string(), current_byte_parts.join(", "), true));
                         current_byte_parts.clear();
                     }
-                    current_text_parts.push(self.format_string_literal(s));
+                    current_text_parts.push(Self::format_string_literal(s));
                 }
                 TextFragment::Byte(b) => {
                     if !current_text_parts.is_empty() {
@@ -113,11 +112,7 @@ impl Formatter for KickAsmFormatter {
         0x40
     }
 
-    fn format_screencode(
-        &self,
-        fragments: &[super::formatter::TextFragment],
-    ) -> Vec<(String, String, bool)> {
-        use super::formatter::TextFragment;
+    fn format_screencode(&self, fragments: &[TextFragment]) -> Vec<(String, String, bool)> {
         let mut lines = Vec::new();
 
         // `current_text` stores unquoted characters for a `.text` directive.
@@ -125,14 +120,13 @@ impl Formatter for KickAsmFormatter {
         let mut current_text = String::new();
         let mut current_bytes: Vec<String> = Vec::new();
 
-        let flush_text =
-            |text: &mut String, lines: &mut Vec<(String, String, bool)>, fmt: &KickAsmFormatter| {
-                if !text.is_empty() {
-                    let literal = fmt.format_string_literal(text);
-                    lines.push((".text".to_string(), literal, true));
-                    text.clear();
-                }
-            };
+        let flush_text = |text: &mut String, lines: &mut Vec<(String, String, bool)>| {
+            if !text.is_empty() {
+                let literal = Self::format_string_literal(text);
+                lines.push((".text".to_string(), literal, true));
+                text.clear();
+            }
+        };
         let flush_bytes = |bytes: &mut Vec<String>, lines: &mut Vec<(String, String, bool)>| {
             if !bytes.is_empty() {
                 lines.push((".byte".to_string(), bytes.join(", "), true));
@@ -150,7 +144,7 @@ impl Formatter for KickAsmFormatter {
                     for c in s.chars() {
                         let b = c as u8;
                         if (0x40..=0x5F).contains(&b) && !c.is_ascii_alphabetic() {
-                            flush_text(&mut current_text, &mut lines, self);
+                            flush_text(&mut current_text, &mut lines);
                             current_bytes.push(format!("${:02x}", b - 0x40));
                         } else {
                             flush_bytes(&mut current_bytes, &mut lines);
@@ -164,10 +158,10 @@ impl Formatter for KickAsmFormatter {
                             current_text.push(swapped);
                         }
                     }
-                    flush_text(&mut current_text, &mut lines, self);
+                    flush_text(&mut current_text, &mut lines);
                 }
                 TextFragment::Byte(b) => {
-                    flush_text(&mut current_text, &mut lines, self);
+                    flush_text(&mut current_text, &mut lines);
                     current_bytes.push(format!("${b:02x}"));
                 }
             }
@@ -203,7 +197,7 @@ impl Formatter for KickAsmFormatter {
         format!(".label {} = * + {}", self.format_label(name), offset)
     }
 
-    fn format_instruction(&self, ctx: &super::formatter::FormatContext) -> (String, String) {
+    fn format_instruction(&self, ctx: &FormatContext) -> (String, String) {
         let mnemonic = self.format_mnemonic(ctx.opcode.mnemonic);
         let operand = self.format_operand(ctx);
 
@@ -240,7 +234,7 @@ impl Formatter for KickAsmFormatter {
         format!("{enum_name}.{variant_name}")
     }
 
-    fn format_enum_definition(&self, enum_def: &crate::state::EnumDefinition) -> String {
+    fn format_enum_definition(&self, enum_def: &EnumDefinition) -> String {
         let mut s = format!(".namespace {} {{\n", enum_def.name);
         for (&val, variant) in &enum_def.variants {
             let val_str = if val <= 0xFF {
@@ -260,7 +254,7 @@ impl KickAsmFormatter {
     ///
     /// Uses the `@"..."` escaped string prefix when `s` contains double quotes, backslashes,
     /// or control characters.
-    fn format_string_literal(&self, s: &str) -> String {
+    fn format_string_literal(s: &str) -> String {
         if s.contains('"') || s.chars().any(char::is_control) || s.contains('\\') {
             let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
             format!("@\"{escaped}\"")

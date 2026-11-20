@@ -17,13 +17,14 @@
 //! - [`system_matches`] gates specs by [`TargetSystem`], and [`PackerSpec::detect`] requires
 //!   all `signatures` to match before invoking `resolve`.
 
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
+use std::mem;
 use std::ops::RangeInclusive;
 
 use mos6502::cpu::CPU;
 use mos6502::instruction::Nmos6502;
 
-use crate::state::types::{System, TargetSystem};
+use crate::state::{System, TargetSystem};
 use crate::unpacker::UnpackerMemory;
 use crate::unpacker::machine::Phase;
 
@@ -751,21 +752,21 @@ impl MemoryPatch {
 
 /// Read-only view of a loaded binary image inspected during packer detection.
 #[derive(Debug, Clone, Copy)]
-pub struct LoadedImage<'a> {
+pub struct LoadedImage<'mem> {
     /// Memory buffer (typically a 64 KB system memory image).
-    pub mem: &'a [u8],
+    pub mem: &'mem [u8],
     /// Load address (origin) of the binary.
     pub load_addr: u16,
     /// Exclusive end address bound passed to packer detection (wraps to `0x0000` at `$FFFF`).
     pub load_end: u16,
     /// Target machine system profile.
-    pub system: &'a System,
+    pub system: &'mem System,
 }
 
-impl<'a> LoadedImage<'a> {
+impl<'mem> LoadedImage<'mem> {
     /// Creates a new [`LoadedImage`] view.
     #[must_use]
-    pub const fn new(mem: &'a [u8], load_addr: u16, load_end: u16, system: &'a System) -> Self {
+    pub const fn new(mem: &'mem [u8], load_addr: u16, load_end: u16, system: &'mem System) -> Self {
         Self {
             mem,
             load_addr,
@@ -776,7 +777,7 @@ impl<'a> LoadedImage<'a> {
 
     /// Creates a [`LoadedImage`] view for [`TargetSystem::C64`].
     #[must_use]
-    pub const fn for_c64(mem: &'a [u8], load_addr: u16, load_end: u16) -> Self {
+    pub const fn for_c64(mem: &'mem [u8], load_addr: u16, load_end: u16) -> Self {
         Self {
             mem,
             load_addr,
@@ -894,7 +895,7 @@ pub fn system_matches(allowed: &TargetSystem, actual: &TargetSystem) -> bool {
         (TargetSystem::C64, sys) => sys.is_c64(),
         (TargetSystem::Custom(a), TargetSystem::Custom(b)) => a.eq_ignore_ascii_case(b),
         (TargetSystem::Custom(_), _) | (_, TargetSystem::Custom(_)) => false,
-        (a, b) => core::mem::discriminant(a) == core::mem::discriminant(b),
+        (a, b) => mem::discriminant(a) == mem::discriminant(b),
     }
 }
 
@@ -1028,16 +1029,30 @@ impl PackerSpec {
     }
 
     /// Builds a 64 KB memory buffer with `self.fixture` loaded at `self.fixture_load_addr`.
-    /// Returns `(mem, load_addr, load_end)` for [`LoadedImage`].
     #[must_use]
-    pub fn build_fixture_memory(&self) -> (Vec<u8>, u16, u16) {
+    pub fn build_fixture_memory(&self) -> FixtureMemory {
         let mut mem = vec![0u8; 0x1_0000];
         let start = usize::from(self.fixture_load_addr);
         let copy_len = self.fixture.len().min(0x1_0000_usize.saturating_sub(start));
         mem[start..start + copy_len].copy_from_slice(&self.fixture[..copy_len]);
         let load_end = self.fixture_load_addr.wrapping_add(copy_len as u16);
-        (mem, self.fixture_load_addr, load_end)
+        FixtureMemory {
+            mem,
+            load_addr: self.fixture_load_addr,
+            load_end,
+        }
     }
+}
+
+/// 64 KB memory buffer initialized with a packer's synthetic fixture payload.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FixtureMemory {
+    /// Full 64 KB RAM image with the fixture bytes copied at [`Self::load_addr`].
+    pub mem: Vec<u8>,
+    /// Inclusive 16-bit load address where the fixture begins.
+    pub load_addr: u16,
+    /// Exclusive 16-bit end address after the copied fixture payload.
+    pub load_end: u16,
 }
 
 // ===========================================================================
@@ -1061,7 +1076,7 @@ pub struct Registers {
 ///
 /// Provides a value copy of the CPU registers (`registers`), side-effect-free RAM reads
 /// ([`Self::peek`]), and combined write-bitmap clearing ([`Self::forget_writes`]).
-pub struct StepContext<'a> {
+pub struct StepContext<'emu> {
     /// Current 6502 program counter.
     pub pc: u16,
     /// Current emulation stage ([`Phase::FindDepacker`] or [`Phase::Decompress`]).
@@ -1069,11 +1084,11 @@ pub struct StepContext<'a> {
     /// Value copy of the CPU registers (`A`, `X`, `Y`, `SP`). Mutating this copy
     /// does not modify the emulated CPU.
     pub registers: Registers,
-    bus: &'a mut UnpackerMemory,
+    bus: &'emu mut UnpackerMemory,
 }
 
-impl std::fmt::Debug for StepContext<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Debug for StepContext<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("StepContext")
             .field("pc", &self.pc)
             .field("phase", &self.phase)
@@ -1082,10 +1097,10 @@ impl std::fmt::Debug for StepContext<'_> {
     }
 }
 
-impl<'a> StepContext<'a> {
+impl<'emu> StepContext<'emu> {
     /// Creates a [`StepContext`] from `bus`, `pc`, `phase`, and `registers`.
     #[must_use]
-    pub fn new(bus: &'a mut UnpackerMemory, pc: u16, phase: Phase, registers: Registers) -> Self {
+    pub fn new(bus: &'emu mut UnpackerMemory, pc: u16, phase: Phase, registers: Registers) -> Self {
         Self {
             pc,
             phase,
@@ -1096,7 +1111,7 @@ impl<'a> StepContext<'a> {
 
     /// Creates a [`StepContext`] snapshot from the live `cpu` and `phase`.
     #[must_use]
-    pub fn from_cpu(cpu: &'a mut CPU<UnpackerMemory, Nmos6502>, phase: Phase) -> Self {
+    pub fn from_cpu(cpu: &'emu mut CPU<UnpackerMemory, Nmos6502>, phase: Phase) -> Self {
         let pc = cpu.registers.program_counter;
         let registers = Registers {
             a: cpu.registers.accumulator,
@@ -1144,15 +1159,15 @@ impl<'a> StepContext<'a> {
 
 /// Read-only post-emulation state passed to [`PackerHooks::refine`].
 #[derive(Debug, Clone, Copy)]
-pub struct RefineContext<'a> {
+pub struct RefineContext<'emu> {
     /// Final 64 KB emulated RAM image.
-    pub mem: &'a [u8],
+    pub mem: &'emu [u8],
     /// Pre-emulation 64 KB RAM snapshot.
-    pub snapshot: &'a [u8],
+    pub snapshot: &'emu [u8],
     /// Per-byte write tracking across both emulation phases (`written`).
-    pub written: &'a [bool],
+    pub written: &'emu [bool],
     /// Target machine system profile.
-    pub system: &'a System,
+    pub system: &'emu System,
     /// CPU registers when emulation stopped.
     pub registers: Registers,
 }
@@ -1214,6 +1229,7 @@ pub trait PackerHooks: Debug + Send {
 mod tests {
     use std::cell::Cell;
     use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::thread;
 
     use super::*;
 
@@ -1612,6 +1628,7 @@ mod tests {
     #[test]
     fn resolve_runs_only_after_all_signatures_match() {
         static CALLS: AtomicUsize = AtomicUsize::new(0);
+        #[allow(clippy::unnecessary_wraps)] // Signature must match ResolveFn.
         fn counting_resolve(_: &LoadedImage<'_>, m: &SignatureMatch) -> Option<ResolvedSpec> {
             CALLS.fetch_add(1, Ordering::SeqCst);
             Some(m.resolved)
@@ -1709,6 +1726,7 @@ mod tests {
             expected: None,
             bytes: &[0xA2],
         }];
+        #[allow(clippy::unnecessary_wraps)] // Signature must match ResolveFn.
         fn custom_resolve(_: &LoadedImage<'_>, _: &SignatureMatch) -> Option<ResolvedSpec> {
             Some(ResolvedSpec {
                 name: Some("Dynamic Variant"),
@@ -2367,7 +2385,7 @@ mod tests {
         mem[0x081E] = 0x45; // reloc_start = $4500 at q + 0x10
         let image = LoadedImage::for_c64(&mem, 0x0801, 0x0900);
         let sig_match = spec.detect(&image).expect("spec matches");
-        let hooks = (spec.hooks.unwrap())(&image, &sig_match);
+        let hooks = (spec.hooks.expect("test spec should configure hooks"))(&image, &sig_match);
 
         let mut bounds = Bounds {
             start_addr: 0x0800,
@@ -2405,7 +2423,7 @@ mod tests {
         let mut boxed: Box<dyn PackerHooks> = Box::new(NonSyncHook {
             steps: Cell::new(0),
         });
-        std::thread::scope(|s| {
+        thread::scope(|s| {
             s.spawn(move || {
                 let mut bus = UnpackerMemory::new(TargetSystem::C64, None, None, None);
                 let mut ctx =

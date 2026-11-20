@@ -84,7 +84,7 @@ fn eval_ground_truth(
     result: &CaseResult,
 ) -> Result<CaseReport, Vec<FailureReason>> {
     Evaluator::new(corpus, fixtures)
-        .unwrap()
+        .expect("test Evaluator should construct")
         .evaluate(result)
         .map_err(reasons)
 }
@@ -99,7 +99,7 @@ fn consensus_of(members: Vec<(Case, UnpackedImage)>) -> Vec<CaseFailure> {
         .collect();
     let (corpus, fixtures) = ground_truth_setup(cases);
     Evaluator::new(&corpus, &fixtures)
-        .unwrap()
+        .expect("ground-truth Evaluator should construct")
         .evaluate_consensus(&results)
 }
 
@@ -114,7 +114,8 @@ fn grouped_member(file: &str, image: &UnpackedImage) -> (Case, UnpackedImage) {
 fn eval_exact_unp64_match_passes() {
     let image = image(0x0801, 0x2000, 0x080D);
     let corpus = corpus(vec![case("a.prg", matching_record(&image), None)]);
-    let report = eval(&corpus, &ok_result("a.prg", image)).unwrap();
+    let report =
+        eval(&corpus, &ok_result("a.prg", image)).expect("matching image should pass oracle");
     assert_eq!(
         report,
         CaseReport {
@@ -180,7 +181,8 @@ fn eval_divergence_without_reviewed_by_fails() {
     let saved = record(0x0801, 0xFFFF, Unp64Entry::Address(0x080D), &image);
     let unsigned = divergence(DivergenceKind::Unp64DefaultEnd, &[Field::End], None);
     let corpus = corpus(vec![case("a.prg", saved, Some(unsigned))]);
-    let found = eval(&corpus, &ok_result("a.prg", image)).unwrap_err();
+    let found =
+        eval(&corpus, &ok_result("a.prg", image)).expect_err("invalid oracle case should fail");
     assert_eq!(found, vec![FailureReason::UnsignedDivergence]);
     assert!(found[0].to_string().contains("proposed, unsigned"));
 }
@@ -204,7 +206,7 @@ fn eval_divergence_with_blank_reviewed_by_fails() {
     assert_eq!(run(""), Err(vec![FailureReason::UnsignedDivergence]));
     assert_eq!(run("  \t "), Err(vec![FailureReason::UnsignedDivergence]));
 
-    let pending = run(INITIAL_REVIEW_MARKER).unwrap();
+    let pending = run(INITIAL_REVIEW_MARKER).expect("pending review signature should evaluate");
     assert_eq!(pending.notes, vec![ReportNote::PendingReview]);
     let items = render_action_items(&[pending]);
     assert!(
@@ -212,7 +214,12 @@ fn eval_divergence_with_blank_reviewed_by_fails() {
         "{items}"
     );
 
-    assert_eq!(run("ricardoq").unwrap().notes, Vec::new());
+    assert_eq!(
+        run("ricardoq")
+            .expect("signed review should evaluate")
+            .notes,
+        Vec::new()
+    );
 }
 
 #[test]
@@ -224,7 +231,8 @@ fn eval_divergence_permits_only_listed_fields() {
         end_only,
         Some(signed(DivergenceKind::Unp64DefaultEnd, &[Field::End])),
     )]);
-    let report = eval(&corpus_end, &ok_result("a.prg", image.clone())).unwrap();
+    let report = eval(&corpus_end, &ok_result("a.prg", image.clone()))
+        .expect("signed End divergence should pass");
     assert_eq!(
         report.oracle,
         Oracle::AcceptedDivergence {
@@ -238,7 +246,8 @@ fn eval_divergence_permits_only_listed_fields() {
         end_and_start,
         Some(signed(DivergenceKind::Unp64DefaultEnd, &[Field::End])),
     )]);
-    let found = eval(&corpus_both, &ok_result("a.prg", image)).unwrap_err();
+    let found = eval(&corpus_both, &ok_result("a.prg", image))
+        .expect_err("unlisted failing field should trigger failure");
     assert_eq!(
         found,
         vec![FailureReason::FieldMismatch {
@@ -292,7 +301,8 @@ fn eval_divergence_overlap_hash_mismatch_fails() {
         saved,
         Some(signed(DivergenceKind::Unp64DefaultEnd, &[Field::End])),
     )]);
-    let found = eval(&corpus, &ok_result("a.prg", changed)).unwrap_err();
+    let found =
+        eval(&corpus, &ok_result("a.prg", changed)).expect_err("payload hash mismatch should fail");
     assert!(
         matches!(
             found.as_slice(),
@@ -316,7 +326,8 @@ fn eval_overlap_window_outside_r2000_range_fails() {
         saved,
         Some(signed(DivergenceKind::Unp64DefaultEnd, &[Field::End])),
     )]);
-    let found = eval(&corpus, &ok_result("a.prg", image)).unwrap_err();
+    let found =
+        eval(&corpus, &ok_result("a.prg", image)).expect_err("invalid oracle case should fail");
     assert_eq!(
         found,
         vec![FailureReason::OverlapOutsideResult {
@@ -561,7 +572,8 @@ fn eval_unexplained_kind_passes_and_is_listed() {
     let mut exception = signed(DivergenceKind::Unexplained, &[Field::Start, Field::Entry]);
     exception.note = Some("HBFS: nobody knows yet".to_string());
     let corpus = corpus(vec![case("c64_HBFS.exo3.prg", saved, Some(exception))]);
-    let report = eval(&corpus, &ok_result("c64_HBFS.exo3.prg", image)).unwrap();
+    let report = eval(&corpus, &ok_result("c64_HBFS.exo3.prg", image))
+        .expect("signed HBFS exception should pass");
     assert_eq!(
         report.notes,
         vec![ReportNote::Unexplained {
@@ -583,7 +595,8 @@ fn eval_ground_truth_overrides_unp64() {
     // `unp64` disagrees on the start (Dali-style padding byte).
     let saved = record(0x0801, 0x0863, Unp64Entry::Address(0x0810), &image);
     let (corpus, fixtures) = ground_truth_setup(vec![member("a.prg", saved)]);
-    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image.clone())).unwrap();
+    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image.clone()))
+        .expect("matching ground truth should pass");
     assert_eq!(
         report.oracle,
         Oracle::GroundTruth {
@@ -600,9 +613,15 @@ fn eval_ground_truth_overrides_unp64() {
 
     // When `unp64` also disagrees on the overlap payload hash, the note sets `payload: true`.
     let mut bad_overlap = record(0x0801, 0x0863, Unp64Entry::Address(0x0810), &image);
-    bad_overlap.overlap.as_mut().unwrap().fnv64.0 ^= 1;
+    bad_overlap
+        .overlap
+        .as_mut()
+        .expect("saved record should have overlap")
+        .fnv64
+        .0 ^= 1;
     let (corpus, fixtures) = ground_truth_setup(vec![member("a.prg", bad_overlap)]);
-    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image)).unwrap();
+    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image))
+        .expect("ground truth should supersede corrupted unp64 overlap");
     assert_eq!(
         report.notes,
         vec![ReportNote::Unp64DisagreesWithGroundTruth {
@@ -619,12 +638,14 @@ fn eval_ground_truth_range_derived_from_original_file() {
         original: "prog_orig.prg".to_string(),
         entry: HexAddr(0x0810),
     };
-    let truth = GroundTruth::from_prg(&group, &prg(0x0800, &[0xAA; 100])).unwrap();
+    let truth = GroundTruth::from_prg(&group, &prg(0x0800, &[0xAA; 100]))
+        .expect("valid PRG should load as ground truth");
     assert_eq!(truth.range, range(0x0800, 0x0863));
     assert_eq!(truth.entry, 0x0810);
     assert_eq!(truth.data.len(), 100);
 
-    let edge = GroundTruth::from_prg(&group, &prg(0xFF00, &[0; 256])).unwrap();
+    let edge = GroundTruth::from_prg(&group, &prg(0xFF00, &[0; 256]))
+        .expect("high PRG reaching $FFFF should load as ground truth");
     assert_eq!(edge.range, range(0xFF00, 0xFFFF));
 
     for bad in [vec![0x01], prg(0x0800, &[]), prg(0xFF00, &[0; 257])] {
@@ -644,7 +665,8 @@ fn eval_ground_truth_range_derived_from_original_file() {
 
     // `Evaluator::new` reports an unreadable or invalid original instead of
     // skipping it.
-    let missing = Evaluator::new(&corpus, &MemFixtures::default()).unwrap_err();
+    let missing = Evaluator::new(&corpus, &MemFixtures::default())
+        .expect_err("missing original fixture must fail Evaluator::new");
     assert_eq!(
         missing,
         vec![CorpusError::MissingFixture {
@@ -653,7 +675,9 @@ fn eval_ground_truth_range_derived_from_original_file() {
     );
     let empty = MemFixtures::default().with("prog_orig.prg", prg(0x0800, &[]));
     assert!(matches!(
-        Evaluator::new(&corpus, &empty).unwrap_err().as_slice(),
+        Evaluator::new(&corpus, &empty)
+            .expect_err("empty original PRG must fail Evaluator::new")
+            .as_slice(),
         [CorpusError::InvalidGroupOriginal { .. }]
     ));
 }
@@ -663,7 +687,8 @@ fn eval_ground_truth_range_mismatch_fails() {
     let image = image(0x0801, 0x0863, 0x0810);
     let saved = matching_record(&image);
     let (corpus, fixtures) = ground_truth_setup(vec![member("a.prg", saved)]);
-    let found = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image)).unwrap_err();
+    let found = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image))
+        .expect_err("ground truth mismatch must fail");
     assert_eq!(
         found,
         vec![FailureReason::GroundTruthMismatch {
@@ -682,7 +707,8 @@ fn eval_ground_truth_payload_mismatch_reports_first_address() {
     image.data[10] ^= 0x01;
     image.data[20] ^= 0x01;
     let (corpus, fixtures) = ground_truth_setup(vec![member("a.prg", saved)]);
-    let found = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image)).unwrap_err();
+    let found = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image))
+        .expect_err("ground truth mismatch must fail");
     assert_eq!(
         found,
         vec![FailureReason::GroundTruthPayloadMismatch {
@@ -699,7 +725,8 @@ fn eval_ground_truth_entry_must_equal_group_entry() {
     let image = image(0x0800, 0x0863, 0x0820);
     let saved = matching_record(&image);
     let (corpus, fixtures) = ground_truth_setup(vec![member("a.prg", saved)]);
-    let found = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image)).unwrap_err();
+    let found = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image))
+        .expect_err("ground truth mismatch must fail");
     assert_eq!(
         found,
         vec![FailureReason::GroundTruthMismatch {
@@ -719,7 +746,8 @@ fn eval_ground_truth_with_failed_unp64_is_a_note() {
     let mut grouped = member("a.prg", matching_record(&image));
     grouped.unp64 = Some(failed_record("Max Iterations"));
     let (corpus, fixtures) = ground_truth_setup(vec![grouped]);
-    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image)).unwrap();
+    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("a.prg", image))
+        .expect("ground truth should supersede corrupted unp64 overlap");
     assert_eq!(
         report.notes,
         vec![ReportNote::Unp64FailedOnGroundTruth {
@@ -798,7 +826,8 @@ fn eval_expected_fail_that_fails_is_green_and_reported() {
     let (mut dali, _) = grouped_member("dali.prg", &padded);
     dali.expected_fail = Some(ExpectedFailReason::PaddingConvention);
     let (corpus, fixtures) = ground_truth_setup(vec![dali]);
-    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("dali.prg", padded)).unwrap();
+    let report = eval_ground_truth(&corpus, &fixtures, &ok_result("dali.prg", padded))
+        .expect("expected padding convention mismatch should pass");
     assert!(
         matches!(
             report.notes.as_slice(),
@@ -823,7 +852,8 @@ fn eval_expected_fail_that_passes_is_failure() {
     let (mut dali, _) = grouped_member("dali.prg", &good);
     dali.expected_fail = Some(ExpectedFailReason::PaddingConvention);
     let (corpus, fixtures) = ground_truth_setup(vec![dali]);
-    let found = eval_ground_truth(&corpus, &fixtures, &ok_result("dali.prg", good)).unwrap_err();
+    let found = eval_ground_truth(&corpus, &fixtures, &ok_result("dali.prg", good))
+        .expect_err("passing image must fail stale expected_fail");
     assert_eq!(
         found,
         vec![FailureReason::UnexpectedPass {
@@ -846,7 +876,8 @@ fn eval_stale_divergence_is_failure() {
         matching_record(&image),
         Some(signed(DivergenceKind::Unexplained, &[Field::End])),
     )]);
-    let found = eval(&corpus_all, &ok_result("a.prg", image.clone())).unwrap_err();
+    let found = eval(&corpus_all, &ok_result("a.prg", image.clone()))
+        .expect_err("all-failed consensus should reject unexpected success");
     assert_eq!(
         found,
         vec![FailureReason::StaleDivergence {
@@ -870,7 +901,8 @@ fn eval_stale_divergence_is_failure() {
             &[Field::End, Field::Entry],
         )),
     )]);
-    let found = eval(&corpus_partial, &ok_result("a.prg", image)).unwrap_err();
+    let found = eval(&corpus_partial, &ok_result("a.prg", image))
+        .expect_err("partial failure consensus should fail");
     assert_eq!(
         found,
         vec![FailureReason::StaleDivergence {
@@ -890,7 +922,7 @@ fn eval_r2000_error_fails_unless_expected() {
         &corpus(vec![plain.clone()]),
         &err_result("a.prg", "Phase2Timeout"),
     )
-    .unwrap_err();
+    .expect_err("consensus error evaluation should report failure");
     assert!(
         matches!(found.as_slice(), [FailureReason::R2000Failed { error }] if error.variant == "Phase2Timeout"),
         "{found:?}"
@@ -907,7 +939,7 @@ fn eval_r2000_error_fails_unless_expected() {
             &corpus(vec![plain.clone()]),
             &err_result("a.prg", "Phase2Timeout"),
         )
-        .unwrap_err();
+        .expect_err("consensus error evaluation should report failure");
         assert!(
             matches!(found.as_slice(), [FailureReason::R2000Failed { .. }]),
             "{marker}: {found:?}"
@@ -1144,7 +1176,7 @@ fn eval_edge_cases() {
     broken.data.pop();
     assert!(matches!(
         eval(&corpus_a, &ok_result("a.prg", broken))
-            .unwrap_err()
+            .expect_err("broken payload should fail evaluation")
             .as_slice(),
         [FailureReason::InconsistentResult { .. }]
     ));
@@ -1183,7 +1215,8 @@ fn evaluate_all_aggregates_cases_and_consensus_sorted() {
     corpus
         .cases
         .push(case("z.prg", matching_record(&plain), None));
-    let evaluator = Evaluator::new(&corpus, &fixtures).unwrap();
+    let evaluator = Evaluator::new(&corpus, &fixtures)
+        .expect("Evaluator should construct with mixed group fixtures");
 
     // Unsorted input order.
     let results = [

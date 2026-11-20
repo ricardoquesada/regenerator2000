@@ -12,7 +12,7 @@ pub mod state;
 pub use c64_hardware::CiaState;
 pub use client::{ViceClient, ViceConnectionId, ViceEvent};
 pub use protocol::{
-    CheckpointInfo, MemoryGetResponse, Registers, ViceCommand, ViceMessage, parse_checkpoint_info,
-    parse_memory_get, parse_registers,
+    CheckpointInfo, DecodedPacket, MemoryGetResponse, Registers, ViceCommand, ViceMessage,
+    parse_checkpoint_info, parse_memory_get, parse_registers,
 };
 pub use state::ViceState;

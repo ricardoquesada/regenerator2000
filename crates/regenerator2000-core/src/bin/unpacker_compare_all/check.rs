@@ -5,6 +5,7 @@
 //! that `unp64` changed, never that R2000 changed.
 
 use std::fmt;
+use std::mem;
 
 use crate::cli::ToolStatus;
 use crate::corpus::{Case, Unp64Record};
@@ -140,7 +141,7 @@ pub fn check_case(case: &Case, outcome: &Unp64Outcome, version: &str) -> Vec<Dri
             summary(&fresh),
         )];
     };
-    if std::mem::discriminant(recorded) != std::mem::discriminant(&fresh) {
+    if mem::discriminant(recorded) != mem::discriminant(&fresh) {
         return vec![drift(
             DriftField::Outcome,
             summary(recorded),

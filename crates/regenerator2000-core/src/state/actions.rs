@@ -1,6 +1,10 @@
 //! Semantic actions that any frontend (TUI, GUI, Web, MCP) can produce, along with document,
 //! destructive-check, and modal dialog-closure contracts.
 
+use super::types::{Addr, CommentKind, EnumDefinition};
+use crate::unpacker::UnpackConfig;
+use crate::vice::state::BreakpointKind;
+
 /// Semantic application action produced by the UI or programmatic clients.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppAction {
@@ -94,8 +98,8 @@ pub enum AppAction {
     Undefined,
     /// Unpack the loaded binary with default unpacker settings.
     UnpackBinary,
-    /// Unpack the loaded binary with a custom [`crate::unpacker::UnpackConfig`].
-    UnpackBinaryWithConfig(crate::unpacker::UnpackConfig),
+    /// Unpack the loaded binary with a custom [`UnpackConfig`].
+    UnpackBinaryWithConfig(UnpackConfig),
     /// Open the unpacker configuration dialog.
     UnpackDialog,
     /// Open the file information dialog.
@@ -138,8 +142,8 @@ pub enum AppAction {
     ToggleSplitter,
     /// Open the cross-references dialog for the current address.
     FindReferences,
-    /// Navigate the disassembly view to the specified [`Addr`](super::Addr).
-    NavigateToAddress(super::Addr),
+    /// Navigate the disassembly view to the specified [`Addr`].
+    NavigateToAddress(Addr),
     /// Open the label editor for the current address.
     SetLabel,
     /// Open the go-to-symbol dialog.
@@ -174,24 +178,24 @@ pub enum AppAction {
     ViceBreakpointDialog,
     /// Set an execution breakpoint at `address` in VICE.
     ViceSetBreakpointAt {
-        /// Target breakpoint [`Addr`](super::Addr).
-        address: super::Addr,
+        /// Target breakpoint [`Addr`].
+        address: Addr,
     },
     /// Open the VICE watchpoint dialog for the cursor address.
     ViceToggleWatchpoint,
     /// Set a memory watchpoint of `kind` at `address` in VICE.
     ViceSetWatchpoint {
-        /// Target watchpoint [`Addr`](super::Addr).
-        address: super::Addr,
+        /// Target watchpoint [`Addr`].
+        address: Addr,
         /// Watchpoint access trigger mode.
-        kind: crate::vice::state::BreakpointKind,
+        kind: BreakpointKind,
     },
     /// Open the VICE memory dump address dialog.
     ViceMemoryDumpDialog,
     /// Set the base `address` for the live VICE memory dump view.
     ViceSetMemoryDumpAddress {
-        /// Base memory dump [`Addr`](super::Addr).
-        address: super::Addr,
+        /// Base memory dump [`Addr`].
+        address: Addr,
     },
     /// Toggle the live VICE debugger companion pane.
     ToggleDebuggerView,
@@ -199,8 +203,8 @@ pub enum AppAction {
     NavigateBack,
     /// Apply a user label `name` at `address`.
     ApplyLabel {
-        /// Target [`Addr`](super::Addr) for the label.
-        address: super::Addr,
+        /// Target [`Addr`] for the label.
+        address: Addr,
         /// New label name (an empty string removes the label).
         name: String,
         /// Whether the label is scoped locally (`LocalUserDefined`).
@@ -208,22 +212,22 @@ pub enum AppAction {
     },
     /// Apply or clear an enum operand mapping at `address`.
     ApplyEnumUsage {
-        /// Target instruction [`Addr`](super::Addr).
-        address: super::Addr,
+        /// Target instruction [`Addr`].
+        address: Addr,
         /// Enum name to apply, or `None` to clear the enum mapping.
         enum_name: Option<String>,
     },
     /// Apply a side or line comment `text` of `kind` at `address`.
     ApplyComment {
-        /// Target [`Addr`](super::Addr) for the comment.
-        address: super::Addr,
+        /// Target [`Addr`] for the comment.
+        address: Addr,
         /// Comment text (an empty string removes the comment).
         text: String,
         /// Whether this is a side comment or a full-line comment.
-        kind: super::types::CommentKind,
+        kind: CommentKind,
     },
-    /// Change the binary load origin to the specified [`Addr`](super::Addr).
-    ApplyOrigin(super::Addr),
+    /// Change the binary load origin to the specified [`Addr`].
+    ApplyOrigin(Addr),
     /// Cycle keyboard focus to the next visible UI pane.
     CyclePane,
     /// Cancel the active selection or modal dialog.
@@ -247,8 +251,8 @@ pub enum AppAction {
     ApplyEnumDefinition {
         /// Target enum name.
         name: String,
-        /// Updated [`EnumDefinition`](super::types::EnumDefinition), or `None` to delete the enum.
-        definition: Option<super::types::EnumDefinition>,
+        /// Updated [`EnumDefinition`], or `None` to delete the enum.
+        definition: Option<EnumDefinition>,
         /// Previous enum name when renaming an existing enum.
         rename_from: Option<String>,
     },
@@ -256,8 +260,8 @@ pub enum AppAction {
     ApplyGlobalEnumDefinition {
         /// Target global enum name.
         name: String,
-        /// Updated [`EnumDefinition`](super::types::EnumDefinition), or `None` to delete the enum.
-        definition: Option<super::types::EnumDefinition>,
+        /// Updated [`EnumDefinition`], or `None` to delete the enum.
+        definition: Option<EnumDefinition>,
         /// Previous enum name when renaming an existing global enum.
         rename_from: Option<String>,
     },
@@ -276,12 +280,12 @@ pub enum AppAction {
     /// [`validate_symbolic_offset_submission`](crate::action_handlers::disassembly_handler::validate_symbolic_offset_submission)
     /// before emitting this action because [`AppAction::closes_dialog`] returns `true` for it.
     ApplySymbolicOffset {
-        /// Referencing instruction or table entry [`Addr`](super::Addr), when editing an operand site.
-        site_address: Option<super::Addr>,
-        /// Primary effective target [`Addr`](super::Addr).
-        target_address: super::Addr,
-        /// Optional inclusive `(start, end)` [`Addr`](super::Addr) range when applying across a selection.
-        address_range: Option<(super::Addr, super::Addr)>,
+        /// Referencing instruction or table entry [`Addr`], when editing an operand site.
+        site_address: Option<Addr>,
+        /// Primary effective target [`Addr`].
+        target_address: Addr,
+        /// Optional inclusive `(start, end)` [`Addr`] range when applying across a selection.
+        address_range: Option<(Addr, Addr)>,
         /// User-entered symbolic offset expression (empty or `"0"` clears the offset).
         input: String,
         /// When `true`, sets Tier 2 (`address_offset`) globally. When `false`, sets Tier 1 (`operand_offset`).

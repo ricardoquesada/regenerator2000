@@ -1,12 +1,22 @@
 //! Decompressed memory boundary and entry point detection heuristics.
 
 use super::bus::is_io_mapped;
+use crate::state::System;
+
+/// Controls whether [`scan_hybrid_range`] trims isolated trailing diff clusters.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TrimMode {
+    /// Trim small trailing diff clusters using [`trim_trailing_clusters`].
+    TrimTrailing,
+    /// Keep the full span up to the highest changed or written byte.
+    KeepTrailing,
+}
 
 /// Diff bytes within this distance of a scan ceiling indicate that output continues upward.
 const CEILING_PROXIMITY: usize = 256;
 
 /// Distance below a scan ceiling within which `trimmed_end` must lie to escalate
-/// for a disjoint high-memory output region (such as TinyCrunch in-place depacking).
+/// for a disjoint high-memory output region (such as `TinyCrunch` in-place depacking).
 const HIGH_REGION_WINDOW: usize = 0x2000;
 
 /// Minimum written or diffed non-I/O bytes above a scan ceiling that indicate a
@@ -51,7 +61,7 @@ const OPCODE_JMP_ABS: u8 = 0x4C;
 const SNAPSHOT_ENTRY_MAX_ADDR: u16 = 0x8000;
 
 /// Minimum gap of unchanged bytes (`>= 4`) before a tiny trailing diff cluster
-/// (such as PUCrunch's 10-byte tail).
+/// (such as `PUCrunch`'s 10-byte tail).
 const TRAILING_CLUSTER_GAP: usize = 4;
 
 /// Exclusive upper bound (`< 16` diff bytes) for a tiny trailing diff cluster
@@ -74,6 +84,26 @@ const WORKSPACE_CLUSTER_MAX_GAP: usize = 4096;
 /// cluster trimmed across a gap in [`WORKSPACE_CLUSTER_MIN_GAP`]..[`WORKSPACE_CLUSTER_MAX_GAP`].
 const WORKSPACE_CLUSTER_MAX_SIZE: usize = 512;
 
+/// Inclusive decompressed output address range detected from memory writes and snapshot diffs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DetectedRange {
+    /// Inclusive lowest output address.
+    pub start: u16,
+    /// Inclusive highest output address.
+    pub end: u16,
+}
+
+/// Candidate output bounds produced by [`scan_hybrid_range`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HybridScanRange {
+    /// Inclusive lowest written or modified address.
+    pub start: u16,
+    /// Inclusive highest output address after trailing zero-fill extension.
+    pub end: u16,
+    /// Inclusive highest non-zero-fill diff address before zero-fill extension.
+    pub trimmed_end: u16,
+}
+
 /// Detects the modified memory range from the `written` bitmap and a pre-emulation `snapshot`.
 ///
 /// Uses a hybrid scan:
@@ -82,15 +112,15 @@ const WORKSPACE_CLUSTER_MAX_SIZE: usize = 512;
 /// - **End address**: uses the last snapshot diff byte, then extends forward
 ///   through written trailing zero-fills. This excludes depacker tables past the output.
 ///
-/// Returns `(start_addr, end_addr)` inclusive, or `None` if emulation wrote no memory.
+/// Returns the inclusive [`DetectedRange`], or `None` if emulation wrote no memory.
 #[must_use]
 pub fn detect_output_range(
     mem: &[u8],
     snapshot: &[u8],
     written: &[bool],
     load_addr: u16,
-    system: &crate::state::types::System,
-) -> Option<(u16, u16)> {
+    system: &System,
+) -> Option<DetectedRange> {
     let scan_start = (load_addr as usize).min(system.ram_start() as usize);
 
     // Cascading scans with progressively wider boundaries.
@@ -110,11 +140,17 @@ pub fn detect_output_range(
     let boundaries = system.memory_boundaries();
 
     for (i, &boundary) in boundaries.iter().enumerate() {
-        if let Some((start, end, trimmed_end)) =
-            scan_hybrid_range(mem, snapshot, written, scan_start, boundary, false, system)
-        {
+        if let Some(scan) = scan_hybrid_range(
+            mem,
+            snapshot,
+            written,
+            scan_start,
+            boundary,
+            TrimMode::TrimTrailing,
+            system,
+        ) {
             let is_last = i == boundaries.len() - 1;
-            let near_ceiling = (trimmed_end as usize) + CEILING_PROXIMITY >= boundary;
+            let near_ceiling = (scan.trimmed_end as usize) + CEILING_PROXIMITY >= boundary;
 
             // Also escalate when written or diffed bytes exist above the current boundary.
             // Short-circuit after `MIN_HIGH_REGION_BYTES` (4) matches to avoid scanning
@@ -126,7 +162,7 @@ pub fn detect_output_range(
                 boundary
             };
             let has_output_above = !is_last
-                && (trimmed_end as usize) >= boundary.saturating_sub(HIGH_REGION_WINDOW)
+                && (scan.trimmed_end as usize) >= boundary.saturating_sub(HIGH_REGION_WINDOW)
                 && (boundary + 1..=next_upper)
                     .filter(|&addr| {
                         let is_io = system.is_in_io(addr as u16) && io_mapped;
@@ -140,7 +176,10 @@ pub fn detect_output_range(
                     >= MIN_HIGH_REGION_BYTES;
 
             if is_last || (!near_ceiling && !has_output_above) {
-                return Some((start, end));
+                return Some(DetectedRange {
+                    start: scan.start,
+                    end: scan.end,
+                });
             }
         }
     }
@@ -153,10 +192,13 @@ pub fn detect_output_range(
         written,
         KERNAL_FALLBACK_START,
         KERNAL_FALLBACK_END,
-        false,
+        TrimMode::TrimTrailing,
         system,
     )
-    .map(|(s, e, _)| (s, e))
+    .map(|scan| DetectedRange {
+        start: scan.start,
+        end: scan.end,
+    })
 }
 
 /// Scans `start..=end` using the `written` bitmap and `snapshot` diff.
@@ -165,8 +207,8 @@ pub fn detect_output_range(
 /// - **End**: last byte where `mem != snapshot` (or `written` is true), trimmed of
 ///   small trailing diff clusters and extended through written zero-fills.
 ///
-/// If `skip_trim` is `true`, this function skips [`trim_trailing_clusters`] and uses
-/// the last changed or written byte directly.
+/// If `trim_mode` is [`TrimMode::KeepTrailing`], this function skips [`trim_trailing_clusters`]
+/// and uses the last changed or written byte directly.
 #[must_use]
 pub fn scan_hybrid_range(
     mem: &[u8],
@@ -174,9 +216,9 @@ pub fn scan_hybrid_range(
     written: &[bool],
     start: usize,
     end: usize,
-    skip_trim: bool,
-    system: &crate::state::types::System,
-) -> Option<(u16, u16, u16)> {
+    trim_mode: TrimMode,
+    system: &System,
+) -> Option<HybridScanRange> {
     let upper = end
         .min(written.len().saturating_sub(1))
         .min(mem.len().saturating_sub(1))
@@ -218,11 +260,10 @@ pub fn scan_hybrid_range(
         .find(|&addr| written.get(addr).copied().unwrap_or(false) || mem[addr] != snapshot[addr])?;
 
     // Walk backward from diff_end to detect and trim small trailing clusters,
-    // unless `skip_trim` is true.
-    let trimmed_end = if !skip_trim {
-        trim_trailing_clusters(mem, snapshot, written, first, diff_end)
-    } else {
-        diff_end
+    // unless `trim_mode` is `TrimMode::KeepTrailing`.
+    let trimmed_end = match trim_mode {
+        TrimMode::TrimTrailing => trim_trailing_clusters(mem, snapshot, written, first, diff_end),
+        TrimMode::KeepTrailing => diff_end,
     };
 
     // Extend past the trimmed end through written bytes that match the snapshot
@@ -237,7 +278,11 @@ pub fn scan_hybrid_range(
         }
     }
 
-    Some((first as u16, extended_end as u16, trimmed_end as u16))
+    Some(HybridScanRange {
+        start: first as u16,
+        end: extended_end as u16,
+        trimmed_end: trimmed_end as u16,
+    })
 }
 
 /// Scans the pre-decompression `snapshot` within `ret_addr..ret_addr + 0x0400` for a
@@ -411,7 +456,7 @@ mod tests {
         // `trimmed_end + 1` through $A001 (only 2 written bytes above $9FFF, so
         // `has_output_above` is false). Escalation to Level 1 ($CFFF) therefore
         // depends exclusively on `trimmed_end + 256 >= 0x9FFF`.
-        let run_level0 = |trimmed_end: usize| -> Option<(u16, u16)> {
+        let run_level0 = |trimmed_end: usize| -> Option<DetectedRange> {
             let (mut mem, snapshot, mut written) = blank_state();
             mark_diff_range(&mut mem, &snapshot, &mut written, 0x0801..=trimmed_end);
             for w in &mut written[(trimmed_end + 1)..=0xA001] {
@@ -421,15 +466,27 @@ mod tests {
         };
 
         // 0x9EFE + 256 = 0x9FFE < 0x9FFF -> does not escalate; extension stops at $9FFF.
-        assert_eq!(run_level0(0x9EFE), Some((0x0801, 0x9FFF)));
+        assert_eq!(
+            run_level0(0x9EFE),
+            Some(DetectedRange {
+                start: 0x0801,
+                end: 0x9FFF
+            })
+        );
         // 0x9EFF + 256 = 0x9FFF >= 0x9FFF -> escalates to $CFFF; extension reaches $A001.
-        assert_eq!(run_level0(0x9EFF), Some((0x0801, 0xA001)));
+        assert_eq!(
+            run_level0(0x9EFF),
+            Some(DetectedRange {
+                start: 0x0801,
+                end: 0xA001
+            })
+        );
 
         // Case B: Level 1 ceiling on C64 ($CFFF) with I/O mapped ($00=$2F, $01=$37).
         // A 20-byte cluster inside $D000..=$DFFF is ignored by `has_output_above`
         // because I/O is mapped, so escalation to Level 2 ($FFEF) depends only on
         // `trimmed_end + 256 >= 0xCFFF`.
-        let run_level1 = |trimmed_end: usize| -> Option<(u16, u16)> {
+        let run_level1 = |trimmed_end: usize| -> Option<DetectedRange> {
             let (mut mem, mut snapshot, mut written) = blank_state();
             mem[0x00] = 0x2F;
             mem[0x01] = 0x37;
@@ -441,9 +498,21 @@ mod tests {
         };
 
         // 0xCEFE + 256 = 0xCFFE < 0xCFFF -> stops at Level 1 ($CEFE).
-        assert_eq!(run_level1(0xCEFE), Some((0x0801, 0xCEFE)));
+        assert_eq!(
+            run_level1(0xCEFE),
+            Some(DetectedRange {
+                start: 0x0801,
+                end: 0xCEFE
+            })
+        );
         // 0xCEFF + 256 = 0xCFFF >= 0xCFFF -> escalates to Level 2 and includes $DF00..=$DF13.
-        assert_eq!(run_level1(0xCEFF), Some((0x0801, 0xDF13)));
+        assert_eq!(
+            run_level1(0xCEFF),
+            Some(DetectedRange {
+                start: 0x0801,
+                end: 0xDF13
+            })
+        );
     }
 
     /// Pins the `0x2000` high-region escalation window in `detect_output_range`.
@@ -452,7 +521,7 @@ mod tests {
         // On C64, Level 0 boundary is $9FFF (`0x9FFF - 0x2000 = 0x7FFF`).
         // With a 20-byte diff cluster at $B000..=$B013 (gap > 4096 bytes so it is not
         // trimmed as a workspace cluster), escalation happens iff `trimmed_end >= 0x7FFF`.
-        let run_case = |lower_end: usize| -> Option<(u16, u16)> {
+        let run_case = |lower_end: usize| -> Option<DetectedRange> {
             let (mut mem, snapshot, mut written) = blank_state();
             mark_diff_range(&mut mem, &snapshot, &mut written, 0x0801..=lower_end);
             mark_diff_range(&mut mem, &snapshot, &mut written, 0xB000..=0xB013);
@@ -460,9 +529,21 @@ mod tests {
         };
 
         // 0x7FFE < 0x9FFF - 0x2000 (0x7FFF): does not escalate at Level 0.
-        assert_eq!(run_case(0x7FFE), Some((0x0801, 0x7FFE)));
+        assert_eq!(
+            run_case(0x7FFE),
+            Some(DetectedRange {
+                start: 0x0801,
+                end: 0x7FFE
+            })
+        );
         // 0x7FFF == 0x9FFF - 0x2000: escalates to Level 1 ($CFFF) and includes $B000..=$B013.
-        assert_eq!(run_case(0x7FFF), Some((0x0801, 0xB013)));
+        assert_eq!(
+            run_case(0x7FFF),
+            Some(DetectedRange {
+                start: 0x0801,
+                end: 0xB013
+            })
+        );
     }
 
     /// Pins the 4-byte minimum high-region diff threshold in `detect_output_range`.
@@ -471,7 +552,7 @@ mod tests {
         // Setup 1: Level 0 boundary ($9FFF) with `trimmed_end = 0x9EFE` (not near ceiling,
         // within 0x2000 window) and written zero-fill bytes extending across $9FFF into
         // $A000..($A000 + high_count - 1).
-        let run_zero_fill_above = |high_count: usize| -> Option<(u16, u16)> {
+        let run_zero_fill_above = |high_count: usize| -> Option<DetectedRange> {
             let (mut mem, snapshot, mut written) = blank_state();
             mark_diff_range(&mut mem, &snapshot, &mut written, 0x0801..=0x9EFE);
             for w in &mut written[0x9EFF..(0xA000 + high_count)] {
@@ -481,14 +562,26 @@ mod tests {
         };
 
         // 3 written bytes in $A000..=$CFFF (< 4): does not escalate; extension caps at $9FFF.
-        assert_eq!(run_zero_fill_above(3), Some((0x0801, 0x9FFF)));
+        assert_eq!(
+            run_zero_fill_above(3),
+            Some(DetectedRange {
+                start: 0x0801,
+                end: 0x9FFF
+            })
+        );
         // 4 written bytes in $A000..=$CFFF (>= 4): escalates to $CFFF; extension reaches $A003.
-        assert_eq!(run_zero_fill_above(4), Some((0x0801, 0xA003)));
+        assert_eq!(
+            run_zero_fill_above(4),
+            Some(DetectedRange {
+                start: 0x0801,
+                end: 0xA003
+            })
+        );
 
         // Setup 2: Level 1 boundary ($CFFF) with I/O mapped ($00=$2F, $01=$37).
         // 16 diff bytes at $DFF0..=$DFFF are inside I/O (excluded from `has_output_above`),
         // and `high_count` diff bytes at $E000..($E000 + high_count - 1) are outside I/O.
-        let run_io_split_above = |high_count: usize| -> Option<(u16, u16)> {
+        let run_io_split_above = |high_count: usize| -> Option<DetectedRange> {
             let (mut mem, mut snapshot, mut written) = blank_state();
             mem[0x00] = 0x2F;
             mem[0x01] = 0x37;
@@ -506,15 +599,27 @@ mod tests {
         };
 
         // 3 non-I/O diff bytes above $CFFF (< 4): stops at Level 1 ($B000).
-        assert_eq!(run_io_split_above(3), Some((0x0801, 0xB000)));
+        assert_eq!(
+            run_io_split_above(3),
+            Some(DetectedRange {
+                start: 0x0801,
+                end: 0xB000
+            })
+        );
         // 4 non-I/O diff bytes above $CFFF (>= 4): escalates to Level 2 ($E003).
-        assert_eq!(run_io_split_above(4), Some((0x0801, 0xE003)));
+        assert_eq!(
+            run_io_split_above(4),
+            Some(DetectedRange {
+                start: 0x0801,
+                end: 0xE003
+            })
+        );
     }
 
     /// Pins the 512-byte maximum forward zero-fill extension in `scan_hybrid_range`.
     #[test]
     fn detector_zero_fill_extension_limit() {
-        let run_with_zero_fill = |zero_fill_len: usize| -> Option<(u16, u16, u16)> {
+        let run_with_zero_fill = |zero_fill_len: usize| -> Option<HybridScanRange> {
             let (mut mem, snapshot, mut written) = blank_state();
             mark_diff_range(&mut mem, &snapshot, &mut written, 0x0801..=0x1000);
             for w in &mut written[0x1001..=(0x1000 + zero_fill_len)] {
@@ -526,18 +631,46 @@ mod tests {
                 &written,
                 0x0800,
                 0x9FFF,
-                false,
+                TrimMode::TrimTrailing,
                 &TargetSystem::C64,
             )
         };
 
         // 511 bytes of trailing written zero-fill -> extends full 511 bytes to $11FF.
-        assert_eq!(run_with_zero_fill(511), Some((0x0801, 0x11FF, 0x1000)));
+        assert_eq!(
+            run_with_zero_fill(511),
+            Some(HybridScanRange {
+                start: 0x0801,
+                end: 0x11FF,
+                trimmed_end: 0x1000
+            })
+        );
         // 512 bytes of trailing written zero-fill -> extends full 512 bytes to $1200.
-        assert_eq!(run_with_zero_fill(512), Some((0x0801, 0x1200, 0x1000)));
+        assert_eq!(
+            run_with_zero_fill(512),
+            Some(HybridScanRange {
+                start: 0x0801,
+                end: 0x1200,
+                trimmed_end: 0x1000
+            })
+        );
         // 513 bytes (and 700 bytes) of trailing written zero-fill -> capped at +512 ($1200).
-        assert_eq!(run_with_zero_fill(513), Some((0x0801, 0x1200, 0x1000)));
-        assert_eq!(run_with_zero_fill(700), Some((0x0801, 0x1200, 0x1000)));
+        assert_eq!(
+            run_with_zero_fill(513),
+            Some(HybridScanRange {
+                start: 0x0801,
+                end: 0x1200,
+                trimmed_end: 0x1000
+            })
+        );
+        assert_eq!(
+            run_with_zero_fill(700),
+            Some(HybridScanRange {
+                start: 0x0801,
+                end: 0x1200,
+                trimmed_end: 0x1000
+            })
+        );
     }
 
     /// Pins the pre-RAM diff count (`< 64`) and gap (`> 128`) thresholds in `scan_hybrid_range`.
@@ -545,7 +678,7 @@ mod tests {
     fn detector_hybrid_scan_thresholds() {
         // Part 1: `diffs_below < 64` boundary when `gap_before_ram > 128` (start = $0400,
         // C64 ram_start = $0800, so total span is 1024 bytes and gap is >= 960 > 128).
-        let run_diffs_below = |diffs_below: usize| -> Option<(u16, u16, u16)> {
+        let run_diffs_below = |diffs_below: usize| -> Option<HybridScanRange> {
             let (mut mem, snapshot, mut written) = blank_state();
             mark_diff_range(
                 &mut mem,
@@ -560,19 +693,33 @@ mod tests {
                 &written,
                 0x0400,
                 0x9FFF,
-                false,
+                TrimMode::TrimTrailing,
                 &TargetSystem::C64,
             )
         };
 
         // 63 diffs below $0800 (< 64) with gap 961 (> 128) -> skips pre-RAM diffs to $0801.
-        assert_eq!(run_diffs_below(63), Some((0x0801, 0x1000, 0x1000)));
+        assert_eq!(
+            run_diffs_below(63),
+            Some(HybridScanRange {
+                start: 0x0801,
+                end: 0x1000,
+                trimmed_end: 0x1000
+            })
+        );
         // 64 diffs below $0800 (< 64 is false) -> keeps pre-RAM start $0400.
-        assert_eq!(run_diffs_below(64), Some((0x0400, 0x1000, 0x1000)));
+        assert_eq!(
+            run_diffs_below(64),
+            Some(HybridScanRange {
+                start: 0x0400,
+                end: 0x1000,
+                trimmed_end: 0x1000
+            })
+        );
 
         // Part 2: `gap_before_ram > 128` boundary with 1 diff byte at `first` just below $0800.
         // For a single diff at `first`, `gap_before_ram = (0x0800 - first) - 1`.
-        let run_gap_before_ram = |gap_len: usize| -> Option<(u16, u16, u16)> {
+        let run_gap_before_ram = |gap_len: usize| -> Option<HybridScanRange> {
             let (mut mem, snapshot, mut written) = blank_state();
             let first_pre_ram = 0x0800 - (gap_len + 1);
             mark_diff_range(
@@ -588,15 +735,29 @@ mod tests {
                 &written,
                 0x0400,
                 0x9FFF,
-                false,
+                TrimMode::TrimTrailing,
                 &TargetSystem::C64,
             )
         };
 
         // gap_before_ram == 128 (> 128 is false, first = $077F) -> keeps $077F.
-        assert_eq!(run_gap_before_ram(128), Some((0x077F, 0x1000, 0x1000)));
+        assert_eq!(
+            run_gap_before_ram(128),
+            Some(HybridScanRange {
+                start: 0x077F,
+                end: 0x1000,
+                trimmed_end: 0x1000
+            })
+        );
         // gap_before_ram == 129 (> 128 is true, first = $077E) -> advances start to $0801.
-        assert_eq!(run_gap_before_ram(129), Some((0x0801, 0x1000, 0x1000)));
+        assert_eq!(
+            run_gap_before_ram(129),
+            Some(HybridScanRange {
+                start: 0x0801,
+                end: 0x1000,
+                trimmed_end: 0x1000
+            })
+        );
 
         // Part 3: `skip_trim` bypasses `trim_trailing_clusters`.
         let (mut mem, snapshot, mut written) = blank_state();
@@ -609,10 +770,14 @@ mod tests {
                 &written,
                 0x0800,
                 0x9FFF,
-                false,
+                TrimMode::TrimTrailing,
                 &TargetSystem::C64
             ),
-            Some((0x0801, 0x1000, 0x1000))
+            Some(HybridScanRange {
+                start: 0x0801,
+                end: 0x1000,
+                trimmed_end: 0x1000
+            })
         );
         assert_eq!(
             scan_hybrid_range(
@@ -621,10 +786,14 @@ mod tests {
                 &written,
                 0x0800,
                 0x9FFF,
-                true,
+                TrimMode::KeepTrailing,
                 &TargetSystem::C64
             ),
-            Some((0x0801, 0x1015, 0x1015))
+            Some(HybridScanRange {
+                start: 0x0801,
+                end: 0x1015,
+                trimmed_end: 0x1015
+            })
         );
     }
 
@@ -802,7 +971,15 @@ mod tests {
             TargetSystem::Pet20,
         ] {
             assert_eq!(
-                scan_hybrid_range(&mem, &snapshot, &written, 0x0800, 0x9FFF, false, &system),
+                scan_hybrid_range(
+                    &mem,
+                    &snapshot,
+                    &written,
+                    0x0800,
+                    0x9FFF,
+                    TrimMode::TrimTrailing,
+                    &system,
+                ),
                 None
             );
             assert_eq!(
@@ -818,7 +995,10 @@ mod tests {
         mark_diff_range(&mut mem_k, &snapshot_k, &mut written_k, 0xFFF0..=0xFFF5);
         assert_eq!(
             detect_output_range(&mem_k, &snapshot_k, &written_k, 0x0801, &TargetSystem::C64),
-            Some((0xFFF0, 0xFFF5))
+            Some(DetectedRange {
+                start: 0xFFF0,
+                end: 0xFFF5
+            })
         );
     }
 

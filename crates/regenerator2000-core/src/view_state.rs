@@ -1,6 +1,6 @@
 //! Frontend-agnostic view, pane, and cursor state.
 
-use crate::state::HexdumpViewMode;
+use crate::state::{HexdumpViewMode, SearchFilters};
 
 /// Currently focused UI pane.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -144,7 +144,7 @@ pub struct CoreViewState {
     /// Most recent search query string.
     pub last_search_query: String,
     /// Active search filters.
-    pub search_filters: crate::state::search::SearchFilters,
+    pub search_filters: SearchFilters,
 
     /// Latest status message emitted by core actions.
     pub status_message: Option<String>,
@@ -193,7 +193,7 @@ impl CoreViewState {
 
             blocks_selected_index: None,
             last_search_query: String::new(),
-            search_filters: crate::state::search::SearchFilters::default(),
+            search_filters: SearchFilters::default(),
             status_message: None,
         }
     }

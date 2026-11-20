@@ -1,11 +1,13 @@
 //! Domain error types for `regenerator2000-core`.
 
-use crate::state::types::Addr;
+use crate::state::Addr;
+use std::io;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 /// Represents the core domain error hierarchy across all subsystems.
 #[derive(Debug, Error)]
+#[must_use]
 #[non_exhaustive]
 pub enum CoreError {
     /// Represents an I/O failure with file path metadata.
@@ -15,7 +17,7 @@ pub enum CoreError {
         path: PathBuf,
         /// Underlying standard I/O error.
         #[source]
-        source: std::io::Error,
+        source: io::Error,
     },
 
     /// Represents an invalid or out-of-bounds 6502 memory address.
@@ -50,6 +52,7 @@ pub enum CoreError {
 
 /// Represents errors from binary unpacking and depacking heuristics.
 #[derive(Debug, Error, PartialEq, Eq)]
+#[must_use]
 #[non_exhaustive]
 pub enum UnpackError {
     /// Indicates that the input buffer is empty.
@@ -109,6 +112,7 @@ pub enum UnpackError {
 
 /// Represents errors from assembly and HTML exporter backends.
 #[derive(Debug, Error)]
+#[must_use]
 #[non_exhaustive]
 pub enum ExportError {
     /// Indicates a syntax generation error in the target assembler formatter.
@@ -138,12 +142,13 @@ pub enum ExportError {
         path: PathBuf,
         /// Underlying standard I/O error.
         #[source]
-        source: std::io::Error,
+        source: io::Error,
     },
 }
 
 /// Represents errors from VICE binary monitor communication.
 #[derive(Debug, Error)]
+#[must_use]
 #[non_exhaustive]
 pub enum ViceError {
     /// Indicates that the TCP connection to the VICE monitor socket failed.
@@ -153,7 +158,7 @@ pub enum ViceError {
         address: String,
         /// Underlying network I/O error.
         #[source]
-        source: std::io::Error,
+        source: io::Error,
     },
 
     /// Indicates a protocol handshake byte mismatch.
@@ -183,7 +188,7 @@ pub enum ViceError {
 
     /// Indicates a socket network I/O failure.
     #[error("Socket I/O error: {0}")]
-    Io(#[from] std::io::Error),
+    Io(#[from] io::Error),
 
     /// Indicates a malformed packet frame or an unexpected response packet.
     #[error("Unexpected response framing: {0}")]
@@ -192,6 +197,7 @@ pub enum ViceError {
 
 /// Represents errors from project file persistence (`.regen2000proj`).
 #[derive(Debug, Error)]
+#[must_use]
 #[non_exhaustive]
 pub enum ProjectError {
     /// Indicates that a newer application version created the project file.
@@ -231,7 +237,7 @@ pub enum ProjectError {
         path: PathBuf,
         /// Underlying standard I/O error.
         #[source]
-        source: std::io::Error,
+        source: io::Error,
     },
 
     /// Indicates that no project path is set for the save operation.
@@ -249,7 +255,7 @@ pub trait IoResultExt<T> {
     fn with_path<P: AsRef<Path>>(self, path: P) -> Result<T, CoreError>;
 }
 
-impl<T> IoResultExt<T> for std::result::Result<T, std::io::Error> {
+impl<T> IoResultExt<T> for std::result::Result<T, io::Error> {
     fn with_path<P: AsRef<Path>>(self, path: P) -> Result<T, CoreError> {
         self.map_err(|source| CoreError::Io {
             path: path.as_ref().to_path_buf(),

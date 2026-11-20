@@ -4,6 +4,7 @@
 //! use an in-memory resolver so validation and ground-truth loading run
 //! without file I/O.
 
+use std::fs;
 use std::path::PathBuf;
 
 use super::CorpusError;
@@ -48,7 +49,7 @@ impl FixtureResolver for DirFixtures {
             });
         }
         let path = self.root.join(file);
-        std::fs::read(&path).map_err(|e| CorpusError::Io {
+        fs::read(&path).map_err(|e| CorpusError::Io {
             path,
             message: e.to_string(),
         })

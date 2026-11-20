@@ -47,7 +47,7 @@ pub struct CrtHeader {
 impl CrtHeader {
     /// Returns the human-readable cartridge hardware name for [`Self::hardware_type`].
     #[must_use]
-    pub fn get_hardware_name(&self) -> String {
+    pub fn hardware_name(&self) -> String {
         match self.hardware_type {
             0 => "Normal Cartridge".to_string(),
             1 => "Action Replay".to_string(),
@@ -182,14 +182,23 @@ pub fn parse_crt_chips(data: &[u8]) -> Result<CrtHeader> {
 }
 
 /// Parses a `.crt` file and flattens all `CHIP` banks into one contiguous memory buffer.
+/// Flattened memory image parsed from a Commodore 64 cartridge (`.crt`) file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParsedCrt {
+    /// Lowest `CHIP` load address in the cartridge image.
+    pub origin: u16,
+    /// Flattened memory image starting at [`Self::origin`].
+    pub memory: Vec<u8>,
+}
+
+/// Flattens a `.crt` image into a contiguous address range starting at the lowest `CHIP` origin.
 ///
-/// Returns `(origin, memory)` where `origin` is the lowest `CHIP` load address.
 /// Earlier `CHIP` banks (such as Bank 0) take precedence over later overlapping banks.
 ///
 /// # Errors
 ///
 /// Returns an error if [`parse_crt_chips`] fails or if the combined memory range is empty.
-pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
+pub fn parse_crt(data: &[u8]) -> Result<ParsedCrt> {
     let header = parse_crt_chips(data)?;
     let chips = header.chips;
 
@@ -231,7 +240,10 @@ pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
         memory[offset..offset + copy_len].copy_from_slice(&chip.data[..copy_len]);
     }
 
-    Ok((min_addr as u16, memory))
+    Ok(ParsedCrt {
+        origin: min_addr as u16,
+        memory,
+    })
 }
 
 #[cfg(test)]
@@ -263,10 +275,10 @@ mod tests {
         data.extend_from_slice(&(chip_data.len() as u16).to_be_bytes()); // ROM size
         data.extend_from_slice(chip_data);
 
-        let (origin, mem) = parse_crt(&data).expect("Should parse valid CRT");
-        assert_eq!(origin, 0x8000);
-        assert_eq!(mem.len(), 16);
-        assert_eq!(mem, chip_data);
+        let parsed = parse_crt(&data).expect("Should parse valid CRT");
+        assert_eq!(parsed.origin, 0x8000);
+        assert_eq!(parsed.memory.len(), 16);
+        assert_eq!(parsed.memory, chip_data);
     }
 
     #[test]
@@ -297,9 +309,9 @@ mod tests {
         data.extend_from_slice(&(chip2_content.len() as u16).to_be_bytes());
         data.extend_from_slice(chip2_content);
 
-        let (origin, mem) = parse_crt(&data).expect("Should parse valid CRT");
-        assert_eq!(origin, 0x8000);
-        assert_eq!(mem, chip1_content);
+        let parsed = parse_crt(&data).expect("Should parse valid CRT");
+        assert_eq!(parsed.origin, 0x8000);
+        assert_eq!(parsed.memory, chip1_content);
     }
 
     #[test]
@@ -317,8 +329,8 @@ mod tests {
         data.extend_from_slice(&(chip_data.len() as u16).to_be_bytes());
         data.extend_from_slice(&chip_data);
 
-        let (origin, mem) = parse_crt(&data).expect("Ultimax $E000-$FFFF CRT must parse");
-        assert_eq!(origin, 0xE000);
-        assert_eq!(mem.len(), 0x2000);
+        let parsed = parse_crt(&data).expect("Ultimax $E000-$FFFF CRT must parse");
+        assert_eq!(parsed.origin, 0xE000);
+        assert_eq!(parsed.memory.len(), 0x2000);
     }
 }

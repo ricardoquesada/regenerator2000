@@ -3,7 +3,8 @@
 
 use super::*;
 use crate::corpus::{
-    Corpus, Fnv64, Group, HexAddr, INITIAL_REVIEW_MARKER, Overlap, Unp64Record, Unp64Saved,
+    Corpus, Divergence, ExpectedFailReason, Fnv64, Group, HexAddr, INITIAL_REVIEW_MARKER, Overlap,
+    Unp64Record, Unp64Saved,
 };
 use crate::update::{ExceptionChange, RecordChange, update_case, update_corpus};
 
@@ -65,11 +66,16 @@ fn update_writes_unp64_table_and_overlap() {
     // The written manifest parses back to the same canonical corpus.
     let corpus = Corpus {
         groups: Vec::new(),
-        cases: vec![update.case.clone(), agree.case.clone()],
+        cases: vec![update.case, agree.case],
     };
-    let text = corpus.to_toml_string().unwrap();
+    let text = corpus
+        .to_toml_string()
+        .expect("updated corpus should serialize");
     assert_eq!(
-        Corpus::parse(&text).unwrap().to_toml_string().unwrap(),
+        Corpus::parse(&text)
+            .expect("serialized corpus should reparse")
+            .to_toml_string()
+            .expect("reparsed corpus should serialize"),
         text
     );
 }
@@ -79,11 +85,18 @@ fn update_writes_unp64_table_and_overlap() {
 #[test]
 fn update_proposes_unsigned_divergence_for_new_difference() {
     let update = update_case(&traveller(bare_case("t.prg")), VERSION);
-    let proposal = update.case.accepted_divergence.clone().unwrap();
+    let proposal = update
+        .case
+        .accepted_divergence
+        .clone()
+        .expect("case should propose divergence");
     assert_eq!(proposal.kind, DivergenceKind::Unp64DefaultEnd);
     assert_eq!(proposal.fields.as_slice(), &[Field::End]);
     assert_eq!(proposal.reviewed_by, None);
-    let note = proposal.note.clone().unwrap();
+    let note = proposal
+        .note
+        .clone()
+        .expect("proposed divergence should include explanatory note");
     assert!(note.contains("$FFFD") && note.contains("$7949"), "{note}");
     assert_eq!(
         update.exception,
@@ -102,7 +115,10 @@ fn update_proposes_unsigned_divergence_for_new_difference() {
         ),
         VERSION,
     );
-    let proposal = both.case.accepted_divergence.unwrap();
+    let proposal = both
+        .case
+        .accepted_divergence
+        .expect("case should contain accepted divergence");
     assert_eq!(proposal.kind, DivergenceKind::Unexplained);
     assert_eq!(proposal.fields.as_slice(), &[Field::Start, Field::End]);
     assert_eq!(proposal.reviewed_by, None);
@@ -147,7 +163,10 @@ fn update_preserves_signature_when_classification_unchanged() {
     let first = update_case(&traveller(bare_case("t.prg")), VERSION);
     for signature in [INITIAL_REVIEW_MARKER, "ricardoq"] {
         let mut case = first.case.clone();
-        let mut signed = case.accepted_divergence.clone().unwrap();
+        let mut signed = case
+            .accepted_divergence
+            .clone()
+            .expect("case should propose divergence");
         signed.reviewed_by = Some(signature.to_string());
         signed.note = Some("reviewed by hand".to_string());
         case.accepted_divergence = Some(signed.clone());
@@ -179,7 +198,7 @@ fn update_preserves_signature_when_classification_unchanged() {
     };
     let recorded = update_case(&hbfs(bare_case("h.prg")), VERSION);
     assert_eq!(recorded.exception, ExceptionChange::NeedsReview);
-    let mut reviewed = recorded.case.clone();
+    let mut reviewed = recorded.case;
     let decision = exception(
         DivergenceKind::Unexplained,
         &[Field::Start, Field::Entry],
@@ -195,7 +214,10 @@ fn update_preserves_signature_when_classification_unchanged() {
 #[test]
 fn update_drops_signature_when_kind_or_values_change() {
     let mut case = update_case(&traveller(bare_case("t.prg")), VERSION).case;
-    let mut signed = case.accepted_divergence.clone().unwrap();
+    let mut signed = case
+        .accepted_divergence
+        .clone()
+        .expect("case should propose divergence");
     signed.reviewed_by = Some("ricardoq".to_string());
     case.accepted_divergence = Some(signed.clone());
 
@@ -209,7 +231,11 @@ fn update_drops_signature_when_kind_or_values_change() {
         VERSION,
     );
     assert_eq!(values.record, RecordChange::Changed);
-    let proposal = values.case.accepted_divergence.clone().unwrap();
+    let proposal = values
+        .case
+        .accepted_divergence
+        .clone()
+        .expect("case should propose divergence");
     assert_eq!(proposal.kind, DivergenceKind::Unp64DefaultEnd);
     assert_eq!(proposal.reviewed_by, None);
     assert_eq!(
@@ -230,7 +256,11 @@ fn update_drops_signature_when_kind_or_values_change() {
     ));
     let replaced = update_case(&traveller(wrong_kind), VERSION);
     assert_eq!(
-        replaced.case.accepted_divergence.unwrap().kind,
+        replaced
+            .case
+            .accepted_divergence
+            .expect("replaced divergence should exist")
+            .kind,
         DivergenceKind::Unp64DefaultEnd
     );
 
@@ -268,7 +298,10 @@ fn update_records_failed_unp64_as_unexplained_proposal() {
         Some(Unp64Record::Failed(failed)) if failed.reason.starts_with("Max Iterations")
             && failed.version == VERSION
     ));
-    let proposal = update.case.accepted_divergence.unwrap();
+    let proposal = update
+        .case
+        .accepted_divergence
+        .expect("case should contain accepted divergence");
     assert_eq!(proposal.kind, DivergenceKind::Unexplained);
     assert_eq!(proposal.fields.as_slice(), &Field::ALL);
     assert_eq!(proposal.reviewed_by, None);
@@ -284,7 +317,10 @@ fn update_records_failed_unp64_as_unexplained_proposal() {
         ),
         VERSION,
     );
-    let proposal = opcode.case.accepted_divergence.unwrap();
+    let proposal = opcode
+        .case
+        .accepted_divergence
+        .expect("case should contain accepted divergence");
     assert_eq!(proposal.kind, DivergenceKind::Unp64MissingOpcode);
     assert_eq!(proposal.fields.as_slice(), &Field::ALL);
 }
@@ -306,7 +342,7 @@ fn update_keeps_reviewed_fields_of_a_payload_mismatch_under_investigation() {
     let recorded = update_case(&hbfs(bare_case("h.prg")), VERSION);
     assert!(matches!(
         recorded.divergence,
-        crate::corpus::Divergence::PayloadMismatch { .. }
+        Divergence::PayloadMismatch { .. }
     ));
     assert_eq!(recorded.exception, ExceptionChange::NeedsReview);
 
@@ -315,10 +351,9 @@ fn update_keeps_reviewed_fields_of_a_payload_mismatch_under_investigation() {
         &[Field::Start, Field::Entry],
         Some(INITIAL_REVIEW_MARKER),
     );
-    let mut marked = recorded.case.clone();
+    let mut marked = recorded.case;
     marked.accepted_divergence = Some(decision.clone());
-    marked.expected_fail =
-        Some(crate::corpus::ExpectedFailReason::PayloadMismatchUnderInvestigation);
+    marked.expected_fail = Some(ExpectedFailReason::PayloadMismatchUnderInvestigation);
     let again = update_case(&hbfs(marked.clone()), VERSION);
     assert_eq!(again.case.accepted_divergence, Some(decision.clone()));
     assert_eq!(again.case.expected_fail, marked.expected_fail);
@@ -377,7 +412,21 @@ fn update_corpus_replaces_only_observed_cases() {
     assert_eq!(update.corpus.groups, vec![group]);
     let files: Vec<&str> = update.cases.iter().map(|c| c.case.file.as_str()).collect();
     assert_eq!(files, ["t.prg", "z.prg"]);
-    assert!(update.corpus.case("t.prg").unwrap().unp64.is_some());
-    assert!(update.corpus.case("z.prg").unwrap().unp64.is_some());
+    assert!(
+        update
+            .corpus
+            .case("t.prg")
+            .expect("t.prg case should exist")
+            .unp64
+            .is_some()
+    );
+    assert!(
+        update
+            .corpus
+            .case("z.prg")
+            .expect("z.prg case should exist")
+            .unp64
+            .is_some()
+    );
     assert_eq!(update.corpus.case("u.prg"), Some(&bare_case("u.prg")));
 }

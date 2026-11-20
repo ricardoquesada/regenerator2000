@@ -1,7 +1,17 @@
 //! Core domain types for 6502 addresses, target systems, block types, labels, symbolic offsets,
 //! and typed cross-references.
 
-use serde::{Deserialize, Serialize};
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::borrow::Borrow;
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use std::convert::Infallible;
+use std::fmt::{self, Display, LowerHex, UpperHex};
+use std::hash::{Hash, Hasher};
+use std::mem;
+use std::ops::{Add, BitAnd, RangeInclusive, Rem, Shr, Sub};
+use std::str::FromStr;
 
 // =============================================================================
 // TargetSystem Enum
@@ -124,7 +134,7 @@ impl TargetSystem {
 
     /// Returns the default screen RAM address range if this system defines one.
     #[must_use]
-    pub fn screen_ram(&self) -> Option<std::ops::RangeInclusive<u16>> {
+    pub fn screen_ram(&self) -> Option<RangeInclusive<u16>> {
         match self {
             TargetSystem::C64 | TargetSystem::C128 => Some(0x0400..=0x07E7),
             TargetSystem::Vic20 => Some(0x1E00..=0x1FFF),
@@ -134,11 +144,14 @@ impl TargetSystem {
         }
     }
 
-    /// Returns the default hardware IRQ vector address and handler address `(vector_addr, handler_addr)`.
+    /// Returns the default hardware [`IrqVector`] for this target system, if defined.
     #[must_use]
-    pub fn default_irq(&self) -> Option<(u16, u16)> {
+    pub fn default_irq(&self) -> Option<IrqVector> {
         match self {
-            TargetSystem::C64 => Some((0x0314, 0xEA31)),
+            TargetSystem::C64 => Some(IrqVector {
+                vector_addr: 0x0314,
+                handler_addr: 0xEA31,
+            }),
             _ => None,
         }
     }
@@ -155,7 +168,7 @@ impl TargetSystem {
 
     /// Returns the hardware I/O address range if this system defines one.
     #[must_use]
-    pub fn io_range(&self) -> Option<std::ops::RangeInclusive<u16>> {
+    pub fn io_range(&self) -> Option<RangeInclusive<u16>> {
         match self {
             TargetSystem::C64 | TargetSystem::C128 => Some(0xD000..=0xDFFF),
             TargetSystem::Vic20 => Some(0x9000..=0x97FF),
@@ -337,8 +350,8 @@ impl Default for TargetSystem {
     }
 }
 
-impl std::fmt::Display for TargetSystem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for TargetSystem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
@@ -349,8 +362,8 @@ impl AsRef<str> for TargetSystem {
     }
 }
 
-impl std::str::FromStr for TargetSystem {
-    type Err = std::convert::Infallible;
+impl FromStr for TargetSystem {
+    type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let trimmed = s.trim();
@@ -362,10 +375,10 @@ impl std::str::FromStr for TargetSystem {
     }
 }
 
-impl serde::Serialize for TargetSystem {
+impl Serialize for TargetSystem {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         serializer.serialize_str(self.as_str())
     }
@@ -374,27 +387,27 @@ impl serde::Serialize for TargetSystem {
 impl<'de> serde::Deserialize<'de> for TargetSystem {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         struct TargetSystemVisitor;
 
-        impl<'de> serde::de::Visitor<'de> for TargetSystemVisitor {
+        impl Visitor<'_> for TargetSystemVisitor {
             type Value = TargetSystem;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a valid target system identifier string")
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
             where
-                E: serde::de::Error,
+                E: de::Error,
             {
-                v.parse().map_err(serde::de::Error::custom)
+                v.parse().map_err(de::Error::custom)
             }
 
             fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
             where
-                E: serde::de::Error,
+                E: de::Error,
             {
                 let trimmed = v.trim();
                 if let Some(sys) = TargetSystem::parse_standard(trimmed) {
@@ -432,13 +445,13 @@ impl PartialEq for TargetSystem {
                     false
                 }
             }
-            (a, b) => core::mem::discriminant(a) == core::mem::discriminant(b),
+            (a, b) => mem::discriminant(a) == mem::discriminant(b),
         }
     }
 }
 
-impl std::hash::Hash for TargetSystem {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl Hash for TargetSystem {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             TargetSystem::Custom(s) => {
                 if let Some(std_sys) = Self::parse_standard(s) {
@@ -450,7 +463,7 @@ impl std::hash::Hash for TargetSystem {
                 }
             }
             std_sys => {
-                core::mem::discriminant(std_sys).hash(state);
+                mem::discriminant(std_sys).hash(state);
             }
         }
     }
@@ -547,52 +560,52 @@ impl Serialize for Addr {
 impl<'de> Deserialize<'de> for Addr {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>,
+        D: Deserializer<'de>,
     {
         struct AddrVisitor;
 
-        impl<'de> serde::de::Visitor<'de> for AddrVisitor {
+        impl Visitor<'_> for AddrVisitor {
             type Value = Addr;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 formatter.write_str("a 16-bit address as integer or string")
             }
 
             fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
             where
-                E: serde::de::Error,
+                E: de::Error,
             {
-                u16::try_from(v).map(Addr).map_err(serde::de::Error::custom)
+                u16::try_from(v).map(Addr).map_err(de::Error::custom)
             }
 
             fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
             where
-                E: serde::de::Error,
+                E: de::Error,
             {
-                u16::try_from(v).map(Addr).map_err(serde::de::Error::custom)
+                u16::try_from(v).map(Addr).map_err(de::Error::custom)
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
             where
-                E: serde::de::Error,
+                E: de::Error,
             {
                 let v_trimmed = v.trim();
                 if let Some(hex) = v_trimmed.strip_prefix('$') {
                     u16::from_str_radix(hex, 16)
                         .map(Addr)
-                        .map_err(serde::de::Error::custom)
+                        .map_err(de::Error::custom)
                 } else if let Some(hex) = v_trimmed
                     .strip_prefix("0x")
                     .or_else(|| v_trimmed.strip_prefix("0X"))
                 {
                     u16::from_str_radix(hex, 16)
                         .map(Addr)
-                        .map_err(serde::de::Error::custom)
+                        .map_err(de::Error::custom)
                 } else {
                     v_trimmed
                         .parse::<u16>()
                         .map(Addr)
-                        .map_err(serde::de::Error::custom)
+                        .map_err(de::Error::custom)
                 }
             }
         }
@@ -654,21 +667,21 @@ impl Default for Addr {
     }
 }
 
-impl std::fmt::Display for Addr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "${:04X}", self.0)
     }
 }
 
-impl std::fmt::UpperHex for Addr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::UpperHex::fmt(&self.0, f)
+impl UpperHex for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        UpperHex::fmt(&self.0, f)
     }
 }
 
-impl std::fmt::LowerHex for Addr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::LowerHex::fmt(&self.0, f)
+impl LowerHex for Addr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        LowerHex::fmt(&self.0, f)
     }
 }
 
@@ -699,7 +712,7 @@ impl From<Addr> for i32 {
 }
 
 /// Allows `BTreeMap<Addr, T>` to be queried with `&u16` keys.
-impl std::borrow::Borrow<u16> for Addr {
+impl Borrow<u16> for Addr {
     fn borrow(&self) -> &u16 {
         &self.0
     }
@@ -714,42 +727,42 @@ impl PartialEq<u16> for Addr {
 }
 
 impl PartialOrd<u16> for Addr {
-    fn partial_cmp(&self, other: &u16) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &u16) -> Option<Ordering> {
         Some(self.0.cmp(other))
     }
 }
 
 // ---- Arithmetic operators ----
 
-impl std::ops::Add<u16> for Addr {
+impl Add<u16> for Addr {
     type Output = Addr;
     fn add(self, rhs: u16) -> Self {
         Self(self.0.wrapping_add(rhs))
     }
 }
 
-impl std::ops::Sub<u16> for Addr {
+impl Sub<u16> for Addr {
     type Output = Addr;
     fn sub(self, rhs: u16) -> Self {
         Self(self.0.wrapping_sub(rhs))
     }
 }
 
-impl std::ops::Sub<Addr> for Addr {
+impl Sub<Addr> for Addr {
     type Output = u16;
     fn sub(self, rhs: Addr) -> u16 {
         self.0.wrapping_sub(rhs.0)
     }
 }
 
-impl std::ops::BitAnd<u16> for Addr {
+impl BitAnd<u16> for Addr {
     type Output = u16;
     fn bitand(self, rhs: u16) -> u16 {
         self.0 & rhs
     }
 }
 
-impl std::ops::Shr<u16> for Addr {
+impl Shr<u16> for Addr {
     type Output = u16;
     fn shr(self, rhs: u16) -> u16 {
         self.0 >> rhs
@@ -780,12 +793,12 @@ pub enum Assembler {
     Acme,
     /// cc65 (`ca65`) macro assembler syntax.
     Ca65,
-    /// KickAssembler syntax.
+    /// `KickAssembler` syntax.
     Kick,
 }
 
-impl std::fmt::Display for Assembler {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Assembler {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Assembler::Tass64 => write!(f, "64tass"),
             Assembler::Acme => write!(f, "ACME"),
@@ -841,8 +854,8 @@ pub enum BlockType {
     Undefined,
 }
 
-impl std::fmt::Display for BlockType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for BlockType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BlockType::Code => write!(f, "Code"),
             BlockType::DataByte => write!(f, "Byte"),
@@ -861,7 +874,7 @@ impl std::fmt::Display for BlockType {
 }
 
 impl BlockType {
-    /// Returns `true` if `filter` matches this [`BlockType`] name or snake_case identifier.
+    /// Returns `true` if `filter` matches this [`BlockType`] name or `snake_case` identifier.
     ///
     /// This comparison ignores ASCII case and surrounding whitespace.
     #[must_use]
@@ -1078,8 +1091,8 @@ impl OffsetRadix {
     }
 }
 
-impl std::fmt::Display for OffsetRadix {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for OffsetRadix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
@@ -1178,7 +1191,7 @@ impl OperandJumpTarget {
 ///     Addr(0x00FC),
 ///     OffsetRadix::Decimal,
 /// )
-/// .unwrap();
+/// .expect("valid symbolic offset expression");
 /// assert!(zp_hi.matches_target(Addr(0x00FC)));
 /// assert_eq!(
 ///     zp_hi.format_expression("zp_ptr", OffsetParentheses::Bare),
@@ -1191,7 +1204,7 @@ impl OperandJumpTarget {
 ///     Addr(0xC0FF),
 ///     OffsetRadix::Decimal,
 /// )
-/// .unwrap();
+/// .expect("valid symbolic offset expression");
 /// assert_eq!(rts_vec.effective_address(), Some(Addr(0xC0FF)));
 /// assert_eq!(
 ///     rts_vec.format_expression("sub_C100", OffsetParentheses::Parenthesized),
@@ -1291,7 +1304,7 @@ pub struct CachedArrow {
     pub target_addr: Option<Addr>,
 }
 
-impl std::ops::Rem<u16> for Addr {
+impl Rem<u16> for Addr {
     type Output = u16;
     fn rem(self, rhs: u16) -> u16 {
         self.0 % rhs
@@ -1369,8 +1382,8 @@ impl XRefKind {
     }
 }
 
-impl std::fmt::Display for XRefKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for XRefKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.badge())
     }
 }
@@ -1416,7 +1429,7 @@ pub struct EnumDefinition {
     /// Optional human-readable description of the enum.
     pub description: Option<String>,
     /// Map from numeric constant value to variant name.
-    pub variants: std::collections::BTreeMap<u16, String>,
+    pub variants: BTreeMap<u16, String>,
     /// Optional path to the TOML file that defined this enum.
     #[serde(skip)]
     pub source_file: Option<String>,
@@ -1428,10 +1441,8 @@ impl EnumDefinition {
     /// Keys can use decimal (`"10"`), hexadecimal (`"0x0A"` or `"$0A"`), or
     /// binary (`"0b0101"` or `"%0101"`) notation.
     #[must_use]
-    pub fn parse_variants(
-        raw: std::collections::BTreeMap<String, String>,
-    ) -> std::collections::BTreeMap<u16, String> {
-        let mut parsed = std::collections::BTreeMap::new();
+    pub fn parse_variants(raw: BTreeMap<String, String>) -> BTreeMap<u16, String> {
+        let mut parsed = BTreeMap::new();
         for (k, v) in raw {
             let k_trimmed = k.trim();
             let parsed_val = if let Some(hex) = k_trimmed
@@ -1457,7 +1468,7 @@ impl EnumDefinition {
                     parsed.insert(val, v);
                 }
                 Err(_) => {
-                    log::warn!("Invalid numeric key in enum variants: {}", k_trimmed);
+                    log::warn!("Invalid numeric key in enum variants: {k_trimmed}");
                 }
             }
         }
@@ -1473,7 +1484,7 @@ pub struct RawEnumDefinition {
     /// Optional human-readable description of the enum.
     pub description: Option<String>,
     /// Unparsed map from numeric key string to variant name.
-    pub variants: std::collections::BTreeMap<String, String>,
+    pub variants: BTreeMap<String, String>,
 }
 
 impl From<RawEnumDefinition> for EnumDefinition {
@@ -1489,7 +1500,7 @@ impl From<RawEnumDefinition> for EnumDefinition {
 
 impl From<EnumDefinition> for RawEnumDefinition {
     fn from(def: EnumDefinition) -> Self {
-        let mut variants = std::collections::BTreeMap::new();
+        let mut variants = BTreeMap::new();
         for (k, v) in def.variants {
             variants.insert(format!("0x{k:02X}"), v);
         }
@@ -1499,6 +1510,153 @@ impl From<EnumDefinition> for RawEnumDefinition {
             variants,
         }
     }
+}
+
+/// Controls whether [`AppState::apply_settings_change`](crate::state::AppState::apply_settings_change)
+/// reloads platform labels and system comments from assets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssetReload {
+    /// Retain currently loaded system labels and comments.
+    Keep,
+    /// Reload system labels and comments for the active system and enabled features.
+    Reload,
+}
+
+/// Controls whether [`AppState::apply_settings_change`](crate::state::AppState::apply_settings_change)
+/// runs a fresh auto-analysis pass before re-disassembling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Reanalysis {
+    /// Only refresh the disassembly without running a new analysis pass.
+    Skip,
+    /// Re-run auto-analysis when automatic analysis is enabled.
+    Run,
+}
+
+/// Identifies which block-view entries match when locating an address in `Blocks` items.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlockItemTarget {
+    /// Match a contiguous [`BlockItem::Block`](crate::state::BlockItem::Block) or enclosing [`BlockItem::Scope`](crate::state::BlockItem::Scope).
+    BlockOrScope,
+    /// Match a manual [`BlockItem::Splitter`](crate::state::BlockItem::Splitter) or enclosing [`BlockItem::Scope`](crate::state::BlockItem::Scope).
+    Splitter,
+}
+
+/// Controls whether external label equates include inline cross-reference summaries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExternalXRefs {
+    /// Omit cross-reference lists from external equate comments.
+    Omit,
+    /// Append cross-reference lists to external equate comments.
+    Include,
+}
+
+/// Controls whether [`AppState::save_project`](crate::state::AppState::save_project)
+/// records the saved path in the global user configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GlobalConfigUpdate {
+    /// Save only the `.regen2000proj` file without modifying user-wide recent-projects state.
+    Skip,
+    /// Update `last_project_path` and recent projects in [`SystemConfig`](crate::config::SystemConfig).
+    Update,
+}
+
+/// Scope visibility of a plain user label identifier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LabelLocality {
+    /// Global user label resolved across the whole program.
+    Global,
+    /// Scope-local user label (`LabelType::LocalUserDefined`) prefixed per assembler syntax.
+    Local,
+}
+
+/// Instruction addressing width applied when resolving or formatting symbolic offsets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OffsetAddressing {
+    /// Full 16-bit addressing; any valid 16-bit base address is allowed and formatted at full width.
+    Absolute,
+    /// Zero-page 8-bit addressing; base addresses must fit in `$0000..=$00FF` and format as 8-bit.
+    ZeroPage,
+}
+
+impl LabelLocality {
+    /// Converts a legacy boolean locality flag into [`LabelLocality`].
+    #[must_use]
+    pub(crate) const fn from_local(is_local: bool) -> Self {
+        if is_local { Self::Local } else { Self::Global }
+    }
+
+    /// Returns `true` when this locality represents a scope-local label.
+    #[must_use]
+    pub(crate) const fn is_local(self) -> bool {
+        matches!(self, Self::Local)
+    }
+}
+
+impl OffsetAddressing {
+    /// Selects [`OffsetAddressing::ZeroPage`] when `addr` is in `$0000..=$00FF`,
+    /// otherwise [`OffsetAddressing::Absolute`].
+    #[must_use]
+    pub const fn for_address(addr: Addr) -> Self {
+        if addr.0 <= 0x00FF {
+            Self::ZeroPage
+        } else {
+            Self::Absolute
+        }
+    }
+
+    /// Converts a zero-page mode flag into [`OffsetAddressing`].
+    #[must_use]
+    pub(crate) const fn from_zero_page(is_zero_page: bool) -> Self {
+        if is_zero_page {
+            Self::ZeroPage
+        } else {
+            Self::Absolute
+        }
+    }
+
+    /// Returns `true` when symbolic base resolution and formatting use 8-bit zero-page mode.
+    #[must_use]
+    pub(crate) const fn is_zero_page(self) -> bool {
+        matches!(self, Self::ZeroPage)
+    }
+}
+
+/// Default hardware IRQ vector location and handler entry point for a [`TargetSystem`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IrqVector {
+    /// 16-bit RAM address holding the IRQ handler pointer.
+    pub vector_addr: u16,
+    /// Default ROM/RAM interrupt service routine address.
+    pub handler_addr: u16,
+}
+
+/// Inclusive 16-bit 6502 address range (`start..=end`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AddrSpan {
+    /// Inclusive lower 6502 address.
+    pub start: Addr,
+    /// Inclusive upper 6502 address.
+    pub end: Addr,
+}
+
+/// Effective operand target resolved at a single disassembly address or byte site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EffectiveTarget {
+    /// 6502 address of the referencing instruction or pointer item.
+    pub site_addr: Addr,
+    /// Raw 16-bit target decoded before symbolic offset substitution.
+    pub raw_target: Addr,
+    /// Addressing width used at [`Self::site_addr`].
+    pub addressing: OffsetAddressing,
+}
+
+/// Suggested symbolic offset expression and default scope for a target address.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SymbolicOffsetSuggestion {
+    /// Formatted symbolic offset expression, or empty if no suggestion matches.
+    pub expression: String,
+    /// Whether the UI defaults to a global Tier 2 `address_offset` rather than Tier 1 `operand_offset`.
+    pub default_is_global: bool,
 }
 
 #[cfg(test)]
@@ -1531,8 +1689,6 @@ mod tests {
 
     #[test]
     fn test_target_system_alias_resolution() {
-        use std::str::FromStr;
-
         assert_eq!(TargetSystem::from_str("c64").ok(), Some(TargetSystem::C64));
         assert_eq!(
             TargetSystem::from_str("Commodore 64").ok(),

@@ -1,4 +1,4 @@
-//! TSCrunch (`TSCrunch v1.3+` and `TSCrunch v1.3+-X2`) packer specification and emulation hooks.
+//! `TSCrunch` (`TSCrunch v1.3+` and `TSCrunch v1.3+-X2`) packer specification and emulation hooks.
 
 use crate::state::types::TargetSystem;
 use crate::unpacker::machine::Phase;
@@ -84,7 +84,7 @@ fn scan_entry_point(image: &LoadedImage<'_>, q: usize, start_offset: usize) -> O
     None
 }
 
-/// Resolves TSCrunch Variant 1 (`TSCrunch v1.3+`) or Variant 2 (`TSCrunch v1.3+-X2`) at `$080D`.
+/// Resolves `TSCrunch` Variant 1 (`TSCrunch v1.3+`) or Variant 2 (`TSCrunch v1.3+-X2`) at `$080D`.
 #[must_use]
 fn resolve_tscrunch(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
     let mem = image.mem;
@@ -138,7 +138,7 @@ pub fn resolve_reloc_start(image: &LoadedImage<'_>, sig_match: &SignatureMatch) 
     (addr > 0x0800).then_some(addr)
 }
 
-/// Emulation-time hooks for TSCrunch (`v1.3+` and `v1.3+-X2`).
+/// Emulation-time hooks for `TSCrunch` (`v1.3+` and `v1.3+-X2`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TScrunchHooks {
     /// Start address of high-memory compressed stream relocation (`> $0800`).
@@ -196,7 +196,7 @@ impl PackerHooks for TScrunchHooks {
     }
 }
 
-/// Constructs [`TScrunchHooks`] for a matched TSCrunch image.
+/// Constructs [`TScrunchHooks`] for a matched `TSCrunch` image.
 #[must_use]
 pub fn create_tscrunch_hooks(
     image: &LoadedImage<'_>,
@@ -222,7 +222,7 @@ const TSCRUNCH_FIXTURE: [u8; 31] = [
     0x00,
 ];
 
-/// Declarative specification for TSCrunch (`v1.3+` and `v1.3+-X2` variants).
+/// Declarative specification for `TSCrunch` (`v1.3+` and `v1.3+-X2` variants).
 pub static SPEC: PackerSpec = PackerSpec {
     id: "tscrunch",
     name: "TSCrunch v1.3+",

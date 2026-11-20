@@ -129,12 +129,9 @@ impl ShortcutTestHarness {
 
         // Start with a clean undo stack so !core.state.is_dirty().
         core.state.undo_stack = crate::commands::UndoStack::new();
-        core.state.last_saved_pointer = core.state.undo_stack.get_pointer();
+        core.state.last_saved_pointer = core.state.undo_stack.pointer();
 
-        let origin_idx = core
-            .state
-            .get_line_index_for_address(Addr(0x0800))
-            .unwrap_or(0);
+        let origin_idx = core.state.line_index_for_address(Addr(0x0800)).unwrap_or(0);
         ui_state.cursor_index = origin_idx;
         ui_state.scroll_index = origin_idx;
         ui_state.blocks_list_state.select(Some(0));
@@ -227,7 +224,7 @@ impl ShortcutTestHarness {
         self.ui_state.vim_search_input.clear();
         self.ui_state.input_buffer.clear();
         self.ui_state.should_quit = false;
-        self.core.state.last_saved_pointer = self.core.state.undo_stack.get_pointer();
+        self.core.state.last_saved_pointer = self.core.state.undo_stack.pointer();
     }
 
     /// Finds the disassembly line index for `addr` (selecting the content line with non-empty bytes
@@ -238,7 +235,7 @@ impl ShortcutTestHarness {
             .disassembly
             .iter()
             .position(|l| l.address == addr && (!l.bytes.is_empty() || l.is_collapsed))
-            .or_else(|| self.core.state.get_line_index_for_address(addr))
+            .or_else(|| self.core.state.line_index_for_address(addr))
             .expect("address must exist in disassembly")
     }
 }
@@ -571,11 +568,11 @@ fn test_global_shortcuts_across_all_panes() {
         h.ui_state.cursor_index = origin_idx;
         h.set_pane(pane);
         let block_types_snapshot = h.core.state.block_types.clone();
-        let undo_ptr_before = h.core.state.undo_stack.get_pointer();
+        let undo_ptr_before = h.core.state.undo_stack.pointer();
 
         h.press(KeyCode::Char('b'), KeyModifiers::CONTROL);
         assert_eq!(
-            h.core.state.undo_stack.get_pointer(),
+            h.core.state.undo_stack.pointer(),
             undo_ptr_before + 1,
             "Ctrl+b failed to push SetBookmark command in pane {pane:?}"
         );
@@ -1419,7 +1416,7 @@ fn test_disassembly_view_shortcuts() {
     );
 
     // Delete on the scope boundary line (.proc) removes the scope
-    let formatter = h.core.state.get_formatter();
+    let formatter = h.core.state.formatter();
     let (_, scope_start_mnemonic, _) = formatter
         .format_scope_start(None)
         .expect("formatter must have scope start");
@@ -3036,12 +3033,12 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
         let line_0840 = harness
             .core
             .state
-            .get_line_index_containing_address(Addr(0x0840))
+            .line_index_containing_address(Addr(0x0840))
             .expect("line at $0840");
         let line_08bf = harness
             .core
             .state
-            .get_line_index_containing_address(Addr(0x08BF))
+            .line_index_containing_address(Addr(0x08BF))
             .expect("line at $08BF");
         harness.ui_state.selection_start = Some(line_0840);
         harness.ui_state.cursor_index = line_08bf;
@@ -3080,7 +3077,7 @@ fn test_blocks_and_debugger_view_shortcuts() {
     h.press(KeyCode::Char('j'), KeyModifiers::NONE);
     assert_eq!(h.ui_state.blocks_list_state.selected(), Some(2));
 
-    let items = h.core.state.get_blocks_view_items();
+    let items = h.core.state.blocks_view_items();
     let BlockItem::Block { start, end, .. } = items[2] else {
         panic!("Expected BlockItem::Block at index 2");
     };

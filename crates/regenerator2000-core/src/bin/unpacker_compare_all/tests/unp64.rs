@@ -3,8 +3,10 @@
 //! Console captures use real `unp64` v2.42 output shapes (lower-case hex,
 //! `\r` progress, and `-v` diagnostics).
 
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::io;
+use std::iter;
 use std::path::{Path, PathBuf};
 
 use super::*;
@@ -44,7 +46,7 @@ fn pass2_entry(tail: &str) -> Option<Unp64Entry> {
 /// Builds a PRG with `load_addr` followed by `len` payload bytes.
 fn prg(load_addr: u16, len: usize) -> Vec<u8> {
     let mut bytes = load_addr.to_le_bytes().to_vec();
-    bytes.extend(std::iter::repeat_n(0xEA, len));
+    bytes.extend(iter::repeat_n(0xEA, len));
     bytes
 }
 
@@ -215,14 +217,16 @@ fn parse_version_banner_gives_version() {
 /// The output file determines the start, length, and bytes.
 #[test]
 fn derive_from_output_file() {
-    let saved = derive_saved_payload(&prg(0x0801, 16)).unwrap();
+    let saved = derive_saved_payload(&prg(0x0801, 16))
+        .expect("valid output PRG should derive saved payload");
     assert_eq!(saved.range, range(0x0801, 0x0810));
     assert_eq!(saved.payload, vec![0xEA; 16]);
 }
 
 #[test]
 fn derive_from_output_file_wrap_to_ffff() {
-    let saved = derive_saved_payload(&prg(0x0800, 0xF800)).unwrap();
+    let saved = derive_saved_payload(&prg(0x0800, 0xF800))
+        .expect("wrapping 64KiB output PRG should derive saved payload");
     assert_eq!(saved.range, range(0x0800, 0xFFFF));
     assert_eq!(saved.range.len(), 63_488);
 }
@@ -327,7 +331,7 @@ fn unp64_binary_candidates_have_no_hardcoded_user_paths() {
 #[test]
 fn tmp_output_path_is_unique_per_case() {
     let dir = Path::new("/tmp");
-    let paths: std::collections::BTreeSet<PathBuf> = (0..64)
+    let paths: BTreeSet<PathBuf> = (0..64)
         .map(|index| tmp_output_path(dir, 4242, index))
         .collect();
     assert_eq!(paths.len(), 64);

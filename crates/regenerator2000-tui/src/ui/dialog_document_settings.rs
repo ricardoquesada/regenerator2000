@@ -1,5 +1,5 @@
 use crate::assets::SystemConfig;
-use crate::state::{AppState, Assembler, DocumentSettings, System};
+use crate::state::{AppState, Assembler, AssetReload, DocumentSettings, Reanalysis, System};
 use crate::theme::Theme;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
@@ -179,7 +179,12 @@ impl BoolSetting {
 
         match self {
             Self::AllLabels | Self::PreserveLongBytes => {
-                DocumentSettingsDialog::sync_disassembly(app_state, ui_state, false, false);
+                DocumentSettingsDialog::sync_disassembly(
+                    app_state,
+                    ui_state,
+                    AssetReload::Keep,
+                    Reanalysis::Skip,
+                );
             }
             Self::BrkSingleByte => {
                 if app_state.settings.brk_single_byte {
@@ -190,23 +195,48 @@ impl BoolSetting {
                 ) {
                     app_state.settings.patch_brk = true;
                 }
-                DocumentSettingsDialog::sync_disassembly(app_state, ui_state, false, true);
+                DocumentSettingsDialog::sync_disassembly(
+                    app_state,
+                    ui_state,
+                    AssetReload::Keep,
+                    Reanalysis::Run,
+                );
             }
             Self::PatchBrk | Self::UseIllegalOpcodes => {
-                DocumentSettingsDialog::sync_disassembly(app_state, ui_state, false, true);
+                DocumentSettingsDialog::sync_disassembly(
+                    app_state,
+                    ui_state,
+                    AssetReload::Keep,
+                    Reanalysis::Run,
+                );
             }
             Self::AutoAnalyze => {
                 if app_state.settings.auto_analyze {
-                    DocumentSettingsDialog::sync_disassembly(app_state, ui_state, false, true);
+                    DocumentSettingsDialog::sync_disassembly(
+                        app_state,
+                        ui_state,
+                        AssetReload::Keep,
+                        Reanalysis::Run,
+                    );
                 } else {
                     DocumentSettingsDialog::clear_auto_analysis(app_state, ui_state);
                 }
             }
             Self::ExcludeWellKnownLabels => {
-                DocumentSettingsDialog::sync_disassembly(app_state, ui_state, true, true);
+                DocumentSettingsDialog::sync_disassembly(
+                    app_state,
+                    ui_state,
+                    AssetReload::Reload,
+                    Reanalysis::Run,
+                );
             }
             Self::ShowSystemComments => {
-                DocumentSettingsDialog::sync_disassembly(app_state, ui_state, true, false);
+                DocumentSettingsDialog::sync_disassembly(
+                    app_state,
+                    ui_state,
+                    AssetReload::Reload,
+                    Reanalysis::Skip,
+                );
             }
         }
     }
@@ -399,11 +429,11 @@ impl DocumentSettingsDialog {
         {
             app_state.settings.patch_brk = true;
         }
-        Self::sync_disassembly(app_state, ui_state, false, false);
+        Self::sync_disassembly(app_state, ui_state, AssetReload::Keep, Reanalysis::Skip);
     }
 
     fn cycle_system(&mut self, app_state: &mut AppState, ui_state: &mut UIState, delta: isize) {
-        let systems = crate::assets::get_available_systems();
+        let systems = crate::assets::available_systems();
         if systems.is_empty() {
             return;
         }
@@ -419,7 +449,7 @@ impl DocumentSettingsDialog {
         app_state.settings.system = System::from(systems[new_idx].clone());
         app_state.settings.enabled_features.clear();
         self.selected_index = SYSTEM_ROW_INDEX;
-        Self::sync_disassembly(app_state, ui_state, true, true);
+        Self::sync_disassembly(app_state, ui_state, AssetReload::Reload, Reanalysis::Run);
     }
 
     fn clear_auto_analysis(app_state: &mut AppState, ui_state: &mut UIState) {
@@ -436,8 +466,8 @@ impl DocumentSettingsDialog {
     fn sync_disassembly(
         app_state: &mut AppState,
         ui_state: &mut UIState,
-        reload_assets: bool,
-        reanalyze: bool,
+        reload_assets: AssetReload,
+        reanalyze: Reanalysis,
     ) {
         let restore_addr = app_state
             .disassembly
@@ -456,7 +486,7 @@ impl DocumentSettingsDialog {
         old_sub_cursor: usize,
     ) {
         if let Some(addr) = restore_addr
-            && let Some(new_idx) = app_state.get_line_index_for_address(addr)
+            && let Some(new_idx) = app_state.line_index_for_address(addr)
         {
             ui_state.cursor_index = new_idx;
             if let Some(line) = app_state.disassembly.get(new_idx) {
@@ -602,7 +632,7 @@ impl Widget for DocumentSettingsDialog {
         }
 
         if self.is_selecting_system {
-            let systems = crate::assets::get_available_systems();
+            let systems = crate::assets::available_systems();
             let selected_idx = systems
                 .iter()
                 .position(|p| settings.system == *p)
@@ -696,7 +726,12 @@ impl Widget for DocumentSettingsDialog {
                     {
                         setting.set(&mut app_state.settings, val);
                         self.editing_number = None;
-                        Self::sync_disassembly(app_state, ui_state, false, false);
+                        Self::sync_disassembly(
+                            app_state,
+                            ui_state,
+                            AssetReload::Keep,
+                            Reanalysis::Skip,
+                        );
                     } else {
                         ui_state.set_status_message(format!("Enter a value from {min} to {max}"));
                         input.clear();
@@ -745,7 +780,7 @@ impl Widget for DocumentSettingsDialog {
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
-                Self::sync_disassembly(app_state, ui_state, false, false);
+                Self::sync_disassembly(app_state, ui_state, AssetReload::Keep, Reanalysis::Skip);
                 return WidgetResult::Close;
             }
             KeyCode::Up => {
@@ -761,7 +796,12 @@ impl Widget for DocumentSettingsDialog {
             KeyCode::Left => match selected_row {
                 Some(RowDescriptor::Numeric(setting)) => {
                     if setting.step(&mut app_state.settings, -1) {
-                        Self::sync_disassembly(app_state, ui_state, false, false);
+                        Self::sync_disassembly(
+                            app_state,
+                            ui_state,
+                            AssetReload::Keep,
+                            Reanalysis::Skip,
+                        );
                     }
                 }
                 Some(RowDescriptor::Assembler) => Self::cycle_assembler(app_state, ui_state, -1),
@@ -771,7 +811,12 @@ impl Widget for DocumentSettingsDialog {
             KeyCode::Right => match selected_row {
                 Some(RowDescriptor::Numeric(setting)) => {
                     if setting.step(&mut app_state.settings, 1) {
-                        Self::sync_disassembly(app_state, ui_state, false, false);
+                        Self::sync_disassembly(
+                            app_state,
+                            ui_state,
+                            AssetReload::Keep,
+                            Reanalysis::Skip,
+                        );
                     }
                 }
                 Some(RowDescriptor::Assembler) => Self::cycle_assembler(app_state, ui_state, 1),
@@ -809,7 +854,12 @@ impl Widget for DocumentSettingsDialog {
                             .settings
                             .enabled_features
                             .insert(feature.id.clone(), !current_val);
-                        Self::sync_disassembly(app_state, ui_state, true, true);
+                        Self::sync_disassembly(
+                            app_state,
+                            ui_state,
+                            AssetReload::Reload,
+                            Reanalysis::Run,
+                        );
                     }
                 }
                 None => {}

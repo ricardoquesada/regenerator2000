@@ -73,7 +73,7 @@ impl Widget for CrtBankPickerDialog {
             .and_then(|n| n.to_str())
             .unwrap_or("Unknown");
 
-        let hardware_name = self.crt_header.get_hardware_name();
+        let hardware_name = self.crt_header.hardware_name();
         let title =
             format!(" Select Bank from {file_name} [{hardware_name}] (Enter: Load, Esc: Cancel) ");
         let block = crate::ui::widget::create_dialog_block(&title, theme);

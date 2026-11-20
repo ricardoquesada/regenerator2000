@@ -4,7 +4,6 @@
 use super::*;
 use regenerator2000_core::unpacker::UnpackConfig;
 use std::num::NonZeroU64;
-use std::panic::{AssertUnwindSafe, catch_unwind};
 
 /// Builds a manifest that exercises every optional field.
 fn full_corpus() -> Corpus {
@@ -14,7 +13,7 @@ fn full_corpus() -> Corpus {
         record(0x0801, 0xFFFD, Unp64Entry::Address(0x080D), &image),
         Some(AcceptedDivergence {
             kind: DivergenceKind::Unp64DefaultEnd,
-            fields: FieldSet::new([Field::End]).unwrap(),
+            fields: FieldSet::new([Field::End]).expect("non-empty FieldSet should construct"),
             reviewed_by: Some(INITIAL_REVIEW_MARKER.to_string()),
             note: Some("R2000 write-diff ends earlier".to_string()),
         }),
@@ -53,7 +52,7 @@ fn full_corpus() -> Corpus {
 
 #[test]
 fn parse_minimal_valid_case() {
-    let corpus = Corpus::parse(&manifest_with_unp64("")).unwrap();
+    let corpus = Corpus::parse(&manifest_with_unp64("")).expect("valid manifest should parse");
     assert!(corpus.groups.is_empty());
     let [case] = corpus.cases.as_slice() else {
         panic!("expected one case, got {:?}", corpus.cases);
@@ -77,7 +76,7 @@ fn parse_minimal_valid_case() {
     );
 
     let basic_run = manifest_with_unp64("").replace("\"$080D\"", "\"RUN\"");
-    let corpus = Corpus::parse(&basic_run).unwrap();
+    let corpus = Corpus::parse(&basic_run).expect("BASIC RUN unp64 entry should parse");
     let Some(Unp64Record::Saved(saved)) = &corpus.cases[0].unp64 else {
         panic!("expected a saved record");
     };
@@ -215,15 +214,21 @@ fn parse_rejects_unknown_expected_fail_reason() {
             ExpectedFailReason::PayloadMismatchUnderInvestigation,
         ),
     ] {
-        let corpus = Corpus::parse(&with_reason(text)).unwrap();
+        let corpus =
+            Corpus::parse(&with_reason(text)).expect("valid expected_fail manifest should parse");
         assert_eq!(corpus.cases[0].expected_fail, Some(reason));
         assert_eq!(reason.as_str(), text);
-        let written = corpus.to_toml_string().unwrap();
+        let written = corpus
+            .to_toml_string()
+            .expect("manifest should serialize to TOML");
         assert!(
             written.contains(&format!("expected_fail = \"{text}\"")),
             "{written}"
         );
-        assert_eq!(Corpus::parse(&written).unwrap(), corpus);
+        assert_eq!(
+            Corpus::parse(&written).expect("serialized manifest should reparse"),
+            corpus
+        );
     }
     let message = parse_error(&with_reason("flaky"));
     assert!(
@@ -236,7 +241,7 @@ fn parse_rejects_unknown_expected_fail_reason() {
 #[test]
 fn parse_unp64_failed_shape() {
     let failed = "[[case]]\nfile = \"a.prg\"\n[case.unp64]\nfailed = \"Max Iterations\"\nversion = \"2.42\"\n";
-    let corpus = Corpus::parse(failed).unwrap();
+    let corpus = Corpus::parse(failed).expect("failed unp64 record should parse");
     assert_eq!(corpus.cases[0].unp64, Some(failed_record("Max Iterations")));
 
     let conflicting = [
@@ -267,7 +272,7 @@ fn parse_overlap_table() {
     let corpus = Corpus::parse(&manifest_with_unp64(
         "overlap = { start = \"$0801\", end = \"$0805\", fnv64 = \"cbf29ce484222325\" }",
     ))
-    .unwrap();
+    .expect("overlap record manifest should parse");
     let Some(Unp64Record::Saved(saved)) = &corpus.cases[0].unp64 else {
         panic!("expected a saved record");
     };
@@ -303,11 +308,13 @@ fn parse_max_instructions_per_case() {
             &format!("file = \"a.prg\"\nmax_instructions = {budget}"),
         )
     };
-    let corpus = Corpus::parse(&with_budget("350000000")).unwrap();
+    let corpus =
+        Corpus::parse(&with_budget("350000000")).expect("custom budget manifest should parse");
     assert_eq!(corpus.cases[0].effective_max_instructions(), 350_000_000);
     assert!(Corpus::parse(&with_budget("0")).is_err());
 
-    let default_case = Corpus::parse(&manifest_with_unp64("")).unwrap();
+    let default_case =
+        Corpus::parse(&manifest_with_unp64("")).expect("valid manifest should parse");
     assert_eq!(
         default_case.cases[0].effective_max_instructions(),
         DEFAULT_MAX_INSTRUCTIONS
@@ -336,9 +343,13 @@ fn review_state_classification() {
 
 #[test]
 fn manifest_writer_is_idempotent() {
-    let first = full_corpus().to_toml_string().unwrap();
-    let parsed = Corpus::parse(&first).unwrap();
-    let second = parsed.to_toml_string().unwrap();
+    let first = full_corpus()
+        .to_toml_string()
+        .expect("full corpus manifest should serialize");
+    let parsed = Corpus::parse(&first).expect("serialized corpus should reparse");
+    let second = parsed
+        .to_toml_string()
+        .expect("reparsed corpus should serialize");
     assert_eq!(first, second);
 
     // Parsing the written form produces the same model in canonical order.
@@ -352,27 +363,36 @@ fn manifest_writer_is_idempotent() {
         "kind = \"unexplained\"\nfields = [\"entry\", \"start\"]\nreviewed_by = \"x\"",
     )
     .replace("$080D", "$080d");
-    let normalized = Corpus::parse(&messy).unwrap().to_toml_string().unwrap();
+    let normalized = Corpus::parse(&messy)
+        .expect("messy manifest should parse")
+        .to_toml_string()
+        .expect("normalized manifest should serialize");
     assert!(
         normalized.contains("fields = [\"start\", \"entry\"]"),
         "{normalized}"
     );
     assert_eq!(
         Corpus::parse(&normalized)
-            .unwrap()
+            .expect("normalized manifest should reparse")
             .to_toml_string()
-            .unwrap(),
+            .expect("reparsed manifest should serialize"),
         normalized
     );
 }
 
 #[test]
 fn manifest_writer_sorts_cases_and_groups() {
-    let written = full_corpus().to_toml_string().unwrap();
+    let written = full_corpus()
+        .to_toml_string()
+        .expect("full corpus manifest should serialize");
     let order = |needles: &[&str]| -> Vec<usize> {
         needles
             .iter()
-            .map(|needle| written.find(needle).unwrap())
+            .map(|needle| {
+                written
+                    .find(needle)
+                    .expect("expected entry should appear in serialized manifest")
+            })
             .collect()
     };
     let groups = order(&["id = \"moving_tubes\"", "id = \"mule\""]);
@@ -396,7 +416,9 @@ fn manifest_writer_sorts_cases_and_groups() {
 /// for random bytes and single-byte corruptions without panicking.
 #[test]
 fn corpus_parse_never_panics_on_garbage() {
-    let valid = full_corpus().to_toml_string().unwrap();
+    let valid = full_corpus()
+        .to_toml_string()
+        .expect("full corpus manifest should serialize");
     let valid_bytes = valid.as_bytes();
     let mut inputs: Vec<String> = Vec::new();
 
@@ -418,20 +440,8 @@ fn corpus_parse_never_panics_on_garbage() {
         inputs.push(String::from_utf8_lossy(&corrupted).into_owned());
     }
 
-    let panicking: Vec<usize> = inputs
-        .iter()
-        .enumerate()
-        .filter(|(_, text)| {
-            catch_unwind(AssertUnwindSafe(|| {
-                // Either outcome is acceptable as long as the parser does not panic.
-                (Corpus::parse(text).is_ok(), Baseline::parse(text).is_ok())
-            }))
-            .is_err()
-        })
-        .map(|(index, _)| index)
-        .collect();
-    assert!(
-        panicking.is_empty(),
-        "parsers panicked on inputs {panicking:?}"
-    );
+    // Either outcome is acceptable as long as neither parser panics.
+    for text in &inputs {
+        let _ = (Corpus::parse(text), Baseline::parse(text));
+    }
 }

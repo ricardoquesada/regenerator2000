@@ -306,7 +306,7 @@ impl Widget for HexDumpView {
                 ui_state.selection_start,
                 ui_state.cursor_index,
             )
-            .unwrap_or((usize::MAX, 0))
+            .map_or((usize::MAX, 0), |span| (span.start, span.end))
         };
 
         let items: Vec<ListItem> = (0..visible_height)
@@ -353,19 +353,27 @@ impl Widget for HexDumpView {
                         spans.push(Span::styled(format!("{b:02X} "), byte_style));
 
                         let char_to_render = match ui_state.hexdump_view_mode {
-                            HexdumpViewMode::PETSCIIShifted => {
-                                crate::utils::petscii_to_unicode(b, true)
-                            }
-                            HexdumpViewMode::PETSCIIUnshifted => {
-                                crate::utils::petscii_to_unicode(b, false)
-                            }
+                            HexdumpViewMode::PETSCIIShifted => crate::utils::petscii_to_unicode(
+                                b,
+                                crate::utils::PetsciiCharset::Shifted,
+                            ),
+                            HexdumpViewMode::PETSCIIUnshifted => crate::utils::petscii_to_unicode(
+                                b,
+                                crate::utils::PetsciiCharset::Unshifted,
+                            ),
                             HexdumpViewMode::ScreencodeShifted => {
                                 let petscii = crate::utils::screencode_to_petscii(b);
-                                crate::utils::petscii_to_unicode(petscii, true)
+                                crate::utils::petscii_to_unicode(
+                                    petscii,
+                                    crate::utils::PetsciiCharset::Shifted,
+                                )
                             }
                             HexdumpViewMode::ScreencodeUnshifted => {
                                 let petscii = crate::utils::screencode_to_petscii(b);
-                                crate::utils::petscii_to_unicode(petscii, false)
+                                crate::utils::petscii_to_unicode(
+                                    petscii,
+                                    crate::utils::PetsciiCharset::Unshifted,
+                                )
                             }
                         };
                         ascii_spans.push(Span::styled(char_to_render.to_string(), byte_style));
@@ -554,7 +562,7 @@ mod tests {
     ///
     /// Root cause: `sync_hex_to_disassembly` filtered out the containing block
     /// (it starts before the current hex row) then fell back to
-    /// `get_line_index_for_address`, whose old "first address >= target" pass
+    /// `line_index_for_address`, whose old "first address >= target" pass
     /// found an external-label definition line (prepended at the top of the
     /// `disassembly` array) with a large address, before the real content line.
     #[test]
@@ -903,7 +911,7 @@ mod tests {
         app_state.disassemble();
 
         let line_for_0804 = app_state
-            .get_line_index_containing_address(Addr(0x0804))
+            .line_index_containing_address(Addr(0x0804))
             .expect("line index for $0804");
 
         let mut ui_state = UIState::new(Theme::default());

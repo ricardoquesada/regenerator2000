@@ -26,6 +26,8 @@ use std::fs;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+use regenerator2000_core::packers::registry;
+
 use corpus::{
     BASELINE_FILE, Baseline, BaselineOutcome, Case, CaseResult, Corpus, CorpusFilter, DirFixtures,
     DivergenceKind, Evaluator, ExpectedFailReason, FIXTURE_DIR, Field, INITIAL_REVIEW_MARKER,
@@ -345,7 +347,8 @@ fn corpus_exceptions_are_signed_and_listed_in_action_items() {
     }
 
     let results = run(&with_exception, Schedule::Parallel);
-    let evaluator = Evaluator::new(&corpus, &fixtures()).unwrap();
+    let evaluator =
+        Evaluator::new(&corpus, &fixtures()).expect("corpus test Evaluator should construct");
     let outcome = evaluator.evaluate_all(&results);
     let action_items = render_action_items(&outcome.reports);
     let unlisted: Vec<&&str> = pending
@@ -456,7 +459,13 @@ fn unpack_corpus_matches_oracles_and_baseline() {
 
     let baseline_diffs: Vec<String> = match mode {
         BaselineMode::Update => {
-            fs::write(&baseline_path, current.to_toml_string().unwrap()).unwrap();
+            fs::write(
+                &baseline_path,
+                current
+                    .to_toml_string()
+                    .expect("baseline should serialize to TOML"),
+            )
+            .expect("baseline file should be writable");
             Vec::new()
         }
         BaselineMode::Compare => {
@@ -502,7 +511,8 @@ fn corpus_update_with_filter_is_rejected() {
     assert_eq!(baseline_mode(None, &mule), Ok(BaselineMode::Compare));
     assert_eq!(baseline_mode(Some(""), &all), Ok(BaselineMode::Compare));
     assert_eq!(baseline_mode(Some("1"), &all), Ok(BaselineMode::Update));
-    let rejected = baseline_mode(Some("1"), &mule).unwrap_err();
+    let rejected = baseline_mode(Some("1"), &mule)
+        .expect_err("partial filter with UPDATE_UNPACK_BASELINE=1 must be rejected");
     assert!(
         rejected.contains(UPDATE_BASELINE_ENV) && rejected.contains(FILTER_ENV),
         "{rejected}"
@@ -588,7 +598,7 @@ fn every_corpus_packer_name_maps_to_a_registered_spec() {
     );
     for name in packer_names {
         assert!(
-            regenerator2000_core::packers::registry::find_entry_by_name(name).is_some(),
+            registry::find_entry_by_name(name).is_some(),
             "baseline packer name {name:?} does not match any entry in REGISTRY"
         );
     }
@@ -597,7 +607,7 @@ fn every_corpus_packer_name_maps_to_a_registered_spec() {
 /// Verifies that `registry::detect` and `registry::detect_all` match the packer name in `unpack_baseline.toml`.
 #[test]
 fn detect_all_over_corpus_matches_baseline_packer() {
-    use regenerator2000_core::packers::{LoadedImage, registry};
+    use regenerator2000_core::packers::LoadedImage;
 
     let corpus = load_valid_corpus();
     let baseline_path = Path::new(FIXTURE_DIR).join(BASELINE_FILE);

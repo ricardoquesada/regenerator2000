@@ -4,10 +4,12 @@
 //! comments, block types, scopes, enums, and Tier 1/Tier 2 symbolic offsets. [`UndoStack`]
 //! manages chronological undo and redo history.
 
+use crate::analyzer;
 use crate::state::{
     Addr, AppState, BlockType, EnumDefinition, ImmediateFormat, Label, SymbolicOffset, XRef,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
+use std::ops::Range;
 
 /// Represents an executable and undoable state mutation command.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -16,7 +18,7 @@ pub enum Command {
     /// Sets the [`BlockType`] classification for a byte index range.
     SetBlockType {
         /// Byte offset range in `raw_data`.
-        range: std::ops::Range<usize>,
+        range: Range<usize>,
         /// Block type to apply to `range`.
         new_type: BlockType,
         /// Previous block types in `range` for undo.
@@ -205,7 +207,7 @@ impl Command {
                 if start < end {
                     state.block_types[start..end].fill(*new_type);
 
-                    let result = crate::analyzer::analyze(state);
+                    let result = analyzer::analyze(state);
                     state.labels = result.labels;
                     state.cross_refs = result.cross_refs;
                 }
@@ -237,7 +239,7 @@ impl Command {
             } => {
                 state
                     .annotations
-                    .update(*address, |e| e.user_side_comment = new_comment.clone());
+                    .update(*address, |e| e.user_side_comment.clone_from(new_comment));
             }
             Command::SetUserLineComment {
                 address,
@@ -246,7 +248,7 @@ impl Command {
             } => {
                 state
                     .annotations
-                    .update(*address, |e| e.user_line_comment = new_comment.clone());
+                    .update(*address, |e| e.user_line_comment.clone_from(new_comment));
             }
             Command::ChangeOrigin {
                 new_origin,
@@ -287,7 +289,7 @@ impl Command {
             } => {
                 state
                     .annotations
-                    .update(*address, |e| e.bookmark = new_name.clone());
+                    .update(*address, |e| e.bookmark.clone_from(new_name));
             }
             Command::SetUserExcludedAddress {
                 address,
@@ -301,7 +303,7 @@ impl Command {
                     state.user_excluded_addresses.remove(address);
                 }
                 state.load_system_assets();
-                let result = crate::analyzer::analyze(state);
+                let result = analyzer::analyze(state);
                 state.labels = result.labels;
                 state.cross_refs = result.cross_refs;
                 state.disassemble();
@@ -326,7 +328,7 @@ impl Command {
             } => {
                 state
                     .annotations
-                    .update(*address, |e| e.enum_usage = new_enum.clone());
+                    .update(*address, |e| e.enum_usage.clone_from(new_enum));
             }
             Command::SetEnumDefinition {
                 name,
@@ -384,7 +386,7 @@ impl Command {
                         *slot = *old_type;
                     }
 
-                    let result = crate::analyzer::analyze(state);
+                    let result = analyzer::analyze(state);
                     state.labels = result.labels;
                     state.cross_refs = result.cross_refs;
                 }
@@ -416,7 +418,7 @@ impl Command {
             } => {
                 state
                     .annotations
-                    .update(*address, |e| e.user_side_comment = old_comment.clone());
+                    .update(*address, |e| e.user_side_comment.clone_from(old_comment));
             }
             Command::SetUserLineComment {
                 address,
@@ -425,7 +427,7 @@ impl Command {
             } => {
                 state
                     .annotations
-                    .update(*address, |e| e.user_line_comment = old_comment.clone());
+                    .update(*address, |e| e.user_line_comment.clone_from(old_comment));
             }
             Command::ChangeOrigin {
                 new_origin: _,
@@ -457,8 +459,7 @@ impl Command {
                 new_labels,
                 old_labels,
             } => {
-                let affected_addrs: std::collections::HashSet<Addr> =
-                    new_labels.iter().map(|(a, _)| *a).collect();
+                let affected_addrs: HashSet<Addr> = new_labels.iter().map(|(a, _)| *a).collect();
                 for addr in affected_addrs {
                     if let Some(labels) = old_labels.get(&addr).filter(|v| !v.is_empty()) {
                         state.labels.insert(addr, labels.clone());
@@ -474,7 +475,7 @@ impl Command {
             } => {
                 state
                     .annotations
-                    .update(*address, |e| e.bookmark = old_name.clone());
+                    .update(*address, |e| e.bookmark.clone_from(old_name));
             }
             Command::SetUserExcludedAddress {
                 address,
@@ -511,7 +512,7 @@ impl Command {
             } => {
                 state
                     .annotations
-                    .update(*address, |e| e.enum_usage = old_enum.clone());
+                    .update(*address, |e| e.enum_usage.clone_from(old_enum));
             }
             Command::SetEnumDefinition {
                 name,
@@ -645,7 +646,7 @@ impl UndoStack {
     ///
     /// `usize` index pointing to the position in the command history.
     #[must_use]
-    pub fn get_pointer(&self) -> usize {
+    pub fn pointer(&self) -> usize {
         self.pointer
     }
 
@@ -673,7 +674,10 @@ impl UndoStack {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{Addr, AppState, BlockType};
+    use crate::analyzer;
+    use crate::state::{Addr, AppState, BlockType, Label, LabelKind, LabelType};
+    use std::mem;
+    use std::slice;
 
     #[test]
     fn test_undo_stack_push_undo_redo() {
@@ -686,7 +690,7 @@ mod tests {
         let range = 0..5;
         let old_types = vec![BlockType::Code; 5];
         let command = Command::SetBlockType {
-            range: range.clone(),
+            range,
             new_type: BlockType::DataByte,
             old_types,
         };
@@ -699,7 +703,7 @@ mod tests {
         assert_eq!(&app_state.block_types[5..10], &[BlockType::Code; 5]);
 
         // Undo
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
@@ -707,7 +711,7 @@ mod tests {
         assert_eq!(&app_state.block_types[0..10], &[BlockType::Code; 10]);
 
         // Redo
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
@@ -721,10 +725,10 @@ mod tests {
         let address = Addr(0x1000);
 
         // Action 1: Set Label
-        let label = crate::state::Label {
+        let label = Label {
             name: "Start".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::UserDefined,
+            kind: LabelKind::User,
+            label_type: LabelType::UserDefined,
         };
         let command = Command::SetLabel {
             address,
@@ -736,25 +740,25 @@ mod tests {
         app_state.undo_stack.push(command);
 
         assert_eq!(
-            app_state.labels.get(&address).map(std::vec::Vec::as_slice),
-            Some(vec![label.clone()].as_slice())
+            app_state.labels.get(&address).map(Vec::as_slice),
+            Some(slice::from_ref(&label))
         );
 
         // Undo
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
         assert!(!app_state.labels.contains_key(&address));
 
         // Redo
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
         assert_eq!(
-            app_state.labels.get(&address).map(std::vec::Vec::as_slice),
-            Some(vec![label.clone()].as_slice())
+            app_state.labels.get(&address).map(Vec::as_slice),
+            Some(slice::from_ref(&label))
         );
     }
 
@@ -766,27 +770,34 @@ mod tests {
         app_state.raw_data = data;
         app_state.block_types = vec![BlockType::Code; 6];
 
-        let result = crate::analyzer::analyze(&app_state);
+        let result = analyzer::analyze(&app_state);
         app_state.labels = result.labels;
         app_state.cross_refs = result.cross_refs;
 
         assert!(app_state.labels.contains_key(&Addr(0x1005)));
-        assert_eq!(app_state.cross_refs.get(&Addr(0x1005)).unwrap().len(), 1);
+        assert_eq!(
+            app_state
+                .cross_refs
+                .get(&Addr(0x1005))
+                .expect("cross-references at $1005 should exist")
+                .len(),
+            1
+        );
         assert_eq!(
             app_state
                 .labels
                 .get(&Addr(0x1005))
-                .unwrap()
+                .expect("labels at $1005 should exist")
                 .first()
-                .unwrap()
+                .expect("at least one label at $1005 should exist")
                 .kind,
-            crate::state::LabelKind::Auto
+            LabelKind::Auto
         );
 
         let range = 0..3;
         let old_types = vec![BlockType::Code; 3];
         let command = Command::SetBlockType {
-            range: range.clone(),
+            range,
             new_type: BlockType::DataByte,
             old_types,
         };
@@ -796,12 +807,19 @@ mod tests {
 
         assert!(!app_state.labels.contains_key(&Addr(0x1005)));
 
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
         assert!(app_state.labels.contains_key(&Addr(0x1005)));
-        assert_eq!(app_state.cross_refs.get(&Addr(0x1005)).unwrap().len(), 1);
+        assert_eq!(
+            app_state
+                .cross_refs
+                .get(&Addr(0x1005))
+                .expect("cross-references at $1005 should exist")
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -827,13 +845,13 @@ mod tests {
             Some(&comment)
         );
 
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
         assert!(app_state.annotations.get(address).is_none());
 
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
@@ -850,33 +868,30 @@ mod tests {
     fn test_import_labels_undo_redo() {
         let mut app_state = AppState::new();
         let address = Addr(0x1000);
-        let initial_label = crate::state::Label {
+        let initial_label = Label {
             name: "Initial".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::UserDefined,
+            kind: LabelKind::User,
+            label_type: LabelType::UserDefined,
         };
         app_state
             .labels
             .insert(address, vec![initial_label.clone()]);
 
-        let new_label1 = crate::state::Label {
+        let new_label1 = Label {
             name: "New1".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::UserDefined,
+            kind: LabelKind::User,
+            label_type: LabelType::UserDefined,
         };
-        let new_label2 = crate::state::Label {
+        let new_label2 = Label {
             name: "New2".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::UserDefined,
+            kind: LabelKind::User,
+            label_type: LabelType::UserDefined,
         };
 
-        let new_labels = vec![
-            (Addr(0x1000), new_label1.clone()),
-            (Addr(0x2000), new_label2.clone()),
-        ];
+        let new_labels = vec![(Addr(0x1000), new_label1), (Addr(0x2000), new_label2)];
 
         let mut old_labels = BTreeMap::new();
-        old_labels.insert(Addr(0x1000), vec![initial_label.clone()]);
+        old_labels.insert(Addr(0x1000), vec![initial_label]);
         old_labels.insert(Addr(0x2000), Vec::new());
 
         let command = Command::ImportLabels {
@@ -887,20 +902,29 @@ mod tests {
         command.apply(&mut app_state);
         app_state.undo_stack.push(command);
 
-        let labels_1000 = app_state.labels.get(&Addr(0x1000)).unwrap();
+        let labels_1000 = app_state
+            .labels
+            .get(&Addr(0x1000))
+            .expect("labels at $1000 should exist");
         assert_eq!(labels_1000.len(), 2);
         assert!(labels_1000.iter().any(|l| l.name == "Initial"));
         assert!(labels_1000.iter().any(|l| l.name == "New1"));
 
-        let labels_2000 = app_state.labels.get(&Addr(0x2000)).unwrap();
+        let labels_2000 = app_state
+            .labels
+            .get(&Addr(0x2000))
+            .expect("labels at $2000 should exist");
         assert_eq!(labels_2000.len(), 1);
         assert_eq!(labels_2000[0].name, "New2");
 
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
-        let labels_1000 = app_state.labels.get(&Addr(0x1000)).unwrap();
+        let labels_1000 = app_state
+            .labels
+            .get(&Addr(0x1000))
+            .expect("labels at $1000 should exist");
         assert_eq!(labels_1000.len(), 1);
         assert_eq!(labels_1000[0].name, "Initial");
 
@@ -908,14 +932,20 @@ mod tests {
             assert!(l.is_empty());
         }
 
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
-        let labels_1000 = app_state.labels.get(&Addr(0x1000)).unwrap();
+        let labels_1000 = app_state
+            .labels
+            .get(&Addr(0x1000))
+            .expect("labels at $1000 should exist");
         assert_eq!(labels_1000.len(), 2);
 
-        let labels_2000 = app_state.labels.get(&Addr(0x2000)).unwrap();
+        let labels_2000 = app_state
+            .labels
+            .get(&Addr(0x2000))
+            .expect("labels at $2000 should exist");
         assert_eq!(labels_2000.len(), 1);
     }
 
@@ -927,7 +957,7 @@ mod tests {
         app_state.raw_data = data;
         app_state.block_types = vec![BlockType::Code; 3];
 
-        let result = crate::analyzer::analyze(&app_state);
+        let result = analyzer::analyze(&app_state);
         app_state.labels = result.labels;
         app_state.cross_refs = result.cross_refs;
         app_state.disassemble();
@@ -961,7 +991,7 @@ mod tests {
             "Label at $E500 should be gone after exclusion"
         );
 
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
@@ -974,7 +1004,7 @@ mod tests {
             "Label at $E500 should be restored after undo"
         );
 
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
@@ -1017,7 +1047,7 @@ mod tests {
             !stack.can_redo(),
             "New UndoStack must have can_redo() == false"
         );
-        assert_eq!(stack.get_pointer(), 0);
+        assert_eq!(stack.pointer(), 0);
     }
 
     #[test]
@@ -1034,7 +1064,7 @@ mod tests {
             !stack.can_redo(),
             "UndoStack must have can_redo() == false after fresh push"
         );
-        assert_eq!(stack.get_pointer(), 1);
+        assert_eq!(stack.pointer(), 1);
     }
 
     #[test]
@@ -1058,7 +1088,7 @@ mod tests {
             stack.can_redo(),
             "can_redo() must be true after undoing command"
         );
-        assert_eq!(stack.get_pointer(), 0);
+        assert_eq!(stack.pointer(), 0);
 
         let _ = stack.redo(&mut state);
         assert!(
@@ -1069,7 +1099,7 @@ mod tests {
             !stack.can_redo(),
             "can_redo() must be false after redoing last command"
         );
-        assert_eq!(stack.get_pointer(), 1);
+        assert_eq!(stack.pointer(), 1);
     }
 
     #[test]
@@ -1099,7 +1129,7 @@ mod tests {
             !stack.can_redo(),
             "Pushing new command must clear redo stack"
         );
-        assert_eq!(stack.get_pointer(), 2);
+        assert_eq!(stack.pointer(), 2);
     }
 
     #[test]
@@ -1154,7 +1184,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1002))
-            .unwrap();
+            .expect("disassembly line at $1002 should exist");
         assert_eq!(line_1002.operand, "table_2000 - 1,x");
 
         // 2. Apply SetOperandOffset with offset == 0 -> normalizes to None and prunes entry
@@ -1173,7 +1203,7 @@ mod tests {
         assert!(state.annotations.get(Addr(0x1002)).is_none());
 
         // Undo -> restores Some(table_2000 - 1) and refreshes disassembly
-        let mut stack = std::mem::take(&mut state.undo_stack);
+        let mut stack = mem::take(&mut state.undo_stack);
         assert_eq!(stack.undo(&mut state).as_deref(), Some("Undone"));
         state.undo_stack = stack;
         assert_eq!(
@@ -1187,11 +1217,11 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1002))
-            .unwrap();
+            .expect("disassembly line at $1002 should exist");
         assert_eq!(line_1002.operand, "table_2000 - 1,x");
 
         // Redo -> clears back to None and refreshes disassembly
-        let mut stack = std::mem::take(&mut state.undo_stack);
+        let mut stack = mem::take(&mut state.undo_stack);
         assert_eq!(stack.redo(&mut state).as_deref(), Some("Redone"));
         state.undo_stack = stack;
         assert!(state.annotations.get(Addr(0x1002)).is_none());
@@ -1199,7 +1229,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1002))
-            .unwrap();
+            .expect("disassembly line at $1002 should exist");
         assert_eq!(line_1002.operand, "$1fff,x");
 
         // 3. Apply SetAddressOffset at $00FC: None -> Some(zp_ptr + 1) -> Some(offset: 0)
@@ -1227,7 +1257,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1000))
-            .unwrap();
+            .expect("disassembly line at $1000 should exist");
         assert_eq!(line_1000.operand, "zp_ptr + 1");
 
         let cmd_addr_zero = Command::SetAddressOffset {
@@ -1245,7 +1275,7 @@ mod tests {
         assert!(state.annotations.get(Addr(0x00FC)).is_none());
 
         // Undo -> restores Some(zp_ptr + 1) and refreshes disassembly
-        let mut stack = std::mem::take(&mut state.undo_stack);
+        let mut stack = mem::take(&mut state.undo_stack);
         assert_eq!(stack.undo(&mut state).as_deref(), Some("Undone"));
         state.undo_stack = stack;
         assert_eq!(
@@ -1259,11 +1289,11 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1000))
-            .unwrap();
+            .expect("disassembly line at $1000 should exist");
         assert_eq!(line_1000.operand, "zp_ptr + 1");
 
         // Redo -> clears back to None
-        let mut stack = std::mem::take(&mut state.undo_stack);
+        let mut stack = mem::take(&mut state.undo_stack);
         assert_eq!(stack.redo(&mut state).as_deref(), Some("Redone"));
         state.undo_stack = stack;
         assert!(state.annotations.get(Addr(0x00FC)).is_none());
@@ -1271,7 +1301,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1000))
-            .unwrap();
+            .expect("disassembly line at $1000 should exist");
         assert_eq!(line_1000.operand, "$fc");
     }
 }

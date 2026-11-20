@@ -16,7 +16,7 @@ pub struct McpRequest {
 }
 
 /// Represents the result or error returned by the MCP request handler.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct McpResponse {
     /// JSON result value when the request succeeds.
     pub result: Option<Value>,
@@ -25,7 +25,8 @@ pub struct McpResponse {
 }
 
 /// Represents a JSON-RPC 2.0 error object.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[must_use]
 pub struct McpError {
     /// Numeric JSON-RPC 2.0 error code (for example, `-32601` or `-32602`).
     pub code: i32,

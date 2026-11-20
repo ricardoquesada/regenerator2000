@@ -1,6 +1,7 @@
 //! Custom memory bus and ROM banking logic for 6502 unpacker emulation.
 
 use super::cia::CiaState;
+use crate::state::System;
 use mos6502::memory::Bus;
 
 /// Custom memory bus for the unpacker.
@@ -15,7 +16,7 @@ pub struct C64Bus {
     /// Per-byte write tracking during Phase 2.
     pub(crate) written_phase2: Vec<bool>,
     /// Target system.
-    pub(crate) system: crate::state::types::System,
+    pub(crate) system: System,
     /// Total CPU cycles executed (for VIC-II raster simulation).
     pub(crate) total_cycles: u64,
     /// Shadow byte for VIC-II $D011 register.
@@ -55,7 +56,7 @@ impl C64Bus {
     /// Creates a new zeroed 64 KB memory bus.
     #[must_use]
     pub fn new(
-        system: crate::state::types::System,
+        system: System,
         basic_rom: Option<Vec<u8>>,
         kernal_rom: Option<Vec<u8>>,
         char_rom: Option<Vec<u8>>,
@@ -303,7 +304,7 @@ pub(crate) fn get_c64_bank(mem: &[u8]) -> u8 {
 
 /// Returns `true` if BASIC ROM is currently mapped into memory on `system`.
 #[must_use]
-pub(crate) fn is_basic_rom_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
+pub(crate) fn is_basic_rom_mapped(mem: &[u8], system: &System) -> bool {
     if system.is_c64() {
         let bank = get_c64_bank(mem);
         (bank & 0x01) != 0 && (bank & 0x02) != 0
@@ -314,7 +315,7 @@ pub(crate) fn is_basic_rom_mapped(mem: &[u8], system: &crate::state::types::Syst
 
 /// Returns `true` if KERNAL ROM is currently mapped into memory on `system`.
 #[must_use]
-pub(crate) fn is_kernal_rom_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
+pub(crate) fn is_kernal_rom_mapped(mem: &[u8], system: &System) -> bool {
     if system.is_c64() {
         let bank = get_c64_bank(mem);
         (bank & 0x02) != 0
@@ -325,7 +326,7 @@ pub(crate) fn is_kernal_rom_mapped(mem: &[u8], system: &crate::state::types::Sys
 
 /// Returns `true` if I/O register space (`$D000`–`$DFFF`) is currently mapped on `system`.
 #[must_use]
-pub(crate) fn is_io_mapped(mem: &[u8], system: &crate::state::types::System) -> bool {
+pub(crate) fn is_io_mapped(mem: &[u8], system: &System) -> bool {
     if system.is_c64() {
         let bank = get_c64_bank(mem);
         (bank & 0x04) != 0 && ((bank & 0x01) != 0 || (bank & 0x02) != 0)
@@ -337,11 +338,11 @@ pub(crate) fn is_io_mapped(mem: &[u8], system: &crate::state::types::System) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::types::TargetSystem;
+    use crate::state::types::{TargetSystem, default_system};
 
     #[test]
     fn test_memory_write_tracking() {
-        let mut mem = C64Bus::new(crate::state::types::default_system(), None, None, None);
+        let mut mem = C64Bus::new(default_system(), None, None, None);
         assert!(!mem.written[0x1000]);
         mem.set_byte(0x1000, 0x42);
         assert!(mem.written[0x1000]);
@@ -350,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_memory_io_suppression() {
-        let mut mem = C64Bus::new(crate::state::types::default_system(), None, None, None);
+        let mut mem = C64Bus::new(default_system(), None, None, None);
         // Set PLA bank register to default C64 value ($37) where I/O is visible
         mem.mem[0x01] = 0x37;
         mem.sync_c64_banking();

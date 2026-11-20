@@ -5,8 +5,14 @@
 //! and `KickAssembler`, enforcing context-sensitive [`SymbolicOffset`](crate::state::SymbolicOffset)
 //! parenthesization and zero-page vs. 16-bit width preservation.
 
+use super::context::{self, ResolvedEnumValue};
+use super::symbols::{self, ScopeNameMap};
 use crate::cpu::{AddressingMode, Opcode};
-use crate::state::{Addr, ImmediateFormat, Label};
+use crate::disassembler;
+use crate::state::{
+    Addr, AnnotationManager, DocumentSettings, EnumDefinition, ImmediateFormat, Label, LabelType,
+    OffsetParentheses,
+};
 use std::collections::BTreeMap;
 
 /// A fragment of a PETSCII or screen-code text block.
@@ -27,38 +33,38 @@ pub struct FileDirective {
 }
 
 /// Read-only instruction context passed to [`Formatter::format_operand`] and [`Formatter::format_instruction`].
-pub struct FormatContext<'a> {
+pub struct FormatContext<'ctx> {
     /// Decoded 6502 [`Opcode`] metadata.
-    pub opcode: &'a Opcode,
+    pub opcode: &'ctx Opcode,
     /// Raw operand bytes that follow the opcode byte (`0..=2` bytes).
-    pub operands: &'a [u8],
+    pub operands: &'ctx [u8],
     /// Memory [`Addr`] of the instruction opcode byte.
     pub address: Addr,
-    /// Optional semantic [`LabelType`](crate::state::LabelType) hint for the operand target.
-    pub target_context: Option<crate::state::LabelType>,
+    /// Optional semantic [`LabelType`] hint for the operand target.
+    pub target_context: Option<LabelType>,
     /// Address-keyed map of project [`Label`]s.
-    pub labels: &'a BTreeMap<Addr, Vec<Label>>,
+    pub labels: &'ctx BTreeMap<Addr, Vec<Label>>,
     /// Document-level disassembly settings.
-    pub settings: &'a crate::state::DocumentSettings,
+    pub settings: &'ctx DocumentSettings,
     /// Sparse per-address annotations.
-    pub annotations: &'a crate::state::AnnotationManager,
+    pub annotations: &'ctx AnnotationManager,
     /// Optional local label names within the active lexical scope.
-    pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
+    pub local_label_names: Option<&'ctx BTreeMap<Addr, String>>,
     /// Optional map from scoped addresses to their enclosing scope names.
-    pub label_scope_names: Option<&'a crate::disassembler::symbols::ScopeNameMap>,
+    pub label_scope_names: Option<&'ctx ScopeNameMap>,
     /// Name of the lexical scope that encloses [`Self::address`], if any.
-    pub current_scope_name: Option<&'a str>,
+    pub current_scope_name: Option<&'ctx str>,
     /// Scope resolution separator for the target assembler (for example, `"."` or `"::"`).
-    pub scope_separator: &'a str,
+    pub scope_separator: &'ctx str,
     /// Optional local label prefix for the target assembler (for example, `"_"`, `"."`, or `"@"`).
-    pub local_prefix: Option<&'a str>,
+    pub local_prefix: Option<&'ctx str>,
 
     /// Project-local enum definitions keyed by enum name.
-    pub enums: &'a BTreeMap<String, crate::state::EnumDefinition>,
+    pub enums: &'ctx BTreeMap<String, EnumDefinition>,
     /// User-level global enum definitions keyed by enum name.
-    pub user_global_enums: &'a BTreeMap<String, crate::state::EnumDefinition>,
+    pub user_global_enums: &'ctx BTreeMap<String, EnumDefinition>,
     /// Built-in platform enum definitions keyed by enum name.
-    pub builtin_enums: &'a BTreeMap<String, crate::state::EnumDefinition>,
+    pub builtin_enums: &'ctx BTreeMap<String, EnumDefinition>,
 }
 
 impl FormatContext<'_> {
@@ -70,7 +76,7 @@ impl FormatContext<'_> {
     #[must_use]
     pub fn resolve_label(&self, address: Addr) -> Option<String> {
         let is_zp_mode = self.opcode.mode.is_zero_page();
-        crate::disassembler::symbols::resolve_symbolic_label_name_for_mode(
+        symbols::resolve_symbolic_label_name_for_mode(
             self.address,
             address,
             is_zp_mode,
@@ -82,7 +88,7 @@ impl FormatContext<'_> {
             self.current_scope_name,
             self.scope_separator,
             self.local_prefix,
-            crate::state::OffsetParentheses::Bare,
+            OffsetParentheses::Bare,
             |base| {
                 // ACME treats any 4-digit hex literal for a zero-page value (`$00fb + 1`) as an
                 // explicit force-absolute override, expanding a 2-byte `ZeroPage` opcode (`A5 FC`)
@@ -113,7 +119,7 @@ impl FormatContext<'_> {
                 format!("${addr:04x}")
             }
         };
-        crate::disassembler::resolve_symbolic_label_name(
+        disassembler::resolve_symbolic_label_name(
             self.address,
             target,
             self.labels,
@@ -124,7 +130,7 @@ impl FormatContext<'_> {
             self.current_scope_name,
             self.scope_separator,
             self.local_prefix,
-            crate::state::OffsetParentheses::Parenthesized,
+            OffsetParentheses::Parenthesized,
             format_hex,
         )
         .unwrap_or_else(|| format_hex(target))
@@ -132,8 +138,8 @@ impl FormatContext<'_> {
 
     /// Resolves `value` against the enum annotation at [`Self::address`], if any.
     #[must_use]
-    pub fn resolve_enum_value(&self, value: u16) -> Option<(String, String)> {
-        super::context::resolve_enum_at(
+    pub fn resolve_enum_value(&self, value: u16) -> Option<ResolvedEnumValue> {
+        context::resolve_enum_at(
             self.annotations,
             self.enums,
             self.user_global_enums,
@@ -207,8 +213,11 @@ pub trait Formatter {
             AddressingMode::Accumulator => self.accumulator_operand().to_string(),
             AddressingMode::Immediate => {
                 let val = ctx.operands[0];
-                if let Some((enum_name, variant_name)) = ctx.resolve_enum_value(u16::from(val)) {
-                    return format!("#{}", self.format_enum_reference(&enum_name, &variant_name));
+                if let Some(resolved) = ctx.resolve_enum_value(u16::from(val)) {
+                    return format!(
+                        "#{}",
+                        self.format_enum_reference(&resolved.enum_name, &resolved.variant_name)
+                    );
                 }
                 match immediate_format {
                     Some(ImmediateFormat::InvertedHex) => format!("#~${:02x}", !val),
@@ -285,7 +294,7 @@ pub trait Formatter {
     }
 
     /// Formats the target-specific syntax for a full enum definition block.
-    fn format_enum_definition(&self, enum_def: &crate::state::EnumDefinition) -> String;
+    fn format_enum_definition(&self, enum_def: &EnumDefinition) -> String;
 
     /// Formats a scoped enum variant reference for operand and data contexts.
     fn format_enum_reference(&self, enum_name: &str, variant_name: &str) -> String;

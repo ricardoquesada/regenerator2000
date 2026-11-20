@@ -1,7 +1,7 @@
 //! Interactive Blocks View side-pane widget.
 //!
 //! [`BlocksView`] renders the memory blocks, manual splitters, and lexical scopes from
-//! [`AppState::get_blocks_view_items`]. It handles keyboard and mouse navigation to jump the
+//! [`AppState::blocks_view_items`]. It handles keyboard and mouse navigation to jump the
 //! disassembly view to a selected block. It renders only the visible viewport window
 //! (`[render_start, render_end)`) and uses 1-line placeholders outside the viewport to preserve
 //! [`ratatui::widgets::ListState`] scroll offsets.
@@ -28,7 +28,7 @@ impl BlocksView {
     /// Selects `index` in the Blocks list and jumps the disassembly view to that block item.
     /// Returns `true` when `index` is within bounds.
     fn jump_to_block_index(app_state: &AppState, ui_state: &mut UIState, index: usize) -> bool {
-        let blocks = app_state.get_blocks_view_items();
+        let blocks = app_state.blocks_view_items();
         let Some(block_item) = blocks.get(index) else {
             return false;
         };
@@ -50,7 +50,7 @@ impl BlocksView {
                 (*addr, idx)
             }
             crate::state::BlockItem::Scope { start, .. } => {
-                (*start, app_state.get_line_index_containing_address(*start))
+                (*start, app_state.line_index_containing_address(*start))
             }
         };
 
@@ -61,7 +61,7 @@ impl BlocksView {
 
 impl Navigable for BlocksView {
     fn len(&self, app_state: &AppState) -> usize {
-        app_state.get_blocks_view_items().len()
+        app_state.blocks_view_items().len()
     }
 
     fn current_index(&self, _app_state: &AppState, ui_state: &UIState) -> usize {
@@ -165,7 +165,7 @@ impl Widget for BlocksView {
         let block_items = ui_state
             .cached_blocks_items
             .take()
-            .unwrap_or_else(|| app_state.get_blocks_view_items());
+            .unwrap_or_else(|| app_state.blocks_view_items());
         let total_items = block_items.len();
         let visible_height = inner_area.height as usize;
 
@@ -350,7 +350,7 @@ mod tests {
         app_state.splitters.insert(Addr(0x1120));
         app_state.disassemble();
 
-        let items = app_state.get_blocks_view_items();
+        let items = app_state.blocks_view_items();
         assert!(items.len() > 60);
 
         let mut ui_state = UIState::new(Theme::default());

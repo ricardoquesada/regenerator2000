@@ -1,4 +1,4 @@
-//! ByteBoozer family (`ByteBoozer`, `ByteBoozer 1.0`, `ByteBoozer 1.1`, `LamerBoozer`,
+//! `ByteBoozer` family (`ByteBoozer`, `ByteBoozer 1.0`, `ByteBoozer 1.1`, `LamerBoozer`,
 //! and `RoyalBoozer`) packer specification and emulation hooks.
 //!
 //! Targets [`TargetSystem::C64`] images with `load_addr <= $0801`. Probes candidate anchors
@@ -12,7 +12,7 @@ use super::spec::{
     RefineContext, ResolvedSpec, Signature, SignatureMatch, sig,
 };
 
-/// ByteBoozer 2.0 10-byte signature at `$080D`.
+/// `ByteBoozer` 2.0 10-byte signature at `$080D`.
 ///
 /// Matches `SEI, LDA #$34, STA $zp, <op> #$B7, LDA $081E,X`.
 pub const BYTEBOOZER_SIGNATURE: Signature = Signature {
@@ -27,7 +27,7 @@ const CANDIDATE_ANCHORS: [Anchor; 3] = [
 ];
 
 /// Prefilter signature covering `$080D` (`0x78` SEI / `0x4C` JMP for 1.1E),
-/// `$080E` (`0xA2` LDX for RoyalBoozer), and `$0817` (`0x78` SEI for LamerBoozer).
+/// `$080E` (`0xA2` LDX for `RoyalBoozer`), and `$0817` (`0x78` SEI for `LamerBoozer`).
 const SIGNATURES: [Signature; 1] = [Signature {
     anchor: Anchor::Candidates(&CANDIDATE_ANCHORS),
     pattern: sig![[0x78, 0x4C, 0xA2]],
@@ -58,7 +58,7 @@ const BB1_BASE_HINTS: Hints = Hints {
     ..Hints::NONE
 };
 
-/// Validates ByteBoozer 2.0 / 0.9 / 1.0 / 1.1 / LamerBoozer / RoyalBoozer variants.
+/// Validates `ByteBoozer` 2.0 / 0.9 / 1.0 / 1.1 / `LamerBoozer` / `RoyalBoozer` variants.
 #[must_use]
 fn resolve_byteboozer(image: &LoadedImage<'_>, sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
     let mem = image.mem;
@@ -238,7 +238,7 @@ impl PackerHooks for ByteBoozerHooks {
     }
 }
 
-/// Constructs [`ByteBoozerHooks`] for a matched ByteBoozer image.
+/// Constructs [`ByteBoozerHooks`] for a matched `ByteBoozer` image.
 #[must_use]
 pub fn create_byteboozer_hooks(
     _image: &LoadedImage<'_>,
@@ -257,7 +257,7 @@ const BYTEBOOZER_FIXTURE: [u8; 22] = [
     0x78, 0xA9, 0x34, 0x85, 0x01, 0x00, 0xB7, 0xBD, 0x1E, 0x08,
 ];
 
-/// Declarative specification for the ByteBoozer family (`2.0`, `0.9`/`1.0`, `1.1C`/`1.1E`,
+/// Declarative specification for the `ByteBoozer` family (`2.0`, `0.9`/`1.0`, `1.1C`/`1.1E`,
 /// `LamerBoozer`, and `RoyalBoozer`).
 pub static SPEC: PackerSpec = PackerSpec {
     id: "byteboozer",

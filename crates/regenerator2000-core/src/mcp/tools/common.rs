@@ -6,11 +6,14 @@
 use crate::commands::Command;
 use crate::mcp::types::McpError;
 use crate::state::AppState;
-use crate::state::types::{Addr, BlockType};
+use crate::state::types::{Addr, AddrSpan, BlockType};
+#[cfg(test)]
+use crate::view_state::CoreViewState;
 use serde_json::Value;
+#[cfg(test)]
+use std::mem;
 
 /// Creates an [`McpError`] with the specified JSON-RPC error `code` and `message`.
-#[must_use]
 pub fn make_mcp_error(code: i32, message: impl Into<String>) -> McpError {
     McpError {
         code,
@@ -57,7 +60,7 @@ pub(crate) fn parse_address_value(val: &Value, key: &str) -> Result<Addr, McpErr
 /// # Errors
 ///
 /// Returns [`McpError`] if `key` is missing, `null`, or cannot be parsed as a 16-bit [`Addr`].
-pub fn get_address(args: &Value, key: &str) -> Result<Addr, McpError> {
+pub fn parse_address_arg(args: &Value, key: &str) -> Result<Addr, McpError> {
     let val = args
         .get(key)
         .filter(|v| !v.is_null())
@@ -73,7 +76,7 @@ pub fn get_address(args: &Value, key: &str) -> Result<Addr, McpError> {
 /// # Errors
 ///
 /// Returns [`McpError`] if `args[key]` is present and non-null but is not a valid 16-bit [`Addr`].
-pub fn get_optional_address(args: &Value, key: &str) -> Result<Option<Addr>, McpError> {
+pub fn parse_optional_address_arg(args: &Value, key: &str) -> Result<Option<Addr>, McpError> {
     let Some(val) = args.get(key).filter(|v| !v.is_null()) else {
         return Ok(None);
     };
@@ -89,12 +92,12 @@ pub fn get_optional_address(args: &Value, key: &str) -> Result<Option<Addr>, Mcp
 ///
 /// Returns [`McpError`] if either address is invalid, if only one endpoint is provided,
 /// or if `start_address > end_address`.
-pub fn get_optional_address_range(args: &Value) -> Result<Option<(Addr, Addr)>, McpError> {
-    let start_opt = get_optional_address(args, "start_address")?;
-    let end_opt = get_optional_address(args, "end_address")?;
+pub fn parse_optional_address_range_arg(args: &Value) -> Result<Option<AddrSpan>, McpError> {
+    let start_opt = parse_optional_address_arg(args, "start_address")?;
+    let end_opt = parse_optional_address_arg(args, "end_address")?;
 
     match (start_opt, end_opt) {
-        (Some(s), Some(e)) if s <= e => Ok(Some((s, e))),
+        (Some(start), Some(end)) if start <= end => Ok(Some(AddrSpan { start, end })),
         (Some(_), Some(_)) => Err(make_mcp_error(
             -32602,
             "start_address must be <= end_address",
@@ -150,8 +153,8 @@ pub fn convert_region(
     args: &Value,
     target_type: BlockType,
 ) -> Result<Value, McpError> {
-    let start = get_address(args, "start_address")?;
-    let end = get_address(args, "end_address")?;
+    let start = parse_address_arg(args, "start_address")?;
+    let end = parse_address_arg(args, "end_address")?;
 
     if start > end {
         return Err(make_mcp_error(
@@ -215,8 +218,8 @@ pub fn make_app_state(origin: u16, size: usize) -> AppState {
 /// Creates a default [`CoreViewState`](crate::view_state::CoreViewState) for unit tests.
 #[cfg(test)]
 #[must_use]
-pub fn make_view_state() -> crate::view_state::CoreViewState {
-    crate::view_state::CoreViewState::new()
+pub fn make_view_state() -> CoreViewState {
+    CoreViewState::new()
 }
 
 #[cfg(test)]
@@ -230,7 +233,7 @@ mod tests {
             "address": 4096,
             "name": "main_loop"
         });
-        let addr = get_address(&args, "address").expect("Should parse address");
+        let addr = parse_address_arg(&args, "address").expect("Should parse address");
         assert_eq!(addr, Addr(4096));
     }
 
@@ -239,7 +242,8 @@ mod tests {
         let args = serde_json::json!({
             "other_param": 123
         });
-        let err = get_address(&args, "address").expect_err("Should return error for missing param");
+        let err =
+            parse_address_arg(&args, "address").expect_err("Should return error for missing param");
         assert_eq!(err.code, -32602);
         assert!(err.message.contains("Missing required parameter"));
     }
@@ -254,27 +258,31 @@ mod tests {
     }
 
     #[test]
-    fn test_get_optional_address_range_supports_hex_and_rejects_invalid() {
+    fn test_parse_optional_address_range_arg_supports_hex_and_rejects_invalid() {
         let args = serde_json::json!({
             "start_address": "$1000",
             "end_address": "0x1010"
         });
         assert_eq!(
-            get_optional_address_range(&args).unwrap(),
-            Some((Addr(0x1000), Addr(0x1010)))
+            parse_optional_address_range_arg(&args)
+                .expect("valid optional address range should parse"),
+            Some(AddrSpan {
+                start: Addr(0x1000),
+                end: Addr(0x1010)
+            })
         );
 
         let bad_hex = serde_json::json!({
             "start_address": "$ZZZZ",
             "end_address": "$1010"
         });
-        assert!(get_optional_address_range(&bad_hex).is_err());
+        assert!(parse_optional_address_range_arg(&bad_hex).is_err());
 
         let out_of_range = serde_json::json!({
             "start_address": 70000,
             "end_address": 70010
         });
-        assert!(get_optional_address_range(&out_of_range).is_err());
+        assert!(parse_optional_address_range_arg(&out_of_range).is_err());
     }
 
     #[test]
@@ -305,7 +313,7 @@ mod tests {
         .expect("DataByte conversion should succeed");
         assert!(!app_state.labels.contains_key(&Addr(0x1005)));
 
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 

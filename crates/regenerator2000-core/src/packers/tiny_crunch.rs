@@ -1,4 +1,4 @@
-//! TinyCrunch packer specification.
+//! `TinyCrunch` packer specification.
 
 use crate::state::types::TargetSystem;
 
@@ -9,7 +9,7 @@ const SIGNATURES: [Signature; 1] = [Signature {
     pattern: sig![0x78, 0xA2, 0xBB, 0xBD, 0x1B, 0x08, 0x9D, 0xFF],
 }];
 
-/// Declarative specification for the TinyCrunch stub at `$080D` with entry operand at `$0836`.
+/// Declarative specification for the `TinyCrunch` stub at `$080D` with entry operand at `$0836`.
 pub static SPEC: PackerSpec = PackerSpec {
     id: "tiny_crunch",
     name: "TinyCrunch",

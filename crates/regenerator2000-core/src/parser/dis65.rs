@@ -1,9 +1,10 @@
-//! 6502bench SourceGen `.dis65` project file parser.
+//! 6502bench `SourceGen` `.dis65` project file parser.
 
+use crate::state::{Addr, BlockType};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
-/// Deserialized 6502bench SourceGen `.dis65` project metadata.
+/// Deserialized 6502bench `SourceGen` `.dis65` project metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Dis65Project {
     /// Schema version of the `.dis65` file.
@@ -35,23 +36,23 @@ pub struct Dis65Project {
     pub user_labels: BTreeMap<String, UserLabelEntry>,
 }
 
+/// Initial block types and flow-analysis seed addresses extracted from a `.dis65` project.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Dis65Layout {
+    /// Per-byte initial block type classifications matching the loaded binary length.
+    pub block_types: Vec<BlockType>,
+    /// Flow-analysis entry-point seed addresses derived from single-byte code hints.
+    pub seeds: Vec<Addr>,
+}
+
 impl Dis65Project {
-    /// Converts `.dis65` type hints into initial [`crate::state::types::BlockType`] values
+    /// Converts `.dis65` type hints into initial [`BlockType`] values
     /// and flow-analysis seed addresses.
     ///
     /// Single-byte `"Code"` hints (`low == high`) become flow-analysis seeds relative to `origin`.
-    /// Multi-byte `"Code"` hints mark `block_types[low..=high]` as [`crate::state::types::BlockType::Code`].
+    /// Multi-byte `"Code"` hints mark `block_types[low..=high]` as [`BlockType::Code`].
     #[must_use]
-    pub fn to_block_types_and_seeds(
-        &self,
-        raw_data_len: usize,
-        origin: crate::state::types::Addr,
-    ) -> (
-        Vec<crate::state::types::BlockType>,
-        Vec<crate::state::types::Addr>,
-    ) {
-        use crate::state::types::BlockType;
-
+    pub fn to_block_types_and_seeds(&self, raw_data_len: usize, origin: Addr) -> Dis65Layout {
         let mut block_types = vec![BlockType::DataByte; raw_data_len];
         let mut seeds = Vec::new();
 
@@ -72,7 +73,7 @@ impl Dis65Project {
                 block_types[start..=end].fill(ty);
             }
         }
-        (block_types, seeds)
+        Dis65Layout { block_types, seeds }
     }
 }
 
@@ -95,7 +96,7 @@ pub struct AddressMapEntry {
     pub addr: u16,
 }
 
-/// Inclusive file-offset range (`low..=high`) and its SourceGen block hint string.
+/// Inclusive file-offset range (`low..=high`) and its `SourceGen` block hint string.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct TypeHintEntry {
     /// Inclusive start byte offset in the binary file.
@@ -104,7 +105,7 @@ pub struct TypeHintEntry {
     /// Inclusive end byte offset in the binary file.
     #[serde(rename = "High")]
     pub high: usize,
-    /// SourceGen type hint name (such as `"Code"` or `"Data"`).
+    /// `SourceGen` type hint name (such as `"Code"` or `"Data"`).
     #[serde(rename = "Hint")]
     pub hint: String,
 }
@@ -190,12 +191,12 @@ mod tests {
         assert_eq!(project.project_props.cpu_name, "6502");
 
         // Inverted hint (Low: 10, High: 4) and out-of-bounds hint (High: 99) must be skipped without panicking.
-        let (blocks, seeds) = project.to_block_types_and_seeds(16, Addr(0x1000));
-        assert_eq!(seeds, vec![Addr(0x1000)]);
-        assert_eq!(blocks[0], BlockType::DataByte);
-        assert_eq!(blocks[1], BlockType::DataByte);
-        assert_eq!(&blocks[2..=5], &[BlockType::Code; 4]);
-        assert_eq!(&blocks[6..], &[BlockType::DataByte; 10]);
+        let layout = project.to_block_types_and_seeds(16, Addr(0x1000));
+        assert_eq!(layout.seeds, vec![Addr(0x1000)]);
+        assert_eq!(layout.block_types[0], BlockType::DataByte);
+        assert_eq!(layout.block_types[1], BlockType::DataByte);
+        assert_eq!(&layout.block_types[2..=5], &[BlockType::Code; 4]);
+        assert_eq!(&layout.block_types[6..], &[BlockType::DataByte; 10]);
     }
 
     #[test]

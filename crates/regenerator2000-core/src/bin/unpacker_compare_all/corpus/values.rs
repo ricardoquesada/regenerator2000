@@ -4,6 +4,7 @@
 //! Every scalar in this module has one canonical text form, so writing a
 //! parsed file reproduces it byte for byte.
 
+use std::error::Error;
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -52,6 +53,7 @@ pub fn fnv1a64(bytes: &[u8]) -> u64 {
 
 /// Malformed scalar value in a manifest or baseline.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
 pub enum ValueFormatError {
     /// The value is not a `$`-prefixed, four-digit hex address.
     HexAddr {
@@ -82,7 +84,7 @@ impl fmt::Display for ValueFormatError {
     }
 }
 
-impl std::error::Error for ValueFormatError {}
+impl Error for ValueFormatError {}
 
 /// Scalar type with a canonical string representation in the manifest.
 ///
@@ -393,17 +395,17 @@ impl fmt::Display for AddrRange {
 
 /// Byte buffer anchored at a 6502 start address.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct Addressed<'a> {
+pub(super) struct Addressed<'val> {
     /// Address of `data[0]`.
     pub(super) start: u16,
     /// The byte slice.
-    pub(super) data: &'a [u8],
+    pub(super) data: &'val [u8],
 }
 
-impl<'a> Addressed<'a> {
+impl<'val> Addressed<'val> {
     /// Returns the subslice covering `window`, or `None` if `self` does not
     /// cover the entire window.
-    pub(super) fn slice(self, window: AddrRange) -> Option<&'a [u8]> {
+    pub(super) fn slice(self, window: AddrRange) -> Option<&'val [u8]> {
         let offset = usize::from(window.start().checked_sub(self.start)?);
         self.data.get(offset..offset.checked_add(window.len())?)
     }

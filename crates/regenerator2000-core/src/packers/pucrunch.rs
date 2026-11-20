@@ -1,4 +1,4 @@
-//! PUCrunch packer specification.
+//! `PUCrunch` packer specification.
 
 use crate::state::types::TargetSystem;
 
@@ -7,7 +7,7 @@ use super::spec::{
     SignatureMatch, sig,
 };
 
-/// Primary PUCrunch stub signature at `$0813` (`BasicStart + $12` on C64).
+/// Primary `PUCrunch` stub signature at `$0813` (`BasicStart + $12` on C64).
 const SIGNATURES: [Signature; 1] = [Signature {
     anchor: Anchor::BasicStart { offset: 0x12 },
     pattern: sig![
@@ -22,7 +22,7 @@ pub const ENTRY_SIGNATURE: Signature = Signature {
     pattern: sig![0xA5, 0xFA, 0x85, 0x2D, 0xA5, 0xFB, 0x85, 0x2E],
 };
 
-/// Static base hints for PUCrunch (`dep_addr` at `$0841`, `start_addr` at `$0879`,
+/// Static base hints for `PUCrunch` (`dep_addr` at `$0841`, `start_addr` at `$0879`,
 /// and post-run end pointer at `$00FA`).
 pub const BASE_HINTS: Hints = Hints {
     dep_addr: Some(AddrSource::OperandLe { from_match: 0x2E }),
@@ -35,7 +35,7 @@ pub const BASE_HINTS: Hints = Hints {
     ..Hints::NONE
 };
 
-/// Resolves PUCrunch hints and scans `0x0912..=0x0937` for `entry_point`.
+/// Resolves `PUCrunch` hints and scans `0x0912..=0x0937` for `entry_point`.
 #[must_use]
 fn resolve_pucrunch(image: &LoadedImage<'_>, _sig_match: &SignatureMatch) -> Option<ResolvedSpec> {
     if image.mem.len() < 0x0944 {
@@ -54,7 +54,7 @@ fn resolve_pucrunch(image: &LoadedImage<'_>, _sig_match: &SignatureMatch) -> Opt
 }
 
 /// Synthetic self-test fixture loaded at `$0813` (104 bytes covering `$0813..=$087A`):
-/// - `+0x00..=+0x0B` (`$0813..=$081E`): 12-byte PUCrunch signature
+/// - `+0x00..=+0x0B` (`$0813..=$081E`): 12-byte `PUCrunch` signature
 /// - `+0x2E..=+0x2F` (`$0841..=$0842`): `dep_addr = $0116` (`16 01`)
 /// - `+0x66..=+0x67` (`$0879..=$087A`): `start_addr = $0801` (`01 08`)
 const FIXTURE: [u8; 0x68] = [
@@ -73,7 +73,7 @@ const FIXTURE: [u8; 0x68] = [
     0x01, 0x08,
 ];
 
-/// Declarative specification for PUCrunch.
+/// Declarative specification for `PUCrunch`.
 pub static SPEC: PackerSpec = PackerSpec {
     id: "pucrunch",
     name: "PUCrunch",

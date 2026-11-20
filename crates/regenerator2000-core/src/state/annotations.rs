@@ -7,12 +7,13 @@
 
 use crate::state::types::{Addr, ImmediateFormat, SymbolicOffset};
 use serde::{Deserialize, Serialize};
+#[cfg(test)]
+use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Returns `true` if `s` is `None`, empty (`""`), or contains only ASCII/Unicode whitespace.
-#[allow(clippy::unnecessary_map_or)]
-fn is_str_none_or_empty(s: &Option<String>) -> bool {
-    s.as_deref().map_or(true, |st| st.trim().is_empty())
+fn is_str_none_or_empty(s: Option<&str>) -> bool {
+    s.is_none_or(|st| st.trim().is_empty())
 }
 
 /// Compact sparse annotation entry that stores user annotations and formatting overrides for an [`Addr`].
@@ -118,13 +119,13 @@ impl AddressEntry {
     pub fn is_empty(&self) -> bool {
         // Intentionally non-`const`: `is_str_none_or_empty` treats unnormalized empty or
         // whitespace-only strings as empty before `normalize()` runs.
-        is_str_none_or_empty(&self.system_comment)
-            && is_str_none_or_empty(&self.user_side_comment)
-            && is_str_none_or_empty(&self.user_line_comment)
+        is_str_none_or_empty(self.system_comment.as_deref())
+            && is_str_none_or_empty(self.user_side_comment.as_deref())
+            && is_str_none_or_empty(self.user_line_comment.as_deref())
             && self.immediate_format.is_none()
-            && is_str_none_or_empty(&self.bookmark)
+            && is_str_none_or_empty(self.bookmark.as_deref())
             && self.scope.is_none()
-            && is_str_none_or_empty(&self.enum_usage)
+            && is_str_none_or_empty(self.enum_usage.as_deref())
             && self.operand_offset.is_none()
             && self.address_offset.is_none()
     }
@@ -135,12 +136,12 @@ impl AddressEntry {
     /// reloads platform comments from system assets.
     #[must_use]
     pub fn is_persistent(&self) -> bool {
-        !is_str_none_or_empty(&self.user_side_comment)
-            || !is_str_none_or_empty(&self.user_line_comment)
+        !is_str_none_or_empty(self.user_side_comment.as_deref())
+            || !is_str_none_or_empty(self.user_line_comment.as_deref())
             || self.immediate_format.is_some()
-            || !is_str_none_or_empty(&self.bookmark)
+            || !is_str_none_or_empty(self.bookmark.as_deref())
             || self.scope.is_some()
-            || !is_str_none_or_empty(&self.enum_usage)
+            || !is_str_none_or_empty(self.enum_usage.as_deref())
             || self.operand_offset.is_some()
             || self.address_offset.is_some()
     }
@@ -482,10 +483,13 @@ mod tests {
             "bookmarks": { "8192": "Start of main" }
         }"#;
 
-        let manager: AnnotationManager = serde_json::from_str(legacy_json).unwrap();
+        let manager: AnnotationManager =
+            serde_json::from_str(legacy_json).expect("legacy annotations JSON should parse");
 
         assert_eq!(manager.len(), 2);
-        let entry_4096 = manager.get(Addr(4096)).unwrap();
+        let entry_4096 = manager
+            .get(Addr(4096))
+            .expect("annotation entry at 4096 should exist");
         assert_eq!(
             entry_4096.user_side_comment.as_deref(),
             Some("Legacy side comment")
@@ -495,7 +499,9 @@ mod tests {
             Some("Legacy line comment")
         );
 
-        let entry_8192 = manager.get(Addr(8192)).unwrap();
+        let entry_8192 = manager
+            .get(Addr(8192))
+            .expect("annotation entry at 8192 should exist");
         assert_eq!(entry_8192.bookmark.as_deref(), Some("Start of main"));
     }
 
@@ -509,10 +515,13 @@ mod tests {
             }
         }"#;
 
-        let manager: AnnotationManager = serde_json::from_str(modern_json).unwrap();
+        let manager: AnnotationManager =
+            serde_json::from_str(modern_json).expect("modern annotations JSON should parse");
 
         assert_eq!(manager.len(), 1);
-        let entry = manager.get(Addr(4096)).unwrap();
+        let entry = manager
+            .get(Addr(4096))
+            .expect("annotation entry at 4096 should exist");
         assert_eq!(entry.user_side_comment.as_deref(), Some("Modern comment"));
     }
 
@@ -637,7 +646,8 @@ mod tests {
                 "scope": 8208
             }
         }"#;
-        let direct_mgr: AnnotationManager = serde_json::from_str(direct_json).unwrap();
+        let direct_mgr: AnnotationManager =
+            serde_json::from_str(direct_json).expect("direct scopes JSON should parse");
         assert!(direct_mgr.is_scope_start(Addr(0x2000)));
         assert!(direct_mgr.is_scope_end(Addr(0x2011)));
         assert_eq!(direct_mgr.scopes().get(&Addr(0x2000)), Some(&Addr(0x2010)));
@@ -651,7 +661,8 @@ mod tests {
                 }
             }
         }"#;
-        let structured_mgr: AnnotationManager = serde_json::from_str(structured_map_json).unwrap();
+        let structured_mgr: AnnotationManager =
+            serde_json::from_str(structured_map_json).expect("structured map JSON should parse");
         assert!(structured_mgr.is_scope_start(Addr(0x2000)));
         assert!(structured_mgr.is_scope_end(Addr(0x2011)));
         assert_eq!(direct_mgr, structured_mgr);
@@ -662,7 +673,8 @@ mod tests {
                 "4096": 4112
             }
         }"#;
-        let legacy_mgr: AnnotationManager = serde_json::from_str(legacy_scopes_json).unwrap();
+        let legacy_mgr: AnnotationManager =
+            serde_json::from_str(legacy_scopes_json).expect("legacy scopes JSON should parse");
         assert!(legacy_mgr.is_scope_start(Addr(4096)));
         assert!(legacy_mgr.is_scope_end(Addr(4113)));
         assert_eq!(legacy_mgr.scopes().get(&Addr(4096)), Some(&Addr(4112)));
@@ -673,8 +685,10 @@ mod tests {
             e.user_side_comment = Some("scope start".to_string());
             e.scope = Some(Addr(0x2010));
         });
-        let serialized = serde_json::to_string(&expected).unwrap();
-        let round_tripped: AnnotationManager = serde_json::from_str(&serialized).unwrap();
+        let serialized =
+            serde_json::to_string(&expected).expect("AnnotationManager should serialize");
+        let round_tripped: AnnotationManager =
+            serde_json::from_str(&serialized).expect("serialized AnnotationManager should parse");
         assert_eq!(expected, round_tripped);
         assert!(round_tripped.is_scope_start(Addr(0x2000)));
         assert!(round_tripped.is_scope_end(Addr(0x2011)));
@@ -843,12 +857,13 @@ mod tests {
                 radix: OffsetRadix::Hex,
             });
         });
-        let json = serde_json::to_string(&manager).unwrap();
+        let json = serde_json::to_string(&manager).expect("AnnotationManager should serialize");
         assert!(!json.contains("user_side_comment"));
-        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let val: Value = serde_json::from_str(&json).expect("serialized JSON value should parse");
         assert!(val["8192"].get("address_offset").is_none());
         assert!(val["252"].get("operand_offset").is_none());
-        let roundtripped: AnnotationManager = serde_json::from_str(&json).unwrap();
+        let roundtripped: AnnotationManager =
+            serde_json::from_str(&json).expect("AnnotationManager should roundtrip");
         assert_eq!(manager, roundtripped);
 
         // 2. Default radix & zero pruning on deserialize
@@ -856,10 +871,13 @@ mod tests {
             "252": { "address_offset": { "base": 251, "offset": 1 } },
             "4096": { "operand_offset": { "base": 4096, "offset": 0 } }
         }"#;
-        let parsed_direct: AnnotationManager =
-            serde_json::from_str(direct_default_and_zero).unwrap();
+        let parsed_direct: AnnotationManager = serde_json::from_str(direct_default_and_zero)
+            .expect("direct symbolic offset JSON should parse");
         assert_eq!(
-            parsed_direct.get(Addr(0x00FC)).unwrap().address_offset,
+            parsed_direct
+                .get(Addr(0x00FC))
+                .expect("annotation entry at $00FC should exist")
+                .address_offset,
             Some(SymbolicOffset {
                 base: Addr(0x00FB),
                 offset: 1,
@@ -873,9 +891,13 @@ mod tests {
             "operand_offsets": { "8192": { "base": 49408, "offset": -1 } },
             "address_offsets": { "252": { "base": 251, "offset": 1, "radix": "Hex" } }
         }"#;
-        let parsed_structured: AnnotationManager = serde_json::from_str(structured_json).unwrap();
+        let parsed_structured: AnnotationManager = serde_json::from_str(structured_json)
+            .expect("structured symbolic offset JSON should parse");
         assert_eq!(
-            parsed_structured.get(Addr(8192)).unwrap().operand_offset,
+            parsed_structured
+                .get(Addr(8192))
+                .expect("annotation entry at 8192 should exist")
+                .operand_offset,
             Some(SymbolicOffset {
                 base: Addr(49408),
                 offset: -1,
@@ -883,7 +905,10 @@ mod tests {
             })
         );
         assert_eq!(
-            parsed_structured.get(Addr(252)).unwrap().address_offset,
+            parsed_structured
+                .get(Addr(252))
+                .expect("annotation entry at 252 should exist")
+                .address_offset,
             Some(SymbolicOffset {
                 base: Addr(251),
                 offset: 1,
@@ -896,8 +921,11 @@ mod tests {
             "user_side_comments": { "4096": "note" },
             "scopes": { "4096": 4112 }
         }"#;
-        let parsed_legacy: AnnotationManager = serde_json::from_str(legacy_json).unwrap();
-        let legacy_entry = parsed_legacy.get(Addr(4096)).unwrap();
+        let parsed_legacy: AnnotationManager =
+            serde_json::from_str(legacy_json).expect("legacy annotations JSON should parse");
+        let legacy_entry = parsed_legacy
+            .get(Addr(4096))
+            .expect("annotation entry at 4096 should exist");
         assert_eq!(legacy_entry.operand_offset, None);
         assert_eq!(legacy_entry.address_offset, None);
     }

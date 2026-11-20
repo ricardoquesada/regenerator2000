@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator2000_core::cpu::{AddressingMode, Opcode, get_opcodes};
+use regenerator2000_core::cpu::{self, AddressingMode, Opcode};
 use std::collections::{HashMap, HashSet};
 
 // =============================================================================
@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 
 #[test]
 fn test_opcode_table_has_256_entries() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
     assert_eq!(
         opcodes.len(),
         256,
@@ -18,7 +18,7 @@ fn test_opcode_table_has_256_entries() {
 
 #[test]
 fn test_all_official_opcodes_are_defined() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // All official 6502 opcodes (151 total)
     let official_opcodes: Vec<(u8, &str, AddressingMode)> = vec![
@@ -232,7 +232,7 @@ fn test_all_official_opcodes_are_defined() {
 
 #[test]
 fn test_official_opcode_count() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
     let official_count = opcodes
         .iter()
         .filter(|op| op.as_ref().is_some_and(|o| !o.illegal))
@@ -251,7 +251,7 @@ fn test_official_opcode_count() {
 
 #[test]
 fn test_instruction_sizes_match_addressing_modes() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     for (i, op) in opcodes.iter().enumerate() {
         if let Some(opcode) = op {
@@ -282,7 +282,7 @@ fn test_instruction_sizes_match_addressing_modes() {
 
 #[test]
 fn test_all_branches_are_relative() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
     let branch_mnemonics = ["BCC", "BCS", "BEQ", "BMI", "BNE", "BPL", "BVC", "BVS"];
 
     for (i, op) in opcodes.iter().enumerate() {
@@ -307,7 +307,7 @@ fn test_all_branches_are_relative() {
 
 #[test]
 fn test_all_implied_instructions_are_size_1() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     for (i, op) in opcodes.iter().enumerate() {
         if let Some(opcode) = op
@@ -324,7 +324,7 @@ fn test_all_implied_instructions_are_size_1() {
 
 #[test]
 fn test_all_accumulator_instructions_are_size_1() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     for (i, op) in opcodes.iter().enumerate() {
         if let Some(opcode) = op
@@ -345,7 +345,7 @@ fn test_all_accumulator_instructions_are_size_1() {
 
 #[test]
 fn test_all_official_mnemonics_present() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     let official_mnemonics: HashSet<&str> = [
         "ADC", "AND", "ASL", "BCC", "BCS", "BEQ", "BIT", "BMI", "BNE", "BPL", "BRK", "BVC", "BVS",
@@ -374,7 +374,7 @@ fn test_all_official_mnemonics_present() {
 
 #[test]
 fn test_mnemonic_addressing_mode_combinations() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // Build a map of mnemonic -> set of addressing modes
     let mut mnemonic_modes: HashMap<&str, HashSet<AddressingMode>> = HashMap::new();
@@ -415,7 +415,7 @@ fn test_mnemonic_addressing_mode_combinations() {
 
 #[test]
 fn test_illegal_opcodes_are_marked() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // Known illegal opcodes that should be defined and marked as illegal
     let illegal_opcodes: Vec<(u8, &str)> = vec![
@@ -510,7 +510,7 @@ fn test_illegal_opcodes_are_marked() {
 
 #[test]
 fn test_illegal_opcode_count() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
     let illegal_count = opcodes
         .iter()
         .filter(|op| op.as_ref().is_some_and(|o| o.illegal))
@@ -526,7 +526,7 @@ fn test_illegal_opcode_count() {
 
 #[test]
 fn test_illegal_mnemonics_present() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     let illegal_mnemonics: HashSet<&str> = [
         "SLO", "RLA", "SRE", "RRA", "SAX", "LAX", "DCP", "ISC", "ANC", "ASR", "ARR", "SBX",
@@ -555,7 +555,7 @@ fn test_illegal_mnemonics_present() {
 
 #[test]
 fn test_is_flow_control_with_target_jmp_absolute() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // JMP Absolute ($4C) should return true
     let jmp_abs = opcodes[0x4C].as_ref().unwrap();
@@ -567,7 +567,7 @@ fn test_is_flow_control_with_target_jmp_absolute() {
 
 #[test]
 fn test_is_flow_control_with_target_jmp_indirect() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // JMP Indirect ($6C) should return false (target is computed)
     let jmp_ind = opcodes[0x6C].as_ref().unwrap();
@@ -579,7 +579,7 @@ fn test_is_flow_control_with_target_jmp_indirect() {
 
 #[test]
 fn test_is_flow_control_with_target_jsr() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // JSR ($20) should return true
     let jsr = opcodes[0x20].as_ref().unwrap();
@@ -591,7 +591,7 @@ fn test_is_flow_control_with_target_jsr() {
 
 #[test]
 fn test_is_flow_control_with_target_branches() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     let branch_opcodes = [0x90, 0xB0, 0xF0, 0x30, 0xD0, 0x10, 0x50, 0x70];
 
@@ -608,7 +608,7 @@ fn test_is_flow_control_with_target_branches() {
 
 #[test]
 fn test_is_flow_control_with_target_returns_false_for_rts_rti() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // RTS ($60) and RTI ($40) should return false (no target address)
     let rts = opcodes[0x60].as_ref().unwrap();
@@ -626,7 +626,7 @@ fn test_is_flow_control_with_target_returns_false_for_rts_rti() {
 
 #[test]
 fn test_is_flow_control_with_target_returns_false_for_brk() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // BRK ($00) should return false
     let brk = opcodes[0x00].as_ref().unwrap();
@@ -638,7 +638,7 @@ fn test_is_flow_control_with_target_returns_false_for_brk() {
 
 #[test]
 fn test_is_flow_control_with_target_returns_false_for_regular_instructions() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // Regular instructions should return false
     let regular_opcodes = [
@@ -666,7 +666,7 @@ fn test_is_flow_control_with_target_returns_false_for_regular_instructions() {
 
 #[test]
 fn test_cycle_counts_are_reasonable() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     for (i, op) in opcodes.iter().enumerate() {
         if let Some(opcode) = op {
@@ -693,7 +693,7 @@ fn test_cycle_counts_are_reasonable() {
 
 #[test]
 fn test_specific_cycle_counts() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // Test some well-known cycle counts
     let expected_cycles: Vec<(u8, u8, &str)> = vec![
@@ -759,7 +759,7 @@ fn test_addressing_mode_equality() {
 
 #[test]
 fn test_all_addressing_modes_used() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     let used_modes: HashSet<AddressingMode> = opcodes
         .iter()
@@ -798,7 +798,7 @@ fn test_all_addressing_modes_used() {
 
 #[test]
 fn test_brk_is_first_opcode() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
     let brk = opcodes[0x00]
         .as_ref()
         .expect("BRK should be defined at $00");
@@ -807,7 +807,7 @@ fn test_brk_is_first_opcode() {
 
 #[test]
 fn test_nop_opcode() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
     let nop = opcodes[0xEA]
         .as_ref()
         .expect("NOP should be defined at $EA");
@@ -819,7 +819,7 @@ fn test_nop_opcode() {
 
 #[test]
 fn test_undefined_opcodes_are_none() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     // Some opcodes that should be undefined (gaps in the opcode space)
     // These are opcodes that are NOT defined in the module
@@ -834,7 +834,7 @@ fn test_undefined_opcodes_are_none() {
 
 #[test]
 fn test_total_defined_opcodes() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
     let defined_count = opcodes.iter().filter(|op| op.is_some()).count();
 
     // 151 official + 58 illegal = 209 defined
@@ -850,7 +850,7 @@ fn test_total_defined_opcodes() {
 
 #[test]
 fn test_no_duplicate_mnemonic_mode_combinations() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     let mut seen: HashMap<(&str, AddressingMode), u8> = HashMap::new();
 
@@ -877,7 +877,7 @@ fn test_no_duplicate_mnemonic_mode_combinations() {
 
 #[test]
 fn test_all_descriptions_non_empty() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     for (i, op) in opcodes.iter().enumerate() {
         if let Some(opcode) = op {
@@ -893,7 +893,7 @@ fn test_all_descriptions_non_empty() {
 
 #[test]
 fn test_all_mnemonics_are_uppercase() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     for (i, op) in opcodes.iter().enumerate() {
         if let Some(opcode) = op {
@@ -910,7 +910,7 @@ fn test_all_mnemonics_are_uppercase() {
 
 #[test]
 fn test_all_mnemonics_are_3_characters() {
-    let opcodes = get_opcodes();
+    let opcodes = cpu::opcodes();
 
     for (i, op) in opcodes.iter().enumerate() {
         if let Some(opcode) = op {

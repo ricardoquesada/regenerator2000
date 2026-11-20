@@ -99,7 +99,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <table>
 "#;
 
-const HTML_END: &str = r#"</table>
+const HTML_END: &str = r"</table>
 <script>
 const toggleBtn = document.getElementById('theme-toggle');
 const urlParams = new URLSearchParams(window.location.search);
@@ -135,7 +135,7 @@ toggleBtn.addEventListener('click', () => {
 </script>
 </body>
 </html>
-"#;
+";
 
 fn render_side_comment_html(side_comment: Option<&ExportComment>, comment_prefix: &str) -> String {
     if let Some(comment) = side_comment {
@@ -495,6 +495,7 @@ mod tests {
     use super::*;
     use crate::state::{
         Addr, Assembler, BlockType, EnumDefinition, ImmediateFormat, Label, LabelKind, LabelType,
+        XRef, XRefKind,
     };
     use std::collections::{BTreeMap, HashSet};
     use std::path::{Path, PathBuf};
@@ -1039,13 +1040,9 @@ mod tests {
                 label_type: LabelType::UserDefined,
             }],
         );
-        state.cross_refs.insert(
-            Addr(0x1001),
-            vec![crate::state::XRef::new(
-                Addr(0x1000),
-                crate::state::XRefKind::Read,
-            )],
-        );
+        state
+            .cross_refs
+            .insert(Addr(0x1001), vec![XRef::new(Addr(0x1000), XRefKind::Read)]);
 
         // Exactly 19-char label name at $1003 -> formatted by KickAssembler as `"nineteen_char_label:"` (20 chars == LABEL_COLUMN_WIDTH)
         state.labels.insert(

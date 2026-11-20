@@ -60,7 +60,7 @@ fn mem_bytes(start: u16, end: u16) -> Vec<u8> {
 
 /// Returns the range `start..=end` and panics on an inverted range.
 fn range(start: u16, end: u16) -> AddrRange {
-    AddrRange::new(start, end).unwrap()
+    AddrRange::new(start, end).expect("test AddrRange must satisfy start <= end")
 }
 
 /// Builds a PRG with a little-endian load address and the payload.
@@ -178,7 +178,7 @@ fn record(start: u16, end: u16, entry: Unp64Entry, r2000: &UnpackedImage) -> Unp
         start: HexAddr(start),
         end: HexAddr(end),
         entry,
-        len: u32::try_from(unp64_range.len()).unwrap(),
+        len: u32::try_from(unp64_range.len()).expect("64KiB range length fits in u32"),
         payload_fnv64: Fnv64::of(&mem_bytes(start, end)),
         overlap,
         version: UNP64_VERSION.to_string(),
@@ -223,7 +223,7 @@ fn divergence(
 ) -> AcceptedDivergence {
     AcceptedDivergence {
         kind,
-        fields: FieldSet::new(fields.iter().copied()).unwrap(),
+        fields: FieldSet::new(fields.iter().copied()).expect("test FieldSet must be non-empty"),
         reviewed_by: reviewed_by.map(str::to_string),
         note: None,
     }
@@ -270,7 +270,8 @@ fn reasons(failures: Vec<CaseFailure>) -> Vec<FailureReason> {
 
 /// Evaluates one result against a corpus without groups.
 fn eval(corpus: &Corpus, result: &CaseResult) -> Result<CaseReport, Vec<FailureReason>> {
-    let evaluator = Evaluator::new(corpus, &MemFixtures::default()).unwrap();
+    let evaluator =
+        Evaluator::new(corpus, &MemFixtures::default()).expect("test Evaluator should construct");
     evaluator.evaluate(result).map_err(reasons)
 }
 

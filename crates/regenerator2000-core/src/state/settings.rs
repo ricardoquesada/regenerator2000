@@ -2,6 +2,7 @@
 
 use super::types::{Assembler, System};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Per-document configuration settings for disassembly, analysis, and formatting.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,7 +45,7 @@ pub struct DocumentSettings {
     pub bytes_per_line: usize, // default 8
     /// Optional platform feature flags that control which system labels load from assets.
     #[serde(default)]
-    pub enabled_features: std::collections::HashMap<String, bool>,
+    pub enabled_features: HashMap<String, bool>,
     /// User-supplied project description notes.
     #[serde(default)]
     pub description: String,
@@ -105,7 +106,7 @@ impl Default for DocumentSettings {
             text_char_limit: 40,
             addresses_per_line: 5,
             bytes_per_line: 8,
-            enabled_features: std::collections::HashMap::new(),
+            enabled_features: HashMap::new(),
             description: String::new(),
             auto_analyze: true,
             show_system_comments: true,

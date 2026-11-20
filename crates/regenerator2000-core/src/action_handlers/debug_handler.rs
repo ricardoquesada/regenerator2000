@@ -1,8 +1,13 @@
 //! Debug domain action handler for the VICE monitor protocol, checkpoints, and step execution.
 
 use super::{ActionContext, CoreError, DomainActionHandler};
-use crate::event::CoreEvent;
+use crate::event::{CoreEvent, DialogType};
 use crate::state::actions::AppAction;
+use crate::vice::ViceClient;
+#[cfg(test)]
+use crate::vice::ViceEvent;
+use crate::vice::state::BreakpointKind;
+use std::sync::mpsc;
 
 /// Handler for live VICE debugging actions.
 #[derive(Debug, Default)]
@@ -30,7 +35,7 @@ fn handle_toggle_exec_breakpoint(ctx: &mut ActionContext<'_>, address: u16) {
         .vice_state
         .breakpoints
         .iter()
-        .find(|bp| bp.address == address && bp.kind == crate::vice::state::BreakpointKind::Exec)
+        .find(|bp| bp.address == address && bp.kind == BreakpointKind::Exec)
         .map(|bp| bp.id);
 
     if let Some(id) = existing_id {
@@ -55,17 +60,16 @@ impl DomainActionHandler for DebugActionHandler {
     ) -> Result<bool, CoreError> {
         match action {
             AppAction::ViceConnect => {
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::ViceConnect,
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::ViceConnect));
                 ctx.events.push(CoreEvent::StatusMessage(
                     "Enter VICE hostname and port".to_string(),
                 ));
                 Ok(true)
             }
             AppAction::ViceConnectAddress(addr) => {
-                let (tx, rx) = std::sync::mpsc::channel();
-                match crate::vice::ViceClient::connect(addr, tx) {
+                let (tx, rx) = mpsc::channel();
+                match ViceClient::connect(addr, tx) {
                     Ok(mut client) => {
                         client.set_event_receiver(rx);
                         client.send_registers_get();
@@ -173,9 +177,10 @@ impl DomainActionHandler for DebugActionHandler {
                     .disassembly
                     .get(ctx.view.cursor_index)
                     .map(|l| l.address.0);
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::BreakpointAddress(prefill),
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::BreakpointAddress(
+                        prefill,
+                    )));
                 Ok(true)
             }
             AppAction::ViceSetBreakpointAt { address } => {
@@ -188,16 +193,18 @@ impl DomainActionHandler for DebugActionHandler {
                     .disassembly
                     .get(ctx.view.cursor_index)
                     .map(|l| l.address.0);
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::WatchpointAddress(prefill),
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::WatchpointAddress(
+                        prefill,
+                    )));
                 Ok(true)
             }
             AppAction::ViceMemoryDumpDialog => {
                 let prefill = ctx.state.vice_state.dump_address;
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::MemoryDumpAddress(prefill),
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::MemoryDumpAddress(
+                        prefill,
+                    )));
                 Ok(true)
             }
             AppAction::ViceSetMemoryDumpAddress { address } => {
@@ -227,10 +234,7 @@ impl DomainActionHandler for DebugActionHandler {
                     .vice_state
                     .breakpoints
                     .iter()
-                    .find(|bp| {
-                        bp.address == address.0
-                            && bp.kind != crate::vice::state::BreakpointKind::Exec
-                    })
+                    .find(|bp| bp.address == address.0 && bp.kind != BreakpointKind::Exec)
                     .map(|bp| bp.id);
 
                 if let Some(id) = existing_id {
@@ -241,14 +245,13 @@ impl DomainActionHandler for DebugActionHandler {
                     )));
                 } else {
                     match kind {
-                        crate::vice::state::BreakpointKind::Load => {
+                        BreakpointKind::Load => {
                             client.send_checkpoint_set_load(address.0);
                         }
-                        crate::vice::state::BreakpointKind::Store => {
+                        BreakpointKind::Store => {
                             client.send_checkpoint_set_store(address.0);
                         }
-                        crate::vice::state::BreakpointKind::LoadStore
-                        | crate::vice::state::BreakpointKind::Exec => {
+                        BreakpointKind::LoadStore | BreakpointKind::Exec => {
                             client.send_checkpoint_set_load_store(address.0);
                         }
                     }
@@ -268,16 +271,20 @@ impl DomainActionHandler for DebugActionHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::AppState;
-    use crate::state::types::Addr;
+    use crate::state::{Addr, AppState};
     use crate::vice::state::{BreakpointKind, ViceBreakpoint};
     use crate::view_state::CoreViewState;
     use std::net::TcpListener;
+    use std::time::Duration;
 
     #[test]
     fn test_vice_connect_address_retains_event_receiver() {
-        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let addr_str = listener.local_addr().unwrap().to_string();
+        let listener =
+            TcpListener::bind("127.0.0.1:0").expect("ephemeral localhost TcpListener should bind");
+        let addr_str = listener
+            .local_addr()
+            .expect("listener local_addr should resolve")
+            .to_string();
 
         let mut state = AppState::new();
         let mut view = CoreViewState::new();
@@ -292,7 +299,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::ViceConnectAddress(addr_str), &mut ctx)
-                .unwrap()
+                .expect("ViceConnectAddress action should succeed")
         );
         assert!(ctx.state.vice_state.connected);
         let client = ctx
@@ -304,15 +311,17 @@ mod tests {
             .event_receiver()
             .expect("Expected event_receiver to remain attached");
         let first_event = rx
-            .recv_timeout(std::time::Duration::from_secs(1))
+            .recv_timeout(Duration::from_secs(1))
             .expect("Expected ViceEvent::Connected");
-        assert!(matches!(first_event, crate::vice::ViceEvent::Connected));
+        assert!(matches!(first_event, ViceEvent::Connected));
     }
 
     #[test]
     fn test_disconnected_breakpoint_and_watchpoint_actions_report_status() {
         let mut state = AppState::new();
-        state.load_binary(Addr(0x1000), vec![0xEA]).unwrap();
+        state
+            .load_binary(Addr(0x1000), vec![0xEA])
+            .expect("test binary should load");
         let mut view = CoreViewState::new();
         let mut events = Vec::new();
         let mut ctx = ActionContext {
@@ -324,7 +333,7 @@ mod tests {
         let handler = DebugActionHandler::new();
         handler
             .handle_action(&AppAction::ViceToggleBreakpoint, &mut ctx)
-            .unwrap();
+            .expect("ViceToggleBreakpoint action should succeed");
         assert_eq!(
             *ctx.events,
             vec![CoreEvent::StatusMessage(
@@ -340,7 +349,7 @@ mod tests {
                 },
                 &mut ctx,
             )
-            .unwrap();
+            .expect("disconnected breakpoint/watchpoint action should succeed");
         assert_eq!(
             *ctx.events,
             vec![CoreEvent::StatusMessage(
@@ -353,11 +362,11 @@ mod tests {
             .handle_action(
                 &AppAction::ViceSetWatchpoint {
                     address: Addr(0x1000),
-                    kind: crate::vice::state::BreakpointKind::Store,
+                    kind: BreakpointKind::Store,
                 },
                 &mut ctx,
             )
-            .unwrap();
+            .expect("disconnected breakpoint/watchpoint action should succeed");
         assert_eq!(
             *ctx.events,
             vec![CoreEvent::StatusMessage(

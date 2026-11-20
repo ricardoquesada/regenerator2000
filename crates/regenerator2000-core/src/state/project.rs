@@ -5,11 +5,13 @@
 //! It also converts between per-byte [`BlockType`] vectors and run-length encoded [`Block`] spans
 //! ([`compress_block_types`] and [`expand_blocks`]).
 
+use super::annotations::AnnotationManager;
 use super::settings::DocumentSettings;
 use super::types::{
     Addr, BlockType, EnumDefinition, HexdumpViewMode, LabelKind, LabelType, System,
 };
-use base64::{Engine as _, engine::general_purpose};
+use base64::Engine as _;
+use base64::engine::general_purpose;
 use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
@@ -57,7 +59,7 @@ pub struct Block {
 ///
 /// Uses [`BTreeMap`] and [`BTreeSet`] for all address-keyed and name-keyed collections
 /// to guarantee deterministic serialization order across save and load cycles.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectState {
     /// Schema format version (defaults to `1` for legacy project files without a `version` field).
     #[serde(default = "default_project_version")]
@@ -74,7 +76,7 @@ pub struct ProjectState {
     pub labels: BTreeMap<Addr, Vec<Label>>,
     /// Persisted user annotations (comments, immediate formats, bookmarks, enums, and lexical scopes).
     #[serde(default, flatten)]
-    pub annotations: super::annotations::AnnotationManager,
+    pub annotations: AnnotationManager,
     /// Document-level disassembly and target platform settings.
     #[serde(default)]
     pub settings: DocumentSettings,
@@ -124,7 +126,7 @@ pub struct ProjectState {
 }
 
 /// Transient UI restoration metadata and load-time diagnostics returned when loading a binary or project file.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LoadedProjectData {
     /// Restored disassembly cursor [`Addr`].
     pub cursor_address: Option<Addr>,
@@ -159,7 +161,7 @@ pub struct LoadedProjectData {
 }
 
 /// Snapshot of transient UI cursor and view settings captured when saving a `.regen2000proj` file.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ProjectSaveContext {
     /// Current disassembly cursor [`Addr`].
     pub cursor_address: Option<Addr>,
@@ -299,18 +301,30 @@ pub fn compress_block_types(
     ranges
 }
 
-/// Expands run-length encoded [`Block`] spans into a per-byte [`BlockType`] vector of length `len`
-/// and a list of inclusive collapsed `(start, end)` offset ranges.
+/// Expanded per-byte block classifications and collapsed block ranges decoded from [`Block`] spans.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpandedBlocks {
+    /// Per-byte [`BlockType`] classification matching the binary length.
+    pub block_types: Vec<BlockType>,
+    /// Inclusive collapsed byte offset `(start, end)` ranges.
+    pub collapsed_ranges: Vec<(usize, usize)>,
+}
+
+/// Expands run-length encoded [`Block`] spans into per-byte [`BlockType`] entries
+/// and inclusive collapsed offset ranges.
 ///
 /// Uncovered indices default to [`BlockType::Code`]. The function clamps any [`Block::end`] that
 /// exceeds `len - 1` to `len - 1`.
 #[must_use]
-pub fn expand_blocks(ranges: &[Block], len: usize) -> (Vec<BlockType>, Vec<(usize, usize)>) {
+pub fn expand_blocks(ranges: &[Block], len: usize) -> ExpandedBlocks {
     if len == 0 {
-        return (Vec::new(), Vec::new());
+        return ExpandedBlocks {
+            block_types: Vec::new(),
+            collapsed_ranges: Vec::new(),
+        };
     }
 
-    let mut types = vec![BlockType::Code; len];
+    let mut block_types = vec![BlockType::Code; len];
     let mut collapsed_ranges = Vec::new();
 
     for range in ranges {
@@ -319,11 +333,14 @@ pub fn expand_blocks(ranges: &[Block], len: usize) -> (Vec<BlockType>, Vec<(usiz
             if range.collapsed {
                 collapsed_ranges.push((range.start, end));
             }
-            types[range.start..=end].fill(range.type_);
+            block_types[range.start..=end].fill(range.type_);
         }
     }
 
-    (types, collapsed_ranges)
+    ExpandedBlocks {
+        block_types,
+        collapsed_ranges,
+    }
 }
 
 #[cfg(test)]
@@ -417,7 +434,7 @@ mod serialization_tests {
             let actual_block = blocks
                 .iter()
                 .find(|b| idx >= b.start && idx <= b.end)
-                .unwrap();
+                .expect("block covering byte index should exist");
             assert_eq!(
                 actual_block.collapsed, expected_collapsed,
                 "Mismatch at index {idx}"
@@ -447,16 +464,16 @@ mod serialization_tests {
                 collapsed: false,
             },
         ];
-        let (types, collapsed) = expand_blocks(&ranges, 5);
-        assert_eq!(types.len(), 5);
-        assert_eq!(types[0], BlockType::Code);
-        assert_eq!(types[1], BlockType::Code);
-        assert_eq!(types[2], BlockType::DataByte);
-        assert_eq!(types[3], BlockType::DataByte);
-        assert_eq!(types[4], BlockType::Code);
+        let expanded = expand_blocks(&ranges, 5);
+        assert_eq!(expanded.block_types.len(), 5);
+        assert_eq!(expanded.block_types[0], BlockType::Code);
+        assert_eq!(expanded.block_types[1], BlockType::Code);
+        assert_eq!(expanded.block_types[2], BlockType::DataByte);
+        assert_eq!(expanded.block_types[3], BlockType::DataByte);
+        assert_eq!(expanded.block_types[4], BlockType::Code);
 
-        assert_eq!(collapsed.len(), 1);
-        assert_eq!(collapsed[0], (2, 3));
+        assert_eq!(expanded.collapsed_ranges.len(), 1);
+        assert_eq!(expanded.collapsed_ranges[0], (2, 3));
     }
 
     #[test]
@@ -467,19 +484,19 @@ mod serialization_tests {
             type_: BlockType::DataByte,
             collapsed: true,
         }];
-        let (types, collapsed) = expand_blocks(&ranges, 0);
-        assert!(types.is_empty());
-        assert!(collapsed.is_empty());
+        let expanded = expand_blocks(&ranges, 0);
+        assert!(expanded.block_types.is_empty());
+        assert!(expanded.collapsed_ranges.is_empty());
     }
 
     #[test]
     fn test_encode_decode_raw_data() {
         let data: Vec<u8> = (0..100).collect();
-        let encoded = encode_raw_data_to_base64(&data).unwrap();
+        let encoded = encode_raw_data_to_base64(&data).expect("raw bytes should base64-encode");
         // Base64 string should not contain spaces
         assert!(!encoded.contains(' '));
 
-        let decoded = decode_raw_data_from_base64(&encoded).unwrap();
+        let decoded = decode_raw_data_from_base64(&encoded).expect("valid base64 should decode");
         assert_eq!(data, decoded);
     }
 
@@ -586,7 +603,8 @@ mod serialization_tests {
         assert_eq!(raw_back.variants.get("0x20"), Some(&"STOP".to_string()));
 
         // Serialize Raw to TOML
-        let toml_str = toml::to_string_pretty(&raw_back).unwrap();
+        let toml_str =
+            toml::to_string_pretty(&raw_back).expect("enum definition should serialize to TOML");
         assert!(toml_str.contains("description = \"System status flags\""));
         assert!(toml_str.contains("0x10 = \"START\""));
     }

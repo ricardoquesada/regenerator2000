@@ -5,6 +5,7 @@
 //! `acepted_divergence`) produces a parse error instead of dropping a
 //! reviewed exception.
 
+use std::fs;
 use std::num::NonZeroU64;
 use std::path::Path;
 
@@ -340,7 +341,7 @@ impl Corpus {
     /// Returns [`CorpusError::Io`] on a file read error, or any error from
     /// [`Corpus::parse`].
     pub fn load(path: &Path) -> Result<Self, CorpusError> {
-        let text = std::fs::read_to_string(path).map_err(|e| CorpusError::Io {
+        let text = fs::read_to_string(path).map_err(|e| CorpusError::Io {
             path: path.to_path_buf(),
             message: e.to_string(),
         })?;

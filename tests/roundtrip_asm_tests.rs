@@ -519,7 +519,11 @@ fn test_roundtrip_suppressed_symbolic_offset_bases_all_assemblers() {
         .unwrap();
     assert_eq!(
         line_1003.operand,
-        state.format_symbolic_offset(t1_d022, Some(Addr(0x1003)), false)
+        state.format_symbolic_offset(
+            t1_d022,
+            Some(Addr(0x1003)),
+            regenerator2000_core::state::OffsetAddressing::Absolute
+        )
     );
     assert_eq!(line_1003.operand, "$d021 + 1");
 
@@ -530,7 +534,11 @@ fn test_roundtrip_suppressed_symbolic_offset_bases_all_assemblers() {
         .unwrap();
     assert_eq!(
         line_1008.operand,
-        state.format_symbolic_offset(t2_00fd, Some(Addr(0x1008)), true)
+        state.format_symbolic_offset(
+            t2_00fd,
+            Some(Addr(0x1008)),
+            regenerator2000_core::state::OffsetAddressing::ZeroPage
+        )
     );
     assert_eq!(line_1008.operand, "$fc + 1");
 

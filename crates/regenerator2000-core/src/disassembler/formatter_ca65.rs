@@ -1,7 +1,7 @@
 //! `ca65` (cc65 suite) syntax formatter implementation.
 
-use super::formatter::Formatter;
-use crate::state::Addr;
+use super::formatter::{FileDirective, FormatContext, Formatter, TextFragment};
+use crate::state::{Addr, EnumDefinition};
 use std::fmt::Write;
 
 /// Maximum number of arguments accepted by cc65's `scrcode` macro (`arg1`..`arg9` in `cbm.mac`).
@@ -99,12 +99,10 @@ impl Formatter for Ca65Formatter {
 
     fn format_text(
         &self,
-        fragments: &[super::formatter::TextFragment],
+        fragments: &[TextFragment],
         _is_start: bool,
         _is_end: bool,
     ) -> Vec<(String, String, bool)> {
-        use super::formatter::TextFragment;
-
         enum Token {
             Char(char),
             Byte(u8),
@@ -209,11 +207,7 @@ impl Formatter for Ca65Formatter {
         0x40
     }
 
-    fn format_screencode(
-        &self,
-        fragments: &[super::formatter::TextFragment],
-    ) -> Vec<(String, String, bool)> {
-        use super::formatter::TextFragment;
+    fn format_screencode(&self, fragments: &[TextFragment]) -> Vec<(String, String, bool)> {
         let mut lines = Vec::new();
         let mut pending_text = String::new();
         let mut pending_bytes = Vec::new();
@@ -283,8 +277,8 @@ impl Formatter for Ca65Formatter {
         )
     }
 
-    fn format_file_directives(&self) -> Vec<super::formatter::FileDirective> {
-        vec![super::formatter::FileDirective {
+    fn format_file_directives(&self) -> Vec<FileDirective> {
+        vec![FileDirective {
             directive: ".macpack cbm".to_string(),
             comment: Some("adds support for scrcode".to_string()),
         }]
@@ -299,7 +293,7 @@ impl Formatter for Ca65Formatter {
         format!("{name} = {operand}")
     }
 
-    fn format_instruction(&self, ctx: &super::formatter::FormatContext) -> (String, String) {
+    fn format_instruction(&self, ctx: &FormatContext) -> (String, String) {
         let mnemonic = self.format_mnemonic(ctx.opcode.mnemonic);
         let operand = self.format_operand(ctx);
 
@@ -343,7 +337,7 @@ impl Formatter for Ca65Formatter {
         format!("{enum_name}::{variant_name}")
     }
 
-    fn format_enum_definition(&self, enum_def: &crate::state::EnumDefinition) -> String {
+    fn format_enum_definition(&self, enum_def: &EnumDefinition) -> String {
         let mut s = format!(".enum {}\n", enum_def.name);
         for (&val, variant) in &enum_def.variants {
             let val_str = if val <= 0xFF {

@@ -6,7 +6,9 @@
 //! writes a matching output file. Progress output uses bare carriage returns,
 //! so the parser splits lines on both `\r` and `\n`.
 
+use std::error::Error;
 use std::fmt;
+use std::iter;
 
 use crate::corpus::{AddrRange, HexAddr, PRG_HEADER_LEN, Unp64Entry, Unp64Observation};
 
@@ -66,7 +68,8 @@ const NO_SAVED_LINE_REASON: &str = "no `saved` line in unp64 output";
 /// Unrecordable `unp64` result.
 ///
 /// These variants represent tool errors rather than normal unpack failures.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[must_use]
 pub enum ParseError {
     /// The output contains no `UNP64 vX.YY …` usage banner.
     MissingBanner,
@@ -128,7 +131,7 @@ impl fmt::Display for ParseError {
     }
 }
 
-impl std::error::Error for ParseError {}
+impl Error for ParseError {}
 
 // =============================================================================
 // Console output
@@ -225,7 +228,7 @@ fn parse_pass2_entry(lines: &[&str]) -> Option<Unp64Entry> {
         .enumerate()
         .find(|(_, line)| line.contains(PASS2_MARKER))?;
     let (_, remainder) = line.split_once(PASS2_MARKER)?;
-    std::iter::once(remainder.trim())
+    iter::once(remainder.trim())
         .chain(lines.iter().skip(index + 1).copied())
         .find(|candidate| !candidate.is_empty() && !is_debug_diagnostic(candidate))
         .and_then(parse_entry_chain)

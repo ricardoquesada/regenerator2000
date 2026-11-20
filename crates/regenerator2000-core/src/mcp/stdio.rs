@@ -34,7 +34,7 @@ fn parse_rpc_line(line: &str) -> Option<ParsedRpcMessage> {
 
 /// Formats an [`McpResponse`] and request `id` as a JSON-RPC 2.0 response object.
 #[must_use]
-fn format_rpc_response(id: Value, response: McpResponse) -> Value {
+fn format_rpc_response(id: &Value, response: McpResponse) -> Value {
     if let Some(error) = response.error {
         json!({
             "jsonrpc": "2.0",
@@ -55,7 +55,7 @@ fn format_rpc_response(id: Value, response: McpResponse) -> Value {
 }
 
 /// Writes a JSON-RPC response line to standard output and flushes the stream.
-fn write_rpc_response(id: Value, response: McpResponse) {
+fn write_rpc_response(id: &Value, response: McpResponse) {
     let json_resp = format_rpc_response(id, response);
     println!("{json_resp}");
     let _ = io::stdout().flush();
@@ -78,7 +78,7 @@ pub async fn run_stdio_loop(sender: Sender<McpRequest>) {
 
             if sender.send(request).await.is_ok()
                 && let Ok(response) = rx.await
-                && let Some(id) = msg.id
+                && let Some(ref id) = msg.id
             {
                 write_rpc_response(id, response);
             }
@@ -88,7 +88,7 @@ pub async fn run_stdio_loop(sender: Sender<McpRequest>) {
 }
 
 /// Runs the synchronous headless MCP stdio loop directly against `app_state` and `view_state`.
-pub async fn run_headless_stdio_loop(mut app_state: AppState, mut view_state: CoreViewState) {
+pub fn run_headless_stdio_loop(mut app_state: AppState, mut view_state: CoreViewState) {
     let stdin = io::stdin();
     let mut reader = stdin.lock();
     let mut line = String::new();
@@ -96,7 +96,7 @@ pub async fn run_headless_stdio_loop(mut app_state: AppState, mut view_state: Co
     while reader.read_line(&mut line).unwrap_or(0) > 0 {
         if let Some(msg) = parse_rpc_line(&line) {
             let response = handle_method(&msg.method, &msg.params, &mut app_state, &mut view_state);
-            if let Some(id) = msg.id {
+            if let Some(ref id) = msg.id {
                 write_rpc_response(id, response);
             }
         }
@@ -132,13 +132,13 @@ mod tests {
         let mut view_state = make_view_state();
 
         let ok_resp = handle_method("ping", &Value::Null, &mut app_state, &mut view_state);
-        let ok_json = format_rpc_response(json!(1), ok_resp);
+        let ok_json = format_rpc_response(&json!(1), ok_resp);
         assert_eq!(ok_json["jsonrpc"], "2.0");
         assert_eq!(ok_json["id"], 1);
         assert_eq!(ok_json["result"], json!({}));
 
         let err_resp = handle_method("unknown", &Value::Null, &mut app_state, &mut view_state);
-        let err_json = format_rpc_response(json!(2), err_resp);
+        let err_json = format_rpc_response(&json!(2), err_resp);
         assert_eq!(err_json["jsonrpc"], "2.0");
         assert_eq!(err_json["id"], 2);
         assert_eq!(err_json["error"]["code"], -32601);

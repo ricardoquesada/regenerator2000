@@ -5,10 +5,13 @@
 //! to an active Tier 2 `address_offset`.
 
 use super::app_state::{AppState, BlockItem};
-use super::project::Block;
-use super::types::{Addr, BlockType, LabelType};
-use crate::disassembler::DisassemblyLine;
-use std::collections::BTreeSet;
+use super::project::{self, Block};
+use super::types::{Addr, AddrSpan, BlockItemTarget, BlockType, ExternalXRefs, LabelType};
+use crate::commands::Command;
+use crate::disassembler::context;
+use crate::disassembler::formatter::Formatter;
+use crate::disassembler::{self, DisassemblyLine, symbols};
+use std::collections::{BTreeSet, HashSet};
 
 /// Builds a synthetic header or blank [`DisassemblyLine`] at address `$0000` with `mnemonic`.
 #[must_use]
@@ -32,17 +35,17 @@ fn header_line(mnemonic: String) -> DisassemblyLine {
 impl AppState {
     /// Compresses [`AppState::block_types`] and [`AppState::collapsed_blocks`] into contiguous [`Block`] spans.
     #[must_use]
-    pub fn get_compressed_blocks(&self) -> Vec<Block> {
-        super::project::compress_block_types(&self.block_types, &self.collapsed_blocks)
+    pub fn compressed_blocks(&self) -> Vec<Block> {
+        project::compress_block_types(&self.block_types, &self.collapsed_blocks)
     }
 
-    /// Returns the inclusive `(start_addr, end_addr)` bounds of the contiguous [`BlockType`] sub-block
+    /// Returns the inclusive [`AddrSpan`] (`start..=end`) of the contiguous [`BlockType`] sub-block
     /// at `address`.
     ///
     /// The scan stops at any boundary where [`AppState::is_virtual_splitter`] returns `true`.
     /// Returns `None` if `address` is outside the loaded binary range.
     #[must_use]
-    pub fn get_block_range(&self, address: Addr) -> Option<(Addr, Addr)> {
+    pub fn block_range(&self, address: Addr) -> Option<AddrSpan> {
         let origin = self.origin;
         if address < origin {
             return None;
@@ -74,21 +77,24 @@ impl AppState {
         let start_addr = origin.wrapping_add(start as u16);
         let end_addr = origin.wrapping_add(end as u16);
 
-        Some((start_addr, end_addr))
+        Some(AddrSpan {
+            start: start_addr,
+            end: end_addr,
+        })
     }
 
     /// Sets `new_type` on the byte range covered by `selection_start..=cursor_index`.
     ///
     /// When `selection_start` is `None`, this method updates only the line at `cursor_index`.
     /// It then rebuilds the disassembly and returns the applied
-    /// [`Command::SetBlockType`](crate::commands::Command::SetBlockType).
+    /// [`Command::SetBlockType`].
     /// Returns `None` if the selected lines contain no binary bytes or fall outside [`AppState::block_types`].
     pub fn set_block_type_region(
         &mut self,
         new_type: BlockType,
         selection_start: Option<usize>,
         cursor_index: usize,
-    ) -> Option<crate::commands::Command> {
+    ) -> Option<Command> {
         let range_opt = if let Some(selection_start) = selection_start {
             let (s, e) = if selection_start < cursor_index {
                 (selection_start, cursor_index)
@@ -151,7 +157,7 @@ impl AppState {
 
                 let old_types = self.block_types[range.clone()].to_vec();
 
-                let command = crate::commands::Command::SetBlockType {
+                let command = Command::SetBlockType {
                     range,
                     new_type,
                     old_types,
@@ -182,8 +188,8 @@ impl AppState {
     /// Items are sorted by start [`Addr`] so [`BlockItem::Scope`] precedes [`BlockItem::Splitter`]
     /// and [`BlockItem::Block`] at the same address.
     #[must_use]
-    pub fn get_blocks_view_items(&self) -> Vec<BlockItem> {
-        let compressed_blocks = self.get_compressed_blocks();
+    pub fn blocks_view_items(&self) -> Vec<BlockItem> {
+        let compressed_blocks = self.compressed_blocks();
         let mut items = Vec::with_capacity(
             compressed_blocks.len() + self.splitters.len() + self.annotations.scopes().len(),
         );
@@ -295,19 +301,20 @@ impl AppState {
 
     /// Returns the index in `items` that matches `address`.
     ///
-    /// When `is_splitter` is `true`, this method matches a [`BlockItem::Splitter`] at `address`
-    /// or a [`BlockItem::Scope`] that contains `address`. When `is_splitter` is `false`, it
-    /// matches the first [`BlockItem::Scope`] or [`BlockItem::Block`] whose inclusive range
-    /// `start..=end` contains `address`.
+    /// When `target` is [`BlockItemTarget::Splitter`], this method matches a [`BlockItem::Splitter`]
+    /// at `address` or a [`BlockItem::Scope`] that contains `address`. When `target` is
+    /// [`BlockItemTarget::BlockOrScope`], it matches the first [`BlockItem::Scope`] or
+    /// [`BlockItem::Block`] whose inclusive range `start..=end` contains `address`.
     #[must_use]
     pub fn find_block_index_in_items(
         items: &[BlockItem],
         address: Addr,
-        is_splitter: bool,
+        target: BlockItemTarget,
     ) -> Option<usize> {
+        let match_splitter = target == BlockItemTarget::Splitter;
         items.iter().position(|item| match item {
             BlockItem::Block { start, end, .. } => {
-                if !is_splitter {
+                if !match_splitter {
                     let s = *start;
                     let e = *end;
                     if s <= e {
@@ -319,7 +326,7 @@ impl AppState {
                     false
                 }
             }
-            BlockItem::Splitter(addr) => is_splitter && *addr == address,
+            BlockItem::Splitter(addr) => match_splitter && *addr == address,
             BlockItem::Scope { start, end, .. } => {
                 let s = *start;
                 let e = *end;
@@ -332,16 +339,16 @@ impl AppState {
         })
     }
 
-    /// Returns the index in [`AppState::get_blocks_view_items`] that matches `address`.
+    /// Returns the index in [`AppState::blocks_view_items`] that matches `address`.
     ///
-    /// When `is_splitter` is `true`, this method matches a [`BlockItem::Splitter`] at `address`
-    /// or a [`BlockItem::Scope`] that contains `address`. When `is_splitter` is `false`, it
-    /// matches the first [`BlockItem::Scope`] or [`BlockItem::Block`] whose inclusive range
-    /// `start..=end` contains `address`.
+    /// When `target` is [`BlockItemTarget::Splitter`], this method matches a [`BlockItem::Splitter`]
+    /// at `address` or a [`BlockItem::Scope`] that contains `address`. When `target` is
+    /// [`BlockItemTarget::BlockOrScope`], it matches the first [`BlockItem::Scope`] or
+    /// [`BlockItem::Block`] whose inclusive range `start..=end` contains `address`.
     #[must_use]
-    pub fn get_block_index_for_address(&self, address: Addr, is_splitter: bool) -> Option<usize> {
-        let items = self.get_blocks_view_items();
-        Self::find_block_index_in_items(&items, address, is_splitter)
+    pub fn block_index_for_address(&self, address: Addr, target: BlockItemTarget) -> Option<usize> {
+        let items = self.blocks_view_items();
+        Self::find_block_index_in_items(&items, address, target)
     }
 
     /// Builds a single external label equate [`DisassemblyLine`] with side comments and optional cross-references.
@@ -351,9 +358,9 @@ impl AppState {
         addr: u16,
         name: &str,
         is_zp: bool,
-        include_xrefs: bool,
+        xrefs: ExternalXRefs,
         cp: &str,
-        formatter: &dyn crate::disassembler::formatter::Formatter,
+        formatter: &dyn Formatter,
     ) -> DisassemblyLine {
         let mut comment_parts = Vec::new();
         if let Some(entry) = self.annotations.get(Addr(addr)) {
@@ -364,12 +371,12 @@ impl AppState {
             }
         }
 
-        if include_xrefs
+        if xrefs == ExternalXRefs::Include
             && let Some(refs) = self.cross_refs.get(&Addr(addr))
             && !refs.is_empty()
             && self.settings.max_xref_count > 0
         {
-            comment_parts.push(crate::disassembler::context::format_cross_references(
+            comment_parts.push(context::format_cross_references(
                 refs,
                 self.settings.max_xref_count,
             ));
@@ -396,21 +403,22 @@ impl AppState {
     /// Generates preamble [`DisassemblyLine`] items for all external and [`BlockType::ExternalFile`]
     /// labels using the active assembler formatter.
     #[must_use]
-    pub fn get_external_label_definitions(&self, include_xrefs: bool) -> Vec<DisassemblyLine> {
-        let formatter = self.get_formatter();
-        self.get_external_label_definitions_with_formatter(include_xrefs, formatter.as_ref())
+    pub fn external_label_definitions(&self, xrefs: ExternalXRefs) -> Vec<DisassemblyLine> {
+        let formatter = self.formatter();
+        self.external_label_definitions_with_formatter(xrefs, formatter.as_ref())
     }
 
     /// Generates preamble [`DisassemblyLine`] items for external and [`BlockType::ExternalFile`] labels.
     ///
     /// Omits addresses with an active Tier 2 `address_offset` so displaced bytes never emit orphan
     /// equates such as `zpa_FC = $fc`. Recomputes the prefix legend from the remaining visible
-    /// symbols, and appends inline cross-reference summaries when `include_xrefs` is `true`.
+    /// symbols, and appends inline cross-reference summaries when `xrefs` is
+    /// [`ExternalXRefs::Include`].
     #[must_use]
-    pub fn get_external_label_definitions_with_formatter(
+    pub fn external_label_definitions_with_formatter(
         &self,
-        include_xrefs: bool,
-        formatter: &dyn crate::disassembler::formatter::Formatter,
+        xrefs: ExternalXRefs,
+        formatter: &dyn Formatter,
     ) -> Vec<DisassemblyLine> {
         let mut candidates: Vec<(Addr, LabelType, &String)> = Vec::new();
 
@@ -419,19 +427,15 @@ impl AppState {
             // equates (for example, `zpa_FC = $fc` when `$00FC` is `zp_ptr + 1`) are omitted
             // even when `settings.auto_analyze` is disabled.
             if self.is_external(*addr)
-                && !crate::disassembler::symbols::has_active_address_offset(
-                    *addr,
-                    &self.labels,
-                    &self.annotations,
-                )
+                && !symbols::has_active_address_offset(*addr, &self.labels, &self.annotations)
                 && let Some(label) =
-                    crate::disassembler::resolve_label(labels, (*addr).into(), &self.settings)
+                    disassembler::resolve_label(labels, (*addr).into(), &self.settings)
             {
                 candidates.push((*addr, label.label_type, &label.name));
             }
         }
 
-        let mut seen_names = std::collections::HashSet::new();
+        let mut seen_names = HashSet::new();
         let mut all_externals = Vec::new();
 
         for item in candidates {
@@ -475,23 +479,16 @@ impl AppState {
         // internal struct/field offsets bound via Tier 2 `address_offset`).
         let mut ext_file_labels: Vec<(u16, &String)> = Vec::new();
         {
-            let mut seen: std::collections::HashSet<&String> = std::collections::HashSet::new();
+            let mut seen: HashSet<&String> = HashSet::new();
             for (addr, labels) in &self.labels {
                 if !self.is_external(*addr)
-                    && !crate::disassembler::symbols::has_active_address_offset(
-                        *addr,
-                        &self.labels,
-                        &self.annotations,
-                    )
+                    && !symbols::has_active_address_offset(*addr, &self.labels, &self.annotations)
                 {
                     let offset = addr.offset_from(self.origin);
                     if offset < self.block_types.len()
                         && self.block_types[offset] == BlockType::ExternalFile
-                        && let Some(label) = crate::disassembler::resolve_label(
-                            labels,
-                            (*addr).into(),
-                            &self.settings,
-                        )
+                        && let Some(label) =
+                            disassembler::resolve_label(labels, (*addr).into(), &self.settings)
                         && seen.insert(&label.name)
                     {
                         ext_file_labels.push((addr.0, &label.name));
@@ -542,26 +539,12 @@ impl AppState {
 
         // Emit all flat external labels in address order.
         for (addr, name, _, is_zp) in flat {
-            lines.push(self.format_external_label_line(
-                addr,
-                name,
-                is_zp,
-                include_xrefs,
-                cp,
-                formatter,
-            ));
+            lines.push(self.format_external_label_line(addr, name, is_zp, xrefs, cp, formatter));
         }
 
         // Emit external-file labels after all the others.
         for (addr, name) in ext_file_labels {
-            lines.push(self.format_external_label_line(
-                addr,
-                name,
-                false,
-                include_xrefs,
-                cp,
-                formatter,
-            ));
+            lines.push(self.format_external_label_line(addr, name, false, xrefs, cp, formatter));
         }
 
         // Trailing blank line.
@@ -573,17 +556,17 @@ impl AppState {
     /// Generates preamble [`DisassemblyLine`] items for all enums referenced in the project
     /// using the active assembler formatter.
     #[must_use]
-    pub fn get_enum_definition_lines(&self) -> Vec<DisassemblyLine> {
-        let formatter = self.get_formatter();
-        self.get_enum_definition_lines_with_formatter(formatter.as_ref())
+    pub fn enum_definition_lines(&self) -> Vec<DisassemblyLine> {
+        let formatter = self.formatter();
+        self.enum_definition_lines_with_formatter(formatter.as_ref())
     }
 
     /// Generates preamble [`DisassemblyLine`] items for all enums referenced in the project
     /// using `formatter`.
     #[must_use]
-    pub fn get_enum_definition_lines_with_formatter(
+    pub fn enum_definition_lines_with_formatter(
         &self,
-        formatter: &dyn crate::disassembler::formatter::Formatter,
+        formatter: &dyn Formatter,
     ) -> Vec<DisassemblyLine> {
         let mut lines = Vec::new();
 
@@ -607,7 +590,7 @@ impl AppState {
         lines.push(header_line(format!("{cp} ENUMS")));
 
         for enum_name in used_enum_names {
-            if let Some(enum_def) = self.get_enum(&enum_name) {
+            if let Some(enum_def) = self.enum_definition(&enum_name) {
                 // Separator line before each enum definition
                 lines.push(header_line(format!("{cp}   Enum: {}", enum_def.name)));
 
@@ -628,7 +611,11 @@ impl AppState {
 #[cfg(test)]
 mod tests {
     use super::super::app_state::AppState;
-    use super::super::types::*;
+    use super::super::types::{
+        Addr, AddrSpan, Assembler, BlockType, EnumDefinition, ExternalXRefs, LabelKind, LabelType,
+        XRef, XRefKind,
+    };
+    use std::time::Instant;
 
     #[test]
     fn test_get_block_range_respects_splitters() {
@@ -643,18 +630,30 @@ mod tests {
         app_state.splitters.insert(Addr(0x1005));
 
         // Query $1003 → block should be $1000..$1004 (stops before splitter)
-        let range1 = app_state.get_block_range(Addr(0x1003));
-        assert_eq!(range1, Some((Addr(0x1000), Addr(0x1004))));
+        let range1 = app_state.block_range(Addr(0x1003));
+        assert_eq!(
+            range1,
+            Some(AddrSpan {
+                start: Addr(0x1000),
+                end: Addr(0x1004)
+            })
+        );
 
         // Query $1005 → block should be $1005..$1009 (starts at splitter)
-        let range2 = app_state.get_block_range(Addr(0x1005));
-        assert_eq!(range2, Some((Addr(0x1005), Addr(0x1009))));
+        let range2 = app_state.block_range(Addr(0x1005));
+        assert_eq!(
+            range2,
+            Some(AddrSpan {
+                start: Addr(0x1005),
+                end: Addr(0x1009)
+            })
+        );
     }
 
-    /// Regression test: Ctrl+K on a DataByte block that has a splitter in the
+    /// Regression test: Ctrl+K on a `DataByte` block that has a splitter in the
     /// middle must collapse only the sub-block the cursor is in, not the entire
     /// merged block.  Previously, `toggle_collapsed_block` used
-    /// `get_compressed_blocks()` which ignores splitters, so pressing Ctrl+K
+    /// `compressed_blocks()` which ignores splitters, so pressing Ctrl+K
     /// anywhere in the block would always collapse the full span.
     #[test]
     fn test_collapse_respects_splitter() {
@@ -667,21 +666,25 @@ mod tests {
         app_state.splitters.insert(Addr(0x1005));
         app_state.disassemble();
 
-        // Collapse only the first sub-block ($1000–$1004) using get_block_range
-        let (start_addr, end_addr) = app_state.get_block_range(Addr(0x1000)).unwrap();
-        assert_eq!(start_addr, Addr(0x1000));
-        assert_eq!(end_addr, Addr(0x1004));
+        // Collapse only the first sub-block ($1000–$1004) using block_range
+        let span1 = app_state
+            .block_range(Addr(0x1000))
+            .expect("block range at $1000 should exist");
+        assert_eq!(span1.start, Addr(0x1000));
+        assert_eq!(span1.end, Addr(0x1004));
 
-        let start_offset = start_addr.offset_from(app_state.origin);
-        let end_offset = end_addr.offset_from(app_state.origin);
+        let start_offset = span1.start.offset_from(app_state.origin);
+        let end_offset = span1.end.offset_from(app_state.origin);
         app_state.collapsed_blocks.push((start_offset, end_offset));
         app_state.disassemble();
 
         // The second sub-block ($1005–$1009) must NOT be collapsed
-        let (start2, end2) = app_state.get_block_range(Addr(0x1005)).unwrap();
-        assert_eq!(start2, Addr(0x1005));
-        assert_eq!(end2, Addr(0x1009));
-        let start2_offset = start2.offset_from(app_state.origin);
+        let span2 = app_state
+            .block_range(Addr(0x1005))
+            .expect("block range at $1005 should exist");
+        assert_eq!(span2.start, Addr(0x1005));
+        assert_eq!(span2.end, Addr(0x1009));
+        let start2_offset = span2.start.offset_from(app_state.origin);
         assert!(
             !app_state
                 .collapsed_blocks
@@ -729,32 +732,28 @@ mod tests {
         );
 
         // Add X-Ref to $D020 from $1000
-        state.cross_refs.insert(
-            Addr(0xD020),
-            vec![crate::state::XRef::new(
-                Addr(0x1000),
-                crate::state::XRefKind::Read,
-            )],
-        );
+        state
+            .cross_refs
+            .insert(Addr(0xD020), vec![XRef::new(Addr(0x1000), XRefKind::Read)]);
         state.settings.max_xref_count = 5;
 
-        // Test with include_xrefs = true
-        let lines_with = state.get_external_label_definitions(true);
+        // Test with include_xrefs = ExternalXRefs::Include
+        let lines_with = state.external_label_definitions(ExternalXRefs::Include);
         let border_line_with = lines_with
             .iter()
             .find(|l| l.external_label_address == Some(Addr(0xD020)))
-            .unwrap();
+            .expect("external equate line for $D020 should exist");
         assert!(
             border_line_with.comment.contains("x-ref:"),
             "Should contain X-Ref info"
         );
 
-        // Test with include_xrefs = false
-        let lines_without = state.get_external_label_definitions(false);
+        // Test with include_xrefs = ExternalXRefs::Omit
+        let lines_without = state.external_label_definitions(ExternalXRefs::Omit);
         let border_line_without = lines_without
             .iter()
             .find(|l| l.external_label_address == Some(Addr(0xD020)))
-            .unwrap();
+            .expect("external equate line for $D020 should exist");
         assert!(
             !border_line_without.comment.contains("ref from:"),
             "Should NOT contain X-Ref info"
@@ -802,24 +801,39 @@ mod tests {
         app_state.splitters.insert(Addr(0x1018));
 
         assert_eq!(
-            app_state.get_block_range(Addr(0x1002)),
-            Some((Addr(0x1000), Addr(0x1007)))
+            app_state.block_range(Addr(0x1002)),
+            Some(AddrSpan {
+                start: Addr(0x1000),
+                end: Addr(0x1007)
+            })
         );
         assert_eq!(
-            app_state.get_block_range(Addr(0x1008)),
-            Some((Addr(0x1008), Addr(0x100F)))
+            app_state.block_range(Addr(0x1008)),
+            Some(AddrSpan {
+                start: Addr(0x1008),
+                end: Addr(0x100F)
+            })
         );
         assert_eq!(
-            app_state.get_block_range(Addr(0x100F)),
-            Some((Addr(0x1008), Addr(0x100F)))
+            app_state.block_range(Addr(0x100F)),
+            Some(AddrSpan {
+                start: Addr(0x1008),
+                end: Addr(0x100F)
+            })
         );
         assert_eq!(
-            app_state.get_block_range(Addr(0x1010)),
-            Some((Addr(0x1010), Addr(0x1017)))
+            app_state.block_range(Addr(0x1010)),
+            Some(AddrSpan {
+                start: Addr(0x1010),
+                end: Addr(0x1017)
+            })
         );
         assert_eq!(
-            app_state.get_block_range(Addr(0x1018)),
-            Some((Addr(0x1018), Addr(0x101F)))
+            app_state.block_range(Addr(0x1018)),
+            Some(AddrSpan {
+                start: Addr(0x1018),
+                end: Addr(0x101F)
+            })
         );
     }
 
@@ -842,7 +856,7 @@ mod tests {
         // 4. Out-of-bounds splitter outside binary ($2000)
         app_state.splitters.insert(Addr(0x2000));
 
-        let items = app_state.get_blocks_view_items();
+        let items = app_state.blocks_view_items();
         assert_eq!(
             items,
             vec![
@@ -902,7 +916,7 @@ mod tests {
         );
         app_state.splitters.insert(Addr(0x1008));
 
-        let items = app_state.get_blocks_view_items();
+        let items = app_state.blocks_view_items();
         assert_eq!(
             items,
             vec![
@@ -946,7 +960,7 @@ mod tests {
             .update(Addr(0xFFFE), |e| e.scope = Some(Addr(0xFFFF)));
 
         // Must not panic when block_start ($FFFE) > block_end ($0001)
-        let items = app_state.get_blocks_view_items();
+        let items = app_state.blocks_view_items();
         assert!(!items.is_empty());
     }
 
@@ -965,7 +979,7 @@ mod tests {
             .annotations
             .update(Addr(0xC000), |e| e.scope = Some(Addr(0xFFFF)));
 
-        let items = app_state.get_blocks_view_items();
+        let items = app_state.blocks_view_items();
         assert!(items.contains(&BlockItem::Splitter(Addr(0x0000))));
         assert!(items.contains(&BlockItem::Splitter(Addr(0x8000))));
         assert!(items.contains(&BlockItem::Splitter(Addr(0xFFFF))));
@@ -1008,17 +1022,17 @@ mod tests {
             (40000, 40500),
         ];
 
-        let start_time = std::time::Instant::now();
+        let start_time = Instant::now();
         for _ in 0..10 {
-            let items = app_state.get_blocks_view_items();
+            let items = app_state.blocks_view_items();
             assert!(!items.is_empty());
-            let range = app_state.get_block_range(Addr(0x8000));
+            let range = app_state.block_range(Addr(0x8000));
             assert!(range.is_some());
         }
         let elapsed = start_time.elapsed();
         assert!(
             elapsed.as_millis() < 200,
-            "10x get_blocks_view_items + 10x get_block_range on 64KB with 2000 annotations took {elapsed:?} (expected < 200ms)"
+            "10x blocks_view_items + 10x block_range on 64KB with 2000 annotations took {elapsed:?} (expected < 200ms)"
         );
     }
 
@@ -1065,13 +1079,9 @@ mod tests {
         state.annotations.update(Addr(0x0002), |e| {
             e.user_side_comment = Some("ZP temp".to_string());
         });
-        state.cross_refs.insert(
-            Addr(0x0002),
-            vec![crate::state::XRef::new(
-                Addr(0x2000),
-                crate::state::XRefKind::Read,
-            )],
-        );
+        state
+            .cross_refs
+            .insert(Addr(0x0002), vec![XRef::new(Addr(0x2000), XRefKind::Read)]);
 
         for assembler in [
             Assembler::Tass64,
@@ -1080,28 +1090,30 @@ mod tests {
             Assembler::Kick,
         ] {
             let formatter = Disassembler::create_formatter(assembler);
-            let lines =
-                state.get_external_label_definitions_with_formatter(true, formatter.as_ref());
+            let lines = state.external_label_definitions_with_formatter(
+                ExternalXRefs::Include,
+                formatter.as_ref(),
+            );
 
             if assembler == Assembler::Kick {
                 assert!(lines.iter().any(|l| l.mnemonic == "// EXTERNAL LABELS"));
                 let zp_line = lines
                     .iter()
                     .find(|l| l.external_label_address == Some(Addr(0x0002)))
-                    .unwrap();
+                    .expect("external zero-page equate line for $0002 should exist");
                 assert_eq!(zp_line.mnemonic, ".const zpf_02 = $02");
                 assert_eq!(zp_line.comment, "ZP temp // x-ref: $2000");
                 let ext_line = lines
                     .iter()
                     .find(|l| l.external_label_address == Some(Addr(0x1001)))
-                    .unwrap();
+                    .expect("external equate line for $1001 should exist");
                 assert_eq!(ext_line.mnemonic, ".const ext_data = $1001");
             } else {
                 assert!(lines.iter().any(|l| l.mnemonic == "; EXTERNAL LABELS"));
                 let zp_line = lines
                     .iter()
                     .find(|l| l.external_label_address == Some(Addr(0x0002)))
-                    .unwrap();
+                    .expect("external zero-page equate line for $0002 should exist");
                 assert_eq!(zp_line.mnemonic, "zpf_02 = $02");
                 assert_eq!(zp_line.comment, "ZP temp ; x-ref: $2000");
             }
@@ -1111,8 +1123,11 @@ mod tests {
         assert_eq!(state.settings.assembler, Assembler::Tass64);
         let tass_formatter = Disassembler::create_formatter(Assembler::Tass64);
         assert_eq!(
-            state.get_external_label_definitions(true),
-            state.get_external_label_definitions_with_formatter(true, tass_formatter.as_ref())
+            state.external_label_definitions(ExternalXRefs::Include),
+            state.external_label_definitions_with_formatter(
+                ExternalXRefs::Include,
+                tass_formatter.as_ref()
+            )
         );
     }
 
@@ -1150,7 +1165,7 @@ mod tests {
             Assembler::Kick,
         ] {
             let formatter = Disassembler::create_formatter(assembler);
-            let lines = state.get_enum_definition_lines_with_formatter(formatter.as_ref());
+            let lines = state.enum_definition_lines_with_formatter(formatter.as_ref());
             let mnemonics: Vec<&str> = lines.iter().map(|l| l.mnemonic.as_str()).collect();
 
             match assembler {
@@ -1182,8 +1197,8 @@ mod tests {
         assert_eq!(state.settings.assembler, Assembler::Tass64);
         let tass_formatter = Disassembler::create_formatter(Assembler::Tass64);
         assert_eq!(
-            state.get_enum_definition_lines(),
-            state.get_enum_definition_lines_with_formatter(tass_formatter.as_ref())
+            state.enum_definition_lines(),
+            state.enum_definition_lines_with_formatter(tass_formatter.as_ref())
         );
     }
 
@@ -1251,7 +1266,7 @@ mod tests {
             });
         });
 
-        let defs = state.get_external_label_definitions(true);
+        let defs = state.external_label_definitions(ExternalXRefs::Include);
         let mnemonics: Vec<&str> = defs.iter().map(|l| l.mnemonic.as_str()).collect();
 
         assert!(
@@ -1296,7 +1311,7 @@ mod tests {
                 radix: OffsetRadix::Decimal,
             });
         });
-        let defs_with_user = state.get_external_label_definitions(true);
+        let defs_with_user = state.external_label_definitions(ExternalXRefs::Include);
         assert!(
             defs_with_user
                 .iter()

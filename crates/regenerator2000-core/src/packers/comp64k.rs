@@ -4,7 +4,7 @@
 //! enters at `$080E` for the `$0100` depacker, and resolves `end_addr` from `$00FE - 1`
 //! (`v1.1`/`v1.2`) or `mem[$00FE] + X - 1` via [`AddrSource::PointerRegAfterRun`] (`v1.3 (RLE)`).
 
-use crate::state::types::TargetSystem;
+use crate::state::TargetSystem;
 
 use super::spec::{
     AddrSource, Anchor, CpuReg, Hints, LoadedImage, PackerSpec, PointerGuard, ResolvedSpec,
@@ -167,13 +167,13 @@ pub static SPEC: PackerSpec = PackerSpec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packers::PackerInfo;
+    use crate::packers::{PackerInfo, Registers};
 
     #[test]
     fn comp64k_detects_all_three_versions() {
         // v1.3 (RLE) fixture
-        let (v13_mem, load_addr, load_end) = SPEC.build_fixture_memory();
-        let v13_view = LoadedImage::for_c64(&v13_mem, load_addr, load_end);
+        let v13 = SPEC.build_fixture_memory();
+        let v13_view = LoadedImage::for_c64(&v13.mem, v13.load_addr, v13.load_end);
         let m13 = SPEC.detect(&v13_view).expect("v1.3 must match");
         assert_eq!(m13.spec_name, "Compress64k/Hermit v1.3 (RLE)");
         assert_eq!(
@@ -220,16 +220,16 @@ mod tests {
 
         // Short buffer (`<= $08FE` for v1.3, `<= $08FB` for v1.1), `load_addr > $0801`, and
         // `$1_0000` (`$FFFF`) boundary resolution on v1.3 `PointerRegAfterRun`:
-        let short_v13 = LoadedImage::for_c64(&v13_mem[..0x08FE], 0x0801, 0x08FE);
+        let short_v13 = LoadedImage::for_c64(&v13.mem[..0x08FE], 0x0801, 0x08FE);
         assert!(SPEC.detect(&short_v13).is_none());
         let short_v11 = LoadedImage::for_c64(&v11_mem[..0x08FB], 0x0801, 0x08FB);
         assert!(SPEC.detect(&short_v11).is_none());
-        let high_load = LoadedImage::for_c64(&v13_mem, 0x0802, load_end);
+        let high_load = LoadedImage::for_c64(&v13.mem, 0x0802, v13.load_end);
         assert!(SPEC.detect(&high_load).is_none());
 
         let mut end_mem = vec![0u8; 0x1_0000];
         end_mem[0x00FE..=0x00FF].copy_from_slice(&0xFFF0_u16.to_le_bytes());
-        let regs = crate::packers::Registers {
+        let regs = Registers {
             a: 0,
             x: 0x10,
             y: 0,
@@ -239,7 +239,7 @@ mod tests {
             m13.resolved
                 .hints
                 .end_addr
-                .unwrap()
+                .expect("Comp64K spec should configure end_addr")
                 .resolve_post_run_with_regs(&end_mem, 0x0801, 0xFE00, regs),
             Some(0xFFFF)
         );

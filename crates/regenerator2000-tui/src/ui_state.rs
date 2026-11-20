@@ -303,7 +303,7 @@ impl UIState {
         self.bitmap_multicolor_mode = loaded_data.bitmap_multicolor_mode.unwrap_or(false);
         self.hexdump_view_mode = loaded_data.hexdump_view_mode;
         let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
-        if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
+        if let Some(idx) = app_state.line_index_for_address(initial_addr) {
             self.cursor_index = idx;
             // Also reset scroll and sub-cursor so it's visible at top
             self.scroll_index = idx;
@@ -352,7 +352,7 @@ impl UIState {
         }
 
         if let Some(idx) = loaded_data.blocks_view_cursor
-            && idx < app_state.get_blocks_view_items().len()
+            && idx < app_state.blocks_view_items().len()
         {
             self.blocks_list_state.select(Some(idx));
             self.blocks_selected_index = Some(idx);

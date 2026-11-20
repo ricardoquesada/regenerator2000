@@ -6,7 +6,7 @@
 //! - [`RomTrapTable`]: the BASIC and KERNAL ROM addresses the sandbox
 //!   intercepts instead of executing, and what each one does.
 //! - [`KernalRoutine`]: the emulated effects of the trapped KERNAL routines.
-//! - [`get_basic_start`]: where the BASIC program of a loaded PRG starts.
+//! - [`basic_start`]: where the BASIC program of a loaded PRG starts.
 //!
 //! The engine keeps the *control flow* around a trap: ROM banking, the
 //! `written` bitmap, the forced `RTS`, and what an exit means for the result.
@@ -222,7 +222,7 @@ impl KernalRoutine {
 /// assert_eq!(c64.kernal_trap(0xEA31, Phase::FindDepacker), None);
 /// assert_eq!(c64.kernal_trap(0xEA31, Phase::Decompress), Some(KernalTrap::Exit));
 /// ```
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RomTrapTable {
     /// BASIC interpreter entries that run the BASIC program. The engine then
     /// reads the entry point from the SYS line. Checked before the banking
@@ -433,15 +433,15 @@ pub const CARD_CRUNCHER_LOAD_ADDR: u16 = 0x07C0;
 /// # Example
 ///
 /// ```
-/// use regenerator2000_core::unpacker::machine::get_basic_start;
+/// use regenerator2000_core::unpacker::machine::basic_start;
 ///
-/// assert_eq!(get_basic_start(0x0800), 0x0801); // C64 padding byte
-/// assert_eq!(get_basic_start(0x0801), 0x0801);
-/// assert_eq!(get_basic_start(0x07C0), 0x07C1); // Card Cruncher
-/// assert_eq!(get_basic_start(0x1000), 0x1000);
+/// assert_eq!(basic_start(0x0800), 0x0801); // C64 padding byte
+/// assert_eq!(basic_start(0x0801), 0x0801);
+/// assert_eq!(basic_start(0x07C0), 0x07C1); // Card Cruncher
+/// assert_eq!(basic_start(0x1000), 0x1000);
 /// ```
 #[must_use]
-pub fn get_basic_start(load_addr: u16) -> u16 {
+pub fn basic_start(load_addr: u16) -> u16 {
     let c64_padding_byte = System::C64.default_basic_start().checked_sub(1);
     let padded = load_addr == CARD_CRUNCHER_LOAD_ADDR || c64_padding_byte == Some(load_addr);
     if padded {
@@ -460,6 +460,7 @@ pub fn get_basic_start(load_addr: u16) -> u16 {
 mod tests {
     use super::*;
     use crate::state::types::TargetSystem;
+    use std::ptr;
 
     fn non_c64_systems() -> [TargetSystem; 11] {
         [
@@ -606,8 +607,8 @@ mod tests {
     #[test]
     fn for_system_uses_is_c64_predicate() {
         let c64 = RomTrapTable::for_system(&TargetSystem::C64);
-        assert!(std::ptr::eq(c64, &C64_TRAPS));
-        assert!(std::ptr::eq(
+        assert!(ptr::eq(c64, &C64_TRAPS));
+        assert!(ptr::eq(
             RomTrapTable::for_system(&TargetSystem::new("c64")),
             &C64_TRAPS
         ));
@@ -615,7 +616,7 @@ mod tests {
         let lookalike = TargetSystem::Custom("Commodore 64".into());
         assert_eq!(lookalike, TargetSystem::C64, "equal under PartialEq");
         assert!(!lookalike.is_c64());
-        assert!(std::ptr::eq(
+        assert!(ptr::eq(
             RomTrapTable::for_system(&lookalike),
             &GENERIC_TRAPS
         ));
@@ -634,7 +635,7 @@ mod tests {
         ];
         for system in systems {
             let table = RomTrapTable::for_system(&system);
-            assert!(std::ptr::eq(table, &GENERIC_TRAPS), "{system}");
+            assert!(ptr::eq(table, &GENERIC_TRAPS), "{system}");
             assert_eq!(table.kernal_traps, [&GENERIC_KERNAL_TRAPS[..]], "{system}");
             assert!(table.basic_run_entries.is_empty(), "{system}");
             assert_eq!(table.basic_exit_range, None, "{system}");
@@ -766,7 +767,7 @@ mod tests {
             (0x0802, 0x0802),
         ];
         for (load, expected) in cases {
-            assert_eq!(get_basic_start(load), expected, "load ${load:04X}");
+            assert_eq!(basic_start(load), expected, "load ${load:04X}");
         }
         // The padding byte is derived from the C64 profile, which is also the
         // C64's RAM start.
@@ -798,8 +799,8 @@ mod tests {
         for (system, (ram_start, from_ram), (basic, from_basic)) in rows {
             assert_eq!(system.ram_start(), ram_start, "{system}");
             assert_eq!(system.default_basic_start(), basic, "{system}");
-            assert_eq!(get_basic_start(ram_start), from_ram, "{system} RAM start");
-            assert_eq!(get_basic_start(basic), from_basic, "{system} BASIC start");
+            assert_eq!(basic_start(ram_start), from_ram, "{system} RAM start");
+            assert_eq!(basic_start(basic), from_basic, "{system} BASIC start");
         }
     }
 
@@ -815,8 +816,8 @@ mod tests {
             assert_eq!(system.default_basic_start(), 0x0000, "{system}");
             assert_eq!(system.ram_start(), 0x0000, "{system}");
         }
-        assert_eq!(get_basic_start(0x0000), 0x0000);
-        assert_eq!(get_basic_start(0xFFFF), 0xFFFF);
-        assert_eq!(get_basic_start(0x0001), 0x0001);
+        assert_eq!(basic_start(0x0000), 0x0000);
+        assert_eq!(basic_start(0xFFFF), 0xFFFF);
+        assert_eq!(basic_start(0x0001), 0x0001);
     }
 }

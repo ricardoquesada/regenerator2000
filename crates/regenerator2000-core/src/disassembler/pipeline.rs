@@ -6,30 +6,30 @@
 //! formatted data directives.
 
 use crate::cpu::Opcode;
-use crate::disassembler::DisassemblyLine;
 use crate::disassembler::context::{DisassemblyContext, HandleArgs};
 use crate::disassembler::data_blocks;
-use crate::disassembler::formatter::Formatter;
+use crate::disassembler::formatter::{FormatContext, Formatter};
 use crate::disassembler::handlers;
 use crate::disassembler::symbols::{
-    ScopeNameMap, compute_local_label_names, compute_scope_names,
-    get_arrow_target_address_for_opcode, get_label_name, get_referenced_address_for_opcode,
-    has_active_address_offset, resolve_effective_symbolic_offset_for_mode, resolve_line_label,
+    ScopeNameMap, arrow_target_address_for_opcode, compute_local_label_names, compute_scope_names,
+    has_active_address_offset, label_name, referenced_address_for_opcode,
+    resolve_effective_symbolic_offset_for_mode, resolve_line_label,
 };
+use crate::disassembler::{DisassembledChunk, Disassembler, DisassemblyLine, SPLITTER_MNEMONIC};
 use crate::state::{Addr, BlockType};
 use std::collections::BTreeMap;
 
 /// Decodes one MOS 6502/6510 instruction starting at byte offset `args.pc`.
 ///
-/// Returns `(bytes_consumed, emitted_lines)`. This function handles two-byte `BRK` instructions
-/// (`!settings.brk_single_byte`) and skips undocumented opcodes when `!settings.use_illegal_opcodes`.
-/// Incomplete instructions or instructions that cross a block boundary emit a `.byte` directive.
+/// This function handles two-byte `BRK` instructions (`!settings.brk_single_byte`) and skips
+/// undocumented opcodes when `!settings.use_illegal_opcodes`. Incomplete instructions or
+/// instructions that cross a block boundary emit a `.byte` directive.
 #[must_use]
 pub fn disassemble_code_instruction(
     opcodes: &[Option<Opcode>; 256],
     ctx: &DisassemblyContext<'_>,
     args: HandleArgs,
-) -> (usize, Vec<DisassemblyLine>) {
+) -> DisassembledChunk {
     let HandleArgs {
         pc,
         address,
@@ -48,7 +48,10 @@ pub fn disassemble_code_instruction(
     let settings = ctx.settings;
 
     let Some(&opcode_byte) = data.get(pc) else {
-        return (0, vec![]);
+        return DisassembledChunk {
+            bytes_consumed: 0,
+            lines: vec![],
+        };
     };
 
     let opcode_opt = opcodes.get(opcode_byte as usize).and_then(|op| op.as_ref());
@@ -63,9 +66,9 @@ pub fn disassemble_code_instruction(
         {
             if settings.patch_brk {
                 let next_addr = address.wrapping_add(1);
-                return (
-                    2,
-                    vec![
+                return DisassembledChunk {
+                    bytes_consumed: 2,
+                    lines: vec![
                         DisassemblyLine {
                             address,
                             bytes: vec![opcode_byte],
@@ -102,12 +105,12 @@ pub fn disassemble_code_instruction(
                             is_collapsed: false,
                         },
                     ],
-                );
+                };
             }
 
-            return (
-                2,
-                vec![DisassemblyLine {
+            return DisassembledChunk {
+                bytes_consumed: 2,
+                lines: vec![DisassemblyLine {
                     address,
                     bytes: vec![opcode_byte, byte_val],
                     mnemonic: formatter.format_mnemonic(opcode.mnemonic),
@@ -121,7 +124,7 @@ pub fn disassemble_code_instruction(
                     external_label_address: None,
                     is_collapsed: false,
                 }],
-            );
+            };
         }
 
         let end_pc = pc + usize::from(opcode.size);
@@ -130,7 +133,7 @@ pub fn disassemble_code_instruction(
         {
             let bytes = inst_bytes.to_vec();
 
-            if let Some(target_addr) = get_referenced_address_for_opcode(opcode, &bytes, address) {
+            if let Some(target_addr) = referenced_address_for_opcode(opcode, &bytes, address) {
                 // Prefer an explicit comment on `target_addr` (for example, a specific struct
                 // field note); otherwise fall back to `sym.base`'s comment when a `SymbolicOffset`
                 // redirects the operand (such as `zp_ptr + 1` inheriting `zp_ptr`'s note).
@@ -142,8 +145,8 @@ pub fn disassemble_code_instruction(
                     ctx.annotations,
                 );
                 if let Some(target_comment) = ctx
-                    .get_target_comment(target_addr)
-                    .or_else(|| sym.and_then(|s| ctx.get_target_comment(s.base)))
+                    .target_comment(target_addr)
+                    .or_else(|| sym.and_then(|s| ctx.target_comment(s.base)))
                 {
                     if !side_comment.is_empty() {
                         side_comment.push_str("; ");
@@ -153,7 +156,7 @@ pub fn disassemble_code_instruction(
             }
 
             let operands_slice = bytes.get(1..).unwrap_or(&[]);
-            let fmt_ctx = crate::disassembler::formatter::FormatContext {
+            let fmt_ctx = FormatContext {
                 opcode,
                 operands: operands_slice,
                 address,
@@ -171,11 +174,11 @@ pub fn disassemble_code_instruction(
                 builtin_enums: ctx.builtin_enums,
             };
             let (mnemonic, operand_str) = formatter.format_instruction(&fmt_ctx);
-            let target_address = get_arrow_target_address_for_opcode(opcode, &bytes, address);
+            let target_address = arrow_target_address_for_opcode(opcode, &bytes, address);
 
-            return (
-                usize::from(opcode.size),
-                vec![DisassemblyLine {
+            return DisassembledChunk {
+                bytes_consumed: usize::from(opcode.size),
+                lines: vec![DisassemblyLine {
                     address,
                     bytes,
                     mnemonic,
@@ -189,7 +192,7 @@ pub fn disassemble_code_instruction(
                     external_label_address: None,
                     is_collapsed: false,
                 }],
-            );
+            };
         }
     }
 
@@ -197,9 +200,9 @@ pub fn disassemble_code_instruction(
     if !side_comment.is_empty() {
         side_comment_final = format!("{side_comment}; {side_comment_final}");
     }
-    (
-        1,
-        vec![DisassemblyLine {
+    DisassembledChunk {
+        bytes_consumed: 1,
+        lines: vec![DisassemblyLine {
             address,
             bytes: vec![opcode_byte],
             mnemonic: formatter.byte_directive().to_string(),
@@ -213,7 +216,7 @@ pub fn disassemble_code_instruction(
             external_label_address: None,
             is_collapsed: false,
         }],
-    )
+    }
 }
 
 /// Appends a closing lexical scope line from `formatter` at `address`, if the formatter
@@ -246,7 +249,7 @@ pub fn disassemble_ctx(
     opcodes: &[Option<Opcode>; 256],
     ctx: &DisassemblyContext<'_>,
 ) -> Vec<DisassemblyLine> {
-    let formatter = crate::disassembler::Disassembler::formatter(ctx.settings.assembler);
+    let formatter = Disassembler::formatter(ctx.settings.assembler);
 
     let mut lines = Vec::new();
     let mut pc = 0;
@@ -299,7 +302,7 @@ pub fn disassemble_ctx(
             lines.push(DisassemblyLine {
                 address,
                 bytes: vec![],
-                mnemonic: super::SPLITTER_MNEMONIC.to_string(),
+                mnemonic: SPLITTER_MNEMONIC.to_string(),
                 operand: String::new(),
                 comment: String::new(),
                 line_comment: None,
@@ -329,7 +332,7 @@ pub fn disassemble_ctx(
             {
                 None
             } else {
-                get_label_name(address, ctx.labels, formatter, ctx.settings)
+                label_name(address, ctx.labels, formatter, ctx.settings)
             };
 
             if let Some((label, mnemonic, operand)) =
@@ -405,7 +408,7 @@ pub fn disassemble_ctx(
             )
         };
 
-        let side_comment = ctx.get_side_comment(address, formatter.comment_prefix());
+        let side_comment = ctx.side_comment(address, formatter.comment_prefix());
         let line_comment = if suppress_line_comment {
             None
         } else {
@@ -428,7 +431,7 @@ pub fn disassemble_ctx(
             current_scope_name: current_scope_name.clone(),
         };
 
-        let (bytes_consumed, new_lines) = match current_type {
+        let chunk = match current_type {
             BlockType::Code => disassemble_code_instruction(opcodes, ctx, args),
             BlockType::DataByte => data_blocks::disassemble_bytes(ctx, args),
             BlockType::DataWord => data_blocks::disassemble_words(ctx, args),
@@ -443,8 +446,8 @@ pub fn disassemble_ctx(
             BlockType::Undefined => handlers::handle_undefined_byte(ctx, args),
         };
 
-        lines.extend(new_lines);
-        pc += bytes_consumed;
+        lines.extend(chunk.lines);
+        pc += chunk.bytes_consumed;
     }
 
     if current_scope_end_pc.is_some() {

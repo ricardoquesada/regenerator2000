@@ -83,7 +83,7 @@ fn hex_addr_serializes_as_dollar_four_upper_hex() {
         let toml_text = toml::to_string(&Wrapper {
             addr: HexAddr(value),
         })
-        .unwrap();
+        .expect("HexAddr wrapper should serialize to TOML");
         if display != expected || toml_text.trim() != format!("addr = \"{expected}\"") {
             failures.push(format!("{value:#06x}: display {display}, toml {toml_text}"));
         }
@@ -119,12 +119,15 @@ fn hex_addr_rejects_malformed() {
 
 #[test]
 fn hex_addr_parse_accepts_lowercase_and_normalizes() {
-    let addr = HexAddr::parse("$e7ff").unwrap();
+    let addr = HexAddr::parse("$e7ff").expect("valid hex address literal should parse");
     assert_eq!(addr, HexAddr(0xE7FF));
     assert_eq!(addr.to_string(), "$E7FF");
 
     let manifest = manifest_with_unp64("").replace("$080D", "$080d");
-    let written = Corpus::parse(&manifest).unwrap().to_toml_string().unwrap();
+    let written = Corpus::parse(&manifest)
+        .expect("valid manifest should parse")
+        .to_toml_string()
+        .expect("manifest should serialize");
     assert!(written.contains("entry = \"$080D\""), "{written}");
 }
 

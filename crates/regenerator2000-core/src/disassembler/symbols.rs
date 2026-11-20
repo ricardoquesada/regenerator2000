@@ -25,17 +25,24 @@ use crate::state::{
 };
 use std::collections::BTreeMap;
 
+/// Stored scope interval end address and label name in [`ScopeNameMap`].
+#[derive(Debug, Clone)]
+struct ScopeEntry {
+    end: Addr,
+    name: String,
+}
+
 /// Sparse map of non-overlapping lexical scope intervals `[start, end]` to scope names.
 ///
-/// Stores one `(end, name)` entry per scope (`O(S)` space) and resolves enclosing scope names
+/// Stores one `ScopeEntry` per scope (`O(S)` space) and resolves enclosing scope names
 /// in `O(log S)` time without per-byte `String` allocations.
 #[derive(Debug, Clone, Default)]
-pub struct ScopeNameMap(BTreeMap<Addr, (Addr, String)>);
+pub struct ScopeNameMap(BTreeMap<Addr, ScopeEntry>);
 
 impl ScopeNameMap {
     /// Inserts an inclusive lexical scope range `start..=end` with `name`.
     pub fn insert_range(&mut self, start: Addr, end: Addr, name: String) {
-        self.0.insert(start, (end, name));
+        self.0.insert(start, ScopeEntry { end, name });
     }
 
     /// Returns the enclosing scope name for `addr` in `O(log S)` time, if `addr` lies in a scope.
@@ -44,7 +51,7 @@ impl ScopeNameMap {
         self.0
             .range(..=addr)
             .next_back()
-            .and_then(|(_, (end, name))| (addr <= *end).then_some(name.as_str()))
+            .and_then(|(_, entry)| (addr <= entry.end).then_some(entry.name.as_str()))
     }
 
     /// Returns `true` if the map contains no lexical scopes.
@@ -665,7 +672,7 @@ pub fn compute_scope_names(
 
 /// Gets the formatted label name at `address`, if any.
 #[must_use]
-pub fn get_label_name(
+pub fn label_name(
     address: Addr,
     labels: &BTreeMap<Addr, Vec<Label>>,
     formatter: &dyn Formatter,
@@ -678,7 +685,7 @@ pub fn get_label_name(
 }
 
 /// Resolves the line label at `address`, suppressing addresses with an active Tier 2 `address_offset`
-/// and checking `local_label_names` before [`get_label_name`].
+/// and checking `local_label_names` before [`label_name`].
 #[must_use]
 pub(crate) fn resolve_line_label(
     address: Addr,
@@ -694,12 +701,12 @@ pub(crate) fn resolve_line_label(
     if let Some(local_name) = local_label_names.and_then(|names| names.get(&address)) {
         return Some(local_name.clone());
     }
-    get_label_name(address, labels, formatter, settings)
+    label_name(address, labels, formatter, settings)
 }
 
 /// Gets the control-flow target address for a decoded `JMP`, `JSR`, or branch opcode.
 #[must_use]
-pub fn get_arrow_target_address_for_opcode(
+pub fn arrow_target_address_for_opcode(
     opcode: &Opcode,
     bytes: &[u8],
     address: Addr,
@@ -727,11 +734,7 @@ pub fn get_arrow_target_address_for_opcode(
 
 /// Gets the memory or branch address that a decoded opcode references.
 #[must_use]
-pub fn get_referenced_address_for_opcode(
-    opcode: &Opcode,
-    bytes: &[u8],
-    address: Addr,
-) -> Option<Addr> {
+pub fn referenced_address_for_opcode(opcode: &Opcode, bytes: &[u8], address: Addr) -> Option<Addr> {
     use crate::cpu::AddressingMode;
 
     match opcode.mode {
@@ -939,7 +942,7 @@ mod tests {
 
         labels
             .get_mut(&Addr(0x00FC))
-            .unwrap()
+            .expect("label at $00FC should exist")
             .retain(|l| l.kind == LabelKind::Auto);
         let resolved_auto = resolve_symbolic_label_name(
             Addr(0x1050),
@@ -1037,7 +1040,10 @@ mod tests {
             Some("zp_ptr + 1")
         );
 
-        labels.get_mut(&Addr(0x00FB)).unwrap()[0].name = "screen_ptr".to_string();
+        labels
+            .get_mut(&Addr(0x00FB))
+            .expect("label at $00FB should exist")[0]
+            .name = "screen_ptr".to_string();
         assert_eq!(
             resolve_symbolic_label_name(
                 Addr(0x1000),
@@ -1366,11 +1372,14 @@ mod tests {
         // 3. Defense-in-depth: if `$00FC` also carries an explicit `LabelKind::User` label,
         //    `has_active_address_offset($00FC)` is `false` (`User` > Tier 2), so the defined user
         //    label IS used as the base symbol.
-        labels.get_mut(&Addr(0x00FC)).unwrap().push(Label {
-            name: "ptr_mid".to_string(),
-            kind: LabelKind::User,
-            label_type: LabelType::UserDefined,
-        });
+        labels
+            .get_mut(&Addr(0x00FC))
+            .expect("label at $00FC should exist")
+            .push(Label {
+                name: "ptr_mid".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            });
         assert_eq!(
             resolve_symbolic_label_name(
                 Addr(0x1010),

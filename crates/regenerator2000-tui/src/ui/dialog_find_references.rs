@@ -60,11 +60,11 @@ impl FindReferencesDialog {
                 let mut text = format!("${ref_addr:04X}: {badge:<5}");
 
                 // Find line to get instruction details
-                if let Some(idx) = app_state.get_line_index_for_address(ref_addr) {
+                if let Some(idx) = app_state.line_index_for_address(ref_addr) {
                     if let Some(line) = app_state.disassembly.get(idx) {
                         text.push_str(&format!(" {} {}", line.mnemonic, line.operand));
                     }
-                } else if let Some(idx) = app_state.get_line_index_containing_address(ref_addr) {
+                } else if let Some(idx) = app_state.line_index_containing_address(ref_addr) {
                     // Inside a block (e.g. data block)
                     if let Some(line) = app_state.disassembly.get(idx) {
                         text.push_str(&format!(

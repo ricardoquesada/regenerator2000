@@ -6,47 +6,35 @@
 //! [`SymbolicOffset`](crate::state::SymbolicOffset) expressions wrap in parentheses inside unary
 //! `<` and `>` byte extractors (`<(sub_C100 - 1)`, `>(sub_C100 - 1)`).
 
-use super::DisassemblyLine;
 use super::context::{DisassemblyContext, HandleArgs};
 use super::symbols::{
     resolve_line_label, resolve_split_pair_effective_symbolic_offset,
     resolve_split_pair_symbolic_label_name,
 };
-use crate::state::{Addr, BlockType};
+use super::{DisassembledChunk, DisassemblyLine};
+use crate::state::{Addr, BlockType, OffsetParentheses};
 
 /// Disassembles a split address table where the low bytes precede the high bytes.
 #[must_use]
-pub fn handle_lohi_address(
-    ctx: &DisassemblyContext,
-    args: HandleArgs,
-) -> (usize, Vec<DisassemblyLine>) {
+pub fn handle_lohi_address(ctx: &DisassemblyContext, args: HandleArgs) -> DisassembledChunk {
     handle_split_byte_table(ctx, BlockType::LoHiAddress, false, args)
 }
 
 /// Disassembles a split address table where the high bytes precede the low bytes.
 #[must_use]
-pub fn handle_hilo_address(
-    ctx: &DisassemblyContext,
-    args: HandleArgs,
-) -> (usize, Vec<DisassemblyLine>) {
+pub fn handle_hilo_address(ctx: &DisassemblyContext, args: HandleArgs) -> DisassembledChunk {
     handle_split_byte_table(ctx, BlockType::HiLoAddress, true, args)
 }
 
 /// Disassembles a split 16-bit word table where the low bytes precede the high bytes.
 #[must_use]
-pub fn handle_lohi_word(
-    ctx: &DisassemblyContext,
-    args: HandleArgs,
-) -> (usize, Vec<DisassemblyLine>) {
+pub fn handle_lohi_word(ctx: &DisassemblyContext, args: HandleArgs) -> DisassembledChunk {
     handle_split_byte_table(ctx, BlockType::LoHiWord, false, args)
 }
 
 /// Disassembles a split 16-bit word table where the high bytes precede the low bytes.
 #[must_use]
-pub fn handle_hilo_word(
-    ctx: &DisassemblyContext,
-    args: HandleArgs,
-) -> (usize, Vec<DisassemblyLine>) {
+pub fn handle_hilo_word(ctx: &DisassemblyContext, args: HandleArgs) -> DisassembledChunk {
     handle_split_byte_table(ctx, BlockType::HiLoWord, true, args)
 }
 
@@ -60,7 +48,7 @@ fn handle_split_byte_table(
     target_type: BlockType,
     hi_first: bool,
     args: HandleArgs,
-) -> (usize, Vec<DisassemblyLine>) {
+) -> DisassembledChunk {
     let HandleArgs {
         pc,
         address,
@@ -136,8 +124,8 @@ fn handle_split_byte_table(
                 ctx.annotations,
             );
             let comment = ctx
-                .get_target_comment(target_addr)
-                .or_else(|| sym.and_then(|s| ctx.get_target_comment(s.base)));
+                .target_comment(target_addr)
+                .or_else(|| sym.and_then(|s| ctx.target_comment(s.base)));
             let expr = resolve_split_pair_symbolic_label_name(
                 first_addr,
                 second_addr,
@@ -150,7 +138,7 @@ fn handle_split_byte_table(
                 current_scope_name.as_deref(),
                 formatter.scope_resolution_separator(),
                 formatter.local_label_prefix(),
-                crate::state::OffsetParentheses::Parenthesized,
+                OffsetParentheses::Parenthesized,
                 |base| formatter.format_address(base),
             )
             .unwrap_or_else(|| formatter.format_address(target_addr));
@@ -205,7 +193,7 @@ fn handle_split_byte_table(
                         formatter,
                         ctx.settings,
                     ),
-                    ctx.get_side_comment(current_line_addr, formatter.comment_prefix()),
+                    ctx.side_comment(current_line_addr, formatter.comment_prefix()),
                     ctx.annotations
                         .get(current_line_addr)
                         .and_then(|e| e.user_line_comment.clone()),
@@ -238,15 +226,15 @@ fn handle_split_byte_table(
         }
     }
 
-    (total_bytes, lines)
+    DisassembledChunk {
+        bytes_consumed: total_bytes,
+        lines,
+    }
 }
 
 /// Disassembles a single undefined byte (`BlockType::Undefined`) as a 1-byte directive.
 #[must_use]
-pub fn handle_undefined_byte(
-    ctx: &DisassemblyContext,
-    args: HandleArgs,
-) -> (usize, Vec<DisassemblyLine>) {
+pub fn handle_undefined_byte(ctx: &DisassemblyContext, args: HandleArgs) -> DisassembledChunk {
     let HandleArgs {
         pc,
         address,
@@ -257,9 +245,9 @@ pub fn handle_undefined_byte(
         ..
     } = args;
     let b = ctx.data[pc];
-    (
-        1,
-        vec![DisassemblyLine {
+    DisassembledChunk {
+        bytes_consumed: 1,
+        lines: vec![DisassemblyLine {
             address,
             bytes: vec![b],
             mnemonic: formatter.byte_directive().to_string(),
@@ -273,5 +261,5 @@ pub fn handle_undefined_byte(
             external_label_address: None,
             is_collapsed: false,
         }],
-    )
+    }
 }

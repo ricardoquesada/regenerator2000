@@ -174,7 +174,7 @@ mod tests {
             blocks_view_cursor: None,
         };
         app_state
-            .save_project(ctx, false)
+            .save_project(ctx, regenerator2000_core::state::GlobalConfigUpdate::Skip)
             .expect("Failed to save project");
 
         // Reload into a fresh AppState
@@ -318,7 +318,10 @@ mod tests {
             blocks_view_cursor: None,
         };
         app_state
-            .save_project(save_ctx, false)
+            .save_project(
+                save_ctx,
+                regenerator2000_core::state::GlobalConfigUpdate::Skip,
+            )
             .expect("save_project should succeed");
 
         let mut reloaded = AppState::new();

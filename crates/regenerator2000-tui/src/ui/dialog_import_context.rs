@@ -33,7 +33,7 @@ impl ImportContextDialog {
         entropy: Option<f32>,
         packer_name: Option<impl Into<String>>,
     ) -> Self {
-        let systems = crate::assets::get_available_systems();
+        let systems = crate::assets::available_systems();
         let target_system = suggested_system.map_or(current_system, System::as_str);
         let selected_system_idx = systems.iter().position(|p| p == target_system).unwrap_or(0);
 

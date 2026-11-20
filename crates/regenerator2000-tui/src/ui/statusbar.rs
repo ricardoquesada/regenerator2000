@@ -82,10 +82,10 @@ impl Widget for StatusBar {
         {
             if offset >= 0 && (offset as usize) < app_state.block_types.len() {
                 let block_type = app_state.block_types[offset as usize];
-                if let Some((start, end)) = app_state.get_block_range(cursor_addr) {
+                if let Some(span) = app_state.block_range(cursor_addr) {
                     format!(
                         "{} | {}: ${:04X}-${:04X} | ",
-                        app_state.settings.assembler, block_type, start, end
+                        app_state.settings.assembler, block_type, span.start, span.end
                     )
                 } else {
                     format!("{} | {}: ??? | ", app_state.settings.assembler, block_type)

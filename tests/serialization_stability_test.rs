@@ -88,7 +88,7 @@ mod tests {
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                 },
-                false,
+                regenerator2000_core::state::GlobalConfigUpdate::Skip,
             )
             .expect("First save failed");
         let first_save_content =
@@ -117,7 +117,7 @@ mod tests {
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                 },
-                false,
+                regenerator2000_core::state::GlobalConfigUpdate::Skip,
             )
             .expect("Second save failed");
         let second_save_content =

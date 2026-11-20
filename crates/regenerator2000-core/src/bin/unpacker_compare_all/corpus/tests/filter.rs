@@ -33,7 +33,7 @@ fn filter_corpus() -> Corpus {
 fn selected_files(filter: &CorpusFilter, corpus: &Corpus) -> Vec<String> {
     filter
         .select(corpus)
-        .unwrap()
+        .expect("corpus filter should select matching cases")
         .iter()
         .map(|case| case.file.clone())
         .collect()

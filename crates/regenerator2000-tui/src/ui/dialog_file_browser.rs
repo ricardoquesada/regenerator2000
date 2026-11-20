@@ -456,7 +456,7 @@ impl FileBrowserDialog {
                 );
                 let old_project_path = app_state.project_path.replace(path.clone());
 
-                match app_state.save_project(ctx, true) {
+                match app_state.save_project(ctx, crate::state::GlobalConfigUpdate::Update) {
                     Ok(()) => {
                         app_state.project_path = Some(path);
                         app_state.last_save_as_filename = Some(filename);

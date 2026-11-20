@@ -55,7 +55,7 @@ fn mem_bytes(start: u16, end: u16) -> Vec<u8> {
 
 /// Returns the range `start..=end`.
 fn range(start: u16, end: u16) -> AddrRange {
-    AddrRange::new(start, end).unwrap()
+    AddrRange::new(start, end).expect("test AddrRange must satisfy start <= end")
 }
 
 /// Builds an R2000 image over `start..=end`.
@@ -143,7 +143,7 @@ fn exception(
 ) -> AcceptedDivergence {
     AcceptedDivergence {
         kind,
-        fields: FieldSet::new(fields.iter().copied()).unwrap(),
+        fields: FieldSet::new(fields.iter().copied()).expect("test FieldSet must be non-empty"),
         reviewed_by: reviewed_by.map(str::to_string),
         note: None,
     }

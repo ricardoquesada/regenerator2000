@@ -3,21 +3,23 @@
 //! This module bridges [`rmcp`] HTTP sessions to the main application thread over an
 //! asynchronous [`McpRequest`] channel.
 
-use rmcp::{
-    ServerHandler,
-    model::{
-        CallToolRequestParams, CallToolResponse, CallToolResult, Implementation,
-        InitializeRequestParams, InitializeResult, ListResourcesResult, ListToolsResult,
-        PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResponse,
-        ReadResourceResult, ServerCapabilities, ServerConfig, SubscriptionFilter,
-    },
-    service::{RequestContext, RoleServer},
-    transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService},
+use rmcp::model::{
+    CallToolRequestParams, CallToolResponse, CallToolResult, Implementation,
+    InitializeRequestParams, InitializeResult, ListResourcesResult, ListToolsResult,
+    PaginatedRequestParams, ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult,
+    ServerCapabilities, ServerConfig, SubscriptionFilter,
 };
+use rmcp::service::{RequestContext, RoleServer};
+use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
+use rmcp::{ErrorData, ServerHandler};
 use serde_json::Value;
 
 use axum;
+use rmcp::transport::streamable_http_server::session::local::{LocalSessionManager, SessionConfig};
+use std::io;
+use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::net::TcpListener;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 
@@ -89,14 +91,14 @@ impl ServerHandler for RegeneratorOps {
         &self,
         request: InitializeRequestParams,
         context: RequestContext<RoleServer>,
-    ) -> Result<InitializeResult, rmcp::ErrorData> {
+    ) -> Result<InitializeResult, ErrorData> {
         context.peer.set_peer_info(request.clone());
         self.send_request(
             "initialize",
             serde_json::to_value(&request).unwrap_or(Value::Null),
         )
         .await
-        .map_err(|e| rmcp::ErrorData::internal_error(e, None))?;
+        .map_err(|e| ErrorData::internal_error(e, None))?;
         self.negotiate_initialize(&request)
     }
 
@@ -104,13 +106,13 @@ impl ServerHandler for RegeneratorOps {
         &self,
         request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ListToolsResult, rmcp::ErrorData> {
+    ) -> Result<ListToolsResult, ErrorData> {
         let params = serde_json::to_value(request).unwrap_or(Value::Null);
         match self.send_request("tools/list", params).await {
             Ok(val) => serde_json::from_value(val).map_err(|e| {
-                rmcp::ErrorData::internal_error(format!("Failed to parse tools list: {e}"), None)
+                ErrorData::internal_error(format!("Failed to parse tools list: {e}"), None)
             }),
-            Err(e) => Err(rmcp::ErrorData::internal_error(e, None)),
+            Err(e) => Err(ErrorData::internal_error(e, None)),
         }
     }
 
@@ -118,7 +120,7 @@ impl ServerHandler for RegeneratorOps {
         &self,
         request: CallToolRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> Result<CallToolResponse, rmcp::ErrorData> {
+    ) -> Result<CallToolResponse, ErrorData> {
         let params = serde_json::json!({
             "name": request.name,
             "arguments": request.arguments
@@ -127,14 +129,11 @@ impl ServerHandler for RegeneratorOps {
         match self.send_request("tools/call", params).await {
             Ok(val) => {
                 let result: CallToolResult = serde_json::from_value(val).map_err(|e| {
-                    rmcp::ErrorData::internal_error(
-                        format!("Failed to parse tool result: {e}"),
-                        None,
-                    )
+                    ErrorData::internal_error(format!("Failed to parse tool result: {e}"), None)
                 })?;
                 Ok(CallToolResponse::Complete(result))
             }
-            Err(e) => Err(rmcp::ErrorData::internal_error(e, None)),
+            Err(e) => Err(ErrorData::internal_error(e, None)),
         }
     }
 
@@ -142,16 +141,13 @@ impl ServerHandler for RegeneratorOps {
         &self,
         request: Option<PaginatedRequestParams>,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ListResourcesResult, rmcp::ErrorData> {
+    ) -> Result<ListResourcesResult, ErrorData> {
         let params = serde_json::to_value(request).unwrap_or(Value::Null);
         match self.send_request("resources/list", params).await {
             Ok(val) => serde_json::from_value(val).map_err(|e| {
-                rmcp::ErrorData::internal_error(
-                    format!("Failed to parse resources list: {e}"),
-                    None,
-                )
+                ErrorData::internal_error(format!("Failed to parse resources list: {e}"), None)
             }),
-            Err(e) => Err(rmcp::ErrorData::internal_error(e, None)),
+            Err(e) => Err(ErrorData::internal_error(e, None)),
         }
     }
 
@@ -159,19 +155,19 @@ impl ServerHandler for RegeneratorOps {
         &self,
         request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResponse, rmcp::ErrorData> {
+    ) -> Result<ReadResourceResponse, ErrorData> {
         let params = serde_json::json!({ "uri": request.uri });
         match self.send_request("resources/read", params).await {
             Ok(val) => {
                 let result: ReadResourceResult = serde_json::from_value(val).map_err(|e| {
-                    rmcp::ErrorData::internal_error(
+                    ErrorData::internal_error(
                         format!("Failed to parse read resource result: {e}"),
                         None,
                     )
                 })?;
                 Ok(ReadResourceResponse::Complete(result))
             }
-            Err(e) => Err(rmcp::ErrorData::internal_error(e, None)),
+            Err(e) => Err(ErrorData::internal_error(e, None)),
         }
     }
 }
@@ -180,9 +176,9 @@ impl ServerHandler for RegeneratorOps {
 ///
 /// # Errors
 ///
-/// Returns an [`std::io::Error`] if the server cannot bind to `port` or encounters an I/O error.
-pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Result<()> {
-    let (_tx, rx) = tokio::sync::oneshot::channel();
+/// Returns an [`io::Error`] if the server cannot bind to `port` or encounters an I/O error.
+pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> io::Result<()> {
+    let (_tx, rx) = oneshot::channel();
     run_server_with_shutdown(port, sender, rx).await
 }
 
@@ -190,18 +186,18 @@ pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Resul
 ///
 /// # Errors
 ///
-/// Returns an [`std::io::Error`] if the server cannot bind to `port` or encounters an I/O error.
+/// Returns an [`io::Error`] if the server cannot bind to `port` or encounters an I/O error.
 pub async fn run_server_with_shutdown(
     port: u16,
     sender: Sender<McpRequest>,
-    shutdown_rx: tokio::sync::oneshot::Receiver<()>,
-) -> std::io::Result<()> {
-    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = tokio::net::TcpListener::bind(addr).await?;
+    shutdown_rx: oneshot::Receiver<()>,
+) -> io::Result<()> {
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    let listener = TcpListener::bind(addr).await?;
     serve_listener_with_shutdown(listener, sender, shutdown_rx).await
 }
 
-/// Serves the MCP HTTP router on a bound [`tokio::net::TcpListener`] until `shutdown_rx` resolves.
+/// Serves the MCP HTTP router on a bound [`TcpListener`] until `shutdown_rx` resolves.
 ///
 /// This function separates socket binding from request handling. Callers can verify that the
 /// TCP port bound before they emit a server start event, and tests can bind to `127.0.0.1:0`
@@ -209,21 +205,19 @@ pub async fn run_server_with_shutdown(
 ///
 /// # Errors
 ///
-/// Returns an [`std::io::Error`] if [`axum::serve()`] encounters an I/O error.
+/// Returns an [`io::Error`] if [`axum::serve()`] encounters an I/O error.
 pub async fn serve_listener_with_shutdown(
-    listener: tokio::net::TcpListener,
+    listener: TcpListener,
     sender: Sender<McpRequest>,
-    shutdown_rx: tokio::sync::oneshot::Receiver<()>,
-) -> std::io::Result<()> {
+    shutdown_rx: oneshot::Receiver<()>,
+) -> io::Result<()> {
     let handler = RegeneratorOps::new(sender);
     let handler_clone = handler.clone();
 
     // Disable the default 5-minute keep_alive timeout because local desktop MCP
     // sessions may remain idle for extended periods.
     let session_manager = Arc::new({
-        use rmcp::transport::streamable_http_server::session::local::SessionConfig;
-        let mut mgr =
-            rmcp::transport::streamable_http_server::session::local::LocalSessionManager::default();
+        let mut mgr = LocalSessionManager::default();
         let mut sc = SessionConfig::default();
         sc.keep_alive = None;
         mgr.session_config = sc;
@@ -260,9 +254,10 @@ pub async fn serve_listener_with_shutdown(
 mod tests {
     use super::*;
     use rmcp::model::{ClientCapabilities, DiscoverResult, ProtocolVersion};
+    use tokio::sync::mpsc;
 
     fn dummy_ops() -> RegeneratorOps {
-        let (tx, _rx) = tokio::sync::mpsc::channel(1);
+        let (tx, _rx) = mpsc::channel(1);
         RegeneratorOps::new(tx)
     }
 

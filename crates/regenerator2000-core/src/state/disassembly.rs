@@ -3,9 +3,12 @@
 
 use super::app_state::AppState;
 use super::types::{
-    Addr, BlockType, CachedArrow, ImmediateFormat, OffsetParentheses, OperandJumpTarget,
+    Addr, BlockType, CachedArrow, ExternalXRefs, ImmediateFormat, OffsetParentheses,
+    OperandJumpTarget,
 };
 use crate::cpu::AddressingMode;
+use crate::disassembler::context::DisassemblyContext;
+use crate::disassembler::formatter::Formatter;
 use crate::disassembler::symbols::{
     apply_local_prefix, resolve_effective_symbolic_offset,
     resolve_effective_symbolic_offset_for_mode, resolve_label,
@@ -13,12 +16,13 @@ use crate::disassembler::symbols::{
     resolve_symbolic_label_name,
 };
 use crate::disassembler::{Disassembler, DisassemblyLine};
-use std::collections::BTreeSet;
+use crate::navigation::{self, JumpTargetIndex};
+use std::collections::{BTreeMap, BTreeSet};
 
 impl AppState {
     /// Disassembles [`AppState::raw_data`] into [`AppState::disassembly`] and updates [`AppState::cached_arrows`].
     pub fn disassemble(&mut self) {
-        let ctx = crate::disassembler::context::DisassemblyContext {
+        let ctx = DisassemblyContext {
             data: &self.raw_data,
             block_types: &self.block_types,
             labels: &self.labels,
@@ -37,8 +41,8 @@ impl AppState {
 
         // Add external label definitions at the top if enabled
         if self.settings.all_labels {
-            let enum_lines = self.get_enum_definition_lines();
-            let external_lines = self.get_external_label_definitions(true);
+            let enum_lines = self.enum_definition_lines();
+            let external_lines = self.external_label_definitions(ExternalXRefs::Include);
             // Prepend enums, then external lines (so external lines appear first)
             lines.splice(0..0, enum_lines);
             lines.splice(0..0, external_lines);
@@ -60,7 +64,7 @@ impl AppState {
         // Build a temporary index for in-range disassembly body lines.
         // Skip external equate headers and preamble comment rows so arrows never target them.
         // Map: Address -> Line Index
-        let mut addr_to_idx = std::collections::BTreeMap::new();
+        let mut addr_to_idx = BTreeMap::new();
         for (i, line) in self.disassembly.iter().enumerate() {
             if line.external_label_address.is_some() || self.is_external(line.address) {
                 continue;
@@ -128,7 +132,7 @@ impl AppState {
     ///
     /// Prioritizes content lines with bytes over label-only or external equate header lines.
     #[must_use]
-    pub fn get_line_index_for_address(&self, address: Addr) -> Option<usize> {
+    pub fn line_index_for_address(&self, address: Addr) -> Option<usize> {
         // First pass: exact match on an in-binary content line with non-empty bytes.
         if let Some(idx) = self.disassembly.iter().position(|line| {
             line.external_label_address.is_none()
@@ -178,14 +182,14 @@ impl AppState {
     /// It ignores unlabelled `$0000` preamble rows (`; EXTERNAL LABELS`, `; ENUMS`, blank
     /// separators) so `$0000` lookups hit only body or equate rows.
     #[must_use]
-    pub fn get_line_index_containing_address(&self, address: Addr) -> Option<usize> {
+    pub fn line_index_containing_address(&self, address: Addr) -> Option<usize> {
         let is_ext = self.is_external(address);
 
         if !is_ext {
             for (start_idx, end_idx) in &self.collapsed_blocks {
                 let start_addr = self.origin.wrapping_add(*start_idx as u16);
                 let end_addr = self.origin.wrapping_add(*end_idx as u16);
-                if crate::navigation::address_in_inclusive_span(address, start_addr, end_addr)
+                if navigation::address_in_inclusive_span(address, start_addr, end_addr)
                     && let Some(idx) = self
                         .disassembly
                         .iter()
@@ -200,7 +204,7 @@ impl AppState {
         if let Some(idx) = self.disassembly.iter().position(|line| {
             line.external_label_address.is_none()
                 && !line.bytes.is_empty()
-                && crate::navigation::address_in_byte_span(address, line.address, line.bytes.len())
+                && navigation::address_in_byte_span(address, line.address, line.bytes.len())
         }) {
             return Some(idx);
         }
@@ -580,7 +584,7 @@ impl AppState {
     ) -> Vec<OperandJumpTarget>
     where
         FTarget: FnMut(&T) -> Addr,
-        FExpr: FnMut(&T, &dyn crate::disassembler::formatter::Formatter) -> String,
+        FExpr: FnMut(&T, &dyn Formatter) -> String,
     {
         if raw_entries.is_empty() {
             return Vec::new();
@@ -607,8 +611,7 @@ impl AppState {
             pending.push((target, operand_expr));
         }
 
-        let preview_index =
-            (pending.len() >= 2).then(|| crate::navigation::JumpTargetIndex::new(self));
+        let preview_index = (pending.len() >= 2).then(|| JumpTargetIndex::new(self));
         pending
             .into_iter()
             .map(|(target, operand_expr)| {
@@ -648,14 +651,14 @@ impl AppState {
     fn build_target_preview_with_index(
         &self,
         target_address: Addr,
-        preview_index: Option<&crate::navigation::JumpTargetIndex>,
+        preview_index: Option<&JumpTargetIndex>,
     ) -> Option<String> {
         // Use the same preamble-safe resolver as cursor navigation so previews always match where
         // jumping lands. Once a content line resolves, an empty unlabeled row returns `None` rather
         // than `(out of range)`.
         let resolved_idx = match preview_index {
             Some(idx) => idx.resolve_content_line_index(self, target_address),
-            None => crate::navigation::resolve_jump_content_line_index(self, target_address),
+            None => navigation::resolve_jump_content_line_index(self, target_address),
         };
         if let Some(line_idx) = resolved_idx
             && let Some(target_line) = self.disassembly.get(line_idx)
@@ -701,7 +704,12 @@ impl AppState {
 mod tests {
     use super::super::app_state::AppState;
     use super::super::project::Label;
-    use super::super::types::*;
+    use super::super::types::{
+        Addr, Assembler, BlockType, EnumDefinition, ImmediateFormat, LabelKind, LabelType,
+        OffsetRadix, OperandJumpTarget, SymbolicOffset,
+    };
+    use crate::cpu;
+    use crate::disassembler::DisassemblyLine;
 
     #[test]
     fn test_get_line_index_skips_headers() {
@@ -716,7 +724,6 @@ mod tests {
         app_state.block_types = vec![BlockType::Code; app_state.raw_data.len()];
 
         // Add an external label at address below origin → causes header lines at address 0
-        use super::super::project::Label;
         app_state
             .labels
             .entry(Addr(0x0002))
@@ -739,15 +746,13 @@ mod tests {
 
         app_state.disassemble();
 
-        // get_line_index_for_address(0x0801) should land on the first *content* line
+        // line_index_for_address(0x0801) should land on the first *content* line
         // (after external label definitions), not on a label-only line
-        let idx = app_state.get_line_index_for_address(Addr(0x0801));
-        assert!(
-            idx.is_some(),
-            "Should find a line at the origin address $0801"
-        );
+        let idx = app_state
+            .line_index_for_address(Addr(0x0801))
+            .expect("Should find a line at the origin address $0801");
 
-        let line = &app_state.disassembly[idx.unwrap()];
+        let line = &app_state.disassembly[idx];
         assert_eq!(
             line.address,
             Addr(0x0801),
@@ -771,14 +776,15 @@ mod tests {
         app_state.disassemble();
 
         // $C004 falls inside the collapsed block → should return the line at $C003
-        let idx = app_state.get_line_index_containing_address(Addr(0xC004));
-        assert!(idx.is_some());
-        let line = &app_state.disassembly[idx.unwrap()];
+        let idx = app_state
+            .line_index_containing_address(Addr(0xC004))
+            .expect("line containing $C004 should exist");
+        let line = &app_state.disassembly[idx];
         assert_eq!(line.address, Addr(0xC003));
     }
 
     /// Regression test: when `all_labels = true` and the third pass of
-    /// `get_line_index_for_address` ("first line with address >= target") is
+    /// `line_index_for_address` ("first line with address >= target") is
     /// triggered, it must prefer *content* lines over external-label definition
     /// lines that are prepended at the start of `disassembly` and may have
     /// addresses larger than the target.
@@ -817,9 +823,10 @@ mod tests {
         // Ask for $3A10 — below origin $3A20, so passes 1 and 2 find nothing.
         // The third pass must return the first *content* line ($3A20 NOP),
         // not the external label definition at $9000.
-        let idx = app_state.get_line_index_for_address(Addr(0x3A10));
-        assert!(idx.is_some(), "Should find a line for $3A10");
-        let line = &app_state.disassembly[idx.unwrap()];
+        let idx = app_state
+            .line_index_for_address(Addr(0x3A10))
+            .expect("Should find a line for $3A10");
+        let line = &app_state.disassembly[idx];
         assert!(
             !line.bytes.is_empty(),
             "Returned line must have content bytes, not be a label-only external definition \
@@ -887,32 +894,22 @@ mod tests {
         );
 
         // Find the BEQ arrow specifically ($1334 -> $1340)
-        let beq_arrow = app_state
+        let beq = app_state
             .cached_arrows
             .iter()
-            .find(|a| a.target_addr == Some(Addr(0x1340)));
-        assert!(
-            beq_arrow.is_some(),
-            "BEQ $1340 arrow should be present in cached_arrows"
-        );
-
-        let beq = beq_arrow.unwrap();
+            .find(|a| a.target_addr == Some(Addr(0x1340)))
+            .expect("BEQ $1340 arrow should be present in cached_arrows");
         assert!(
             beq.start < beq.end,
             "BEQ forward branch should have start < end"
         );
 
         // Find the JMP arrow ($133D -> $1331)
-        let jmp_arrow = app_state
+        let jmp = app_state
             .cached_arrows
             .iter()
-            .find(|a| a.target_addr == Some(Addr(0x1331)));
-        assert!(
-            jmp_arrow.is_some(),
-            "JMP $1331 arrow should be present in cached_arrows"
-        );
-
-        let jmp = jmp_arrow.unwrap();
+            .find(|a| a.target_addr == Some(Addr(0x1331)))
+            .expect("JMP $1331 arrow should be present in cached_arrows");
         assert!(jmp.start > jmp.end, "JMP backward should have start > end");
     }
 
@@ -1006,7 +1003,7 @@ mod tests {
                 is_collapsed: false,
             },
         ];
-        assert_eq!(state.get_line_index_containing_address(Addr::ZERO), None);
+        assert_eq!(state.line_index_containing_address(Addr::ZERO), None);
 
         // Adding a `$0000` external equate after the enum preamble must resolve to that equate row.
         state.disassembly.insert(
@@ -1026,7 +1023,7 @@ mod tests {
                 is_collapsed: false,
             },
         );
-        assert_eq!(state.get_line_index_containing_address(Addr::ZERO), Some(1));
+        assert_eq!(state.line_index_containing_address(Addr::ZERO), Some(1));
 
         // 2. Origin `$0000` with enum preamble before a `$0000` collapsed block and before an
         // uncollapsed `$0000` body row must hit the collapsed summary row / byte-bearing row, not index 0.
@@ -1053,11 +1050,11 @@ mod tests {
             },
         ];
         assert_eq!(
-            collapsed_state.get_line_index_containing_address(Addr::ZERO),
+            collapsed_state.line_index_containing_address(Addr::ZERO),
             Some(1)
         );
         assert_eq!(
-            collapsed_state.get_line_index_containing_address(Addr(0x0001)),
+            collapsed_state.line_index_containing_address(Addr(0x0001)),
             Some(1)
         );
 
@@ -1083,7 +1080,7 @@ mod tests {
             },
         ];
         assert_eq!(
-            body_state.get_line_index_containing_address(Addr::ZERO),
+            body_state.line_index_containing_address(Addr::ZERO),
             Some(1)
         );
     }
@@ -2025,7 +2022,7 @@ mod tests {
         // Even a synthetic line carrying `opcode` + `bytes` returns empty when `is_collapsed == true`.
         let mut collapsed_with_opcode = collapsed_line.clone();
         collapsed_with_opcode.bytes = vec![0x20, 0x34, 0x12];
-        collapsed_with_opcode.opcode = crate::cpu::get_opcodes()[0x20].clone();
+        collapsed_with_opcode.opcode = cpu::opcodes()[0x20].clone();
         assert!(
             state
                 .resolve_disassembly_jump_targets(&collapsed_with_opcode)
@@ -2171,7 +2168,7 @@ mod tests {
                 comment: String::new(),
                 line_comment: None,
                 label: None,
-                opcode: crate::cpu::get_opcodes()[0x60].clone(),
+                opcode: cpu::opcodes()[0x60].clone(),
                 show_bytes: true,
                 target_address: None,
                 external_label_address: None,
@@ -2273,7 +2270,7 @@ mod tests {
                 comment: String::new(),
                 line_comment: None,
                 label: None,
-                opcode: crate::cpu::get_opcodes()[0x60].clone(),
+                opcode: cpu::opcodes()[0x60].clone(),
                 show_bytes: true,
                 target_address: None,
                 external_label_address: None,
@@ -2289,7 +2286,7 @@ mod tests {
             comment: String::new(),
             line_comment: None,
             label: None,
-            opcode: crate::cpu::get_opcodes()[0x20].clone(),
+            opcode: cpu::opcodes()[0x20].clone(),
             show_bytes: true,
             target_address: Some(target),
             external_label_address: None,
@@ -2493,7 +2490,7 @@ mod tests {
             let k4_addr = lines[2].address.wrapping_add(4);
             assert!(lines[2].address < k4_addr);
 
-            let check_four_lines = |test_lines: &[&crate::disassembler::DisassemblyLine]| {
+            let check_four_lines = |test_lines: &[&DisassemblyLine]| {
                 let t0 = state.resolve_disassembly_jump_targets(test_lines[0]);
                 assert_eq!(t0.len(), 5);
                 for (i, t) in t0.iter().enumerate() {
@@ -2691,7 +2688,7 @@ mod tests {
             comment: String::new(),
             line_comment: None,
             label: None,
-            opcode: crate::cpu::get_opcodes()[0xB1].clone(),
+            opcode: cpu::opcodes()[0xB1].clone(),
             show_bytes: true,
             target_address: Some(Addr(0x00FB)),
             external_label_address: None,
@@ -2714,7 +2711,7 @@ mod tests {
             comment: String::new(),
             line_comment: None,
             label: None,
-            opcode: crate::cpu::get_opcodes()[0xBD].clone(),
+            opcode: cpu::opcodes()[0xBD].clone(),
             show_bytes: true,
             target_address: Some(Addr(0x102F)),
             external_label_address: None,
@@ -2904,7 +2901,7 @@ mod tests {
             "expected real enum/equate header preamble at index 0"
         );
         let collapsed_idx = collapsed_state
-            .get_line_index_containing_address(Addr::ZERO)
+            .line_index_containing_address(Addr::ZERO)
             .expect("collapsed $0000 index");
         assert!(collapsed_state.disassembly[collapsed_idx].is_collapsed);
         assert_eq!(
@@ -2930,7 +2927,7 @@ mod tests {
         body_state.disassemble();
 
         let body_idx = body_state
-            .get_line_index_containing_address(Addr::ZERO)
+            .line_index_containing_address(Addr::ZERO)
             .expect("body $0000 index");
         let line = &body_state.disassembly[body_idx];
         assert!(!line.bytes.is_empty());

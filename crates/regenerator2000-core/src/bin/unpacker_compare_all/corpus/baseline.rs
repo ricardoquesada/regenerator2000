@@ -6,6 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use std::fs;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -371,7 +372,7 @@ impl Baseline {
     /// Returns [`CorpusError::Io`] if the file cannot be read, or any error
     /// from [`Baseline::parse`].
     pub fn load(path: &Path) -> Result<Self, CorpusError> {
-        let text = std::fs::read_to_string(path).map_err(|e| CorpusError::Io {
+        let text = fs::read_to_string(path).map_err(|e| CorpusError::Io {
             path: path.to_path_buf(),
             message: e.to_string(),
         })?;

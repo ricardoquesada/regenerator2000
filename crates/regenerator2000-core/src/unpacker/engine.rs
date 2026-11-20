@@ -18,13 +18,19 @@ use mos6502::memory::Bus;
 
 use super::bus::{C64Bus, is_basic_rom_mapped, is_io_mapped, is_kernal_rom_mapped};
 use super::detector::{detect_output_range, find_entry_in_snapshot};
-use super::machine::{KernalTrap, Phase, RomTrapTable, SCREEN_CODE_SPACE, get_basic_start};
+#[cfg(test)]
+use super::machine::C64_BASIC_RUN_ENTRIES;
+use super::machine::{KernalTrap, Phase, RomTrapTable, SCREEN_CODE_SPACE, basic_start};
 use super::{UnpackConfig, UnpackError, UnpackResult, find_sys_address};
+use crate::assets;
+#[cfg(test)]
+use crate::packers::ResolvedSpec;
 use crate::packers::{
     AddrSource, Bounds, Hints, LoadedImage, PackerHooks, PackerId, PackerInfo, PackerSpec,
     PointerGuard, RefineContext, Registers, StepContext, StepFilter, registry,
 };
-use crate::state::types::System;
+use crate::state::types::{self, System, TargetSystem};
+use mos6502::registers::{StackPointer, Status};
 use std::fmt;
 
 /// Default C64 post-reset zero-page RAM image (`$0000`–`$00FF`) copied before packer
@@ -249,15 +255,15 @@ enum RomAction {
 }
 
 /// Core 2-phase decompression execution engine.
-pub struct UnpackEngine<'a> {
-    config: &'a UnpackConfig,
-    progress_callback: Option<&'a dyn Fn(u64)>,
+pub struct UnpackEngine<'cfg> {
+    config: &'cfg UnpackConfig,
+    progress_callback: Option<&'cfg dyn Fn(u64)>,
 }
 
-impl<'a> UnpackEngine<'a> {
+impl<'cfg> UnpackEngine<'cfg> {
     /// Creates a new decompression engine instance.
     #[must_use]
-    pub fn new(config: &'a UnpackConfig, progress_callback: Option<&'a dyn Fn(u64)>) -> Self {
+    pub fn new(config: &'cfg UnpackConfig, progress_callback: Option<&'cfg dyn Fn(u64)>) -> Self {
         Self {
             config,
             progress_callback,
@@ -280,9 +286,9 @@ impl<'a> UnpackEngine<'a> {
 }
 
 /// Per-run state machine driving [`Phase::FindDepacker`] and [`Phase::Decompress`].
-struct EmulationState<'a> {
-    config: &'a UnpackConfig,
-    progress_callback: Option<&'a dyn Fn(u64)>,
+struct EmulationState<'emu> {
+    config: &'emu UnpackConfig,
+    progress_callback: Option<&'emu dyn Fn(u64)>,
     system: System,
     basic_start: u16,
     load_addr: u16,
@@ -314,11 +320,11 @@ struct EmulationState<'a> {
     trace_ring: TraceRing,
 }
 
-impl<'a> EmulationState<'a> {
+impl<'emu> EmulationState<'emu> {
     /// Initializes memory, zero page, packer detection, entry point, patches, snapshot, and CPU state.
     fn new(
-        config: &'a UnpackConfig,
-        progress_callback: Option<&'a dyn Fn(u64)>,
+        config: &'emu UnpackConfig,
+        progress_callback: Option<&'emu dyn Fn(u64)>,
         raw_data: &[u8],
         load_addr: u16,
     ) -> Result<Self, UnpackError> {
@@ -340,8 +346,8 @@ impl<'a> EmulationState<'a> {
     /// 4. Apply `sig_match.resolved.patches` to `memory.mem`
     /// 5. `let snapshot = memory.mem.clone();`
     fn new_with_specs(
-        config: &'a UnpackConfig,
-        progress_callback: Option<&'a dyn Fn(u64)>,
+        config: &'emu UnpackConfig,
+        progress_callback: Option<&'emu dyn Fn(u64)>,
         raw_data: &[u8],
         load_addr: u16,
         specs: &[&'static PackerSpec],
@@ -353,23 +359,23 @@ impl<'a> EmulationState<'a> {
         let system = config
             .target_system
             .clone()
-            .unwrap_or_else(crate::state::types::default_system);
+            .unwrap_or_else(types::default_system);
 
-        let basic_start = get_basic_start(load_addr);
+        let basic_start = basic_start(load_addr);
         let traps = RomTrapTable::for_system(&system);
 
         let basic_rom = config
             .basic_rom
             .clone()
-            .or_else(|| crate::assets::default_basic_rom(&system));
+            .or_else(|| assets::default_basic_rom(&system));
         let kernal_rom = config
             .kernal_rom
             .clone()
-            .or_else(|| crate::assets::default_kernal_rom(&system));
+            .or_else(|| assets::default_kernal_rom(&system));
         let char_rom = config
             .char_rom
             .clone()
-            .or_else(|| crate::assets::default_char_rom(&system));
+            .or_else(|| assets::default_char_rom(&system));
 
         // Set up memory
         let mut memory = C64Bus::new(system.clone(), basic_rom, kernal_rom, char_rom);
@@ -395,15 +401,19 @@ impl<'a> EmulationState<'a> {
         // 2. Detect packer spec against the zero-page-initialized image.
         let detected = {
             let image = LoadedImage::new(&memory.mem, load_addr, load_end, &system);
-            registry::detect_spec_in(specs, &image).map(|(spec, sig_match)| {
-                let info = PackerInfo::resolve(&image, &sig_match);
-                let spec_forced_entry = sig_match
+            registry::detect_spec_in(specs, &image).map(|detected| {
+                let info = PackerInfo::resolve(&image, &detected.sig_match);
+                let spec_forced_entry = detected
+                    .sig_match
                     .resolved
                     .hints
                     .forced_entry
-                    .and_then(|src| src.resolve_static(&image, sig_match.anchor_addr));
-                let hooks = spec.hooks.map(|factory| factory(&image, &sig_match));
-                (info, sig_match, spec_forced_entry, hooks)
+                    .and_then(|src| src.resolve_static(&image, detected.sig_match.anchor_addr));
+                let hooks = detected
+                    .spec
+                    .hooks
+                    .map(|factory| factory(&image, &detected.sig_match));
+                (info, detected.sig_match, spec_forced_entry, hooks)
             })
         };
 
@@ -444,7 +454,7 @@ impl<'a> EmulationState<'a> {
         // Create CPU
         let mut cpu = CPU::new(memory, Nmos6502);
         cpu.registers.program_counter = entry;
-        cpu.registers.stack_pointer = mos6502::registers::StackPointer(INITIAL_STACK_POINTER);
+        cpu.registers.stack_pointer = StackPointer(INITIAL_STACK_POINTER);
 
         Ok(Self {
             config,
@@ -864,7 +874,7 @@ fn init_zero_page(mem: &mut C64Bus, load_addr: u16, data_len: u16, basic_start: 
 
     if system.is_c64() {
         mem.mem[0..256].copy_from_slice(&C64_ZEROPAGE_TEMPLATE);
-    } else if *system == crate::state::types::TargetSystem::C128 {
+    } else if *system == TargetSystem::C128 {
         mem.mem[0x00] = 0x2F;
         mem.mem[0x01] = 0x37;
     }
@@ -902,9 +912,9 @@ fn init_zero_page(mem: &mut C64Bus, load_addr: u16, data_len: u16, basic_start: 
     mem.mem[0xAE] = (end_addr & 0xFF) as u8;
     mem.mem[0xAF] = (end_addr >> 8) as u8;
 
-    if let Some((vector_addr, handler_addr)) = system.default_irq() {
-        mem.mem[vector_addr as usize] = (handler_addr & 0xFF) as u8;
-        mem.mem[vector_addr as usize + 1] = (handler_addr >> 8) as u8;
+    if let Some(irq) = system.default_irq() {
+        mem.mem[irq.vector_addr as usize] = (irq.handler_addr & 0xFF) as u8;
+        mem.mem[irq.vector_addr as usize + 1] = (irq.handler_addr >> 8) as u8;
     }
 
     if let Some(screen_range) = system.screen_ram() {
@@ -1034,12 +1044,10 @@ fn emulate_illegal_opcode(cpu: &mut CPU<C64Bus, Nmos6502>) -> bool {
             let val = (cpu.registers.accumulator | 0xEE) & imm;
             cpu.registers.accumulator = val;
             cpu.registers.index_x = val;
+            cpu.registers.status.set(Status::PS_ZERO, val == 0);
             cpu.registers
                 .status
-                .set(mos6502::registers::Status::PS_ZERO, val == 0);
-            cpu.registers
-                .status
-                .set(mos6502::registers::Status::PS_NEGATIVE, (val & 0x80) != 0);
+                .set(Status::PS_NEGATIVE, (val & 0x80) != 0);
             cpu.registers.program_counter = pc.wrapping_add(2);
             cpu.memory.step_cycles(2);
             true
@@ -1165,9 +1173,10 @@ fn finish(ctx: FinishContext<'_>) -> Result<UnpackResult, UnpackError> {
     } = ctx;
 
     // 1. Detect initial output range from memory write tracking and pre-emulation snapshot.
-    let (mut start_addr, mut end_addr) =
-        detect_output_range(mem, snapshot, written, basic_start, system)
-            .ok_or(UnpackError::NothingWritten)?;
+    let detected_range = detect_output_range(mem, snapshot, written, basic_start, system)
+        .ok_or(UnpackError::NothingWritten)?;
+    let mut start_addr = detected_range.start;
+    let mut end_addr = detected_range.end;
     let mut start_source = BoundSource::WriteDiff;
     let mut end_source = BoundSource::WriteDiff;
     let spec_id = packer_id
@@ -1457,7 +1466,8 @@ mod tests {
     /// The reference run that the other engine tests are measured against.
     #[test]
     fn engine_reference_program_outputs() {
-        let result = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let result = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET))
+            .expect("minimal unpacker program should succeed");
         assert_eq!(
             summary(&result),
             (
@@ -1475,14 +1485,15 @@ mod tests {
     /// `JSR $FFD2` adds the `JSR` plus the trapped CHROUT step.
     #[test]
     fn engine_rom_trapped_steps_count_as_instructions() {
-        let base = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let base = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET))
+            .expect("minimal unpacker program should succeed");
         // A is $00 after reset, so CHROUT does not take the clear-screen path.
         let with_chrout = run(
             &unpacker_program(&[0x20, 0xD2, 0xFF]),
             PRG_LOAD,
             &budget(SMALL_BUDGET),
         )
-        .unwrap();
+        .expect("step-counting test program should unpack");
         assert_eq!(
             with_chrout.instructions_executed,
             base.instructions_executed + 2
@@ -1497,13 +1508,14 @@ mod tests {
     /// instruction.
     #[test]
     fn engine_illegal_opcode_steps_count_as_instructions() {
-        let base = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let base = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET))
+            .expect("minimal unpacker program should succeed");
         let with_illegal = run(
             &unpacker_program(&[0xAB, 0x00]),
             PRG_LOAD,
             &budget(SMALL_BUDGET),
         )
-        .unwrap();
+        .expect("step-counting test program should unpack");
         assert_eq!(
             with_illegal.instructions_executed,
             base.instructions_executed + 1
@@ -1528,7 +1540,7 @@ mod tests {
         let config = budget(SMALL_BUDGET);
         let result = UnpackEngine::new(&config, Some(&record))
             .run(&unpacker_program(&DELAY_LOOP), PRG_LOAD)
-            .unwrap();
+            .expect("delay loop program should unpack");
 
         let total = DELAY_INSTRUCTIONS + BASE_INSTRUCTIONS;
         assert_eq!(result.instructions_executed, total);
@@ -1544,7 +1556,8 @@ mod tests {
         let [lo, hi] = SYS_ENTRY.to_le_bytes();
         let raw = sys_program(&[0x4C, lo, hi]);
         assert_eq!(
-            run(&raw, PRG_LOAD, &budget(TIMEOUT_BUDGET)).unwrap_err(),
+            run(&raw, PRG_LOAD, &budget(TIMEOUT_BUDGET))
+                .expect_err("Phase 1 infinite loop should time out"),
             UnpackError::Phase1Timeout
         );
     }
@@ -1572,12 +1585,13 @@ mod tests {
     fn engine_empty_data_and_no_entry_errors() {
         let config = budget(TIMEOUT_BUDGET);
         assert_eq!(
-            run(&[], PRG_LOAD, &config).unwrap_err(),
+            run(&[], PRG_LOAD, &config).expect_err("empty PRG should fail"),
             UnpackError::EmptyData
         );
         // A zero link pointer is an empty BASIC program: no SYS line.
         assert_eq!(
-            run(&[0x00; 16], PRG_LOAD, &config).unwrap_err(),
+            run(&[0x00; 16], PRG_LOAD, &config)
+                .expect_err("empty BASIC stub should have no entry point"),
             UnpackError::NoEntryPoint
         );
     }
@@ -1607,12 +1621,14 @@ mod tests {
         };
         let to_top = 0x1_0000 - usize::from(HIGH_LOAD);
 
-        let reaching_ffff = run(&high_program(to_top), HIGH_LOAD, &config).unwrap();
+        let reaching_ffff = run(&high_program(to_top), HIGH_LOAD, &config)
+            .expect("high-memory program reaching $FFFF should succeed");
         assert_eq!(reaching_ffff.entry_point, HIGH_TARGET);
         assert_eq!(reaching_ffff.dep_addr, STAGE2_ADDR);
 
         assert_eq!(
-            run(&high_program(to_top - 1), HIGH_LOAD, &config).unwrap_err(),
+            run(&high_program(to_top - 1), HIGH_LOAD, &config)
+                .expect_err("truncated high-memory depacker should time out"),
             UnpackError::Phase2Timeout
         );
     }
@@ -1796,7 +1812,7 @@ mod tests {
         bus.mem[0x0100 | usize::from(START_SP + 2)] = hi;
         let mut cpu = CPU::new(bus, Nmos6502);
         cpu.registers.program_counter = pc;
-        cpu.registers.stack_pointer = mos6502::registers::StackPointer(START_SP);
+        cpu.registers.stack_pointer = StackPointer(START_SP);
         cpu.registers.accumulator = START_A;
         cpu.registers.index_x = START_X;
         cpu.registers.index_y = START_Y;
@@ -1874,7 +1890,7 @@ mod tests {
             action: RomAction::Handled,
             pc: RTS_TARGET,
             sp: START_SP + 2,
-            ..untouched.clone()
+            ..untouched
         };
         // Trapped screen clears fill only on the C64.
         let cleared = if system.is_c64() {
@@ -2103,8 +2119,8 @@ mod tests {
         refine_hook: Option<RefineHookFn>,
     }
 
-    impl std::fmt::Debug for MockHooks {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    impl fmt::Debug for MockHooks {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             f.debug_struct("MockHooks").finish_non_exhaustive()
         }
     }
@@ -2194,7 +2210,8 @@ mod tests {
             forced_entry: Some(STAGE2_ADDR),
             ..budget(SMALL_BUDGET)
         };
-        let mut state = EmulationState::new(&cfg, None, &[0xEA], PRG_LOAD).unwrap();
+        let mut state = EmulationState::new(&cfg, None, &[0xEA], PRG_LOAD)
+            .expect("EmulationState initialization should succeed");
         state.cpu.memory.cia1.write_reg(0x04, 100);
         state.cpu.memory.cia1.write_reg(0x05, 0);
         state.cpu.memory.cia1.write_reg(0x0E, 0x11);
@@ -2245,7 +2262,8 @@ mod tests {
             forced_entry: Some(STAGE2_ADDR),
             ..budget(SMALL_BUDGET)
         };
-        let mut state = EmulationState::new(&config, None, &[0xEA], PRG_LOAD).unwrap();
+        let mut state = EmulationState::new(&config, None, &[0xEA], PRG_LOAD)
+            .expect("EmulationState initialization should succeed");
         let routine = store_and_jump(OUTPUT_ADDR);
         state.cpu.memory.mem[usize::from(STAGE2_ADDR)..usize::from(STAGE2_ADDR) + routine.len()]
             .copy_from_slice(&routine);
@@ -2278,7 +2296,8 @@ mod tests {
         // Part B: A Phase 1 `on_step` hook sets `in_phase2 = true` while `pc >= ret_addr`.
         let raw = unpacker_program(&[]);
         let cfg = budget(SMALL_BUDGET);
-        let mut hook_state = EmulationState::new(&cfg, None, &raw, PRG_LOAD).unwrap();
+        let mut hook_state = EmulationState::new(&cfg, None, &raw, PRG_LOAD)
+            .expect("EmulationState initialization should succeed");
         hook_state.hints = Some(empty_packer_info());
         hook_state.hooks = Some(Box::new(MockHooks {
             step_hook: Some(Box::new(|ctx| {
@@ -2309,7 +2328,8 @@ mod tests {
         // The hook verifies `current_pc` was already updated to `STAGE2_ADDR` before
         // `on_step` ran, then mutates `current_pc` to `SYS_ENTRY`.
         // `step_find_depacker` still transitions using the pre-hook `STAGE2_ADDR`.
-        let mut state_a = EmulationState::new(&cfg, None, &raw, PRG_LOAD).unwrap();
+        let mut state_a = EmulationState::new(&cfg, None, &raw, PRG_LOAD)
+            .expect("EmulationState initialization should succeed");
         state_a.cpu.memory.current_pc = 0;
         state_a.cpu.registers.program_counter = STAGE2_ADDR;
         state_a.hints = Some(empty_packer_info());
@@ -2333,7 +2353,8 @@ mod tests {
         // down to `STAGE2_ADDR` (`< ret_addr`), while a `NOP` (`$EA`) is at `SYS_ENTRY`. Because
         // `step_find_depacker` captured `pc = SYS_ENTRY` before the hook, it does NOT enter
         // Phase 2 on this step; it executes the `NOP` at `SYS_ENTRY` and returns `Continue`.
-        let mut state_b = EmulationState::new(&cfg, None, &raw, PRG_LOAD).unwrap();
+        let mut state_b = EmulationState::new(&cfg, None, &raw, PRG_LOAD)
+            .expect("EmulationState initialization should succeed");
         state_b.cpu.memory.mem[usize::from(SYS_ENTRY)] = 0xEA;
         state_b.hints = Some(empty_packer_info());
         state_b.hooks = Some(Box::new(MockHooks {
@@ -2362,7 +2383,8 @@ mod tests {
         // hook clears `written[OUTPUT_ADDR]` via `forget_writes` before `step_decompress` checks
         // `WrittenCodeReached` or `LeftLoadedRegion`. As a result, `step_decompress` does NOT exit
         // and executes the `NOP`.
-        let mut state_a = EmulationState::new(&cfg, None, &raw, PRG_LOAD).unwrap();
+        let mut state_a = EmulationState::new(&cfg, None, &raw, PRG_LOAD)
+            .expect("EmulationState initialization should succeed");
         state_a.phase = Phase::Decompress;
         state_a.cpu.memory.in_phase2 = true;
         state_a.cpu.registers.program_counter = OUTPUT_ADDR;
@@ -2385,7 +2407,8 @@ mod tests {
         // `OUTPUT_ADDR`, then sets `written[OUTPUT_ADDR] = true`. Because `step_decompress`
         // updates `current_pc` and triggers `WrittenCodeReached` *after* the hook, it immediately
         // exits with `WrittenCodeReached`.
-        let mut state_b = EmulationState::new(&cfg, None, &raw, PRG_LOAD).unwrap();
+        let mut state_b = EmulationState::new(&cfg, None, &raw, PRG_LOAD)
+            .expect("EmulationState initialization should succeed");
         state_b.phase = Phase::Decompress;
         state_b.cpu.memory.in_phase2 = true;
         state_b.cpu.memory.current_pc = STAGE2_ADDR;
@@ -2416,7 +2439,8 @@ mod tests {
         const KNOWN_ENTRY: u16 = 0x1800;
         let raw = unpacker_program(&[]);
         let cfg = budget(SMALL_BUDGET);
-        let mut state = EmulationState::new(&cfg, None, &raw, PRG_LOAD).unwrap();
+        let mut state = EmulationState::new(&cfg, None, &raw, PRG_LOAD)
+            .expect("EmulationState initialization should succeed");
         state.phase = Phase::Decompress;
         state.cpu.memory.in_phase2 = true;
         state.hints = Some(PackerInfo {
@@ -2479,8 +2503,10 @@ mod tests {
             c.extend(stage1_installing(&format_stage2_nops_then_store()));
             sys_program(&c)
         };
-        let res_chrout = run(&raw, PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
-        let res_nops = run(&without_stage2_chrout, PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let res_chrout =
+            run(&raw, PRG_LOAD, &budget(SMALL_BUDGET)).expect("test unpack run should succeed");
+        let res_nops = run(&without_stage2_chrout, PRG_LOAD, &budget(SMALL_BUDGET))
+            .expect("NOP baseline unpack run should succeed");
         // `JSR $FFD2` (2 steps: JSR + trapped Handled) vs three `NOP`s (3 steps) in Stage 2:
         assert_eq!(res_chrout.instructions_executed, BASE_INSTRUCTIONS + 10);
         assert_eq!(res_nops.instructions_executed, BASE_INSTRUCTIONS + 11);
@@ -2492,7 +2518,8 @@ mod tests {
             let record = |count: u64| calls.borrow_mut().push(count);
             let cfg = budget(SMALL_BUDGET);
             let mut state =
-                EmulationState::new(&cfg, Some(&record), &unpacker_program(&[]), PRG_LOAD).unwrap();
+                EmulationState::new(&cfg, Some(&record), &unpacker_program(&[]), PRG_LOAD)
+                    .expect("EmulationState initialization with observer should succeed");
             state.phase = phase;
             state.total_instructions = PROGRESS_CALLBACK_INTERVAL - 1;
             state.cpu.registers.program_counter = 0xFFD2; // CHROUT
@@ -2542,7 +2569,7 @@ mod tests {
             hints: Some(&hints_with_end),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res_accepted.end_addr, 0x3100);
 
         // Without `hints.end_addr`, `$3100 <= $2000 + 512 ($2200)` fails, so `end_addr` stays `$2000`.
@@ -2555,7 +2582,7 @@ mod tests {
             hints: Some(&hints_without_end),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res_rejected.end_addr, 0x2000);
     }
 
@@ -2588,7 +2615,7 @@ mod tests {
                 hints: Some(&hints),
                 ..test_finish_ctx(&mem, &snapshot, &written)
             })
-            .unwrap();
+            .expect("finish should succeed");
             if res.end_addr != expected_end {
                 failures.push(format!(
                     "{label} (reported=${reported_end:04X}): expected ${expected_end:04X}, got ${:04X}",
@@ -2615,7 +2642,7 @@ mod tests {
             hints: Some(&hints),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res.end_addr, 0x2050);
     }
 
@@ -2633,7 +2660,7 @@ mod tests {
             hints: Some(&hints_with_dep),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res_overridden.dep_addr, 0x0150);
 
         let hints_without_dep = empty_packer_info();
@@ -2642,7 +2669,7 @@ mod tests {
             hints: Some(&hints_without_dep),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res_kept.dep_addr, 0x0333);
     }
 
@@ -2695,7 +2722,7 @@ mod tests {
             registers: expected_regs,
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
 
         assert_eq!(res.start_addr, PRG_LOAD);
         assert_eq!(res.end_addr, 0x2080);
@@ -2717,7 +2744,7 @@ mod tests {
             entry_point: 0x1500,
             ..test_finish_ctx(&mem_with_sys, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should clamp start to BASIC SYS range");
         assert_eq!(res_lowered.start_addr, PRG_LOAD);
         assert_eq!(res_lowered.entry_point, 0x1500);
 
@@ -2731,7 +2758,7 @@ mod tests {
             hints: Some(&hints_low),
             ..test_finish_ctx(&mem_with_sys, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should clamp start to BASIC SYS range");
         assert_eq!(res_kept_low.start_addr, 0x07F0);
 
         // 3. No `SYS` line at `basic_start` -> `start_addr` stays `$1000`.
@@ -2740,7 +2767,7 @@ mod tests {
             entry_point: 0x1500,
             ..test_finish_ctx(&mem_no_sys, &snapshot_no_sys, &written_no_sys)
         })
-        .unwrap();
+        .expect("finish without BASIC SYS should keep write-diff start");
         assert_eq!(res_no_sys.start_addr, 0x1000);
     }
 
@@ -2757,7 +2784,7 @@ mod tests {
             entry_point: MIN_VALID_ENTRY_ADDR,
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res_low_clamp.start_addr, MIN_VALID_ENTRY_ADDR);
         assert_eq!(res_low_clamp.end_addr, 0x2000);
 
@@ -2766,7 +2793,7 @@ mod tests {
             entry_point: MIN_VALID_ENTRY_ADDR - 1,
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap_err();
+        .expect_err("invalid low entry point should be rejected");
         assert_eq!(
             err_below_min,
             UnpackError::InvalidAddressRange {
@@ -2781,7 +2808,7 @@ mod tests {
             entry_point: 0x2500,
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res_high_clamp.start_addr, 0x1000);
         assert_eq!(res_high_clamp.end_addr, 0x2500);
     }
@@ -2803,7 +2830,7 @@ mod tests {
                 entry_point: rom_or_basic_entry,
                 ..test_finish_ctx(&mem, &snapshot, &written)
             })
-            .unwrap();
+            .expect("finish should succeed");
             assert_eq!(
                 res.entry_point, SYS_ENTRY,
                 "entry ${rom_or_basic_entry:04X} with ROMs mapped"
@@ -2818,7 +2845,7 @@ mod tests {
                 entry_point: ram_entry,
                 ..test_finish_ctx(&mem, &snapshot, &written)
             })
-            .unwrap();
+            .expect("finish should succeed");
             assert_eq!(
                 res.entry_point, ram_entry,
                 "entry ${ram_entry:04X} with ROMs unmapped"
@@ -2833,7 +2860,7 @@ mod tests {
     #[test]
     fn finish_context_basic_start_field_is_named_correctly() {
         let load_addr = CARD_CRUNCHER_LOAD_ADDR;
-        let basic_start = get_basic_start(load_addr);
+        let basic_start = basic_start(load_addr);
         assert_eq!(basic_start, load_addr + 1);
 
         let (mut mem, snapshot, written) = finish_fixture();
@@ -2851,7 +2878,7 @@ mod tests {
             basic_start,
             ..test_finish_ctx(&mem, &snapshot, &written)
         };
-        let res = finish(ctx).unwrap();
+        let res = finish(ctx).expect("finish should succeed");
         assert_eq!(res.start_addr, basic_start);
         assert_eq!(res.entry_point, SYS_ENTRY);
     }
@@ -2866,8 +2893,9 @@ mod tests {
             ..budget(SMALL_BUDGET)
         };
         // Memory with NO `SYS` line at `basic_start` (`$0801`).
-        let mut state = EmulationState::new(&cfg, None, &[0xEA; 16], PRG_LOAD).unwrap();
-        let basic_run_pc = super::super::machine::C64_BASIC_RUN_ENTRIES[0];
+        let mut state = EmulationState::new(&cfg, None, &[0xEA; 16], PRG_LOAD)
+            .expect("EmulationState initialization should succeed");
+        let basic_run_pc = C64_BASIC_RUN_ENTRIES[0];
         state.cpu.memory.current_pc = basic_run_pc;
 
         // In `FindDepacker`, `BasicRun` without a `SYS` line falls back to `basic_start`.
@@ -2892,7 +2920,8 @@ mod tests {
             forced_ret_addr: Some(0x3000),
             ..budget(SMALL_BUDGET)
         };
-        let mut lr_state = EmulationState::new(&cfg_high_ret, None, &[0xEA; 16], PRG_LOAD).unwrap();
+        let mut lr_state = EmulationState::new(&cfg_high_ret, None, &[0xEA; 16], PRG_LOAD)
+            .expect("EmulationState initialization should succeed");
         lr_state.phase = Phase::Decompress;
         lr_state.cpu.memory.in_phase2 = true;
         lr_state.cpu.registers.program_counter = OUTPUT_ADDR;
@@ -2929,7 +2958,7 @@ mod tests {
         fn verify_zp_and_resolve(
             image: &LoadedImage<'_>,
             sig_match: &SignatureMatch,
-        ) -> Option<crate::packers::ResolvedSpec> {
+        ) -> Option<ResolvedSpec> {
             // Zero-page pointers must already be populated when `resolve` runs.
             let txttab = u16::from_le_bytes([image.mem[0x002B], image.mem[0x002C]]);
             let vartab = u16::from_le_bytes([image.mem[0x002D], image.mem[0x002E]]);
@@ -2937,7 +2966,7 @@ mod tests {
             if txttab != PRG_LOAD || vartab != image.load_end || eal != image.load_end {
                 return None;
             }
-            Some(crate::packers::ResolvedSpec {
+            Some(ResolvedSpec {
                 name: Some(sig_match.spec_name),
                 hints: Hints {
                     dep_addr: Some(AddrSource::Const(STAGE2_ADDR)),
@@ -2975,7 +3004,8 @@ mod tests {
 
         let raw = sys_program(&[0xEA]);
         let config = budget(SMALL_BUDGET);
-        let state = EmulationState::new_with_specs(&config, None, &raw, PRG_LOAD, SPECS).unwrap();
+        let state = EmulationState::new_with_specs(&config, None, &raw, PRG_LOAD, SPECS)
+            .expect("EmulationState initialization with specs should succeed");
 
         let info = state
             .hints
@@ -3055,7 +3085,7 @@ mod tests {
             PRG_LOAD,
             SPECS_WITH_FORCED,
         )
-        .unwrap();
+        .expect("EmulationState initialization with forced-entry spec should succeed");
         assert_eq!(state_user.cpu.registers.program_counter, USER_FORCED_ENTRY);
 
         // 2. With user `forced_entry = None`, spec `forced_entry` ($2000) beats SYS ($080D).
@@ -3067,7 +3097,7 @@ mod tests {
             PRG_LOAD,
             SPECS_WITH_FORCED,
         )
-        .unwrap();
+        .expect("EmulationState initialization with forced-entry spec should succeed");
         assert_eq!(state_spec.cpu.registers.program_counter, SPEC_FORCED_ENTRY);
 
         // 2b. Spec `forced_entry` ($2000) also succeeds when no BASIC `SYS` line is present.
@@ -3080,7 +3110,7 @@ mod tests {
             PRG_LOAD,
             SPECS_WITH_FORCED,
         )
-        .unwrap();
+        .expect("EmulationState initialization with forced-entry spec should succeed");
         assert_eq!(
             state_spec_no_sys.cpu.registers.program_counter,
             SPEC_FORCED_ENTRY
@@ -3094,7 +3124,7 @@ mod tests {
             PRG_LOAD,
             SPECS_WITHOUT_FORCED,
         )
-        .unwrap();
+        .expect("EmulationState initialization without forced-entry spec should succeed");
         assert_eq!(state_sys.cpu.registers.program_counter, SYS_ENTRY);
     }
 
@@ -3128,7 +3158,8 @@ mod tests {
 
         let raw = sys_program(&[0xEA, 0xEA, 0xEA]);
         let cfg = budget(SMALL_BUDGET);
-        let state = EmulationState::new_with_specs(&cfg, None, &raw, PRG_LOAD, SPECS).unwrap();
+        let state = EmulationState::new_with_specs(&cfg, None, &raw, PRG_LOAD, SPECS)
+            .expect("EmulationState initialization with specs should succeed");
 
         let start = usize::from(SYS_ENTRY);
         assert_eq!(&state.cpu.memory.mem[start..start + 3], &[0xA9, 0x00, 0x60]);
@@ -3187,7 +3218,8 @@ mod tests {
             forced_entry: Some(SYS_ENTRY),
             ..budget(SMALL_BUDGET)
         };
-        let mut state = EmulationState::new_with_specs(&cfg, None, &raw, PRG_LOAD, SPECS).unwrap();
+        let mut state = EmulationState::new_with_specs(&cfg, None, &raw, PRG_LOAD, SPECS)
+            .expect("EmulationState initialization with specs should succeed");
         assert_eq!(state.snapshot[usize::from(PATCH_TARGET)], 0x99);
         assert_eq!(state.cpu.memory.mem[usize::from(PATCH_TARGET)], 0x99);
 
@@ -3343,8 +3375,11 @@ mod tests {
         // 1. Without `exact_return`, `JSR $3000` exits immediately on entering written code at `$3000`,
         //    so `$3000`'s `STA $2000` (`$42`) has NOT executed yet.
         let mut non_exact_state =
-            EmulationState::new_with_specs(&cfg, None, &raw, PRG_LOAD, &[&NON_EXACT_SPEC]).unwrap();
-        let non_exact_res = non_exact_state.run().unwrap();
+            EmulationState::new_with_specs(&cfg, None, &raw, PRG_LOAD, &[&NON_EXACT_SPEC])
+                .expect("EmulationState initialization should succeed");
+        let non_exact_res = non_exact_state
+            .run()
+            .expect("EmulationState run should succeed");
         assert_eq!(non_exact_state.cpu.registers.program_counter, 0x3000);
         assert_eq!(
             non_exact_state.cpu.memory.mem[usize::from(OUTPUT_ADDR)],
@@ -3357,8 +3392,10 @@ mod tests {
         //    through `RTS` and stops only when `pc == $2000`, so `mem[$2000] == $42`.
         let mut exact_known_state =
             EmulationState::new_with_specs(&cfg, None, &raw, PRG_LOAD, &[&EXACT_KNOWN_ENTRY_SPEC])
-                .unwrap();
-        let exact_known_res = exact_known_state.run().unwrap();
+                .expect("EmulationState initialization should succeed");
+        let exact_known_res = exact_known_state
+            .run()
+            .expect("EmulationState run should succeed");
         assert_eq!(exact_known_state.cpu.registers.program_counter, OUTPUT_ADDR);
         assert_eq!(exact_known_res.entry_point, OUTPUT_ADDR);
         assert_eq!(
@@ -3374,8 +3411,10 @@ mod tests {
         };
         let mut exact_ret_state =
             EmulationState::new_with_specs(&cfg_ret, None, &raw, PRG_LOAD, &[&EXACT_RET_ADDR_SPEC])
-                .unwrap();
-        let exact_ret_res = exact_ret_state.run().unwrap();
+                .expect("EmulationState initialization should succeed");
+        let exact_ret_res = exact_ret_state
+            .run()
+            .expect("EmulationState run should succeed");
         assert_eq!(exact_ret_state.cpu.registers.program_counter, OUTPUT_ADDR);
         assert_eq!(exact_ret_res.entry_point, OUTPUT_ADDR);
         assert_eq!(
@@ -3393,7 +3432,8 @@ mod tests {
         let cfg = budget(SMALL_BUDGET);
 
         // 1. WrittenCodeReached { pc }
-        let written_res = run(&unpacker_program(&[]), PRG_LOAD, &cfg).unwrap();
+        let written_res =
+            run(&unpacker_program(&[]), PRG_LOAD, &cfg).expect("unpacker program should succeed");
         assert_eq!(
             written_res.report.exit_reason,
             ExitReason::WrittenCodeReached { pc: OUTPUT_ADDR }
@@ -3425,8 +3465,10 @@ mod tests {
         let raw_known = sys_program(&stage1_installing(&store_and_jump_elsewhere(KNOWN_ENTRY)));
         let mut known_state =
             EmulationState::new_with_specs(&cfg, None, &raw_known, PRG_LOAD, &[&KNOWN_ENTRY_SPEC])
-                .unwrap();
-        let known_res = known_state.run().unwrap();
+                .expect("EmulationState initialization should succeed");
+        let known_res = known_state
+            .run()
+            .expect("EmulationState run should succeed");
         assert_eq!(
             known_res.report.exit_reason,
             ExitReason::KnownEntryReached { pc: KNOWN_ENTRY }
@@ -3439,7 +3481,8 @@ mod tests {
             forced_ret_addr: Some(0x3000),
             ..budget(SMALL_BUDGET)
         };
-        let left_res = run(&unpacker_program(&[]), PRG_LOAD, &cfg_left).unwrap();
+        let left_res = run(&unpacker_program(&[]), PRG_LOAD, &cfg_left)
+            .expect("left-loaded-region run should succeed");
         assert_eq!(
             left_res.report.exit_reason,
             ExitReason::LeftLoadedRegion { pc: OUTPUT_ADDR }
@@ -3447,7 +3490,7 @@ mod tests {
 
         // 4. RomExitVector { pc }: Phase 2 jumps to C64 KERNAL reset vector `$FCE2`.
         let raw_rom_exit = sys_program(&stage1_installing(&store_and_jump_elsewhere(0xFCE2)));
-        let rom_exit_res = run(&raw_rom_exit, PRG_LOAD, &cfg).unwrap();
+        let rom_exit_res = run(&raw_rom_exit, PRG_LOAD, &cfg).expect("ROM exit run should succeed");
         assert_eq!(
             rom_exit_res.report.exit_reason,
             ExitReason::RomExitVector { pc: 0xFCE2 }
@@ -3455,7 +3498,8 @@ mod tests {
 
         // 5. BasicRun: Phase 2 jumps to C64 BASIC RUN entry `$A7AE`.
         let raw_basic_run = sys_program(&stage1_installing(&store_and_jump_elsewhere(0xA7AE)));
-        let basic_run_res = run(&raw_basic_run, PRG_LOAD, &cfg).unwrap();
+        let basic_run_res =
+            run(&raw_basic_run, PRG_LOAD, &cfg).expect("BASIC RUN exit should succeed");
         assert_eq!(basic_run_res.report.exit_reason, ExitReason::BasicRun);
     }
 
@@ -3464,7 +3508,8 @@ mod tests {
     /// instruction budget.
     #[test]
     fn report_splits_phase1_and_phase2_instructions() {
-        let result = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let result = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET))
+            .expect("minimal unpacker program should succeed");
         assert_eq!(
             result.report.find_depacker_instructions,
             STAGE1_INSTRUCTIONS
@@ -3484,7 +3529,8 @@ mod tests {
         // 50 NOPs + 17 stage-1 instructions + 3 stage-2 instructions = 70 instructions (> 64).
         let raw = unpacker_program(&[0xEA; 50]);
 
-        let default_res = run(&raw, PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let default_res =
+            run(&raw, PRG_LOAD, &budget(SMALL_BUDGET)).expect("test unpack run should succeed");
         assert!(default_res.instructions_executed > 64);
         assert!(default_res.report.trace_tail.is_empty());
 
@@ -3492,7 +3538,7 @@ mod tests {
             trace: true,
             ..budget(SMALL_BUDGET)
         };
-        let trace_res = run(&raw, PRG_LOAD, &trace_cfg).unwrap();
+        let trace_res = run(&raw, PRG_LOAD, &trace_cfg).expect("traced unpack run should succeed");
         assert!(!trace_res.report.trace_tail.is_empty());
         assert_eq!(trace_res.report.trace_tail.len(), TRACE_TAIL_CAPACITY);
         assert!(trace_res.report.trace_tail.len() <= TRACE_TAIL_CAPACITY);
@@ -3515,7 +3561,7 @@ mod tests {
             forced_entry: Some(SYS_ENTRY),
             ..budget(SMALL_BUDGET)
         };
-        let result = run(&raw, PRG_LOAD, &cfg).unwrap();
+        let result = run(&raw, PRG_LOAD, &cfg).expect("unpack run should succeed");
         assert_eq!(result.report.start_source, BoundSource::WriteDiff);
         assert_eq!(result.report.end_source, BoundSource::WriteDiff);
         assert_eq!(result.packer, None);
@@ -3550,9 +3596,9 @@ mod tests {
 
         let raw = unpacker_program(&[]);
         let cfg = budget(SMALL_BUDGET);
-        let mut state =
-            EmulationState::new_with_specs(&cfg, None, &raw, PRG_LOAD, &[&STATIC_SPEC]).unwrap();
-        let res = state.run().unwrap();
+        let mut state = EmulationState::new_with_specs(&cfg, None, &raw, PRG_LOAD, &[&STATIC_SPEC])
+            .expect("EmulationState initialization should succeed");
+        let res = state.run().expect("EmulationState run should succeed");
 
         assert_eq!(res.packer, Some("test_static"));
         assert_eq!(res.packer_name.as_deref(), Some("TestStatic"));
@@ -3590,7 +3636,7 @@ mod tests {
             hints: Some(&hints),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(accepted.end_addr, 0x2100);
         assert_eq!(
             accepted.report.end_source,
@@ -3606,7 +3652,7 @@ mod tests {
             hints: Some(&hints),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(rejected_write_diff.end_addr, 0x2000);
         assert_eq!(
             rejected_write_diff.report.end_source,
@@ -3622,7 +3668,7 @@ mod tests {
             hints: Some(&hints_with_spec_end),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(rejected_spec_end.end_addr, 0x2080);
         assert_eq!(
             rejected_spec_end.report.end_source,
@@ -3654,7 +3700,7 @@ mod tests {
             hooks: Some(&hooks_modify_end),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(
             res_modified.report.start_source,
             BoundSource::PackerSpec { id: "test_refine" }
@@ -3676,7 +3722,7 @@ mod tests {
             hooks: Some(&hooks_noop),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(
             res_unchanged.report.start_source,
             BoundSource::PackerSpec { id: "test_refine" }
@@ -3693,7 +3739,8 @@ mod tests {
         // 1. `unpacker_program(&[])` has a BASIC `SYS 2061` stub at `PRG_LOAD` (`$0801`) in the
         //    loaded snapshot and writes only to `OUTPUT_ADDR` (`$2000`), so `detect_output_range`
         //    returns `($2000, $2000)` and Step 8 lowers `start_addr` to `$0801` (`SysLineClamp`).
-        let clamped = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let clamped = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET))
+            .expect("minimal unpacker program should succeed");
         assert_eq!(clamped.start_addr, PRG_LOAD);
         assert_eq!(clamped.report.start_source, BoundSource::SysLineClamp);
         assert_eq!(clamped.report.end_source, BoundSource::WriteDiff);
@@ -3701,7 +3748,8 @@ mod tests {
 
         // 2. Emulation exits via `BasicRun` (`$A7AE`) and resolves `entry_point` from `10 SYS2061`.
         let raw_basic_run = sys_program(&stage1_installing(&store_and_jump_elsewhere(0xA7AE)));
-        let basic_run_res = run(&raw_basic_run, PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let basic_run_res = run(&raw_basic_run, PRG_LOAD, &budget(SMALL_BUDGET))
+            .expect("BASIC RUN unpack should succeed");
         assert_eq!(basic_run_res.entry_point, SYS_ENTRY);
         assert_eq!(
             basic_run_res.report.entry_source,
@@ -3711,7 +3759,8 @@ mod tests {
         // 3. Emulation exits via `RomExitVector` (`$FCE2`) so `finish` step 8 replaces the
         //    mapped KERNAL ROM entry with the `SYS` target address.
         let raw_rom_exit = sys_program(&stage1_installing(&store_and_jump_elsewhere(0xFCE2)));
-        let rom_exit_res = run(&raw_rom_exit, PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let rom_exit_res = run(&raw_rom_exit, PRG_LOAD, &budget(SMALL_BUDGET))
+            .expect("ROM exit unpack should succeed");
         assert_eq!(rom_exit_res.entry_point, SYS_ENTRY);
         assert_eq!(rom_exit_res.report.entry_source, BoundSource::SysLineLookup);
     }
@@ -3727,7 +3776,7 @@ mod tests {
             entry_point: 0x0400,
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(low_clamp.start_addr, 0x0400);
         assert_eq!(low_clamp.report.start_source, BoundSource::EntryClamp);
         assert_eq!(low_clamp.report.end_source, BoundSource::WriteDiff);
@@ -3736,7 +3785,7 @@ mod tests {
             entry_point: 0x2800,
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(high_clamp.end_addr, 0x2800);
         assert_eq!(high_clamp.report.start_source, BoundSource::WriteDiff);
         assert_eq!(high_clamp.report.end_source, BoundSource::EntryClamp);
@@ -3752,11 +3801,13 @@ mod tests {
             forced_entry: Some(SYS_ENTRY),
             ..budget(SMALL_BUDGET)
         };
-        let forced_res = run(&unpacker_program(&[]), PRG_LOAD, &forced_cfg).unwrap();
+        let forced_res = run(&unpacker_program(&[]), PRG_LOAD, &forced_cfg)
+            .expect("forced-entry unpack should succeed");
         assert_eq!(forced_res.report.entry_source, BoundSource::Forced);
 
         // 2. Plain exit PC (`config.forced_entry == None`)
-        let exit_pc_res = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let exit_pc_res = run(&unpacker_program(&[]), PRG_LOAD, &budget(SMALL_BUDGET))
+            .expect("minimal unpacker program should succeed");
         assert_eq!(exit_pc_res.report.entry_source, BoundSource::ExitPc);
 
         // 3. `SnapshotEntry`: Phase 2 exits at `pc == ret_addr` (`$0800`, written) and
@@ -3766,7 +3817,8 @@ mod tests {
         // Append a `JMP $1500` (`4C 00 15`) inside the loaded snapshot so `find_entry_in_snapshot`
         // (which scans backward from the end of the loaded data) finds `$1500`.
         raw_snap.extend_from_slice(&[0x4C, 0x00, 0x15]);
-        let snap_res = run(&raw_snap, PRG_LOAD, &budget(SMALL_BUDGET)).unwrap();
+        let snap_res = run(&raw_snap, PRG_LOAD, &budget(SMALL_BUDGET))
+            .expect("snapshot entry scan run should succeed");
         assert_eq!(snap_res.entry_point, 0x1500);
         assert_eq!(snap_res.report.entry_source, BoundSource::SnapshotEntry);
     }
@@ -3816,7 +3868,7 @@ mod tests {
             hooks: Some(&hooks_a),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res_a.start_addr, PRG_LOAD);
         assert_eq!(res_a.end_addr, 0x2100);
         assert_eq!(res_a.entry_point, SYS_ENTRY);
@@ -3846,7 +3898,7 @@ mod tests {
             hooks: Some(&hooks_b),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res_b.start_addr, 0x0400);
         assert_eq!(res_b.end_addr, 0x2200);
         assert_eq!(res_b.entry_point, 0x0400);
@@ -3889,7 +3941,7 @@ mod tests {
             raw_hints: Some(&raw_adj0),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res_adj0.end_addr, 0x2100);
         assert_eq!(
             res_adj0.report.end_source,
@@ -3912,7 +3964,7 @@ mod tests {
             raw_hints: Some(&raw_none),
             ..test_finish_ctx(&mem, &snapshot, &written)
         })
-        .unwrap();
+        .expect("finish should resolve expected bounds");
         assert_eq!(res_none.end_addr, 0x4500);
         assert_eq!(
             res_none.report.end_source,
@@ -3951,7 +4003,7 @@ mod tests {
             y: 0,
             sp: 0xF6,
         };
-        let res = finish(ctx).unwrap();
+        let res = finish(ctx).expect("finish should succeed");
         assert_eq!(res.end_addr, 0x2014);
         assert_eq!(
             res.report.end_source,
@@ -3983,7 +4035,7 @@ mod tests {
             y: 0,
             sp: 0xF6,
         };
-        let high_res = finish(high_ctx).unwrap();
+        let high_res = finish(high_ctx).expect("finish should clamp high address");
         assert_eq!(high_res.end_addr, 0xFFFF);
     }
 
@@ -4039,7 +4091,7 @@ mod tests {
         ctx.entry_point = 0x1200;
         ctx.hints = Some(&hints);
         ctx.raw_hints = Some(&raw_hints);
-        let accepted = finish(ctx).unwrap();
+        let accepted = finish(ctx).expect("finish should succeed");
         assert_eq!(accepted.start_addr, 0x0800);
         assert_eq!(
             accepted.report.start_source,
@@ -4052,7 +4104,8 @@ mod tests {
         ctx_low.entry_point = 0x1200;
         ctx_low.hints = Some(&hints);
         ctx_low.raw_hints = Some(&raw_hints);
-        let rejected_low = finish(ctx_low).unwrap();
+        let rejected_low =
+            finish(ctx_low).expect("finish should fall back when low hint is rejected");
         assert_eq!(rejected_low.start_addr, 0x1000);
         assert_eq!(rejected_low.report.start_source, BoundSource::WriteDiff);
 
@@ -4062,7 +4115,8 @@ mod tests {
         ctx_high.entry_point = 0x1200;
         ctx_high.hints = Some(&hints);
         ctx_high.raw_hints = Some(&raw_hints);
-        let rejected_high = finish(ctx_high).unwrap();
+        let rejected_high =
+            finish(ctx_high).expect("finish should fall back when high hint is rejected");
         assert_eq!(rejected_high.start_addr, 0x1000);
         assert_eq!(rejected_high.report.start_source, BoundSource::WriteDiff);
     }

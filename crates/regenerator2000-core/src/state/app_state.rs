@@ -2,28 +2,42 @@
 //!
 //! This module defines [`AppState`], [`BlockItem`], and [`FileInfo`]. Both the TUI and MCP
 //! server share [`AppState`] methods for operand extraction, [`SymbolicOffset`] parsing and
-//! suggestion, label checking, and [`Command::Batch`](crate::commands::Command::Batch) undo history.
+//! suggestion, label checking, and [`Command::Batch`] undo history.
 
 use super::annotations::AnnotationManager;
-use super::project::Label;
+use super::project::{Label, PROJECT_FORMAT_VERSION};
 use super::settings::DocumentSettings;
 use super::types::{
-    Addr, BlockType, CachedArrow, CommentKind, EnumDefinition, ImmediateFormat, LabelKind,
-    LabelType, OffsetParentheses, OffsetRadix, OperandTargetSite, SymbolicOffset,
+    Addr, AddrSpan, AssetReload, BlockType, CachedArrow, CommentKind, EffectiveTarget,
+    EnumDefinition, ImmediateFormat, LabelKind, LabelLocality, LabelType, OffsetAddressing,
+    OffsetParentheses, OffsetRadix, OperandTargetSite, Reanalysis, SymbolicOffset,
+    SymbolicOffsetSuggestion, XRef,
 };
+use crate::analyzer;
+use crate::assets;
+use crate::commands::{Command, UndoStack};
 use crate::config::SystemConfig;
 use crate::cpu::AddressingMode;
-use crate::disassembler::{Disassembler, DisassemblyLine};
+use crate::disassembler::formatter::Formatter;
+use crate::disassembler::symbols;
+use crate::disassembler::{self, Disassembler, DisassemblyLine};
+use crate::packers::{LoadedImage, PackerInfo, registry};
+use crate::unpacker;
+use crate::utils;
 use crate::vice::{ViceClient, ViceConnectionId, ViceState};
-use std::collections::{BTreeMap, BTreeSet};
+#[cfg(test)]
+use std::cell::Cell;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::env;
+use std::mem;
 use std::path::PathBuf;
 
 #[cfg(test)]
 thread_local! {
-    static ANALYSIS_PASS_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static ANALYSIS_PASS_COUNT: Cell<usize> = const { Cell::new(0) };
 }
 
-/// An item displayed in the Blocks View side pane, produced by [`AppState::get_blocks_view_items`].
+/// An item displayed in the Blocks View side pane, produced by [`AppState::blocks_view_items`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockItem {
     /// A contiguous memory region sharing a single [`BlockType`] and collapsed state.
@@ -72,9 +86,9 @@ pub struct FileInfo {
 /// Central, UI-agnostic state for a loaded binary and reverse-engineering project.
 ///
 /// Both the TUI and MCP server consume and mutate `AppState` through shared methods
-/// and undoable [`Command`](crate::commands::Command)s.
+/// and undoable [`Command`]s.
 pub struct AppState {
-    /// Project schema version (see [`PROJECT_FORMAT_VERSION`](super::project::PROJECT_FORMAT_VERSION)).
+    /// Project schema version (see [`PROJECT_FORMAT_VERSION`]).
     pub schema_version: u32,
     /// Path to the source binary or disk/tape/cartridge image file, if loaded from disk.
     pub file_path: Option<PathBuf>,
@@ -111,8 +125,8 @@ pub struct AppState {
     /// Sparse address-keyed annotations (comments, immediate formats, bookmarks, enums, Tier 1/Tier 2
     /// symbolic offsets, and indexed lexical scopes).
     pub annotations: AnnotationManager,
-    /// Cross-reference map from target [`Addr`] to typed [`XRef`](super::types::XRef)s.
-    pub cross_refs: BTreeMap<Addr, Vec<super::types::XRef>>,
+    /// Cross-reference map from target [`Addr`] to typed [`XRef`]s.
+    pub cross_refs: BTreeMap<Addr, Vec<XRef>>,
 
     // Enums State
     /// Project-local enum definitions keyed by enum name.
@@ -126,11 +140,11 @@ pub struct AppState {
     pub system_config: SystemConfig,
 
     /// Undo/redo command history stack.
-    pub undo_stack: crate::commands::UndoStack,
+    pub undo_stack: UndoStack,
     /// Undo stack pointer recorded at the last project save, used by [`AppState::is_dirty`].
     pub last_saved_pointer: usize,
     /// Effective set of addresses excluded from automatic label generation during analysis.
-    pub excluded_addresses: std::collections::HashSet<Addr>,
+    pub excluded_addresses: HashSet<Addr>,
     /// Per-project user-defined excluded addresses, always applied during analysis
     /// regardless of the `exclude_well_known_labels` document setting.
     pub user_excluded_addresses: BTreeSet<Addr>,
@@ -174,14 +188,12 @@ impl AppState {
         // after construction, which resets config_path_override to None and
         // therefore uses the real config directory.
         let default_config = SystemConfig {
-            config_path_override: Some(
-                std::env::temp_dir().join("regenerator2000_test_config.json"),
-            ),
+            config_path_override: Some(env::temp_dir().join("regenerator2000_test_config.json")),
             ..Default::default()
         };
 
         Self {
-            schema_version: super::project::PROJECT_FORMAT_VERSION,
+            schema_version: PROJECT_FORMAT_VERSION,
             file_path: None,
             project_path: None,
             export_asm_path: None,
@@ -203,9 +215,9 @@ impl AppState {
             user_global_enums: BTreeMap::new(),
             builtin_enums: BTreeMap::new(),
             system_config: default_config,
-            undo_stack: crate::commands::UndoStack::new(),
+            undo_stack: UndoStack::new(),
             last_saved_pointer: 0,
-            excluded_addresses: std::collections::HashSet::new(),
+            excluded_addresses: HashSet::new(),
             user_excluded_addresses: BTreeSet::new(),
             collapsed_blocks: Vec::new(),
             splitters: BTreeSet::new(),
@@ -268,7 +280,7 @@ impl AppState {
         self.labels.retain(|_, v| !v.is_empty());
 
         // Load excludes
-        let excludes = crate::assets::load_excludes(self.settings.system.as_str());
+        let excludes = assets::load_excludes(self.settings.system.as_str());
 
         if self.settings.exclude_well_known_labels {
             self.excluded_addresses = excludes.iter().map(|&a| Addr(a)).collect();
@@ -283,7 +295,7 @@ impl AppState {
 
         // Load comments (conditionally)
         if self.settings.show_system_comments {
-            let comments = crate::assets::load_comments(self.settings.system.as_str());
+            let comments = assets::load_comments(self.settings.system.as_str());
             for (k, v) in comments {
                 self.annotations
                     .update(Addr(k), |e| e.system_comment = Some(v));
@@ -301,51 +313,55 @@ impl AppState {
         }
 
         // Keep all feature-enabled platform labels in `system_labels` for analysis and offset lookup.
-        let mut platform_labels = crate::assets::load_labels(
+        let mut platform_labels = assets::load_labels(
             self.settings.system.as_str(),
             Some(&self.settings.enabled_features),
         );
         self.system_labels.clear();
-        for (addr, label) in &platform_labels {
+        for entry in &platform_labels {
             self.system_labels
-                .entry(Addr(*addr))
+                .entry(Addr(entry.address))
                 .or_default()
-                .push(label.clone());
+                .push(entry.label.clone());
         }
 
         if self.settings.exclude_well_known_labels {
-            platform_labels.retain(|(k, _)| !excludes.contains(k));
+            platform_labels.retain(|entry| !excludes.contains(&entry.address));
         }
 
         // Also exclude user-excluded addresses from system labels.
         if !self.user_excluded_addresses.is_empty() {
-            platform_labels.retain(|(k, _)| !self.user_excluded_addresses.contains(&Addr(*k)));
+            platform_labels
+                .retain(|entry| !self.user_excluded_addresses.contains(&Addr(entry.address)));
         }
 
-        for (addr, label) in platform_labels {
-            self.labels.entry(Addr(addr)).or_default().push(label);
+        for entry in platform_labels {
+            self.labels
+                .entry(Addr(entry.address))
+                .or_default()
+                .push(entry.label);
         }
     }
 
-    /// Creates a syntax [`Formatter`](crate::disassembler::formatter::Formatter) for [`DocumentSettings::assembler`].
+    /// Creates a syntax [`Formatter`] for [`DocumentSettings::assembler`].
     #[must_use]
-    pub fn get_formatter(&self) -> Box<dyn crate::disassembler::formatter::Formatter> {
+    pub fn formatter(&self) -> Box<dyn Formatter> {
         Disassembler::create_formatter(self.settings.assembler)
     }
 
     /// Runs auto-analysis over the loaded binary and refreshes the disassembly.
     ///
-    /// Applies [`Command::SetAnalysisData`](crate::commands::Command::SetAnalysisData) to update
-    /// auto-generated labels and cross-references. Returns the applied command and a status message.
-    pub fn perform_analysis(&mut self) -> (crate::commands::Command, String) {
+    /// Applies [`Command::SetAnalysisData`] to update
+    /// auto-generated labels and cross-references.
+    pub fn perform_analysis(&mut self) -> AnalysisOutcome {
         #[cfg(test)]
         ANALYSIS_PASS_COUNT.with(|c| c.set(c.get().saturating_add(1)));
 
-        let result = crate::analyzer::analyze(self);
+        let result = analyzer::analyze(self);
         let old_labels_map = self.labels.clone();
         let old_cross_refs = self.cross_refs.clone();
 
-        let command = crate::commands::Command::SetAnalysisData {
+        let command = Command::SetAnalysisData {
             labels: result.labels,
             cross_refs: result.cross_refs,
             old_labels: old_labels_map,
@@ -353,21 +369,24 @@ impl AppState {
         };
         command.apply(self);
         self.disassemble();
-        (command, "Analysis Complete".to_string())
+        AnalysisOutcome {
+            command,
+            status_message: "Analysis Complete".to_string(),
+        }
     }
 
     /// Removes all auto-generated labels and cross-references, records an undoable
-    /// [`Command::SetAnalysisData`](crate::commands::Command::SetAnalysisData), and refreshes the disassembly.
+    /// [`Command::SetAnalysisData`], and refreshes the disassembly.
     pub fn clear_auto_analysis(&mut self) {
         let mut new_labels = self.labels.clone();
         for labels_vec in new_labels.values_mut() {
-            labels_vec.retain(|l| l.kind != crate::state::LabelKind::Auto);
+            labels_vec.retain(|l| l.kind != LabelKind::Auto);
         }
         new_labels.retain(|_, v| !v.is_empty());
 
-        let command = crate::commands::Command::SetAnalysisData {
+        let command = Command::SetAnalysisData {
             labels: new_labels,
-            cross_refs: std::collections::BTreeMap::new(),
+            cross_refs: BTreeMap::new(),
             old_labels: self.labels.clone(),
             old_cross_refs: self.cross_refs.clone(),
         };
@@ -377,13 +396,13 @@ impl AppState {
     }
 
     /// Refreshes system assets, auto-analysis, and disassembly after a [`DocumentSettings`] change.
-    pub fn apply_settings_change(&mut self, reload_assets: bool, reanalyze: bool) {
-        if reload_assets {
+    pub fn apply_settings_change(&mut self, reload_assets: AssetReload, reanalyze: Reanalysis) {
+        if reload_assets == AssetReload::Reload {
             self.load_system_assets();
         }
-        if reanalyze && self.settings.auto_analyze {
-            let (cmd, _) = self.perform_analysis();
-            self.push_command(cmd);
+        if reanalyze == Reanalysis::Run && self.settings.auto_analyze {
+            let outcome = self.perform_analysis();
+            self.push_command(outcome.command);
         } else {
             self.disassemble();
         }
@@ -403,7 +422,7 @@ impl AppState {
         address: Addr,
         new_format: Option<ImmediateFormat>,
         explicit_offset: Option<Option<SymbolicOffset>>,
-    ) -> Vec<crate::commands::Command> {
+    ) -> Vec<Command> {
         let old_format = self
             .annotations
             .get(address)
@@ -419,13 +438,13 @@ impl AppState {
         };
 
         let mut cmds = Vec::with_capacity(2);
-        cmds.push(crate::commands::Command::SetImmediateFormat {
+        cmds.push(Command::SetImmediateFormat {
             address,
             new_format,
             old_format,
         });
         if old_offset != normalized_offset {
-            cmds.push(crate::commands::Command::SetOperandOffset {
+            cmds.push(Command::SetOperandOffset {
                 address,
                 new_offset: normalized_offset,
                 old_offset,
@@ -436,7 +455,7 @@ impl AppState {
 
     /// Sets the [`ImmediateFormat`] at `address` and clears any non-matching Tier 1 `operand_offset`.
     ///
-    /// Runs auto-analysis when enabled and pushes an undoable [`Command::Batch`](crate::commands::Command::Batch).
+    /// Runs auto-analysis when enabled and pushes an undoable [`Command::Batch`].
     pub fn apply_immediate_format(&mut self, address: Addr, new_format: Option<ImmediateFormat>) {
         let batch = self.build_set_immediate_format_commands(address, new_format, None);
         for cmd in &batch {
@@ -446,7 +465,7 @@ impl AppState {
     }
 
     /// Sets both the [`ImmediateFormat`] and an optional Tier 1 [`SymbolicOffset`] at `address`
-    /// in a single chronological undoable [`Command::Batch`](crate::commands::Command::Batch).
+    /// in a single chronological undoable [`Command::Batch`].
     pub fn apply_immediate_format_with_offset(
         &mut self,
         address: Addr,
@@ -460,13 +479,13 @@ impl AppState {
         self.finalize_symbolic_mutation_batch(batch);
     }
 
-    /// Sets or removes a bookmark at `address` and records [`Command::SetBookmark`](crate::commands::Command::SetBookmark) on the undo stack.
+    /// Sets or removes a bookmark at `address` and records [`Command::SetBookmark`] on the undo stack.
     pub fn set_bookmark(&mut self, address: Addr, new_name: Option<String>) {
         let old_name = self
             .annotations
             .get(address)
             .and_then(|e| e.bookmark.clone());
-        let command = crate::commands::Command::SetBookmark {
+        let command = Command::SetBookmark {
             address,
             new_name,
             old_name,
@@ -483,7 +502,7 @@ impl AppState {
     #[cfg(test)]
     #[must_use]
     pub(crate) fn analysis_pass_count() -> usize {
-        ANALYSIS_PASS_COUNT.with(std::cell::Cell::get)
+        ANALYSIS_PASS_COUNT.with(Cell::get)
     }
 
     #[cfg(test)]
@@ -551,7 +570,7 @@ impl AppState {
 
     /// Undoes the most recent command on [`AppState::undo_stack`] and returns a status message.
     pub fn undo_last_command(&mut self) -> String {
-        let mut stack = std::mem::take(&mut self.undo_stack);
+        let mut stack = mem::take(&mut self.undo_stack);
         let msg = if let Some(msg) = stack.undo(self) {
             msg
         } else {
@@ -563,7 +582,7 @@ impl AppState {
 
     /// Redoes the most recently undone command on [`AppState::undo_stack`] and returns a status message.
     pub fn redo_last_command(&mut self) -> String {
-        let mut stack = std::mem::take(&mut self.undo_stack);
+        let mut stack = mem::take(&mut self.undo_stack);
         let msg = if let Some(msg) = stack.redo(self) {
             msg
         } else {
@@ -582,14 +601,14 @@ impl AppState {
     /// Returns `true` if the project has unsaved modifications since the last save or load.
     #[must_use]
     pub fn is_dirty(&self) -> bool {
-        self.undo_stack.get_pointer() != self.last_saved_pointer
+        self.undo_stack.pointer() != self.last_saved_pointer
     }
 
     /// Returns the cached entropy value of the binary, or calculates it from raw data if not cached.
     #[must_use]
     pub fn entropy(&self) -> f32 {
         self.entropy
-            .unwrap_or_else(|| crate::utils::calculate_entropy(&self.raw_data))
+            .unwrap_or_else(|| utils::calculate_entropy(&self.raw_data))
     }
 
     /// Returns summary information and metadata about the loaded binary.
@@ -628,16 +647,16 @@ impl AppState {
             .saturating_add(size)
             .min(0x10000)
             .saturating_sub(1)) as u16;
-        let image = crate::packers::LoadedImage::new(
+        let image = LoadedImage::new(
             &mem,
             start_addr.0,
             load_end_inclusive,
             &self.settings.system,
         );
-        let sig_match = crate::packers::registry::detect(&image);
+        let sig_match = registry::detect(&image);
 
         let (is_packed, packer_name, entry_point) = if let Some(ref m) = sig_match {
-            let info = crate::packers::PackerInfo::resolve(&image, m);
+            let info = PackerInfo::resolve(&image, m);
             (
                 true,
                 Some(info.name),
@@ -646,7 +665,7 @@ impl AppState {
         } else {
             let sys_ep = self
                 .entry_point
-                .or_else(|| crate::unpacker::find_sys_address(&mem, start_addr.0).map(Addr));
+                .or_else(|| unpacker::find_sys_address(&mem, start_addr.0).map(Addr));
             (false, None, sys_ep)
         };
 
@@ -677,11 +696,11 @@ impl AppState {
             || self.annotations.is_scope_end(addr)
     }
 
-    /// Pushes an applied [`Command`](crate::commands::Command) onto [`AppState::undo_stack`].
+    /// Pushes an applied [`Command`] onto [`AppState::undo_stack`].
     ///
     /// Invalidates [`AppState::last_saved_pointer`] if the undo history was rewound past the saved state.
-    pub fn push_command(&mut self, command: crate::commands::Command) {
-        if self.undo_stack.get_pointer() < self.last_saved_pointer {
+    pub fn push_command(&mut self, command: Command) {
+        if self.undo_stack.pointer() < self.last_saved_pointer {
             self.last_saved_pointer = usize::MAX;
         }
         self.undo_stack.push(command);
@@ -689,21 +708,22 @@ impl AppState {
 
     /// Normalizes and checks a plain [`LabelKind::User`] identifier at `address`.
     ///
-    /// Returns `Ok(None)` when `name` is empty or whitespace-only. When `is_local` is `true`,
-    /// strips at most one leading local prefix (`'_'`, `'.'`, or `'@'`). Requires the identifier
-    /// to match `[A-Za-z_][A-Za-z0-9_]*` and not collide with a label at another address.
+    /// Returns `Ok(None)` when `name` is empty or whitespace-only. When `locality` is
+    /// [`LabelLocality::Local`], strips at most one leading local prefix (`'_'`, `'.'`, or `'@'`).
+    /// Requires the identifier to match `[A-Za-z_][A-Za-z0-9_]*` and not collide with a label at
+    /// another address.
     fn normalize_and_validate_plain_user_label<'a>(
         &self,
         address: Addr,
         name: &'a str,
-        is_local: bool,
+        locality: LabelLocality,
     ) -> Result<Option<&'a str>, String> {
         let trimmed = name.trim();
         if trimmed.is_empty() {
             return Ok(None);
         }
 
-        let normalized = if is_local {
+        let normalized = if locality.is_local() {
             trimmed.strip_prefix(['_', '.', '@']).unwrap_or(trimmed)
         } else {
             trimmed
@@ -733,12 +753,13 @@ impl AppState {
         Ok(Some(normalized))
     }
 
-    /// Creates a [`SetLabel`](crate::commands::Command::SetLabel) command for a user label at `address`.
+    /// Creates a [`SetLabel`](Command::SetLabel) command for a user label at `address`.
     ///
     /// If `name` is empty, the command removes any existing label at `address`.
-    /// When `is_local` is `true`, strips an optional single leading local prefix (`'_'`, `'.'`, or
-    /// `'@'`) and assigns [`LocalUserDefined`](crate::state::LabelType::LocalUserDefined).
-    /// When `is_local` is `false`, keeps the existing [`LabelType`] or defaults to
+    /// When `locality` is [`LabelLocality::Local`], strips an optional single leading local prefix
+    /// (`'_'`, `'.'`, or `'@'`) and assigns
+    /// [`LocalUserDefined`](crate::state::LabelType::LocalUserDefined).
+    /// When `locality` is [`LabelLocality::Global`], keeps the existing [`LabelType`] or defaults to
     /// [`UserDefined`](crate::state::LabelType::UserDefined).
     /// Non-empty plain identifiers must match `[A-Za-z_][A-Za-z0-9_]*`.
     ///
@@ -750,13 +771,13 @@ impl AppState {
         &self,
         address: Addr,
         name: &str,
-        is_local: bool,
-    ) -> Result<crate::commands::Command, String> {
+        locality: LabelLocality,
+    ) -> Result<Command, String> {
         let old_label = self.labels.get(&address).cloned();
         let Some(label_name) =
-            self.normalize_and_validate_plain_user_label(address, name, is_local)?
+            self.normalize_and_validate_plain_user_label(address, name, locality)?
         else {
-            return Ok(crate::commands::Command::SetLabel {
+            return Ok(Command::SetLabel {
                 address,
                 new_label: None,
                 old_label,
@@ -771,13 +792,13 @@ impl AppState {
         let inherited_type = new_label_vec
             .first()
             .map(|l| l.label_type)
-            .unwrap_or(super::LabelType::UserDefined);
+            .unwrap_or(LabelType::UserDefined);
 
         let new_label_entry = Label {
             name: label_name.to_string(),
             kind: LabelKind::User,
-            label_type: if is_local {
-                super::LabelType::LocalUserDefined
+            label_type: if locality.is_local() {
+                LabelType::LocalUserDefined
             } else {
                 inherited_type
             },
@@ -789,15 +810,15 @@ impl AppState {
             new_label_vec[0] = new_label_entry;
         }
 
-        Ok(crate::commands::Command::SetLabel {
+        Ok(Command::SetLabel {
             address,
             new_label: Some(new_label_vec),
             old_label,
         })
     }
 
-    /// Creates a [`SetUserSideComment`](crate::commands::Command::SetUserSideComment) or
-    /// [`SetUserLineComment`](crate::commands::Command::SetUserLineComment) command at `address`.
+    /// Creates a [`SetUserSideComment`](Command::SetUserSideComment) or
+    /// [`SetUserLineComment`](Command::SetUserLineComment) command at `address`.
     ///
     /// If `comment` is `None`, empty (`""`), or whitespace-only, `new_comment` is `None` so
     /// [`AnnotationManager`] removes the existing comment.
@@ -807,11 +828,11 @@ impl AppState {
         address: Addr,
         comment: Option<&str>,
         kind: CommentKind,
-    ) -> crate::commands::Command {
+    ) -> Command {
         let new_comment = comment.filter(|s| !s.trim().is_empty()).map(String::from);
 
         match kind {
-            CommentKind::Side => crate::commands::Command::SetUserSideComment {
+            CommentKind::Side => Command::SetUserSideComment {
                 address,
                 new_comment,
                 old_comment: self
@@ -819,7 +840,7 @@ impl AppState {
                     .get(address)
                     .and_then(|e| e.user_side_comment.clone()),
             },
-            CommentKind::Line => crate::commands::Command::SetUserLineComment {
+            CommentKind::Line => Command::SetUserLineComment {
                 address,
                 new_comment,
                 old_comment: self
@@ -870,7 +891,7 @@ impl AppState {
 
     /// Gets an [`EnumDefinition`] by name from project-local, user-global, or built-in enums.
     #[must_use]
-    pub fn get_enum(&self, name: &str) -> Option<&EnumDefinition> {
+    pub fn enum_definition(&self, name: &str) -> Option<&EnumDefinition> {
         self.enums
             .get(name)
             .or_else(|| self.user_global_enums.get(name))
@@ -1226,7 +1247,9 @@ impl AppState {
     /// # Examples
     ///
     /// ```
-    /// use regenerator2000_core::state::{Addr, AppState, BlockType};
+    /// use regenerator2000_core::state::{
+    ///     Addr, AppState, BlockType, EffectiveTarget, OffsetAddressing,
+    /// };
     ///
     /// let mut state = AppState::new();
     /// state.origin = Addr(0x1000);
@@ -1238,8 +1261,16 @@ impl AppState {
     /// assert_eq!(
     ///     targets,
     ///     vec![
-    ///         (Addr(0x1000), Addr(0x00FC), true),
-    ///         (Addr(0x1002), Addr(0x1FFF), false),
+    ///         EffectiveTarget {
+    ///             site_addr: Addr(0x1000),
+    ///             raw_target: Addr(0x00FC),
+    ///             addressing: OffsetAddressing::ZeroPage,
+    ///         },
+    ///         EffectiveTarget {
+    ///             site_addr: Addr(0x1002),
+    ///             raw_target: Addr(0x1FFF),
+    ///             addressing: OffsetAddressing::Absolute,
+    ///         },
     ///     ]
     /// );
     /// ```
@@ -1248,16 +1279,20 @@ impl AppState {
         &self,
         start_addr: Addr,
         end_addr: Addr,
-    ) -> Vec<(Addr, Addr, bool)> {
+    ) -> Vec<EffectiveTarget> {
         self.effective_targets_with_pair_in_range(start_addr, end_addr)
             .into_iter()
-            .map(|t| (t.site_addr, t.raw_target, t.is_zero_page_mode))
+            .map(|t| EffectiveTarget {
+                site_addr: t.site_addr,
+                raw_target: t.raw_target,
+                addressing: OffsetAddressing::from_zero_page(t.is_zero_page_mode),
+            })
             .collect()
     }
 
-    /// Extracts `(site_addr, raw_target, is_zero_page_mode)` at the single address `addr`, if any.
+    /// Extracts the [`EffectiveTarget`] at the single address `addr`, if any.
     #[must_use]
-    pub fn effective_target_at_address(&self, addr: Addr) -> Option<(Addr, Addr, bool)> {
+    pub fn effective_target_at_address(&self, addr: Addr) -> Option<EffectiveTarget> {
         self.effective_targets_in_range(addr, addr)
             .into_iter()
             .next()
@@ -1278,22 +1313,22 @@ impl AppState {
         &[]
     }
 
-    /// Returns the inclusive `(start, end)` bounds of the lexical scope enclosing `addr` in `O(log S)` time.
+    /// Returns the inclusive [`AddrSpan`] of the lexical scope enclosing `addr` in `O(log S)` time.
     #[must_use]
-    pub fn enclosing_scope_for_address(&self, addr: Addr) -> Option<(Addr, Addr)> {
+    pub fn enclosing_scope_for_address(&self, addr: Addr) -> Option<AddrSpan> {
         self.annotations
             .scopes()
             .range(..=addr)
             .next_back()
             .filter(|&(_, &e)| addr <= e)
-            .map(|(&s, &e)| (s, e))
+            .map(|(&start, &end)| AddrSpan { start, end })
     }
 
     /// Resolves `base_str` to its [`Addr`], using `cache` to skip repeated label scans in range loops.
     fn resolve_symbolic_base_cached(
         &self,
         base_str: &str,
-        current_scope: Option<(Addr, Addr)>,
+        current_scope: Option<AddrSpan>,
         cache: Option<&mut SymbolicBaseCache>,
     ) -> Result<Addr, String> {
         let trimmed = base_str.trim();
@@ -1317,18 +1352,18 @@ impl AppState {
     }
 
     /// Searches `scopes` for `name` (or its stripped local form when `LocalUserDefined`).
-    fn find_label_in_scope(&self, name: &str, scopes: &[(Addr, Addr)]) -> Option<Addr> {
+    fn find_label_in_scope(&self, name: &str, scopes: &[AddrSpan]) -> Option<Addr> {
         let stripped = name.strip_prefix(['_', '.', '@']);
         let matches_local = |l: &Label| {
             l.label_type == LabelType::LocalUserDefined
                 && (l.name == name || stripped.is_some_and(|st| l.name == st))
         };
-        for &(s, e) in scopes {
-            for (&addr, label_vec) in self.labels.range(s..=e) {
+        for &scope in scopes {
+            for (&addr, label_vec) in self.labels.range(scope.start..=scope.end) {
                 if label_vec.iter().any(|l| {
                     (l.name == name || matches_local(l))
                         && (l.kind == LabelKind::User
-                            || !crate::disassembler::symbols::has_active_address_offset(
+                            || !symbols::has_active_address_offset(
                                 addr,
                                 &self.labels,
                                 &self.annotations,
@@ -1345,7 +1380,7 @@ impl AppState {
     fn resolve_symbolic_base(
         &self,
         base_str: &str,
-        current_scope: Option<(Addr, Addr)>,
+        current_scope: Option<AddrSpan>,
     ) -> Result<Addr, String> {
         let trimmed = base_str.trim();
         if trimmed.is_empty() {
@@ -1387,7 +1422,7 @@ impl AppState {
             if scope_name.is_empty() || member_name.is_empty() {
                 return Err(format!("Invalid scoped symbol '{trimmed}'"));
             }
-            let matching_scopes: Vec<(Addr, Addr)> = self
+            let matching_scopes: Vec<AddrSpan> = self
                 .annotations
                 .scopes()
                 .iter()
@@ -1395,13 +1430,9 @@ impl AppState {
                     self.labels
                         .get(&s)
                         .is_some_and(|v| v.iter().any(|l| l.name == scope_name))
-                        && !crate::disassembler::symbols::has_active_address_offset(
-                            s,
-                            &self.labels,
-                            &self.annotations,
-                        )
+                        && !symbols::has_active_address_offset(s, &self.labels, &self.annotations)
                 })
-                .map(|(&s, &e)| (s, e))
+                .map(|(&start, &end)| AddrSpan { start, end })
                 .collect();
 
             if matching_scopes.is_empty() {
@@ -1443,11 +1474,7 @@ impl AppState {
                     continue;
                 }
                 if label.kind != LabelKind::User
-                    && crate::disassembler::symbols::has_active_address_offset(
-                        addr,
-                        &self.labels,
-                        &self.annotations,
-                    )
+                    && symbols::has_active_address_offset(addr, &self.labels, &self.annotations)
                 {
                     continue;
                 }
@@ -1484,11 +1511,7 @@ impl AppState {
                 continue;
             }
             if self.excluded_addresses.contains(&addr)
-                || crate::disassembler::symbols::has_active_address_offset(
-                    addr,
-                    &self.labels,
-                    &self.annotations,
-                )
+                || symbols::has_active_address_offset(addr, &self.labels, &self.annotations)
             {
                 continue;
             }
@@ -1535,7 +1558,8 @@ impl AppState {
     ///
     /// ```
     /// use regenerator2000_core::state::{
-    ///     Addr, AppState, Label, LabelKind, LabelType, OffsetRadix, SymbolicOffset,
+    ///     Addr, AppState, Label, LabelKind, LabelType, OffsetAddressing, OffsetRadix,
+    ///     SymbolicOffset,
     /// };
     ///
     /// let mut state = AppState::new();
@@ -1550,7 +1574,12 @@ impl AppState {
     ///
     /// // Bare base symbol auto-computes `offset = $0428 - $0400 = 40`:
     /// assert_eq!(
-    ///     state.parse_symbolic_offset_input("SCREEN_RAM", Addr(0x0428), false, None),
+    ///     state.parse_symbolic_offset_input(
+    ///         "SCREEN_RAM",
+    ///         Addr(0x0428),
+    ///         OffsetAddressing::Absolute,
+    ///         None,
+    ///     ),
     ///     Ok(Some(SymbolicOffset {
     ///         base: Addr(0x0400),
     ///         offset: 40,
@@ -1560,7 +1589,12 @@ impl AppState {
     ///
     /// // Hexadecimal displacement preserves `OffsetRadix::Hex`:
     /// assert_eq!(
-    ///     state.parse_symbolic_offset_input("SCREEN_RAM + $28", Addr(0x0428), false, None),
+    ///     state.parse_symbolic_offset_input(
+    ///         "SCREEN_RAM + $28",
+    ///         Addr(0x0428),
+    ///         OffsetAddressing::Absolute,
+    ///         None,
+    ///     ),
     ///     Ok(Some(SymbolicOffset {
     ///         base: Addr(0x0400),
     ///         offset: 40,
@@ -1572,13 +1606,13 @@ impl AppState {
         &self,
         input: &str,
         effective_addr: Addr,
-        is_zero_page_mode: bool,
-        current_scope: Option<(Addr, Addr)>,
+        addressing: OffsetAddressing,
+        current_scope: Option<AddrSpan>,
     ) -> Result<Option<SymbolicOffset>, String> {
         self.parse_symbolic_offset_input_inner(
             input,
             effective_addr,
-            is_zero_page_mode,
+            addressing.is_zero_page(),
             current_scope,
             None,
         )
@@ -1591,7 +1625,7 @@ impl AppState {
         input: &str,
         effective_addr: Addr,
         is_zero_page_mode: bool,
-        current_scope: Option<(Addr, Addr)>,
+        current_scope: Option<AddrSpan>,
         cache: &mut SymbolicBaseCache,
     ) -> Result<Option<SymbolicOffset>, String> {
         self.parse_symbolic_offset_input_inner(
@@ -1608,7 +1642,7 @@ impl AppState {
         input: &str,
         effective_addr: Addr,
         is_zero_page_mode: bool,
-        current_scope: Option<(Addr, Addr)>,
+        current_scope: Option<AddrSpan>,
         cache: Option<&mut SymbolicBaseCache>,
     ) -> Result<Option<SymbolicOffset>, String> {
         if Self::is_symbolic_clear_input(input) {
@@ -1745,7 +1779,7 @@ impl AppState {
     }
 
     /// Formats `sym` into an unparenthesized assembler expression string (such as `"zp_ptr + 1"`
-    /// or `"l00 + 1"`) using the active [`Formatter`](crate::disassembler::formatter::Formatter).
+    /// or `"l00 + 1"`) using the active [`Formatter`].
     ///
     /// Mirrors [`resolve_symbolic_label_name`](crate::disassembler::resolve_symbolic_label_name)
     /// across scope-local labels (`l00`), scope qualifiers, and non-excluded [`AppState::system_labels`].
@@ -1755,62 +1789,55 @@ impl AppState {
         &self,
         sym: SymbolicOffset,
         site_addr: Option<Addr>,
-        is_zero_page_mode: bool,
+        addressing: OffsetAddressing,
     ) -> String {
         let formatter = Disassembler::formatter(self.settings.assembler);
         let supports_scopes = formatter.supports_scopes();
 
         let scope_header_name = |s: Addr| -> Option<String> {
-            (!crate::disassembler::symbols::has_active_address_offset(
-                s,
-                &self.labels,
-                &self.annotations,
-            ))
-            .then(|| {
-                self.labels.get(&s).and_then(|v| {
-                    crate::disassembler::resolve_label(v, s.0, &self.settings)
-                        .map(|l| l.name.clone())
+            (!symbols::has_active_address_offset(s, &self.labels, &self.annotations))
+                .then(|| {
+                    self.labels.get(&s).and_then(|v| {
+                        disassembler::resolve_label(v, s.0, &self.settings).map(|l| l.name.clone())
+                    })
                 })
-            })
-            .flatten()
+                .flatten()
         };
 
         let base_scope = supports_scopes
             .then(|| self.enclosing_scope_for_address(sym.base))
             .flatten();
-        let base_scope_name = base_scope.and_then(|(s, _)| scope_header_name(s));
+        let base_scope_name = base_scope.and_then(|scope| scope_header_name(scope.start));
         let current_scope_name = supports_scopes
             .then(|| {
                 site_addr
                     .and_then(|sa| self.enclosing_scope_for_address(sa))
-                    .and_then(|(s, _)| scope_header_name(s))
+                    .and_then(|scope| scope_header_name(scope.start))
             })
             .flatten();
 
-        let local_map = base_scope.and_then(|(s_start, s_end)| {
-            let start_pc = usize::from(s_start.0.checked_sub(self.origin.0)?);
+        let local_map = base_scope.and_then(|scope| {
+            let start_pc = usize::from(scope.start.0.checked_sub(self.origin.0)?);
             if start_pc >= self.raw_data.len() {
                 return None;
             }
-            let end_pc = usize::from(s_end.0.checked_sub(self.origin.0)?)
+            let end_pc = usize::from(scope.end.0.checked_sub(self.origin.0)?)
                 .min(self.raw_data.len().saturating_sub(1));
-            Some(
-                crate::disassembler::symbols::compute_local_label_names_in_range(
-                    &self.disassembler.opcodes,
-                    &self.raw_data,
-                    self.origin,
-                    &self.labels,
-                    &self.annotations,
-                    start_pc,
-                    end_pc,
-                    formatter,
-                ),
-            )
+            Some(symbols::compute_local_label_names_in_range(
+                &self.disassembler.opcodes,
+                &self.raw_data,
+                self.origin,
+                &self.labels,
+                &self.annotations,
+                start_pc,
+                end_pc,
+                formatter,
+            ))
         });
 
-        let mut scope_map = crate::disassembler::symbols::ScopeNameMap::default();
-        if let (Some((s_start, s_end)), Some(sname)) = (base_scope, base_scope_name) {
-            scope_map.insert_range(s_start, s_end, sname);
+        let mut scope_map = symbols::ScopeNameMap::default();
+        if let (Some(scope), Some(sname)) = (base_scope, base_scope_name) {
+            scope_map.insert_range(scope.start, scope.end, sname);
         }
 
         let sys_fallback = self
@@ -1824,7 +1851,7 @@ impl AppState {
             .flatten();
         let labels_for_base = sys_fallback.as_ref().unwrap_or(&self.labels);
 
-        crate::disassembler::symbols::format_symbolic_offset_expr(
+        symbols::format_symbolic_offset_expr(
             sym,
             labels_for_base,
             &self.settings,
@@ -1836,7 +1863,7 @@ impl AppState {
             formatter.local_label_prefix(),
             OffsetParentheses::Bare,
             |base| {
-                if is_zero_page_mode && base.0 <= 0x00FF {
+                if addressing.is_zero_page() && base.0 <= 0x00FF {
                     formatter.format_byte(base.0 as u8)
                 } else {
                     formatter.format_address(base)
@@ -1845,22 +1872,23 @@ impl AppState {
         )
     }
 
-    /// Suggests `(initial_expression, default_is_global)` for `effective_addr` (optionally
-    /// referenced from `site_addr`).
+    /// Suggests a [`SymbolicOffsetSuggestion`] for `effective_addr` (optionally referenced from
+    /// `site_addr`).
     ///
     /// Precedence:
     ///
-    /// 1. Active Tier 1 `operand_offset` at `site_addr`, returning `(expr, false)`.
-    /// 2. Active Tier 2 `address_offset` at `effective_addr`, returning `(expr, true)`.
+    /// 1. Active Tier 1 `operand_offset` at `site_addr`, returning `default_is_global: false`.
+    /// 2. Active Tier 2 `address_offset` at `effective_addr`, returning `default_is_global: true`.
     /// 3. Nearest candidate symbol (`effective_addr + 1` or preceding label within `$0400` bytes).
-    ///    Defaults `is_global` to `true` on external equates and positive-displacement memory instructions.
+    ///    Defaults `default_is_global` to `true` on external equates and positive-displacement
+    ///    memory instructions.
     #[must_use]
     pub fn suggest_symbolic_offset(
         &self,
         site_addr: Option<Addr>,
         effective_addr: Addr,
-        is_zero_page_mode: bool,
-    ) -> (String, bool) {
+        addressing: OffsetAddressing,
+    ) -> SymbolicOffsetSuggestion {
         if let Some(site) = site_addr {
             let tier1 = self
                 .annotations
@@ -1868,7 +1896,7 @@ impl AppState {
                 .and_then(|e| e.operand_offset)
                 .filter(|sym| {
                     sym.matches_target(effective_addr)
-                        && (!is_zero_page_mode || sym.base.0 <= 0x00FF)
+                        && (!addressing.is_zero_page() || sym.base.0 <= 0x00FF)
                 })
                 .or_else(|| {
                     self.split_table_pair_at_address(site).and_then(
@@ -1883,35 +1911,33 @@ impl AppState {
                                 })
                                 .filter(|sym| {
                                     sym.matches_target(effective_addr)
-                                        && (!is_zero_page_mode || sym.base.0 <= 0x00FF)
+                                        && (!addressing.is_zero_page() || sym.base.0 <= 0x00FF)
                                 })
                         },
                     )
                 });
             if let Some(sym) = tier1 {
-                return (
-                    self.format_symbolic_offset(sym, site_addr, is_zero_page_mode),
-                    false,
-                );
+                return SymbolicOffsetSuggestion {
+                    expression: self.format_symbolic_offset(sym, site_addr, addressing),
+                    default_is_global: false,
+                };
             }
         }
 
-        if crate::disassembler::symbols::has_active_address_offset(
-            effective_addr,
-            &self.labels,
-            &self.annotations,
-        ) && let Some(sym) = self
-            .annotations
-            .get(effective_addr)
-            .and_then(|e| e.address_offset)
-            .filter(|sym| {
-                sym.matches_target(effective_addr) && (!is_zero_page_mode || sym.base.0 <= 0x00FF)
-            })
+        if symbols::has_active_address_offset(effective_addr, &self.labels, &self.annotations)
+            && let Some(sym) = self
+                .annotations
+                .get(effective_addr)
+                .and_then(|e| e.address_offset)
+                .filter(|sym| {
+                    sym.matches_target(effective_addr)
+                        && (!addressing.is_zero_page() || sym.base.0 <= 0x00FF)
+                })
         {
-            return (
-                self.format_symbolic_offset(sym, site_addr, is_zero_page_mode),
-                true,
-            );
+            return SymbolicOffsetSuggestion {
+                expression: self.format_symbolic_offset(sym, site_addr, addressing),
+                default_is_global: true,
+            };
         }
 
         let is_code_memory_site = site_addr.is_some_and(|site| {
@@ -1931,27 +1957,20 @@ impl AppState {
 
         let has_unsuppressed_label = |addr: Addr| -> bool {
             !self.effective_labels_at(addr).is_empty()
-                && !crate::disassembler::symbols::has_active_address_offset(
-                    addr,
-                    &self.labels,
-                    &self.annotations,
-                )
+                && !symbols::has_active_address_offset(addr, &self.labels, &self.annotations)
         };
         let has_user_or_system_label = |addr: Addr| -> bool {
-            !crate::disassembler::symbols::has_active_address_offset(
-                addr,
-                &self.labels,
-                &self.annotations,
-            ) && self
-                .effective_labels_at(addr)
-                .iter()
-                .any(|l| matches!(l.kind, LabelKind::User | LabelKind::System))
+            !symbols::has_active_address_offset(addr, &self.labels, &self.annotations)
+                && self
+                    .effective_labels_at(addr)
+                    .iter()
+                    .any(|l| matches!(l.kind, LabelKind::User | LabelKind::System))
         };
 
         let plus1_candidate = (effective_addr.0 < 0xFFFF)
             .then(|| Addr(effective_addr.0 + 1))
             .filter(|&cand| {
-                (!is_zero_page_mode || cand.0 <= 0x00FF) && has_unsuppressed_label(cand)
+                (!addressing.is_zero_page() || cand.0 <= 0x00FF) && has_unsuppressed_label(cand)
             })
             .map(|cand| SymbolicOffset {
                 base: cand,
@@ -1966,7 +1985,7 @@ impl AppState {
             .map(|(&cand, _)| cand)
             .take_while(|&cand| effective_addr.0 - cand.0 <= 0x0400)
             .find(|&cand| {
-                (!is_zero_page_mode || cand.0 <= 0x00FF) && has_user_or_system_label(cand)
+                (!addressing.is_zero_page() || cand.0 <= 0x00FF) && has_user_or_system_label(cand)
             });
         let prev_from_system = self
             .system_labels
@@ -1975,7 +1994,7 @@ impl AppState {
             .map(|(&cand, _)| cand)
             .take_while(|&cand| effective_addr.0 - cand.0 <= 0x0400)
             .find(|&cand| {
-                (!is_zero_page_mode || cand.0 <= 0x00FF) && has_user_or_system_label(cand)
+                (!addressing.is_zero_page() || cand.0 <= 0x00FF) && has_user_or_system_label(cand)
             });
         let prev_user_sys_candidate = prev_from_labels
             .into_iter()
@@ -1988,7 +2007,7 @@ impl AppState {
         let prev_adj_auto_candidate = (effective_addr.0 > 0)
             .then(|| Addr(effective_addr.0 - 1))
             .filter(|&cand| {
-                (!is_zero_page_mode || cand.0 <= 0x00FF) && has_unsuppressed_label(cand)
+                (!addressing.is_zero_page() || cand.0 <= 0x00FF) && has_unsuppressed_label(cand)
             })
             .map(|cand| SymbolicOffset {
                 base: cand,
@@ -2014,21 +2033,27 @@ impl AppState {
 
         if let Some(sym) = chosen {
             let default_is_global = site_addr.is_none() || (is_code_memory_site && sym.offset > 0);
-            let expr = self.format_symbolic_offset(sym, site_addr, is_zero_page_mode);
-            (expr, default_is_global)
+            let expression = self.format_symbolic_offset(sym, site_addr, addressing);
+            SymbolicOffsetSuggestion {
+                expression,
+                default_is_global,
+            }
         } else {
-            (String::new(), site_addr.is_none() || is_code_memory_site)
+            SymbolicOffsetSuggestion {
+                expression: String::new(),
+                default_is_global: site_addr.is_none() || is_code_memory_site,
+            }
         }
     }
 
     /// Runs analysis (when `auto_analyze` is `true`) or disassembly and pushes one undoable batch.
-    fn finalize_symbolic_mutation_batch(&mut self, mut commands: Vec<crate::commands::Command>) {
+    fn finalize_symbolic_mutation_batch(&mut self, mut commands: Vec<Command>) {
         if commands.is_empty() {
             return;
         }
         if self.settings.auto_analyze {
-            let (analysis_cmd, _) = self.perform_analysis();
-            commands.push(analysis_cmd);
+            let outcome = self.perform_analysis();
+            commands.push(outcome.command);
         } else {
             // Materialize non-excluded `system_labels` for newly bound `sym.base` addresses so
             // `disassemble()` and `.asm` export emit the platform symbol and equate even when
@@ -2036,11 +2061,11 @@ impl AppState {
             let mut bases = BTreeSet::new();
             for cmd in &commands {
                 match cmd {
-                    crate::commands::Command::SetOperandOffset {
+                    Command::SetOperandOffset {
                         new_offset: Some(sym),
                         ..
                     }
-                    | crate::commands::Command::SetAddressOffset {
+                    | Command::SetAddressOffset {
                         new_offset: Some(sym),
                         ..
                     } => {
@@ -2059,7 +2084,7 @@ impl AppState {
                         .cloned()
                 {
                     let old_label = self.labels.get(&base).cloned();
-                    let label_cmd = crate::commands::Command::SetLabel {
+                    let label_cmd = Command::SetLabel {
                         address: base,
                         new_label: Some(sys_vec),
                         old_label,
@@ -2075,7 +2100,7 @@ impl AppState {
         {
             self.push_command(single);
         } else {
-            self.push_command(crate::commands::Command::Batch(commands));
+            self.push_command(Command::Batch(commands));
         }
     }
 
@@ -2083,12 +2108,12 @@ impl AppState {
     fn append_operand_offset_commands(
         &mut self,
         updates: &[(Addr, Option<SymbolicOffset>)],
-        commands: &mut Vec<crate::commands::Command>,
+        commands: &mut Vec<Command>,
     ) {
         for &(address, raw_new_offset) in updates {
             let new_offset = raw_new_offset.filter(|sym| sym.offset != 0);
             let old_offset = self.annotations.get(address).and_then(|e| e.operand_offset);
-            let cmd = crate::commands::Command::SetOperandOffset {
+            let cmd = Command::SetOperandOffset {
                 address,
                 new_offset,
                 old_offset,
@@ -2103,7 +2128,7 @@ impl AppState {
         &mut self,
         updates: &[(Addr, Option<SymbolicOffset>)],
         site_addrs: &[Addr],
-        commands: &mut Vec<crate::commands::Command>,
+        commands: &mut Vec<Command>,
     ) {
         let mut cleared_sites = BTreeSet::new();
         let mut candidate_set = BTreeSet::new();
@@ -2128,7 +2153,7 @@ impl AppState {
                         .filter(|l| l.kind == LabelKind::System)
                         .cloned()
                         .collect();
-                    let clear_label_cmd = crate::commands::Command::SetLabel {
+                    let clear_label_cmd = Command::SetLabel {
                         address: target_addr,
                         new_label: (!retained_system.is_empty()).then_some(retained_system),
                         old_label: Some(old_vec),
@@ -2145,7 +2170,7 @@ impl AppState {
                         .filter(|sym| sym.matches_target(target_addr))
                         && cleared_sites.insert(cand_site)
                     {
-                        let clear_tier1_cmd = crate::commands::Command::SetOperandOffset {
+                        let clear_tier1_cmd = Command::SetOperandOffset {
                             address: cand_site,
                             new_offset: None,
                             old_offset: Some(old_op_offset),
@@ -2160,7 +2185,7 @@ impl AppState {
                 .annotations
                 .get(target_addr)
                 .and_then(|e| e.address_offset);
-            let set_addr_cmd = crate::commands::Command::SetAddressOffset {
+            let set_addr_cmd = Command::SetAddressOffset {
                 address: target_addr,
                 new_offset,
                 old_offset,
@@ -2227,7 +2252,7 @@ impl AppState {
         &self,
         address: Addr,
         name: &str,
-        is_local: bool,
+        locality: LabelLocality,
         site_addr: Option<Addr>,
     ) -> Result<LabelOrAddressOffsetPlan, String> {
         let trimmed = name.trim();
@@ -2235,12 +2260,16 @@ impl AppState {
             let scope = site_addr
                 .and_then(|sa| self.enclosing_scope_for_address(sa))
                 .or_else(|| self.enclosing_scope_for_address(address));
-            let parsed =
-                self.parse_symbolic_offset_input(trimmed, address, address.0 <= 0x00FF, scope)?;
+            let parsed = self.parse_symbolic_offset_input(
+                trimmed,
+                address,
+                OffsetAddressing::for_address(address),
+                scope,
+            )?;
             return Ok(LabelOrAddressOffsetPlan::AddressOffset(parsed));
         }
 
-        let _ = self.normalize_and_validate_plain_user_label(address, trimmed, is_local)?;
+        let _ = self.normalize_and_validate_plain_user_label(address, trimmed, locality)?;
         Ok(LabelOrAddressOffsetPlan::PlainLabel)
     }
 
@@ -2258,7 +2287,9 @@ impl AppState {
     /// # Examples
     ///
     /// ```
-    /// use regenerator2000_core::state::{Addr, AppState, Label, LabelKind, LabelType};
+    /// use regenerator2000_core::state::{
+    ///     Addr, AppState, Label, LabelKind, LabelLocality, LabelType,
+    /// };
     ///
     /// let mut state = AppState::new();
     /// state.labels.insert(
@@ -2271,21 +2302,21 @@ impl AppState {
     /// );
     ///
     /// // Valid plain identifier and valid Tier 2 symbolic offset expression:
-    /// assert!(state.validate_user_label_or_address_offset(Addr(0x00FC), "ptr_hi", false, None).is_ok());
-    /// assert!(state.validate_user_label_or_address_offset(Addr(0x00FC), "zp_ptr + 1", false, None).is_ok());
+    /// assert!(state.validate_user_label_or_address_offset(Addr(0x00FC), "ptr_hi", LabelLocality::Global, None).is_ok());
+    /// assert!(state.validate_user_label_or_address_offset(Addr(0x00FC), "zp_ptr + 1", LabelLocality::Global, None).is_ok());
     ///
     /// // Rejects corrupt plain-label syntax and duplicate label names:
-    /// assert!(state.validate_user_label_or_address_offset(Addr(0x00FC), "(corrupt)", false, None).is_err());
-    /// assert!(state.validate_user_label_or_address_offset(Addr(0x00FC), "zp_ptr", false, None).is_err());
+    /// assert!(state.validate_user_label_or_address_offset(Addr(0x00FC), "(corrupt)", LabelLocality::Global, None).is_err());
+    /// assert!(state.validate_user_label_or_address_offset(Addr(0x00FC), "zp_ptr", LabelLocality::Global, None).is_err());
     /// ```
     pub fn validate_user_label_or_address_offset(
         &self,
         address: Addr,
         name: &str,
-        is_local: bool,
+        locality: LabelLocality,
         site_addr: Option<Addr>,
     ) -> Result<(), String> {
-        self.plan_user_label_or_address_offset(address, name, is_local, site_addr)
+        self.plan_user_label_or_address_offset(address, name, locality, site_addr)
             .map(|_| ())
     }
 
@@ -2296,7 +2327,7 @@ impl AppState {
     ///   shadowing Tier 1 `operand_offset` at `site_addr`.
     /// - When `name` is a plain identifier or `""`, sets or clears the [`LabelKind::User`] label at
     ///   `address` and clears any active Tier 2 `address_offset`. Runs analysis when `auto_analyze` is
-    ///   `true` and records one [`Command::Batch`](crate::commands::Command::Batch).
+    ///   `true` and records one [`Command::Batch`].
     ///
     /// # Errors
     ///
@@ -2306,16 +2337,16 @@ impl AppState {
         &mut self,
         address: Addr,
         name: &str,
-        is_local: bool,
+        locality: LabelLocality,
         site_addr: Option<Addr>,
     ) -> Result<Option<SymbolicOffset>, String> {
-        match self.plan_user_label_or_address_offset(address, name, is_local, site_addr)? {
+        match self.plan_user_label_or_address_offset(address, name, locality, site_addr)? {
             LabelOrAddressOffsetPlan::AddressOffset(parsed) => {
                 self.apply_address_offsets(&[(address, parsed)], site_addr);
                 Ok(parsed)
             }
             LabelOrAddressOffsetPlan::PlainLabel => {
-                let label_cmd = self.create_set_user_label_command(address, name, is_local)?;
+                let label_cmd = self.create_set_user_label_command(address, name, locality)?;
                 let mut commands = Vec::with_capacity(3);
                 label_cmd.apply(self);
                 commands.push(label_cmd);
@@ -2323,7 +2354,7 @@ impl AppState {
                 if let Some(old_offset) =
                     self.annotations.get(address).and_then(|e| e.address_offset)
                 {
-                    let clear_offset_cmd = crate::commands::Command::SetAddressOffset {
+                    let clear_offset_cmd = Command::SetAddressOffset {
                         address,
                         new_offset: None,
                         old_offset: Some(old_offset),
@@ -2339,6 +2370,15 @@ impl AppState {
     }
 }
 
+/// Result of running static analysis via [`AppState::perform_analysis`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnalysisOutcome {
+    /// Undoable [`Command::SetAnalysisData`] recording the diff.
+    pub command: Command,
+    /// User-facing status summary string.
+    pub status_message: String,
+}
+
 /// Checked outcome of [`AppState::plan_user_label_or_address_offset`].
 enum LabelOrAddressOffsetPlan {
     AddressOffset(Option<SymbolicOffset>),
@@ -2348,7 +2388,7 @@ enum LabelOrAddressOffsetPlan {
 #[derive(Debug)]
 struct CachedBaseLookup {
     token: String,
-    scope: Option<(Addr, Addr)>,
+    scope: Option<AddrSpan>,
     result: Result<Addr, String>,
 }
 
@@ -2411,20 +2451,21 @@ fn parse_unsigned_offset_literal(raw: &str) -> Result<(u32, OffsetRadix), String
     if !trimmed.bytes().next().is_some_and(|b| b.is_ascii_digit()) {
         return Err(format!("Invalid displacement '{trimmed}'"));
     }
-    let val = trimmed
-        .parse::<u32>()
+    let val: u32 = trimmed
+        .parse()
         .map_err(|_| format!("Invalid decimal displacement '{trimmed}'"))?;
     Ok((val, OffsetRadix::Decimal))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::types::LabelType;
+    use super::super::types::{ExternalXRefs, LabelType, System};
     use super::*;
+    use std::fs;
 
     #[test]
     fn test_default_settings() {
-        let settings = super::super::settings::DocumentSettings::default();
+        let settings = DocumentSettings::default();
         assert_eq!(settings.max_arrow_columns, 6);
         assert!(settings.brk_single_byte);
         assert!(!settings.patch_brk);
@@ -2452,10 +2493,11 @@ mod tests {
         app_state.perform_analysis();
 
         // User label should still be there
-        let labels_at_c000 = app_state.labels.get(&Addr(0xC000));
-        assert!(labels_at_c000.is_some());
+        let labels_at_c000 = app_state
+            .labels
+            .get(&Addr(0xC000))
+            .expect("user label should exist at $C000");
         let has_user = labels_at_c000
-            .unwrap()
             .iter()
             .any(|l| l.name == "my_routine" && l.kind == LabelKind::User);
         assert!(has_user, "User label 'my_routine' should be preserved");
@@ -2483,10 +2525,11 @@ mod tests {
         app_state.perform_analysis();
 
         // System label should still be preserved
-        let labels_at_fb = app_state.labels.get(&Addr(0x00FB));
-        assert!(labels_at_fb.is_some());
+        let labels_at_fb = app_state
+            .labels
+            .get(&Addr(0x00FB))
+            .expect("system label should exist at $00FB");
         let has_system = labels_at_fb
-            .unwrap()
             .iter()
             .any(|l| l.name == "SYS_LABEL" && l.kind == LabelKind::System);
         assert!(has_system, "System label should be preserved");
@@ -2495,7 +2538,7 @@ mod tests {
     #[test]
     fn test_load_system_assets_respects_exclude_labels() {
         let mut app_state = AppState::new();
-        app_state.settings.system = crate::state::System::from("Commodore 64".to_string());
+        app_state.settings.system = System::from("Commodore 64".to_string());
         app_state.settings.exclude_well_known_labels = true;
 
         app_state.load_system_assets();
@@ -2519,7 +2562,7 @@ mod tests {
         assert!(!info.is_packed);
         assert_eq!(info.packer_name, None);
 
-        app_state.settings.system = crate::state::System::Vic20;
+        app_state.settings.system = System::Vic20;
         let vic_info = app_state.file_info();
         assert_eq!(vic_info.start_addr, Addr(0x1001));
         assert_eq!(vic_info.end_addr, Addr(0x1001));
@@ -2543,8 +2586,8 @@ mod tests {
         );
         let original_labels = app_state.labels.clone();
 
-        let (cmd, _) = app_state.perform_analysis();
-        app_state.push_command(cmd);
+        let outcome = app_state.perform_analysis();
+        app_state.push_command(outcome.command);
         assert!(app_state.labels.contains_key(&Addr(0xC005)));
         assert!(!app_state.labels.contains_key(&Addr(0xC003)));
 
@@ -2622,8 +2665,8 @@ mod tests {
 
         let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/6502");
         for &(filename, expected_packer) in samples {
-            let prg = std::fs::read(fixture_dir.join(filename))
-                .unwrap_or_else(|e| panic!("{filename}: {e}"));
+            let prg =
+                fs::read(fixture_dir.join(filename)).unwrap_or_else(|e| panic!("{filename}: {e}"));
             let load_addr = u16::from_le_bytes([prg[0], prg[1]]);
             let mut app_state = AppState::new();
             app_state.origin = Addr(load_addr);
@@ -2683,16 +2726,14 @@ mod tests {
             (result, count)
         }
 
-        let spec_count = crate::packers::registry::PACKERS.len();
+        let spec_count = registry::PACKERS.len();
         assert!(spec_count >= 21);
 
         // 1. Direct `registry::detect` across all 21 specs on an unpacked 64 KB image performs
         // zero heap allocations.
         let mem = vec![0xEAu8; 0x10000];
-        let image =
-            crate::packers::LoadedImage::new(&mem, 0x0801, 0x2000, &crate::state::System::C64);
-        let (matched, detect_allocs) =
-            count_allocations(|| crate::packers::registry::detect(&image));
+        let image = LoadedImage::new(&mem, 0x0801, 0x2000, &System::C64);
+        let (matched, detect_allocs) = count_allocations(|| registry::detect(&image));
         assert!(matched.is_none());
         assert_eq!(
             detect_allocs, 0,
@@ -2723,7 +2764,7 @@ mod tests {
             app_state.create_set_comment_command(addr, Some("side note"), CommentKind::Side);
         assert_eq!(
             set_cmd,
-            crate::commands::Command::SetUserSideComment {
+            Command::SetUserSideComment {
                 address: addr,
                 new_comment: Some("side note".to_string()),
                 old_comment: None,
@@ -2735,7 +2776,7 @@ mod tests {
         let clear_cmd = app_state.create_set_comment_command(addr, Some("   "), CommentKind::Side);
         assert_eq!(
             clear_cmd,
-            crate::commands::Command::SetUserSideComment {
+            Command::SetUserSideComment {
                 address: addr,
                 new_comment: None,
                 old_comment: Some("side note".to_string()),
@@ -2764,7 +2805,7 @@ mod tests {
         );
         // Establish baseline Step 0 before recording undoable transitions.
         state.perform_analysis();
-        state.undo_stack = crate::commands::UndoStack::new();
+        state.undo_stack = UndoStack::new();
 
         let operand_at_1002 = |s: &AppState| -> String {
             s.disassembly
@@ -2775,7 +2816,7 @@ mod tests {
                 .clone()
         };
         let has_preamble_fc = |s: &AppState| -> bool {
-            s.get_external_label_definitions(false)
+            s.external_label_definitions(ExternalXRefs::Omit)
                 .iter()
                 .any(|l| l.external_label_address == Some(Addr(0x00FC)))
         };
@@ -2792,12 +2833,16 @@ mod tests {
                 "{label}"
             );
             assert_eq!(
-                s.cross_refs.get(&Addr(0x00FB)).unwrap(),
+                s.cross_refs
+                    .get(&Addr(0x00FB))
+                    .expect("cross-references for $00FB should exist"),
                 &vec![XRef::new(Addr(0x1000), XRefKind::Write)],
                 "{label}"
             );
             assert_eq!(
-                s.cross_refs.get(&Addr(0x00FC)).unwrap(),
+                s.cross_refs
+                    .get(&Addr(0x00FC))
+                    .expect("cross-references for $00FC should exist"),
                 &vec![XRef::new(Addr(0x1002), XRefKind::Write)],
                 "{label}"
             );
@@ -2817,7 +2862,9 @@ mod tests {
                 "{label}"
             );
             assert_eq!(
-                s.cross_refs.get(&Addr(0x00FC)).unwrap(),
+                s.cross_refs
+                    .get(&Addr(0x00FC))
+                    .expect("cross-references for $00FC should exist"),
                 &vec![XRef::new(Addr(0x1002), XRefKind::Write)],
                 "{label}"
             );
@@ -2843,7 +2890,9 @@ mod tests {
                 "{label}"
             );
             assert_eq!(
-                s.cross_refs.get(&Addr(0x00FB)).unwrap(),
+                s.cross_refs
+                    .get(&Addr(0x00FB))
+                    .expect("cross-references for $00FB should exist"),
                 &vec![
                     XRef::new(Addr(0x1000), XRefKind::Write),
                     XRef::new(Addr(0x1002), XRefKind::Write),
@@ -2867,12 +2916,16 @@ mod tests {
                 "{label}"
             );
             assert_eq!(
-                s.cross_refs.get(&Addr(0x00FB)).unwrap(),
+                s.cross_refs
+                    .get(&Addr(0x00FB))
+                    .expect("cross-references for $00FB should exist"),
                 &vec![XRef::new(Addr(0x1000), XRefKind::Write)],
                 "{label}"
             );
             assert_eq!(
-                s.cross_refs.get(&Addr(0x00FC)).unwrap(),
+                s.cross_refs
+                    .get(&Addr(0x00FC))
+                    .expect("cross-references for $00FC should exist"),
                 &vec![XRef::new(Addr(0x1002), XRefKind::Write)],
                 "{label}"
             );
@@ -2885,27 +2938,37 @@ mod tests {
 
         // Step 1: Set User label "temp_fc" at $00FC
         state
-            .apply_user_label_or_address_offset(Addr(0x00FC), "temp_fc", false, None)
-            .unwrap();
+            .apply_user_label_or_address_offset(
+                Addr(0x00FC),
+                "temp_fc",
+                LabelLocality::Global,
+                None,
+            )
+            .expect("label/offset operation should succeed");
         assert_step_1(&state, "Step 1");
 
         // Step 2: Apply Tier 2 address_offset ("zp_ptr + 1") at $00FC
         let applied_sym = state
-            .apply_user_label_or_address_offset(Addr(0x00FC), "zp_ptr + 1", false, None)
-            .unwrap();
+            .apply_user_label_or_address_offset(
+                Addr(0x00FC),
+                "zp_ptr + 1",
+                LabelLocality::Global,
+                None,
+            )
+            .expect("label/offset operation should succeed");
         assert_eq!(applied_sym, Some(expected_sym));
         assert_step_2(&state, "Step 2");
 
         // Step 3: Apply plain User label "ptr_hi" at $00FC (clears Tier 2 address_offset)
         state
-            .apply_user_label_or_address_offset(Addr(0x00FC), "ptr_hi", false, None)
-            .unwrap();
+            .apply_user_label_or_address_offset(Addr(0x00FC), "ptr_hi", LabelLocality::Global, None)
+            .expect("setting plain user label should succeed");
         assert_step_3(&state, "Step 3");
 
         // Step 4: Clear User label "" at $00FC (regenerates Auto zpa_FC, no ghost offset)
         state
-            .apply_user_label_or_address_offset(Addr(0x00FC), "", false, None)
-            .unwrap();
+            .apply_user_label_or_address_offset(Addr(0x00FC), "", LabelLocality::Global, None)
+            .expect("clearing user label should succeed");
         assert_step_0(&state, "Step 4");
 
         // 4 consecutive Undo calls: 4 -> 3 -> 2 -> 1 -> 0
@@ -2953,7 +3016,7 @@ mod tests {
             }],
         );
         state.perform_analysis();
-        state.undo_stack = crate::commands::UndoStack::new();
+        state.undo_stack = UndoStack::new();
 
         let tier1_sym = SymbolicOffset {
             base: Addr(0x00FA),
@@ -2965,7 +3028,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1002))
-            .unwrap();
+            .expect("disassembly line at $1002 should exist");
         assert_eq!(op_1002.operand, "alt_base + 2");
 
         // Apply Tier 2 address_offset on $00FC from site_addr = Some($1002)
@@ -2996,7 +3059,7 @@ mod tests {
                 .disassembly
                 .iter()
                 .find(|l| l.address == Addr(0x1002))
-                .unwrap()
+                .expect("disassembly line at $1002 should exist")
                 .operand,
             "zp_ptr + 1"
         );
@@ -3022,7 +3085,7 @@ mod tests {
                 .disassembly
                 .iter()
                 .find(|l| l.address == Addr(0x1002))
-                .unwrap()
+                .expect("disassembly line at $1002 should exist")
                 .operand,
             "alt_base + 2"
         );
@@ -3041,7 +3104,7 @@ mod tests {
                 .disassembly
                 .iter()
                 .find(|l| l.address == Addr(0x1002))
-                .unwrap()
+                .expect("disassembly line at $1002 should exist")
                 .operand,
             "zp_ptr + 1"
         );
@@ -3114,7 +3177,7 @@ mod tests {
             }],
         );
         state.perform_analysis();
-        state.undo_stack = crate::commands::UndoStack::new();
+        state.undo_stack = UndoStack::new();
 
         let sym = SymbolicOffset {
             base: Addr(0xC100),
@@ -3203,8 +3266,13 @@ mod tests {
         // 1. Decimal positive
         assert_eq!(
             state
-                .parse_symbolic_offset_input("zp_ptr + 1", Addr(0x00FC), true, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "zp_ptr + 1",
+                    Addr(0x00FC),
+                    OffsetAddressing::ZeroPage,
+                    None
+                )
+                .expect("valid zero-page symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0x00FB),
                 offset: 1,
@@ -3215,8 +3283,13 @@ mod tests {
         // 2. Hex `$` negative
         assert_eq!(
             state
-                .parse_symbolic_offset_input("sub_C100 - $10", Addr(0xC0F0), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "sub_C100 - $10",
+                    Addr(0xC0F0),
+                    OffsetAddressing::Absolute,
+                    None
+                )
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0xC100),
                 offset: -16,
@@ -3227,8 +3300,13 @@ mod tests {
         // 3. Hex `0x` positive
         assert_eq!(
             state
-                .parse_symbolic_offset_input("SCREEN_RAM + 0x28", Addr(0x0428), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "SCREEN_RAM + 0x28",
+                    Addr(0x0428),
+                    OffsetAddressing::Absolute,
+                    None
+                )
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0x0400),
                 offset: 40,
@@ -3239,8 +3317,13 @@ mod tests {
         // 4. Bare symbol auto-displacement & zero-offset clear
         assert_eq!(
             state
-                .parse_symbolic_offset_input("SCREEN_RAM", Addr(0x0428), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "SCREEN_RAM",
+                    Addr(0x0428),
+                    OffsetAddressing::Absolute,
+                    None
+                )
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0x0400),
                 offset: 40,
@@ -3249,8 +3332,13 @@ mod tests {
         );
         assert_eq!(
             state
-                .parse_symbolic_offset_input("sub_C100", Addr(0xC0FF), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "sub_C100",
+                    Addr(0xC0FF),
+                    OffsetAddressing::Absolute,
+                    None
+                )
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0xC100),
                 offset: -1,
@@ -3259,16 +3347,26 @@ mod tests {
         );
         assert_eq!(
             state
-                .parse_symbolic_offset_input("zp_ptr", Addr(0x00FB), true, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "zp_ptr",
+                    Addr(0x00FB),
+                    OffsetAddressing::ZeroPage,
+                    None
+                )
+                .expect("valid zero-page symbolic offset should parse"),
             None
         );
 
         // 5. Hex/numeric base & outer parentheses
         assert_eq!(
             state
-                .parse_symbolic_offset_input("$C100 - 1", Addr(0xC0FF), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "$C100 - 1",
+                    Addr(0xC0FF),
+                    OffsetAddressing::Absolute,
+                    None
+                )
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0xC100),
                 offset: -1,
@@ -3277,8 +3375,13 @@ mod tests {
         );
         assert_eq!(
             state
-                .parse_symbolic_offset_input("  (0xC100 - 1)  ", Addr(0xC0FF), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "  (0xC100 - 1)  ",
+                    Addr(0xC0FF),
+                    OffsetAddressing::Absolute,
+                    None
+                )
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0xC100),
                 offset: -1,
@@ -3287,8 +3390,13 @@ mod tests {
         );
         assert_eq!(
             state
-                .parse_symbolic_offset_input("$0400", Addr(0x0428), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "$0400",
+                    Addr(0x0428),
+                    OffsetAddressing::Absolute,
+                    None
+                )
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0x0400),
                 offset: 40,
@@ -3299,8 +3407,8 @@ mod tests {
         // 6. Signed displacement shorthand
         assert_eq!(
             state
-                .parse_symbolic_offset_input("+1", Addr(0x00FC), true, None)
-                .unwrap(),
+                .parse_symbolic_offset_input("+1", Addr(0x00FC), OffsetAddressing::ZeroPage, None)
+                .expect("valid zero-page symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0x00FB),
                 offset: 1,
@@ -3309,8 +3417,13 @@ mod tests {
         );
         assert_eq!(
             state
-                .parse_symbolic_offset_input("- $10", Addr(0xC0F0), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "- $10",
+                    Addr(0xC0F0),
+                    OffsetAddressing::Absolute,
+                    None
+                )
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0xC100),
                 offset: -16,
@@ -3319,13 +3432,21 @@ mod tests {
         );
 
         // 7. Scoped & local labels (`_`, `.`, `@` inside scope, and `irq.` / `irq::` outside)
-        let irq_scope = Some((Addr(0x1000), Addr(0x1020)));
+        let irq_scope = Some(AddrSpan {
+            start: Addr(0x1000),
+            end: Addr(0x1020),
+        });
         assert_eq!(state.enclosing_scope_for_address(Addr(0x1010)), irq_scope);
         for local_expr in ["_loop_var + 1", ".loop_var + 1", "@loop_var + 1"] {
             assert_eq!(
                 state
-                    .parse_symbolic_offset_input(local_expr, Addr(0x00FE), true, irq_scope)
-                    .unwrap(),
+                    .parse_symbolic_offset_input(
+                        local_expr,
+                        Addr(0x00FE),
+                        OffsetAddressing::ZeroPage,
+                        irq_scope
+                    )
+                    .expect("scoped zero-page symbolic offset should parse"),
                 Some(SymbolicOffset {
                     base: Addr(0x00FD),
                     offset: 1,
@@ -3337,8 +3458,13 @@ mod tests {
         for scoped_expr in ["irq.scoped_local + 1", "irq::scoped_local + 1"] {
             assert_eq!(
                 state
-                    .parse_symbolic_offset_input(scoped_expr, Addr(0x1011), false, None)
-                    .unwrap(),
+                    .parse_symbolic_offset_input(
+                        scoped_expr,
+                        Addr(0x1011),
+                        OffsetAddressing::Absolute,
+                        None
+                    )
+                    .expect("valid absolute symbolic offset should parse"),
                 Some(SymbolicOffset {
                     base: Addr(0x1010),
                     offset: 1,
@@ -3350,7 +3476,12 @@ mod tests {
         // Unscoped local outside `irq` must not leak into explicit `irq.loop_var` lookups.
         assert!(
             state
-                .parse_symbolic_offset_input("irq.loop_var + 1", Addr(0x00FE), true, None)
+                .parse_symbolic_offset_input(
+                    "irq.loop_var + 1",
+                    Addr(0x00FE),
+                    OffsetAddressing::ZeroPage,
+                    None
+                )
                 .is_err()
         );
 
@@ -3358,8 +3489,13 @@ mod tests {
         for clear_tok in ["", "   ", "0", "+0", "-0", "$0", "0x0"] {
             assert_eq!(
                 state
-                    .parse_symbolic_offset_input(clear_tok, Addr(0x00FC), true, None)
-                    .unwrap(),
+                    .parse_symbolic_offset_input(
+                        clear_tok,
+                        Addr(0x00FC),
+                        OffsetAddressing::ZeroPage,
+                        None
+                    )
+                    .expect("clear token should return Ok(None)"),
                 None,
                 "clear token '{clear_tok}' should return Ok(None)"
             );
@@ -3382,8 +3518,13 @@ mod tests {
 
         // 1. Target mismatch with actionable suggestion
         let mismatch_err = state
-            .parse_symbolic_offset_input("zp_ptr + 2", Addr(0x00FC), true, None)
-            .unwrap_err();
+            .parse_symbolic_offset_input(
+                "zp_ptr + 2",
+                Addr(0x00FC),
+                OffsetAddressing::ZeroPage,
+                None,
+            )
+            .expect_err("invalid symbolic offset should be rejected");
         assert!(mismatch_err.contains("$00FD"), "got: {mismatch_err}");
         assert!(mismatch_err.contains("$00FC"), "got: {mismatch_err}");
         assert!(mismatch_err.contains("zp_ptr + 1"), "got: {mismatch_err}");
@@ -3391,38 +3532,53 @@ mod tests {
         // 2. Unknown base symbol
         assert!(
             state
-                .parse_symbolic_offset_input("missing_sym + 1", Addr(0x00FC), false, None)
+                .parse_symbolic_offset_input(
+                    "missing_sym + 1",
+                    Addr(0x00FC),
+                    OffsetAddressing::Absolute,
+                    None
+                )
                 .is_err()
         );
 
         // 3. Non-wrapping 16-bit bounds (`base = effective_addr - offset`)
         assert!(
             state
-                .parse_symbolic_offset_input("$0000 - 1", Addr(0xFFFF), false, None)
+                .parse_symbolic_offset_input(
+                    "$0000 - 1",
+                    Addr(0xFFFF),
+                    OffsetAddressing::Absolute,
+                    None
+                )
                 .is_err()
         );
         assert!(
             state
-                .parse_symbolic_offset_input("$FFFF + 1", Addr(0x0000), false, None)
+                .parse_symbolic_offset_input(
+                    "$FFFF + 1",
+                    Addr(0x0000),
+                    OffsetAddressing::Absolute,
+                    None
+                )
                 .is_err()
         );
         assert!(
             state
-                .parse_symbolic_offset_input("+1", Addr(0x0000), false, None)
+                .parse_symbolic_offset_input("+1", Addr(0x0000), OffsetAddressing::Absolute, None)
                 .is_err(),
             "+1 at $0000 implies base = -1 (underflow)"
         );
         assert!(
             state
-                .parse_symbolic_offset_input("-1", Addr(0xFFFF), false, None)
+                .parse_symbolic_offset_input("-1", Addr(0xFFFF), OffsetAddressing::Absolute, None)
                 .is_err(),
             "-1 at $FFFF implies base = $10000 (overflow)"
         );
         // Exact boundary hits remain valid
         assert_eq!(
             state
-                .parse_symbolic_offset_input("-1", Addr(0x0000), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input("-1", Addr(0x0000), OffsetAddressing::Absolute, None)
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0x0001),
                 offset: -1,
@@ -3431,8 +3587,8 @@ mod tests {
         );
         assert_eq!(
             state
-                .parse_symbolic_offset_input("+1", Addr(0xFFFF), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input("+1", Addr(0xFFFF), OffsetAddressing::Absolute, None)
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0xFFFE),
                 offset: 1,
@@ -3443,20 +3599,35 @@ mod tests {
         // 4. `i16` overflow (`diff = +65535`)
         assert!(
             state
-                .parse_symbolic_offset_input("$0000", Addr(0xFFFF), false, None)
+                .parse_symbolic_offset_input(
+                    "$0000",
+                    Addr(0xFFFF),
+                    OffsetAddressing::Absolute,
+                    None
+                )
                 .is_err()
         );
 
         // 5. ZP vs Forced-Absolute Rule (`stack_tab` = $0100 at effective $00FF)
         let zp_err = state
-            .parse_symbolic_offset_input("stack_tab - 1", Addr(0x00FF), true, None)
-            .unwrap_err();
+            .parse_symbolic_offset_input(
+                "stack_tab - 1",
+                Addr(0x00FF),
+                OffsetAddressing::ZeroPage,
+                None,
+            )
+            .expect_err("invalid symbolic offset should be rejected");
         assert!(zp_err.contains("<= $00FF"), "got: {zp_err}");
 
         assert_eq!(
             state
-                .parse_symbolic_offset_input("stack_tab - 1", Addr(0x00FF), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "stack_tab - 1",
+                    Addr(0x00FF),
+                    OffsetAddressing::Absolute,
+                    None
+                )
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0x0100),
                 offset: -1,
@@ -3468,14 +3639,24 @@ mod tests {
         for utf8_input in ["ä + 1", "ä", "ä.member + 1", "🚀 - 1", "🚀.x"] {
             assert!(
                 state
-                    .parse_symbolic_offset_input(utf8_input, Addr(0x00FC), false, None)
+                    .parse_symbolic_offset_input(
+                        utf8_input,
+                        Addr(0x00FC),
+                        OffsetAddressing::Absolute,
+                        None
+                    )
                     .is_err(),
                 "Multi-byte UTF-8 input '{utf8_input}' must return Err cleanly"
             );
         }
         assert!(
             state
-                .apply_user_label_or_address_offset(Addr(0x00FC), "ä + 1", false, None)
+                .apply_user_label_or_address_offset(
+                    Addr(0x00FC),
+                    "ä + 1",
+                    LabelLocality::Global,
+                    None,
+                )
                 .is_err()
         );
 
@@ -3507,10 +3688,13 @@ mod tests {
                 .parse_symbolic_offset_input(
                     "_inner_local + 1",
                     Addr(0x1011),
-                    false,
-                    Some((Addr(0x1000), Addr(0x1020))),
+                    OffsetAddressing::Absolute,
+                    Some(AddrSpan {
+                        start: Addr(0x1000),
+                        end: Addr(0x1020),
+                    }),
                 )
-                .unwrap(),
+                .expect("scoped symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0x1010),
                 offset: 1,
@@ -3519,8 +3703,13 @@ mod tests {
         );
         assert_eq!(
             state
-                .parse_symbolic_offset_input("irq_a.inner_local + 1", Addr(0x1011), false, None)
-                .unwrap(),
+                .parse_symbolic_offset_input(
+                    "irq_a.inner_local + 1",
+                    Addr(0x1011),
+                    OffsetAddressing::Absolute,
+                    None
+                )
+                .expect("valid absolute symbolic offset should parse"),
             Some(SymbolicOffset {
                 base: Addr(0x1010),
                 offset: 1,
@@ -3531,7 +3720,12 @@ mod tests {
         // Must NOT leak into sibling scope `irq_b` or unscoped global lookup
         assert!(
             state
-                .parse_symbolic_offset_input("irq_b.inner_local + 1", Addr(0x1011), false, None)
+                .parse_symbolic_offset_input(
+                    "irq_b.inner_local + 1",
+                    Addr(0x1011),
+                    OffsetAddressing::Absolute,
+                    None
+                )
                 .is_err(),
             "irq_a's inner_local must not leak through irq_b.inner_local"
         );
@@ -3540,15 +3734,23 @@ mod tests {
                 .parse_symbolic_offset_input(
                     "_inner_local + 1",
                     Addr(0x1011),
-                    false,
-                    Some((Addr(0x2000), Addr(0x2020))),
+                    OffsetAddressing::Absolute,
+                    Some(AddrSpan {
+                        start: Addr(0x2000),
+                        end: Addr(0x2020),
+                    }),
                 )
                 .is_err(),
             "irq_a's inner_local must not leak when current_scope is irq_b"
         );
         assert!(
             state
-                .parse_symbolic_offset_input("_inner_local + 1", Addr(0x1011), false, None)
+                .parse_symbolic_offset_input(
+                    "_inner_local + 1",
+                    Addr(0x1011),
+                    OffsetAddressing::Absolute,
+                    None
+                )
                 .is_err(),
             "Scoped inner_local must not leak into unscoped lookup"
         );
@@ -3585,24 +3787,44 @@ mod tests {
 
         assert_eq!(
             state.effective_target_at_address(Addr(0x1000)),
-            Some((Addr(0x1000), Addr(0x00FB), true))
+            Some(EffectiveTarget {
+                site_addr: Addr(0x1000),
+                raw_target: Addr(0x00FB),
+                addressing: OffsetAddressing::ZeroPage,
+            })
         );
         assert_eq!(
             state.effective_target_at_address(Addr(0x1002)),
-            Some((Addr(0x1002), Addr(0x00FB), true))
+            Some(EffectiveTarget {
+                site_addr: Addr(0x1002),
+                raw_target: Addr(0x00FB),
+                addressing: OffsetAddressing::ZeroPage,
+            })
         );
         assert_eq!(
             state.effective_target_at_address(Addr(0x1004)),
-            Some((Addr(0x1004), Addr(0x1FFF), false))
+            Some(EffectiveTarget {
+                site_addr: Addr(0x1004),
+                raw_target: Addr(0x1FFF),
+                addressing: OffsetAddressing::Absolute,
+            })
         );
         assert_eq!(
             state.effective_target_at_address(Addr(0x1007)),
-            Some((Addr(0x1007), Addr(0xC000), false))
+            Some(EffectiveTarget {
+                site_addr: Addr(0x1007),
+                raw_target: Addr(0xC000),
+                addressing: OffsetAddressing::Absolute,
+            })
         );
         assert_eq!(state.effective_target_at_address(Addr(0x100A)), None);
         assert_eq!(
             state.effective_target_at_address(Addr(0x100C)),
-            Some((Addr(0x100C), Addr(0xC0FF), false))
+            Some(EffectiveTarget {
+                site_addr: Addr(0x100C),
+                raw_target: Addr(0xC0FF),
+                addressing: OffsetAddressing::Absolute,
+            })
         );
         assert_eq!(state.effective_target_at_address(Addr(0x100E)), None);
         assert_eq!(state.effective_target_at_address(Addr(0x100F)), None);
@@ -3615,11 +3837,31 @@ mod tests {
         assert_eq!(
             all,
             vec![
-                (Addr(0x1000), Addr(0x00FB), true),
-                (Addr(0x1002), Addr(0x00FB), true),
-                (Addr(0x1004), Addr(0x1FFF), false),
-                (Addr(0x1007), Addr(0xC000), false),
-                (Addr(0x100C), Addr(0xC0FF), false),
+                EffectiveTarget {
+                    site_addr: Addr(0x1000),
+                    raw_target: Addr(0x00FB),
+                    addressing: OffsetAddressing::ZeroPage,
+                },
+                EffectiveTarget {
+                    site_addr: Addr(0x1002),
+                    raw_target: Addr(0x00FB),
+                    addressing: OffsetAddressing::ZeroPage,
+                },
+                EffectiveTarget {
+                    site_addr: Addr(0x1004),
+                    raw_target: Addr(0x1FFF),
+                    addressing: OffsetAddressing::Absolute,
+                },
+                EffectiveTarget {
+                    site_addr: Addr(0x1007),
+                    raw_target: Addr(0xC000),
+                    addressing: OffsetAddressing::Absolute,
+                },
+                EffectiveTarget {
+                    site_addr: Addr(0x100C),
+                    raw_target: Addr(0xC0FF),
+                    addressing: OffsetAddressing::Absolute,
+                },
             ]
         );
     }
@@ -3658,30 +3900,62 @@ mod tests {
         // 1. Interior word of multi-word BlockType::Address
         assert_eq!(
             state.effective_targets_in_range(Addr(0x2002), Addr(0x2002)),
-            vec![(Addr(0x2002), Addr(0xC1FF), false)]
+            vec![EffectiveTarget {
+                site_addr: Addr(0x2002),
+                raw_target: Addr(0xC1FF),
+                addressing: OffsetAddressing::Absolute,
+            }]
         );
 
         // 2. Second-half backward scan on LoHiAddress Sub-block 2 (stopping at splitter $200A!)
         assert_eq!(
             state.effective_targets_in_range(Addr(0x200D), Addr(0x200F)),
             vec![
-                (Addr(0x200A), Addr(0xE0FF), false),
-                (Addr(0x200B), Addr(0xE1FF), false),
-                (Addr(0x200C), Addr(0xE2FF), false),
+                EffectiveTarget {
+                    site_addr: Addr(0x200A),
+                    raw_target: Addr(0xE0FF),
+                    addressing: OffsetAddressing::Absolute,
+                },
+                EffectiveTarget {
+                    site_addr: Addr(0x200B),
+                    raw_target: Addr(0xE1FF),
+                    addressing: OffsetAddressing::Absolute,
+                },
+                EffectiveTarget {
+                    site_addr: Addr(0x200C),
+                    raw_target: Addr(0xE2FF),
+                    addressing: OffsetAddressing::Absolute,
+                },
             ]
         );
         assert_eq!(
             state.effective_target_at_address(Addr(0x200E)),
-            Some((Addr(0x200B), Addr(0xE1FF), false))
+            Some(EffectiveTarget {
+                site_addr: Addr(0x200B),
+                raw_target: Addr(0xE1FF),
+                addressing: OffsetAddressing::Absolute,
+            })
         );
 
         // 3. Full-table deduplication across both halves ($200A..=$200F yields 3 pairs, NOT 6!)
         assert_eq!(
             state.effective_targets_in_range(Addr(0x200A), Addr(0x200F)),
             vec![
-                (Addr(0x200A), Addr(0xE0FF), false),
-                (Addr(0x200B), Addr(0xE1FF), false),
-                (Addr(0x200C), Addr(0xE2FF), false),
+                EffectiveTarget {
+                    site_addr: Addr(0x200A),
+                    raw_target: Addr(0xE0FF),
+                    addressing: OffsetAddressing::Absolute,
+                },
+                EffectiveTarget {
+                    site_addr: Addr(0x200B),
+                    raw_target: Addr(0xE1FF),
+                    addressing: OffsetAddressing::Absolute,
+                },
+                EffectiveTarget {
+                    site_addr: Addr(0x200C),
+                    raw_target: Addr(0xE2FF),
+                    addressing: OffsetAddressing::Absolute,
+                },
             ]
         );
 
@@ -3689,8 +3963,16 @@ mod tests {
         assert_eq!(
             state.effective_targets_in_range(Addr(0x2012), Addr(0x2013)),
             vec![
-                (Addr(0x2010), Addr(0xF0FF), false),
-                (Addr(0x2011), Addr(0xF1FF), false),
+                EffectiveTarget {
+                    site_addr: Addr(0x2010),
+                    raw_target: Addr(0xF0FF),
+                    addressing: OffsetAddressing::Absolute,
+                },
+                EffectiveTarget {
+                    site_addr: Addr(0x2011),
+                    raw_target: Addr(0xF1FF),
+                    addressing: OffsetAddressing::Absolute,
+                },
             ]
         );
     }
@@ -3720,20 +4002,41 @@ mod tests {
 
         // 1. ZP pointer high byte on Code instruction -> global true
         assert_eq!(
-            state.suggest_symbolic_offset(Some(Addr(0x1000)), Addr(0x00FC), true),
-            ("zp_ptr + 1".to_string(), true)
+            state.suggest_symbolic_offset(
+                Some(Addr(0x1000)),
+                Addr(0x00FC),
+                OffsetAddressing::ZeroPage,
+            ),
+            SymbolicOffsetSuggestion {
+                expression: "zp_ptr + 1".to_string(),
+                default_is_global: true,
+            }
         );
 
         // 2. Screen stride on Code instruction -> global true
         assert_eq!(
-            state.suggest_symbolic_offset(Some(Addr(0x1002)), Addr(0x0428), false),
-            ("SCREEN_RAM + 40".to_string(), true)
+            state.suggest_symbolic_offset(
+                Some(Addr(0x1002)),
+                Addr(0x0428),
+                OffsetAddressing::Absolute,
+            ),
+            SymbolicOffsetSuggestion {
+                expression: "SCREEN_RAM + 40".to_string(),
+                default_is_global: true,
+            }
         );
 
         // 3. RTS dispatch entry on LoHiAddress table -> global false
         assert_eq!(
-            state.suggest_symbolic_offset(Some(Addr(0x1005)), Addr(0xC0FF), false),
-            ("sub_C100 - 1".to_string(), false)
+            state.suggest_symbolic_offset(
+                Some(Addr(0x1005)),
+                Addr(0xC0FF),
+                OffsetAddressing::Absolute,
+            ),
+            SymbolicOffsetSuggestion {
+                expression: "sub_C100 - 1".to_string(),
+                default_is_global: false,
+            }
         );
 
         // 4. Existing Tier 1 overrides heuristic with global = false
@@ -3745,8 +4048,15 @@ mod tests {
             });
         });
         assert_eq!(
-            state.suggest_symbolic_offset(Some(Addr(0x1002)), Addr(0x0428), false),
-            ("SCREEN_RAM + $28".to_string(), false)
+            state.suggest_symbolic_offset(
+                Some(Addr(0x1002)),
+                Addr(0x0428),
+                OffsetAddressing::Absolute,
+            ),
+            SymbolicOffsetSuggestion {
+                expression: "SCREEN_RAM + $28".to_string(),
+                default_is_global: false,
+            }
         );
     }
 
@@ -3780,19 +4090,29 @@ mod tests {
         ] {
             assert!(
                 state
-                    .create_set_user_label_command(Addr(0x1004), bad_global, false)
+                    .create_set_user_label_command(Addr(0x1004), bad_global, LabelLocality::Global)
                     .is_err(),
                 "create_set_user_label_command should reject '{bad_global}'"
             );
             assert!(
                 state
-                    .validate_user_label_or_address_offset(Addr(0x1004), bad_global, false, None)
+                    .validate_user_label_or_address_offset(
+                        Addr(0x1004),
+                        bad_global,
+                        LabelLocality::Global,
+                        None,
+                    )
                     .is_err(),
                 "validate_user_label_or_address_offset should reject '{bad_global}'"
             );
             assert!(
                 state
-                    .apply_user_label_or_address_offset(Addr(0x1004), bad_global, false, None)
+                    .apply_user_label_or_address_offset(
+                        Addr(0x1004),
+                        bad_global,
+                        LabelLocality::Global,
+                        None,
+                    )
                     .is_err(),
                 "apply_user_label_or_address_offset should reject '{bad_global}'"
             );
@@ -3802,19 +4122,24 @@ mod tests {
             );
         }
 
-        // 2. Corrupt local labels (`is_local = true`) rejected even after single prefix strip
+        // 2. Corrupt local labels (`LabelLocality::Local`) rejected even after single prefix strip
         for bad_local in [
             "(foo)", "foo:bar", "a..b", "123", "_1", ".1", "@1", "..loop", "@@loop", ".", "@", "_",
         ] {
             assert!(
                 state
-                    .create_set_user_label_command(Addr(0x1004), bad_local, true)
+                    .create_set_user_label_command(Addr(0x1004), bad_local, LabelLocality::Local)
                     .is_err(),
                 "Local label validation should reject '{bad_local}'"
             );
             assert!(
                 state
-                    .validate_user_label_or_address_offset(Addr(0x1004), bad_local, true, None)
+                    .validate_user_label_or_address_offset(
+                        Addr(0x1004),
+                        bad_local,
+                        LabelLocality::Local,
+                        None,
+                    )
                     .is_err(),
                 "validate_user_label_or_address_offset(local) should reject '{bad_local}'"
             );
@@ -3823,30 +4148,48 @@ mod tests {
         // 3. Duplicate label rejected by `validate_user_label_or_address_offset` without mutating
         assert!(
             state
-                .validate_user_label_or_address_offset(Addr(0x1004), "zp_ptr", false, None)
+                .validate_user_label_or_address_offset(
+                    Addr(0x1004),
+                    "zp_ptr",
+                    LabelLocality::Global,
+                    None,
+                )
                 .is_err()
         );
 
         // 4. Valid local labels normalize optional single `_`, `.`, or `@` prefix to canonical name
         for raw_local in ["loop_1", "_loop_1", ".loop_1", "@loop_1"] {
             state
-                .validate_user_label_or_address_offset(Addr(0x1004), raw_local, true, None)
+                .validate_user_label_or_address_offset(
+                    Addr(0x1004),
+                    raw_local,
+                    LabelLocality::Local,
+                    None,
+                )
                 .expect("valid local label should pass validation");
             state
-                .apply_user_label_or_address_offset(Addr(0x1004), raw_local, true, None)
+                .apply_user_label_or_address_offset(
+                    Addr(0x1004),
+                    raw_local,
+                    LabelLocality::Local,
+                    None,
+                )
                 .expect("valid local label should apply");
-            let applied = &state.labels.get(&Addr(0x1004)).unwrap()[0];
+            let applied = &state
+                .labels
+                .get(&Addr(0x1004))
+                .expect("local label should exist at $1004")[0];
             assert_eq!(applied.name, "loop_1");
             assert_eq!(applied.label_type, LabelType::LocalUserDefined);
         }
 
         // 5. Clearing via `""` or whitespace `"   "` validates and clears cleanly
         state
-            .validate_user_label_or_address_offset(Addr(0x1004), "", false, None)
-            .unwrap();
+            .validate_user_label_or_address_offset(Addr(0x1004), "", LabelLocality::Global, None)
+            .expect("empty input should validate as clear operation");
         state
-            .apply_user_label_or_address_offset(Addr(0x1004), "   ", false, None)
-            .unwrap();
+            .apply_user_label_or_address_offset(Addr(0x1004), "   ", LabelLocality::Global, None)
+            .expect("whitespace input should clear label");
         assert!(!state.labels.contains_key(&Addr(0x1004)));
 
         // 6. `validate_user_label_or_address_offset` honors `site_addr` scope for offset expressions
@@ -3855,7 +4198,7 @@ mod tests {
                 .validate_user_label_or_address_offset(
                     Addr(0x1011),
                     "_local_base + 1",
-                    false,
+                    LabelLocality::Global,
                     Some(Addr(0x1005)),
                 )
                 .is_ok()
@@ -3865,7 +4208,7 @@ mod tests {
                 .validate_user_label_or_address_offset(
                     Addr(0x1025),
                     "_local_base + $15",
-                    false,
+                    LabelLocality::Global,
                     None,
                 )
                 .is_err(),
@@ -3907,7 +4250,12 @@ mod tests {
         for unbalanced in ["(0", "0)", "((0)", "(0) + (0)"] {
             assert!(
                 state
-                    .parse_symbolic_offset_input(unbalanced, Addr(0x00FC), false, None)
+                    .parse_symbolic_offset_input(
+                        unbalanced,
+                        Addr(0x00FC),
+                        OffsetAddressing::Absolute,
+                        None
+                    )
                     .is_err(),
                 "Unbalanced input '{unbalanced}' must return Err"
             );
@@ -3922,11 +4270,17 @@ mod tests {
         assert_eq!(state.enclosing_scope_for_address(Addr(0x0FFF)), None);
         assert_eq!(
             state.enclosing_scope_for_address(Addr(0x1000)),
-            Some((Addr(0x1000), Addr(0x1020)))
+            Some(AddrSpan {
+                start: Addr(0x1000),
+                end: Addr(0x1020),
+            })
         );
         assert_eq!(
             state.enclosing_scope_for_address(Addr(0x1020)),
-            Some((Addr(0x1000), Addr(0x1020)))
+            Some(AddrSpan {
+                start: Addr(0x1000),
+                end: Addr(0x1020),
+            })
         );
         assert_eq!(state.enclosing_scope_for_address(Addr(0x1021)), None);
 
@@ -3962,7 +4316,7 @@ mod tests {
                     zero_scope,
                     &mut cache,
                 )
-                .unwrap(),
+                .expect("cached symbolic offset lookup should succeed"),
             None
         );
 
@@ -3972,7 +4326,7 @@ mod tests {
             let scope = state.enclosing_scope_for_address(addr);
             let parsed = state
                 .parse_symbolic_offset_input_cached("big_struct", addr, false, scope, &mut cache)
-                .unwrap();
+                .expect("cached symbolic offset lookup should succeed");
             assert_eq!(
                 parsed,
                 Some(SymbolicOffset {
@@ -4016,43 +4370,75 @@ mod tests {
         // Unreferenced platform base (`KERNAL_CHROUT` at `$FFD2`) formats as `"KERNAL_CHROUT + 1"`
         // even when `$FFD3` has zero code XRefs so `$FFD2` remains only in `system_labels`.
         let unref_sym = state
-            .apply_user_label_or_address_offset(Addr(0xFFD3), "KERNAL_CHROUT + 1", false, None)
-            .unwrap()
-            .unwrap();
+            .apply_user_label_or_address_offset(
+                Addr(0xFFD3),
+                "KERNAL_CHROUT + 1",
+                LabelLocality::Global,
+                None,
+            )
+            .expect("label/offset validation should succeed")
+            .expect("non-empty clearing action should return command");
         assert!(!state.labels.contains_key(&Addr(0xFFD2)));
         assert_eq!(
-            state.format_symbolic_offset(unref_sym, None, false),
+            state.format_symbolic_offset(unref_sym, None, OffsetAddressing::Absolute),
             "KERNAL_CHROUT + 1"
         );
         assert_eq!(
-            state.suggest_symbolic_offset(None, Addr(0xFFD3), false),
-            ("KERNAL_CHROUT + 1".to_string(), true)
+            state.suggest_symbolic_offset(None, Addr(0xFFD3), OffsetAddressing::Absolute),
+            SymbolicOffsetSuggestion {
+                expression: "KERNAL_CHROUT + 1".to_string(),
+                default_is_global: true,
+            }
         );
         state.apply_address_offsets(&[(Addr(0xFFD3), None)], None);
 
         // Suggest `SCREEN_MEM + 40` from `state.system_labels` on `STA $0428`.
         assert_eq!(
-            state.suggest_symbolic_offset(Some(Addr(0x1000)), Addr(0x0428), false),
-            ("SCREEN_MEM + 40".to_string(), true)
+            state.suggest_symbolic_offset(
+                Some(Addr(0x1000)),
+                Addr(0x0428),
+                OffsetAddressing::Absolute,
+            ),
+            SymbolicOffsetSuggestion {
+                expression: "SCREEN_MEM + 40".to_string(),
+                default_is_global: true,
+            }
         );
 
         // Suggestion and base resolution skip excluded addresses.
         state.excluded_addresses.insert(Addr(0x0400));
         assert_eq!(
-            state.suggest_symbolic_offset(Some(Addr(0x1000)), Addr(0x0428), false),
-            ("SYS_TAPEBUF + 236".to_string(), true)
+            state.suggest_symbolic_offset(
+                Some(Addr(0x1000)),
+                Addr(0x0428),
+                OffsetAddressing::Absolute,
+            ),
+            SymbolicOffsetSuggestion {
+                expression: "SYS_TAPEBUF + 236".to_string(),
+                default_is_global: true,
+            }
         );
         assert!(
             state
-                .parse_symbolic_offset_input("SCREEN_MEM + 40", Addr(0x0428), false, None)
+                .parse_symbolic_offset_input(
+                    "SCREEN_MEM + 40",
+                    Addr(0x0428),
+                    OffsetAddressing::Absolute,
+                    None
+                )
                 .is_err()
         );
         state.excluded_addresses.remove(&Addr(0x0400));
 
         // Parse and apply `"SCREEN_MEM + 40"`, emitting `SCREEN_MEM = $0400` and `sta SCREEN_MEM + 40`.
         let parsed = state
-            .parse_symbolic_offset_input("SCREEN_MEM + 40", Addr(0x0428), false, None)
-            .unwrap();
+            .parse_symbolic_offset_input(
+                "SCREEN_MEM + 40",
+                Addr(0x0428),
+                OffsetAddressing::Absolute,
+                None,
+            )
+            .expect("valid absolute symbolic offset should parse");
         state.apply_address_offsets(&[(Addr(0x0428), parsed)], Some(Addr(0x1000)));
         assert!(state.disassembly.iter().any(|l| {
             l.external_label_address == Some(Addr(0x0400)) && l.mnemonic.contains("SCREEN_MEM")
@@ -4061,18 +4447,23 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at $1000 should exist");
         assert_eq!(sta_line.operand, "SCREEN_MEM + 40");
 
         // Set `KERNAL_CINT + 3` on `$FF84`, then clear it and check that `KERNAL_IOINIT` returns.
         state
-            .apply_user_label_or_address_offset(Addr(0xFF84), "KERNAL_CINT + 3", false, None)
-            .unwrap();
+            .apply_user_label_or_address_offset(
+                Addr(0xFF84),
+                "KERNAL_CINT + 3",
+                LabelLocality::Global,
+                None,
+            )
+            .expect("label/offset operation should succeed");
         let jsr_ff84 = state
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1003) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at $1003 should exist");
         assert_eq!(jsr_ff84.operand, "KERNAL_CINT + 3");
 
         state.apply_address_offsets(&[(Addr(0xFF84), None)], None);
@@ -4088,7 +4479,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1003) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at $1003 should exist");
         assert_eq!(jsr_restored.operand, "KERNAL_IOINIT");
 
         // With `auto_analyze = false`, binding `KERNAL_CHROUT + 1` materializes `KERNAL_CHROUT = $ffd2`
@@ -4104,8 +4495,13 @@ mod tests {
         assert!(!manual.labels.contains_key(&Addr(0xFFD2)));
 
         let ffd3_sym = manual
-            .parse_symbolic_offset_input("KERNAL_CHROUT + 1", Addr(0xFFD3), false, None)
-            .unwrap();
+            .parse_symbolic_offset_input(
+                "KERNAL_CHROUT + 1",
+                Addr(0xFFD3),
+                OffsetAddressing::Absolute,
+                None,
+            )
+            .expect("valid absolute symbolic offset should parse");
         manual.apply_address_offsets(&[(Addr(0xFFD3), ffd3_sym)], Some(Addr(0x1000)));
         assert!(manual.disassembly.iter().any(|l| {
             l.external_label_address == Some(Addr(0xFFD2)) && l.mnemonic.contains("KERNAL_CHROUT")
@@ -4114,7 +4510,7 @@ mod tests {
             .disassembly
             .iter()
             .find(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at $1000 should exist");
         assert_eq!(manual_jsr.operand, "KERNAL_CHROUT + 1");
 
         manual.undo_last_command();

@@ -1,8 +1,10 @@
 //! Frontend-agnostic events and dialog requests.
 
 use crate::state::Addr;
+use crate::state::SearchFilters;
 use crate::state::actions::AppAction;
 pub use crate::state::types::{CommentKind, OperandJumpTarget};
+use crate::unpacker::UnpackConfig;
 
 /// Events emitted by [`Core::apply_action`](crate::Core::apply_action) for the active frontend.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,7 +30,7 @@ pub enum CoreEvent {
         /// Load address of the binary.
         load_addr: u16,
         /// Unpacker execution configuration.
-        config: crate::unpacker::UnpackConfig,
+        config: UnpackConfig,
     },
     /// Requests the frontend to start the MCP server.
     StartMcpServerRequested,
@@ -133,7 +135,7 @@ pub enum DialogType {
         /// Initial search query string.
         query: String,
         /// Active search domain and encoding filters.
-        filters: crate::state::search::SearchFilters,
+        filters: SearchFilters,
     },
     /// Global application settings dialog.
     Settings,

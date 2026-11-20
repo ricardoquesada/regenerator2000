@@ -125,6 +125,7 @@ pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::iter;
 
     fn make_vsf_header(machine: &[u8]) -> Vec<u8> {
         let mut data = Vec::new();
@@ -152,7 +153,7 @@ mod tests {
 
     fn make_c64mem_payload(fill: u8) -> Vec<u8> {
         let mut payload = vec![0x37, 0x2F, 0x00, 0x00];
-        payload.extend(std::iter::repeat_n(fill, C64_RAM_SIZE));
+        payload.extend(iter::repeat_n(fill, C64_RAM_SIZE));
         payload
     }
 

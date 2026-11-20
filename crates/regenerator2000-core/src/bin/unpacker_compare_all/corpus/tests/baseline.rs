@@ -56,8 +56,13 @@ fn baseline_row_captures_every_observable_output() {
     let baseline = Baseline {
         rows: vec![row, failed],
     };
-    let text = baseline.to_toml_string().unwrap();
-    assert_eq!(Baseline::parse(&text).unwrap(), baseline);
+    let text = baseline
+        .to_toml_string()
+        .expect("baseline should serialize to TOML");
+    assert_eq!(
+        Baseline::parse(&text).expect("baseline TOML should parse"),
+        baseline
+    );
 }
 
 #[test]
@@ -116,7 +121,7 @@ fn baseline_compare_detects_each_field_change() {
 fn baseline_missing_or_extra_row_is_failure() {
     let a = ok_result("a.prg", image(0x0801, 0x2000, 0x080D));
     let b = ok_result("b.prg", image(0x0801, 0x3000, 0x080D));
-    let committed = Baseline::from_results(&[a.clone(), b.clone()]);
+    let committed = Baseline::from_results(&[a.clone(), b]);
     let current =
         Baseline::from_results(&[a.clone(), ok_result("c.prg", image(0x0801, 0x2000, 0x080D))]);
     assert_eq!(
@@ -147,21 +152,32 @@ fn baseline_writer_is_deterministic_and_sorted() {
         err_result("a.prg", "NoEntryPoint"),
         ok_result("b.prg", image(0x0800, 0x0900, 0x0810)),
     ];
-    let forward = Baseline::from_results(&results).to_toml_string().unwrap();
+    let forward = Baseline::from_results(&results)
+        .to_toml_string()
+        .expect("baseline should serialize to TOML");
     let mut reversed = results.to_vec();
     reversed.reverse();
-    let backward = Baseline::from_results(&reversed).to_toml_string().unwrap();
+    let backward = Baseline::from_results(&reversed)
+        .to_toml_string()
+        .expect("baseline should serialize to TOML");
     assert_eq!(forward, backward);
 
     let positions: Vec<usize> = ["\"a.prg\"", "\"b.prg\"", "\"c.prg\""]
         .iter()
-        .map(|needle| forward.find(needle).unwrap())
+        .map(|needle| {
+            forward
+                .find(needle)
+                .expect("expected case entry in baseline TOML")
+        })
         .collect();
     assert!(positions.windows(2).all(|w| w[0] < w[1]), "{forward}");
     assert!(forward.contains("start = \"$0801\""), "{forward}");
     assert!(forward.contains("error = \"NoEntryPoint\""), "{forward}");
 
-    let reparsed = Baseline::parse(&forward).unwrap().to_toml_string().unwrap();
+    let reparsed = Baseline::parse(&forward)
+        .expect("generated baseline should reparse")
+        .to_toml_string()
+        .expect("baseline should serialize to TOML");
     assert_eq!(reparsed, forward);
 }
 

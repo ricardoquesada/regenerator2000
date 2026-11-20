@@ -7,7 +7,7 @@
 //! `78 A2 0B 9A`. [`DaliHooks`] trims residual top-of-memory payload writes across the largest
 //! unwritten gap.
 
-use crate::state::types::TargetSystem;
+use crate::state::TargetSystem;
 use crate::unpacker::find_sys_address;
 
 use super::spec::{
@@ -290,6 +290,7 @@ pub static SPEC: PackerSpec = PackerSpec {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use std::path::Path;
 
     use crate::unpacker::{UnpackConfig, unpack};
@@ -302,7 +303,7 @@ mod tests {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/6502")
             .join(name);
-        let bytes = std::fs::read(&path)
+        let bytes = fs::read(&path)
             .unwrap_or_else(|e| panic!("cannot read PRG fixture {}: {e}", path.display()));
         assert!(bytes.len() > 2, "PRG fixture {name} has no payload");
         let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);

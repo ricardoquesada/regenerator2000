@@ -351,36 +351,61 @@ fn petscii_to_string(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn test_calculate_offset() {
-        assert_eq!(calculate_offset(1, 0, DiskType::D64).unwrap(), 0);
-        assert_eq!(calculate_offset(1, 1, DiskType::D64).unwrap(), 256);
-        assert_eq!(calculate_offset(2, 0, DiskType::D64).unwrap(), 21 * 256);
+        assert_eq!(
+            calculate_offset(1, 0, DiskType::D64).expect("valid D64 track/sector offset"),
+            0
+        );
+        assert_eq!(
+            calculate_offset(1, 1, DiskType::D64).expect("valid D64 track/sector offset"),
+            256
+        );
+        assert_eq!(
+            calculate_offset(2, 0, DiskType::D64).expect("valid D64 track/sector offset"),
+            21 * 256
+        );
 
         let expected = 17 * 21 * 256;
-        assert_eq!(calculate_offset(18, 0, DiskType::D64).unwrap(), expected);
+        assert_eq!(
+            calculate_offset(18, 0, DiskType::D64).expect("valid D64 track/sector offset"),
+            expected
+        );
 
         let expected = 17 * 21 * 256 + 7 * 19 * 256;
-        assert_eq!(calculate_offset(25, 0, DiskType::D64).unwrap(), expected);
+        assert_eq!(
+            calculate_offset(25, 0, DiskType::D64).expect("valid D64 track/sector offset"),
+            expected
+        );
     }
 
     #[test]
     fn test_calculate_offset_40_tracks() {
         let expected = 683 * 256;
-        assert_eq!(calculate_offset(36, 0, DiskType::D64).unwrap(), expected);
+        assert_eq!(
+            calculate_offset(36, 0, DiskType::D64).expect("valid D64 track/sector offset"),
+            expected
+        );
     }
 
     #[test]
     fn test_calculate_offset_42_tracks() {
         let expected_41 = 768 * 256;
-        assert_eq!(calculate_offset(41, 0, DiskType::D64).unwrap(), expected_41);
+        assert_eq!(
+            calculate_offset(41, 0, DiskType::D64).expect("valid D64 track/sector offset"),
+            expected_41
+        );
 
         let expected_42 = (768 + 17) * 256;
-        assert_eq!(calculate_offset(42, 0, DiskType::D64).unwrap(), expected_42);
+        assert_eq!(
+            calculate_offset(42, 0, DiskType::D64).expect("valid D64 track/sector offset"),
+            expected_42
+        );
 
         assert_eq!(
-            calculate_offset(42, 16, DiskType::D64).unwrap(),
+            calculate_offset(42, 16, DiskType::D64).expect("valid D64 track/sector offset"),
             expected_42 + 16 * 256
         );
 
@@ -393,12 +418,12 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../../tests/6502/d64_42_tracks.d64"
         );
-        let Ok(data) = std::fs::read(path) else {
+        let Ok(data) = fs::read(path) else {
             return;
         };
         assert_eq!(data.len(), D64_42_TRACK_SIZE, "unexpected file size");
 
-        let files = parse_d64_directory(&data).unwrap();
+        let files = parse_d64_directory(&data).expect("valid disk directory should parse");
         assert!(!files.is_empty(), "expected at least one file in the image");
 
         for entry in &files {
@@ -422,11 +447,26 @@ mod tests {
 
     #[test]
     fn test_file_type_from_byte() {
-        assert_eq!(FileType::from_byte(0x82).unwrap(), FileType::PRG);
-        assert_eq!(FileType::from_byte(0x80).unwrap(), FileType::DEL);
-        assert_eq!(FileType::from_byte(0x81).unwrap(), FileType::SEQ);
-        assert_eq!(FileType::from_byte(0x83).unwrap(), FileType::USR);
-        assert_eq!(FileType::from_byte(0x84).unwrap(), FileType::REL);
+        assert_eq!(
+            FileType::from_byte(0x82).expect("valid PRG file type byte"),
+            FileType::PRG
+        );
+        assert_eq!(
+            FileType::from_byte(0x80).expect("valid DEL file type byte"),
+            FileType::DEL
+        );
+        assert_eq!(
+            FileType::from_byte(0x81).expect("valid SEQ file type byte"),
+            FileType::SEQ
+        );
+        assert_eq!(
+            FileType::from_byte(0x83).expect("valid USR file type byte"),
+            FileType::USR
+        );
+        assert_eq!(
+            FileType::from_byte(0x84).expect("valid REL file type byte"),
+            FileType::REL
+        );
     }
 
     #[test]
@@ -448,7 +488,8 @@ mod tests {
     fn test_empty_dir_chain_loop_terminates() {
         // Directory sector points to itself while containing zero valid entries.
         let mut data = vec![0u8; D64_STANDARD_SIZE];
-        let dir_offset = calculate_offset(18, 1, DiskType::D64).unwrap();
+        let dir_offset =
+            calculate_offset(18, 1, DiskType::D64).expect("valid D64 track/sector offset");
         data[dir_offset] = 18;
         data[dir_offset + 1] = 1;
         assert!(parse_d64_directory(&data).is_err());
@@ -458,7 +499,8 @@ mod tests {
     fn test_parse_and_extract() {
         let mut data = vec![0u8; D64_STANDARD_SIZE];
 
-        let dir_offset = calculate_offset(18, 1, DiskType::D64).unwrap();
+        let dir_offset =
+            calculate_offset(18, 1, DiskType::D64).expect("valid D64 track/sector offset");
         data[dir_offset] = 0;
         data[dir_offset + 1] = 255;
 
@@ -473,7 +515,8 @@ mod tests {
         data[entry_offset + 28] = 1;
         data[entry_offset + 29] = 0;
 
-        let file_offset = calculate_offset(1, 0, DiskType::D64).unwrap();
+        let file_offset =
+            calculate_offset(1, 0, DiskType::D64).expect("valid D64 track/sector offset");
         data[file_offset] = 0;
         data[file_offset + 1] = 6;
         data[file_offset + 2] = 0x01;
@@ -482,14 +525,14 @@ mod tests {
         data[file_offset + 5] = 0xEA;
         data[file_offset + 6] = 0x60;
 
-        let files = parse_d64_directory(&data).unwrap();
+        let files = parse_d64_directory(&data).expect("valid disk directory should parse");
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].filename, "TEST");
         assert_eq!(files[0].file_type, FileType::PRG);
         assert_eq!(files[0].track, 1);
         assert_eq!(files[0].sector, 0);
 
-        let prg_bytes = extract_file(&data, &files[0]).unwrap();
+        let prg_bytes = extract_file(&data, &files[0]).expect("valid file entry should extract");
         let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
         let extracted_data = prg_bytes[2..].to_vec();
         assert_eq!(load_addr, 0x0801);
@@ -499,25 +542,40 @@ mod tests {
     #[test]
     fn test_calculate_offset_d71() {
         let expected = D64_STANDARD_SIZE;
-        assert_eq!(calculate_offset(36, 0, DiskType::D71_70).unwrap(), expected);
+        assert_eq!(
+            calculate_offset(36, 0, DiskType::D71_70).expect("valid D71 70-track offset"),
+            expected
+        );
 
         let expected = D64_STANDARD_SIZE + 256;
-        assert_eq!(calculate_offset(36, 1, DiskType::D71_70).unwrap(), expected);
+        assert_eq!(
+            calculate_offset(36, 1, DiskType::D71_70).expect("valid D71 70-track offset"),
+            expected
+        );
 
-        let t18_offset = calculate_offset(18, 0, DiskType::D64).unwrap();
+        let t18_offset =
+            calculate_offset(18, 0, DiskType::D64).expect("valid D64 track/sector offset");
         let expected = D64_STANDARD_SIZE + t18_offset;
-        assert_eq!(calculate_offset(53, 0, DiskType::D71_70).unwrap(), expected);
+        assert_eq!(
+            calculate_offset(53, 0, DiskType::D71_70).expect("valid D71 70-track offset"),
+            expected
+        );
 
-        let t35_offset = calculate_offset(35, 0, DiskType::D64).unwrap();
+        let t35_offset =
+            calculate_offset(35, 0, DiskType::D64).expect("valid D64 track/sector offset");
         let expected = D64_STANDARD_SIZE + t35_offset;
-        assert_eq!(calculate_offset(70, 0, DiskType::D71_70).unwrap(), expected);
+        assert_eq!(
+            calculate_offset(70, 0, DiskType::D71_70).expect("valid D71 70-track offset"),
+            expected
+        );
     }
 
     #[test]
     fn test_d71_feature() {
         let mut data = vec![0u8; D71_STANDARD_SIZE];
 
-        let dir_offset = calculate_offset(18, 1, DiskType::D71_70).unwrap();
+        let dir_offset =
+            calculate_offset(18, 1, DiskType::D71_70).expect("valid D71 70-track offset");
         data[dir_offset] = 0;
         data[dir_offset + 1] = 255;
 
@@ -532,7 +590,8 @@ mod tests {
         data[entry_offset + 28] = 1;
         data[entry_offset + 29] = 0;
 
-        let file_offset = calculate_offset(36, 0, DiskType::D71_70).unwrap();
+        let file_offset =
+            calculate_offset(36, 0, DiskType::D71_70).expect("valid D71 70-track offset");
         assert_eq!(file_offset, D64_STANDARD_SIZE);
 
         data[file_offset] = 0;
@@ -541,12 +600,12 @@ mod tests {
         data[file_offset + 3] = 0x10;
         data[file_offset + 4] = 0x42;
 
-        let files = parse_d64_directory(&data).unwrap();
+        let files = parse_d64_directory(&data).expect("valid disk directory should parse");
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].filename, "SIDE2");
         assert_eq!(files[0].track, 36);
 
-        let prg_bytes = extract_file(&data, &files[0]).unwrap();
+        let prg_bytes = extract_file(&data, &files[0]).expect("valid file entry should extract");
         let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
         let extracted_data = prg_bytes[2..].to_vec();
         assert_eq!(load_addr, 0x1000);
@@ -556,22 +615,27 @@ mod tests {
     #[test]
     fn test_calculate_offset_d71_80_track() {
         let expected = D64_40_TRACK_SIZE;
-        assert_eq!(calculate_offset(41, 0, DiskType::D71_80).unwrap(), expected);
+        assert_eq!(
+            calculate_offset(41, 0, DiskType::D71_80).expect("valid D71 80-track offset"),
+            expected
+        );
 
         assert_eq!(
-            calculate_offset(41, 1, DiskType::D71_80).unwrap(),
+            calculate_offset(41, 1, DiskType::D71_80).expect("valid D71 80-track offset"),
             D64_40_TRACK_SIZE + 256
         );
 
-        let t18_offset = calculate_offset(18, 0, DiskType::D64).unwrap();
+        let t18_offset =
+            calculate_offset(18, 0, DiskType::D64).expect("valid D64 track/sector offset");
         assert_eq!(
-            calculate_offset(58, 0, DiskType::D71_80).unwrap(),
+            calculate_offset(58, 0, DiskType::D71_80).expect("valid D71 80-track offset"),
             D64_40_TRACK_SIZE + t18_offset
         );
 
-        let t40_offset = calculate_offset(40, 0, DiskType::D64).unwrap();
+        let t40_offset =
+            calculate_offset(40, 0, DiskType::D64).expect("valid D64 track/sector offset");
         assert_eq!(
-            calculate_offset(80, 0, DiskType::D71_80).unwrap(),
+            calculate_offset(80, 0, DiskType::D71_80).expect("valid D71 80-track offset"),
             D64_40_TRACK_SIZE + t40_offset
         );
 
@@ -582,7 +646,8 @@ mod tests {
     fn test_d71_80_track_feature() {
         let mut data = vec![0u8; D71_80_TRACK_SIZE];
 
-        let dir_offset = calculate_offset(18, 1, DiskType::D71_80).unwrap();
+        let dir_offset =
+            calculate_offset(18, 1, DiskType::D71_80).expect("valid D71 80-track offset");
         data[dir_offset] = 0;
         data[dir_offset + 1] = 255;
 
@@ -597,7 +662,8 @@ mod tests {
         data[entry_offset + 28] = 1;
         data[entry_offset + 29] = 0;
 
-        let file_offset = calculate_offset(41, 0, DiskType::D71_80).unwrap();
+        let file_offset =
+            calculate_offset(41, 0, DiskType::D71_80).expect("valid D71 80-track offset");
         assert_eq!(file_offset, D64_40_TRACK_SIZE);
         data[file_offset] = 0;
         data[file_offset + 1] = 5;
@@ -606,13 +672,13 @@ mod tests {
         data[file_offset + 4] = 0xDE;
         data[file_offset + 5] = 0xAD;
 
-        let files = parse_d64_directory(&data).unwrap();
+        let files = parse_d64_directory(&data).expect("valid disk directory should parse");
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].filename, "SIDE2B");
         assert_eq!(files[0].track, 41);
         assert_eq!(files[0].disk_type, DiskType::D71_80);
 
-        let prg_bytes = extract_file(&data, &files[0]).unwrap();
+        let prg_bytes = extract_file(&data, &files[0]).expect("valid file entry should extract");
         let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
         let payload = prg_bytes[2..].to_vec();
         assert_eq!(load_addr, 0x2000);
@@ -625,12 +691,12 @@ mod tests {
             env!("CARGO_MANIFEST_DIR"),
             "/../../tests/6502/d71_80_tracks.d71"
         );
-        let Ok(data) = std::fs::read(path) else {
+        let Ok(data) = fs::read(path) else {
             return;
         };
         assert_eq!(data.len(), D71_80_TRACK_SIZE, "unexpected file size");
 
-        let files = parse_d64_directory(&data).unwrap();
+        let files = parse_d64_directory(&data).expect("valid disk directory should parse");
         assert!(!files.is_empty(), "expected at least one file in the image");
 
         for entry in &files {
@@ -673,23 +739,36 @@ mod tests {
 
     #[test]
     fn test_calculate_offset_d81() {
-        assert_eq!(calculate_offset(1, 0, DiskType::D81).unwrap(), 0);
-        assert_eq!(calculate_offset(1, 1, DiskType::D81).unwrap(), 256);
-        assert_eq!(calculate_offset(2, 0, DiskType::D81).unwrap(), 40 * 256);
         assert_eq!(
-            calculate_offset(40, 0, DiskType::D81).unwrap(),
+            calculate_offset(1, 0, DiskType::D81).expect("valid D81 track/sector offset"),
+            0
+        );
+        assert_eq!(
+            calculate_offset(1, 1, DiskType::D81).expect("valid D81 track/sector offset"),
+            256
+        );
+        assert_eq!(
+            calculate_offset(2, 0, DiskType::D81).expect("valid D81 track/sector offset"),
+            40 * 256
+        );
+        assert_eq!(
+            calculate_offset(40, 0, DiskType::D81).expect("valid D81 track/sector offset"),
             39 * 40 * 256
         );
 
         let expected = 79 * 40 * 256 + 39 * 256;
-        assert_eq!(calculate_offset(80, 39, DiskType::D81).unwrap(), expected);
+        assert_eq!(
+            calculate_offset(80, 39, DiskType::D81).expect("valid D81 track/sector offset"),
+            expected
+        );
     }
 
     #[test]
     fn test_d81_parsing() {
         let mut data = vec![0u8; D81_STANDARD_SIZE];
 
-        let dir_offset = calculate_offset(40, 3, DiskType::D81).unwrap();
+        let dir_offset =
+            calculate_offset(40, 3, DiskType::D81).expect("valid D81 track/sector offset");
         data[dir_offset] = 0;
         data[dir_offset + 1] = 255;
 
@@ -704,19 +783,20 @@ mod tests {
         data[entry_offset + 28] = 0;
         data[entry_offset + 29] = 0;
 
-        let file_offset = calculate_offset(1, 0, DiskType::D81).unwrap();
+        let file_offset =
+            calculate_offset(1, 0, DiskType::D81).expect("valid D81 track/sector offset");
         data[file_offset] = 0;
         data[file_offset + 1] = 4;
         data[file_offset + 2] = 0;
         data[file_offset + 3] = 0x20;
         data[file_offset + 4] = 0xFF;
 
-        let files = parse_d64_directory(&data).unwrap();
+        let files = parse_d64_directory(&data).expect("valid disk directory should parse");
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].filename, "D81TEST");
         assert_eq!(files[0].disk_type, DiskType::D81);
 
-        let prg_bytes = extract_file(&data, &files[0]).unwrap();
+        let prg_bytes = extract_file(&data, &files[0]).expect("valid file entry should extract");
         let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
         let extracted = prg_bytes[2..].to_vec();
         assert_eq!(load_addr, 0x2000);

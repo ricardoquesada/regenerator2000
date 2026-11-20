@@ -1,6 +1,7 @@
 //! Live debugger state, register snapshots, and checkpoint records for VICE.
 
 use super::protocol::ViceCpuOp;
+use std::mem;
 
 /// CPU operation that triggers a VICE checkpoint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -155,7 +156,7 @@ impl ViceState {
     /// Clears all registers, memory snapshots, and checkpoints while preserving `connected` and `status`.
     pub fn reset_registers(&mut self) {
         let connected = self.connected;
-        let status = std::mem::take(&mut self.status);
+        let status = mem::take(&mut self.status);
         *self = Self {
             connected,
             status,

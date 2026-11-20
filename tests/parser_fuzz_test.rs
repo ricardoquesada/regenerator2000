@@ -352,5 +352,5 @@ fn test_vice_labels_huge_address() {
     assert!(result.is_ok());
     let labels = result.unwrap();
     assert_eq!(labels.len(), 1);
-    assert_eq!(labels[0].0, 0x1000);
+    assert_eq!(labels[0].address, 0x1000);
 }

@@ -1,5 +1,6 @@
 //! Error type for the corpus module.
 
+use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
@@ -8,6 +9,7 @@ use super::values::HexAddr;
 
 /// Error in the corpus manifest, its fixtures, or a case filter.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
 pub enum CorpusError {
     /// File I/O error on a manifest, baseline, or fixture file.
     Io {
@@ -316,4 +318,4 @@ impl fmt::Display for CorpusError {
     }
 }
 
-impl std::error::Error for CorpusError {}
+impl Error for CorpusError {}

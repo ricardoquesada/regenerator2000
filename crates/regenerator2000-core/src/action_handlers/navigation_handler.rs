@@ -2,10 +2,13 @@
 //! symbolic-offset base redirection, and view settings.
 
 use super::{ActionContext, CoreError, DomainActionHandler};
-use crate::event::CoreEvent;
-use crate::state::Addr;
+use crate::commands::Command;
+use crate::disassembler::symbols;
+use crate::event::{CoreEvent, DialogType};
+use crate::navigation;
 use crate::state::actions::AppAction;
-use crate::view_state::ActivePane;
+use crate::state::{Addr, BlockItem, BlockItemTarget};
+use crate::view_state::{ActivePane, CoreViewState, NavigationTarget, RightPane};
 
 /// Handler for navigation, search, and view management actions.
 #[derive(Debug, Default)]
@@ -78,9 +81,14 @@ fn sync_pane_cursor_to_disassembly(ctx: &mut ActionContext<'_>) {
         }
         ActivePane::Blocks if ctx.state.system_config.sync_blocks_view => {
             if allow_cursor_sync
-                && let Some(pos) = ctx
-                    .state
-                    .get_block_index_for_address(target_addr, is_splitter)
+                && let Some(pos) = {
+                    let target = if is_splitter {
+                        BlockItemTarget::Splitter
+                    } else {
+                        BlockItemTarget::BlockOrScope
+                    };
+                    ctx.state.block_index_for_address(target_addr, target)
+                }
             {
                 ctx.view.blocks_selected_index = Some(pos);
             }
@@ -94,15 +102,14 @@ fn sync_pane_cursor_to_disassembly(ctx: &mut ActionContext<'_>) {
 fn toggle_two_column_pane(
     ctx: &mut ActionContext<'_>,
     active_pane: ActivePane,
-    wide: crate::view_state::RightPane,
-    narrow: crate::view_state::RightPane,
-    last_pane: fn(&mut crate::view_state::CoreViewState) -> &mut crate::view_state::RightPane,
+    wide: RightPane,
+    narrow: RightPane,
+    last_pane: fn(&mut CoreViewState) -> &mut RightPane,
     wide_msg: &str,
     narrow_msg: &str,
     hidden_msg: &str,
 ) {
     use crate::navigation::AlignedGridRange;
-    use crate::view_state::RightPane;
     match ctx.view.right_pane {
         p if p == wide => {
             // Re-index the hex cursor and selection anchor from 16-byte rows to 8-byte rows.
@@ -184,13 +191,13 @@ fn toggle_two_column_pane(
 /// Toggles a single-layout right-hand pane (`right_pane <-> None`) and synchronizes its cursor.
 fn toggle_single_pane(
     ctx: &mut ActionContext<'_>,
-    right_pane: crate::view_state::RightPane,
+    right_pane: RightPane,
     active_pane: ActivePane,
     shown_msg: &str,
     hidden_msg: &str,
 ) {
     if ctx.view.right_pane == right_pane {
-        ctx.view.right_pane = crate::view_state::RightPane::None;
+        ctx.view.right_pane = RightPane::None;
         ctx.events
             .push(CoreEvent::StatusMessage(hidden_msg.to_string()));
         if ctx.view.active_pane == active_pane {
@@ -208,7 +215,7 @@ fn toggle_single_pane(
 
 /// Jumps the disassembly cursor to `target_addr` and records navigation history.
 fn handle_navigate_to_address(ctx: &mut ActionContext<'_>, target_addr: Addr) {
-    crate::navigation::perform_jump_to_address(ctx.state, ctx.view, target_addr);
+    navigation::perform_jump_to_address(ctx.state, ctx.view, target_addr);
     if let Some(msg) = &ctx.view.status_message {
         ctx.events.push(CoreEvent::StatusMessage(msg.clone()));
     }
@@ -239,12 +246,11 @@ fn resolve_non_disassembly_jump_target(ctx: &ActionContext<'_>) -> Option<Addr> 
             AlignedGridRange::charset(ctx.state).clamped_item_addr(ctx.view.charset_cursor_index)
         }
         ActivePane::Blocks => {
-            let blocks = ctx.state.get_blocks_view_items();
+            let blocks = ctx.state.blocks_view_items();
             let idx = ctx.view.blocks_selected_index.unwrap_or(0);
             blocks.get(idx).map(|item| match *item {
-                crate::state::BlockItem::Block { start, .. }
-                | crate::state::BlockItem::Scope { start, .. } => start,
-                crate::state::BlockItem::Splitter(addr) => addr,
+                BlockItem::Block { start, .. } | BlockItem::Scope { start, .. } => start,
+                BlockItem::Splitter(addr) => addr,
             })
         }
         ActivePane::Bitmap => {
@@ -327,7 +333,7 @@ fn handle_jump_unexplored(ctx: &mut ActionContext<'_>, forward: bool) {
 
     if let Some(offset) = found {
         let target_addr = ctx.state.origin.wrapping_add(offset as u16);
-        crate::navigation::perform_jump_to_address(ctx.state, ctx.view, target_addr);
+        navigation::perform_jump_to_address(ctx.state, ctx.view, target_addr);
         let direction = if forward { "next" } else { "previous" };
         ctx.events.push(CoreEvent::StatusMessage(format!(
             "Jumped to {direction} unexplored block at ${target_addr:04X}"
@@ -380,7 +386,7 @@ fn perform_search(ctx: &mut ActionContext<'_>, forward: bool) {
     let filters = &ctx.view.search_filters;
 
     if let Some(line) = ctx.state.disassembly.get(start_idx) {
-        let matches = search::get_line_matches(
+        let matches = search::line_matches(
             line,
             ctx.state,
             &query_lower,
@@ -403,7 +409,7 @@ fn perform_search(ctx: &mut ActionContext<'_>, forward: bool) {
         if let Some(sub) = candidate {
             ctx.view.navigation_history.push((
                 ActivePane::Disassembly,
-                crate::view_state::NavigationTarget::Index(ctx.view.cursor_index),
+                NavigationTarget::Index(ctx.view.cursor_index),
             ));
             ctx.view.sub_cursor_index = sub;
             ctx.events
@@ -423,7 +429,7 @@ fn perform_search(ctx: &mut ActionContext<'_>, forward: bool) {
         };
 
         if let Some(line) = ctx.state.disassembly.get(idx) {
-            let matches = search::get_line_matches(
+            let matches = search::line_matches(
                 line,
                 ctx.state,
                 &query_lower,
@@ -435,7 +441,7 @@ fn perform_search(ctx: &mut ActionContext<'_>, forward: bool) {
             if !matches.is_empty() {
                 ctx.view.navigation_history.push((
                     ActivePane::Disassembly,
-                    crate::view_state::NavigationTarget::Index(ctx.view.cursor_index),
+                    NavigationTarget::Index(ctx.view.cursor_index),
                 ));
                 ctx.view.cursor_index = idx;
                 ctx.view.sub_cursor_index = if forward {
@@ -472,7 +478,7 @@ fn perform_search(ctx: &mut ActionContext<'_>, forward: bool) {
             {
                 ctx.view.navigation_history.push((
                     ActivePane::Disassembly,
-                    crate::view_state::NavigationTarget::Index(ctx.view.cursor_index),
+                    NavigationTarget::Index(ctx.view.cursor_index),
                 ));
                 ctx.view.cursor_index = idx;
                 ctx.view.sub_cursor_index = 0;
@@ -502,7 +508,7 @@ impl DomainActionHandler for NavigationActionHandler {
             }
             AppAction::About => {
                 ctx.events
-                    .push(CoreEvent::DialogRequested(crate::event::DialogType::About));
+                    .push(CoreEvent::DialogRequested(DialogType::About));
                 ctx.events.push(CoreEvent::StatusMessage(
                     "About Regenerator 2000".to_string(),
                 ));
@@ -527,17 +533,15 @@ impl DomainActionHandler for NavigationActionHandler {
                 Ok(true)
             }
             AppAction::KeyboardShortcuts => {
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::KeyboardShortcuts,
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::KeyboardShortcuts));
                 ctx.events
                     .push(CoreEvent::StatusMessage("Keyboard Shortcuts".to_string()));
                 Ok(true)
             }
             AppAction::SystemSettings => {
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::Settings,
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::Settings));
                 ctx.events
                     .push(CoreEvent::StatusMessage("System Settings".to_string()));
                 Ok(true)
@@ -563,25 +567,22 @@ impl DomainActionHandler for NavigationActionHandler {
                 Ok(true)
             }
             AppAction::DocumentSettings => {
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::DocumentSettings,
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::DocumentSettings));
                 ctx.events
                     .push(CoreEvent::StatusMessage("Document Settings".to_string()));
                 Ok(true)
             }
             AppAction::JumpToAddress => {
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::JumpToAddress,
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::JumpToAddress));
                 ctx.events
                     .push(CoreEvent::StatusMessage("Enter address (Hex)".to_string()));
                 Ok(true)
             }
             AppAction::JumpToLine => {
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::JumpToLine,
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::JumpToLine));
                 ctx.events.push(CoreEvent::StatusMessage(
                     "Enter Line Number (Dec)".to_string(),
                 ));
@@ -596,26 +597,23 @@ impl DomainActionHandler for NavigationActionHandler {
                 Ok(true)
             }
             AppAction::Search => {
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::Search {
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::Search {
                         query: ctx.view.last_search_query.clone(),
                         filters: ctx.view.search_filters.clone(),
-                    },
-                ));
+                    }));
                 ctx.events
                     .push(CoreEvent::StatusMessage("Search...".to_string()));
                 Ok(true)
             }
             AppAction::GoToSymbol => {
-                ctx.events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::GoToSymbol,
-                ));
+                ctx.events
+                    .push(CoreEvent::DialogRequested(DialogType::GoToSymbol));
                 ctx.events
                     .push(CoreEvent::StatusMessage("Go to Symbol...".to_string()));
                 Ok(true)
             }
             AppAction::ToggleHexDump => {
-                use crate::view_state::RightPane;
                 toggle_two_column_pane(
                     ctx,
                     ActivePane::HexDump,
@@ -659,7 +657,7 @@ impl DomainActionHandler for NavigationActionHandler {
             AppAction::ToggleBitmapView => {
                 toggle_single_pane(
                     ctx,
-                    crate::view_state::RightPane::Bitmap,
+                    RightPane::Bitmap,
                     ActivePane::Bitmap,
                     "Bitmap View Shown",
                     "Bitmap View Hidden",
@@ -672,12 +670,12 @@ impl DomainActionHandler for NavigationActionHandler {
             }
             AppAction::ToggleSplitter => {
                 if ctx.view.active_pane == ActivePane::Blocks {
-                    let blocks = ctx.state.get_blocks_view_items();
+                    let blocks = ctx.state.blocks_view_items();
                     if let Some(idx) = ctx.view.blocks_selected_index
                         && idx < blocks.len()
-                        && let crate::state::BlockItem::Splitter(addr) = blocks[idx]
+                        && let BlockItem::Splitter(addr) = blocks[idx]
                     {
-                        let command = crate::commands::Command::ToggleSplitter { address: addr };
+                        let command = Command::ToggleSplitter { address: addr };
                         command.apply(ctx.state);
                         ctx.state.push_command(command);
                         ctx.events.push(CoreEvent::StatusMessage(format!(
@@ -689,7 +687,7 @@ impl DomainActionHandler for NavigationActionHandler {
                     && let Some(line) = ctx.state.disassembly.get(ctx.view.cursor_index)
                 {
                     let addr = line.address;
-                    let command = crate::commands::Command::ToggleSplitter { address: addr };
+                    let command = Command::ToggleSplitter { address: addr };
                     command.apply(ctx.state);
                     ctx.state.push_command(command);
                     ctx.events.push(CoreEvent::StatusMessage(format!(
@@ -715,7 +713,7 @@ impl DomainActionHandler for NavigationActionHandler {
                     // When `raw_addr` carries an active Tier 2 `address_offset` (such as an
                     // internal struct field `struct_base + 1`), `analyzer::analyze` routes all
                     // incoming `XRef`s to `sym.base`, so redirect `Ctrl+x` to `sym.base`.
-                    let addr = if crate::disassembler::symbols::has_active_address_offset(
+                    let addr = if symbols::has_active_address_offset(
                         raw_addr,
                         &ctx.state.labels,
                         &ctx.state.annotations,
@@ -729,9 +727,8 @@ impl DomainActionHandler for NavigationActionHandler {
                     } else {
                         raw_addr
                     };
-                    ctx.events.push(CoreEvent::DialogRequested(
-                        crate::event::DialogType::FindReferences(addr),
-                    ));
+                    ctx.events
+                        .push(CoreEvent::DialogRequested(DialogType::FindReferences(addr)));
                 }
                 Ok(true)
             }
@@ -753,7 +750,7 @@ impl DomainActionHandler for NavigationActionHandler {
             AppAction::ToggleBlocksView => {
                 toggle_single_pane(
                     ctx,
-                    crate::view_state::RightPane::Blocks,
+                    RightPane::Blocks,
                     ActivePane::Blocks,
                     "Blocks View Shown",
                     "Blocks View Hidden",
@@ -763,7 +760,7 @@ impl DomainActionHandler for NavigationActionHandler {
             AppAction::ToggleDebuggerView => {
                 toggle_single_pane(
                     ctx,
-                    crate::view_state::RightPane::Debugger,
+                    RightPane::Debugger,
                     ActivePane::Debugger,
                     "Debugger View Shown",
                     "Debugger View Hidden",
@@ -774,14 +771,14 @@ impl DomainActionHandler for NavigationActionHandler {
                 if let Some((pane, target)) = ctx.view.navigation_history.pop() {
                     ctx.view.active_pane = pane;
                     match target {
-                        crate::view_state::NavigationTarget::Address(addr) => {
-                            crate::navigation::perform_jump_to_address_no_history(
+                        NavigationTarget::Address(addr) => {
+                            navigation::perform_jump_to_address_no_history(
                                 ctx.state,
                                 ctx.view,
-                                crate::state::Addr(addr),
+                                Addr(addr),
                             );
                         }
-                        crate::view_state::NavigationTarget::Index(idx) => match pane {
+                        NavigationTarget::Index(idx) => match pane {
                             ActivePane::Disassembly => {
                                 let max_idx = ctx.state.disassembly.len().saturating_sub(1);
                                 let clamped = idx.min(max_idx);
@@ -803,8 +800,7 @@ impl DomainActionHandler for NavigationActionHandler {
                                 ctx.view.bitmap_cursor_index = idx;
                             }
                             ActivePane::Blocks => {
-                                let max_idx =
-                                    ctx.state.get_blocks_view_items().len().saturating_sub(1);
+                                let max_idx = ctx.state.blocks_view_items().len().saturating_sub(1);
                                 ctx.view.blocks_selected_index = Some(idx.min(max_idx));
                             }
                             ActivePane::Debugger => {
@@ -853,7 +849,7 @@ impl DomainActionHandler for NavigationActionHandler {
                             let source_address =
                                 line.external_label_address.unwrap_or(line.address);
                             ctx.events.push(CoreEvent::DialogRequested(
-                                crate::event::DialogType::JumpToOperand {
+                                DialogType::JumpToOperand {
                                     source_address,
                                     targets,
                                 },
@@ -875,16 +871,13 @@ impl DomainActionHandler for NavigationActionHandler {
             AppAction::CyclePane => {
                 ctx.view.active_pane = match ctx.view.active_pane {
                     ActivePane::Disassembly => match ctx.view.right_pane {
-                        crate::view_state::RightPane::None => ActivePane::Disassembly,
-                        crate::view_state::RightPane::HexDump16
-                        | crate::view_state::RightPane::HexDump8 => ActivePane::HexDump,
-                        crate::view_state::RightPane::Sprites2Col
-                        | crate::view_state::RightPane::Sprites1Col => ActivePane::Sprites,
-                        crate::view_state::RightPane::Charset8Col
-                        | crate::view_state::RightPane::Charset4Col => ActivePane::Charset,
-                        crate::view_state::RightPane::Bitmap => ActivePane::Bitmap,
-                        crate::view_state::RightPane::Blocks => ActivePane::Blocks,
-                        crate::view_state::RightPane::Debugger => ActivePane::Debugger,
+                        RightPane::None => ActivePane::Disassembly,
+                        RightPane::HexDump16 | RightPane::HexDump8 => ActivePane::HexDump,
+                        RightPane::Sprites2Col | RightPane::Sprites1Col => ActivePane::Sprites,
+                        RightPane::Charset8Col | RightPane::Charset4Col => ActivePane::Charset,
+                        RightPane::Bitmap => ActivePane::Bitmap,
+                        RightPane::Blocks => ActivePane::Blocks,
+                        RightPane::Debugger => ActivePane::Debugger,
                     },
                     ActivePane::HexDump
                     | ActivePane::Sprites
@@ -948,9 +941,9 @@ impl DomainActionHandler for NavigationActionHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::AppState;
     use crate::state::types::HexdumpViewMode;
-    use crate::view_state::CoreViewState;
+    use crate::state::{AppState, BlockType, ImmediateFormat};
+    use std::iter;
 
     #[test]
     fn test_cycle_hexdump_view_mode() {
@@ -974,7 +967,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::HexdumpViewModeNext, &mut ctx)
-                .unwrap()
+                .expect("HexdumpViewModeNext action should succeed")
         );
         assert_eq!(
             ctx.view.hexdump_view_mode,
@@ -984,14 +977,14 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::HexdumpViewModeNext, &mut ctx)
-                .unwrap()
+                .expect("HexdumpViewModeNext action should succeed")
         );
         assert_eq!(ctx.view.hexdump_view_mode, HexdumpViewMode::PETSCIIShifted);
 
         assert!(
             handler
                 .handle_action(&AppAction::HexdumpViewModeNext, &mut ctx)
-                .unwrap()
+                .expect("HexdumpViewModeNext action should succeed")
         );
         assert_eq!(
             ctx.view.hexdump_view_mode,
@@ -1001,7 +994,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::HexdumpViewModeNext, &mut ctx)
-                .unwrap()
+                .expect("HexdumpViewModeNext action should succeed")
         );
         assert_eq!(
             ctx.view.hexdump_view_mode,
@@ -1012,7 +1005,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::HexdumpViewModePrev, &mut ctx)
-                .unwrap()
+                .expect("HexdumpViewModePrev action should succeed")
         );
         assert_eq!(
             ctx.view.hexdump_view_mode,
@@ -1022,7 +1015,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::HexdumpViewModePrev, &mut ctx)
-                .unwrap()
+                .expect("HexdumpViewModePrev action should succeed")
         );
         assert_eq!(ctx.view.hexdump_view_mode, HexdumpViewMode::PETSCIIShifted);
     }
@@ -1035,7 +1028,7 @@ mod tests {
         let mut state = AppState::new();
         state.origin = Addr(0x1000);
         state.raw_data = vec![0x4C, 0x34, 0x12, 0xEA];
-        state.block_types = vec![crate::state::BlockType::Code; 4];
+        state.block_types = vec![BlockType::Code; 4];
 
         let line0 = DisassemblyLine {
             address: Addr(0x1000),
@@ -1092,7 +1085,7 @@ mod tests {
         let handler = NavigationActionHandler::new();
         let handled = handler
             .handle_action(&AppAction::JumpToOperand, &mut ctx)
-            .unwrap();
+            .expect("JumpToOperand action should succeed");
         assert!(handled);
         assert_eq!(ctx.view.cursor_index, 1);
         assert_eq!(
@@ -1164,7 +1157,7 @@ mod tests {
         let handler = NavigationActionHandler::new();
         let handled = handler
             .handle_action(&AppAction::JumpToOperand, &mut ctx)
-            .unwrap();
+            .expect("JumpToOperand action should succeed");
         assert!(handled);
         assert_eq!(ctx.view.cursor_index, 1);
         assert_eq!(
@@ -1223,7 +1216,7 @@ mod tests {
         };
         state.disassembly = vec![line0, line1];
         state.annotations.update(Addr(0x1000), |e| {
-            e.immediate_format = Some(crate::state::ImmediateFormat::LowByte(Addr(0x2000)));
+            e.immediate_format = Some(ImmediateFormat::LowByte(Addr(0x2000)));
         });
 
         let mut view = CoreViewState::new();
@@ -1239,7 +1232,7 @@ mod tests {
         let handler = NavigationActionHandler::new();
         let handled = handler
             .handle_action(&AppAction::JumpToOperand, &mut ctx)
-            .unwrap();
+            .expect("JumpToOperand action should succeed");
         assert!(handled);
         assert_eq!(ctx.view.cursor_index, 1);
         assert_eq!(
@@ -1339,7 +1332,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::JumpToOperand, &mut ctx)
-                .unwrap()
+                .expect("JumpToOperand action should succeed")
         );
         assert_eq!(ctx.view.cursor_index, 1);
         assert_eq!(ctx.view.navigation_history.len(), 1);
@@ -1348,7 +1341,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::JumpToOperand, &mut ctx)
-                .unwrap()
+                .expect("JumpToOperand action should succeed")
         );
         assert_eq!(ctx.view.cursor_index, 2);
         assert_eq!(ctx.view.navigation_history.len(), 2);
@@ -1357,7 +1350,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::NavigateBack, &mut ctx)
-                .unwrap()
+                .expect("NavigateBack action should succeed")
         );
         assert_eq!(ctx.view.cursor_index, 1);
         assert_eq!(ctx.view.navigation_history.len(), 1);
@@ -1366,7 +1359,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::NavigateBack, &mut ctx)
-                .unwrap()
+                .expect("NavigateBack action should succeed")
         );
         assert_eq!(ctx.view.cursor_index, 0);
         assert_eq!(ctx.view.navigation_history.len(), 0);
@@ -1375,7 +1368,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::NavigateBack, &mut ctx)
-                .unwrap()
+                .expect("NavigateBack action should succeed")
         );
         assert_eq!(ctx.view.cursor_index, 0);
         assert_eq!(ctx.view.status_message.as_deref(), Some("No history"));
@@ -1386,7 +1379,7 @@ mod tests {
         let mut state = AppState::new();
         state.origin = Addr(0x1000);
         state.raw_data = vec![0xEA; 64];
-        state.block_types = vec![crate::state::BlockType::Code; 64];
+        state.block_types = vec![BlockType::Code; 64];
         state.disassemble();
 
         let mut view = CoreViewState::new();
@@ -1405,7 +1398,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::NavigateToAddress(Addr(0x1000)), &mut ctx)
-                .unwrap()
+                .expect("NavigateToAddress $1000 should succeed")
         );
         assert_eq!(ctx.view.active_pane, ActivePane::Disassembly);
         assert_eq!(ctx.view.navigation_history.len(), 1);
@@ -1414,7 +1407,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::NavigateBack, &mut ctx)
-                .unwrap()
+                .expect("NavigateBack action should succeed")
         );
         assert_eq!(ctx.view.active_pane, ActivePane::HexDump);
         assert_eq!(ctx.view.hex_cursor_index, 3);
@@ -1424,11 +1417,15 @@ mod tests {
     #[test]
     fn test_hexdump8_sync_and_jump_to_operand_with_unaligned_origin() {
         let mut state = AppState::new();
-        state.load_binary(Addr(0x0801), vec![0xEA; 32]).unwrap();
+        state
+            .load_binary(Addr(0x0801), vec![0xEA; 32])
+            .expect("test binary should load");
 
         let mut view = CoreViewState::new();
         // Put cursor at $0810 (index 15 -> offset 15, plus padding 1 = 16 -> row 1 in 16-col, row 2 in 8-col)
-        view.cursor_index = state.get_line_index_for_address(Addr(0x0810)).unwrap();
+        view.cursor_index = state
+            .line_index_for_address(Addr(0x0810))
+            .expect("line index for $0810 should exist");
         view.sub_cursor_index = 2;
 
         let mut events = Vec::new();
@@ -1442,8 +1439,8 @@ mod tests {
         // Default right_pane is HexDump16, so first ToggleHexDump switches to HexDump8 (row 2)
         handler
             .handle_action(&AppAction::ToggleHexDump, &mut ctx)
-            .unwrap();
-        assert_eq!(ctx.view.right_pane, crate::view_state::RightPane::HexDump8);
+            .expect("ToggleHexDump action should succeed");
+        assert_eq!(ctx.view.right_pane, RightPane::HexDump8);
         assert_eq!(ctx.view.hex_cursor_index, 2);
         assert_eq!(ctx.view.sub_cursor_index, 2);
 
@@ -1451,7 +1448,7 @@ mod tests {
         ctx.view.cursor_index = 0;
         handler
             .handle_action(&AppAction::JumpToOperand, &mut ctx)
-            .unwrap();
+            .expect("JumpToOperand action should succeed");
         assert_eq!(
             ctx.state.disassembly[ctx.view.cursor_index].address,
             Addr(0x0810)
@@ -1462,7 +1459,7 @@ mod tests {
         ctx.view.hex_cursor_index = 0;
         handler
             .handle_action(&AppAction::JumpToOperand, &mut ctx)
-            .unwrap();
+            .expect("JumpToOperand action should succeed");
         assert_eq!(
             ctx.state.disassembly[ctx.view.cursor_index].address,
             Addr(0x0801)
@@ -1472,13 +1469,13 @@ mod tests {
     #[test]
     fn test_navigate_back_clamps_index_when_disassembly_shrinks() {
         let mut state = AppState::new();
-        state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        state
+            .load_binary(Addr(0x1000), vec![0xEA; 4])
+            .expect("test binary should load");
 
         let mut view = CoreViewState::new();
-        view.navigation_history.push((
-            ActivePane::Disassembly,
-            crate::view_state::NavigationTarget::Index(99),
-        ));
+        view.navigation_history
+            .push((ActivePane::Disassembly, NavigationTarget::Index(99)));
 
         let mut events = Vec::new();
         let mut ctx = ActionContext {
@@ -1490,7 +1487,7 @@ mod tests {
         let handler = NavigationActionHandler::new();
         handler
             .handle_action(&AppAction::NavigateBack, &mut ctx)
-            .unwrap();
+            .expect("NavigateBack action should succeed");
         assert_eq!(ctx.view.cursor_index, ctx.state.disassembly.len() - 1);
         assert!(
             ctx.events
@@ -1669,7 +1666,7 @@ mod tests {
             assert!(
                 handler
                     .handle_action(&AppAction::JumpToOperand, &mut ctx)
-                    .unwrap(),
+                    .expect("JumpToOperand action should succeed"),
                 "{desc}"
             );
             assert_eq!(
@@ -1685,7 +1682,7 @@ mod tests {
             // Backspace returns to the originating line
             handler
                 .handle_action(&AppAction::NavigateBack, &mut ctx)
-                .unwrap();
+                .expect("NavigateBack action should succeed");
             assert_eq!(
                 ctx.view.cursor_index, start_idx,
                 "NavigateBack failed for {desc}"
@@ -1750,7 +1747,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::FindReferences, &mut ctx)
-                .unwrap()
+                .expect("FindReferences action should succeed")
         );
         assert!(
             ctx.events
@@ -1824,7 +1821,7 @@ mod tests {
         };
         handler
             .handle_action(&AppAction::JumpToOperand, &mut ctx)
-            .unwrap();
+            .expect("JumpToOperand action should succeed");
         assert_eq!(ctx.view.cursor_index, chrout_idx);
         assert!(ctx.view.navigation_history.is_empty());
 
@@ -1833,7 +1830,7 @@ mod tests {
         ctx.events.clear();
         handler
             .handle_action(&AppAction::JumpToOperand, &mut ctx)
-            .unwrap();
+            .expect("JumpToOperand action should succeed");
         let landed = &ctx.state.disassembly[ctx.view.cursor_index];
         assert!(landed.external_label_address.is_none());
         assert_eq!(landed.address, Addr(0x1004));
@@ -1851,7 +1848,7 @@ mod tests {
         // $1004..$100A: 6 NOPs.
         // $100A..$100C: LDA #$01; $100C..$100E: LDA #$02; $100E: RTS.
         let mut raw = vec![0x0A, 0x0C, 0x10, 0x10];
-        raw.extend(std::iter::repeat_n(0xEA, 6));
+        raw.extend(iter::repeat_n(0xEA, 6));
         raw.extend_from_slice(&[0xA9, 0x01, 0xA9, 0x02, 0x60]);
         state.raw_data = raw;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
@@ -1864,12 +1861,12 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at $1000 should exist");
         let hi_idx = state
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at $1002 should exist");
 
         let handler = NavigationActionHandler;
 
@@ -1886,7 +1883,7 @@ mod tests {
             assert!(
                 handler
                     .handle_action(&AppAction::JumpToOperand, &mut ctx)
-                    .unwrap()
+                    .expect("JumpToOperand action should succeed")
             );
             assert_eq!(ctx.view.cursor_index, idx);
             assert!(ctx.view.navigation_history.is_empty());
@@ -1916,7 +1913,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::NavigateToAddress(Addr(0x100C)), &mut ctx)
-                .unwrap()
+                .expect("NavigateToAddress $100C should succeed")
         );
         assert_eq!(
             ctx.state.disassembly[ctx.view.cursor_index].address,
@@ -1935,7 +1932,7 @@ mod tests {
         // $1000..$1004: .word $1010, $1014 (2 distinct targets -> dialog)
         // $1004..$1008: .word $1010, $1010 (deduplicates to 1 target -> direct jump)
         let mut raw = vec![0x10, 0x10, 0x14, 0x10, 0x10, 0x10, 0x10, 0x10];
-        raw.extend(std::iter::repeat_n(0xEA, 16));
+        raw.extend(iter::repeat_n(0xEA, 16));
         state.raw_data = raw;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
         for bt in &mut state.block_types[0..8] {
@@ -1948,12 +1945,12 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at $1000 should exist");
         let dedup_idx = state
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1004) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at $1004 should exist");
 
         let handler = NavigationActionHandler;
 
@@ -1968,7 +1965,7 @@ mod tests {
         };
         handler
             .handle_action(&AppAction::JumpToOperand, &mut ctx)
-            .unwrap();
+            .expect("JumpToOperand action should succeed");
         assert_eq!(ctx.view.cursor_index, multi_idx);
         assert!(ctx.view.navigation_history.is_empty());
         assert!(ctx.events.iter().any(|ev| matches!(
@@ -1990,7 +1987,7 @@ mod tests {
         };
         handler
             .handle_action(&AppAction::JumpToOperand, &mut ctx)
-            .unwrap();
+            .expect("JumpToOperand action should succeed");
         assert_eq!(
             ctx.state.disassembly[ctx.view.cursor_index].address,
             Addr(0x1010)
@@ -2020,7 +2017,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1000) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at $1000 should exist");
 
         for cursor in [nop_idx, usize::MAX] {
             let mut view = CoreViewState::new();
@@ -2034,7 +2031,7 @@ mod tests {
             assert!(
                 handler
                     .handle_action(&AppAction::JumpToOperand, &mut ctx)
-                    .unwrap()
+                    .expect("JumpToOperand action should succeed")
             );
             assert!(ctx.view.navigation_history.is_empty());
             assert!(ctx.events.contains(&CoreEvent::StatusMessage(
@@ -2059,7 +2056,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::JumpToOperand, &mut ctx)
-                .unwrap()
+                .expect("JumpToOperand action should succeed")
         );
         assert!(ctx.events.contains(&CoreEvent::StatusMessage(
             "No valid operand to jump to".to_string()
@@ -2104,7 +2101,7 @@ mod tests {
             assert!(
                 handler
                     .handle_action(&AppAction::JumpToOperand, &mut ctx)
-                    .unwrap()
+                    .expect("JumpToOperand action should succeed")
             );
             assert_eq!(ctx.view.active_pane, ActivePane::Disassembly);
             assert_eq!(
@@ -2135,7 +2132,7 @@ mod tests {
             .disassembly
             .iter()
             .position(|l| l.address == Addr(0x1002) && !l.bytes.is_empty())
-            .unwrap();
+            .expect("disassembly line at $1002 should exist");
 
         let mut view = CoreViewState::new();
         view.cursor_index = start_idx;
@@ -2150,7 +2147,7 @@ mod tests {
         assert!(
             handler
                 .handle_action(&AppAction::NavigateToAddress(Addr(0xFFD2)), &mut ctx)
-                .unwrap()
+                .expect("NavigateToAddress $FFD2 should succeed")
         );
         assert_eq!(ctx.view.cursor_index, start_idx);
         assert!(ctx.view.navigation_history.is_empty());
@@ -2172,20 +2169,20 @@ mod tests {
 
         let handler = NavigationActionHandler;
         let idx_0801 = state
-            .get_line_index_containing_address(Addr(0x0801))
-            .unwrap();
+            .line_index_containing_address(Addr(0x0801))
+            .expect("line containing $0801 should exist");
         let idx_0815 = state
-            .get_line_index_containing_address(Addr(0x0815))
-            .unwrap();
+            .line_index_containing_address(Addr(0x0815))
+            .expect("line containing $0815 should exist");
         let idx_0840 = state
-            .get_line_index_containing_address(Addr(0x0840))
-            .unwrap();
+            .line_index_containing_address(Addr(0x0840))
+            .expect("line containing $0840 should exist");
         let idx_0900 = state
-            .get_line_index_containing_address(Addr(0x0900))
-            .unwrap();
+            .line_index_containing_address(Addr(0x0900))
+            .expect("line containing $0900 should exist");
         let idx_2000 = state
-            .get_line_index_containing_address(Addr(0x2000))
-            .unwrap();
+            .line_index_containing_address(Addr(0x2000))
+            .expect("line containing $2000 should exist");
 
         // 1. ToggleBitmapView respects sync_bitmap_view and uses floor alignment.
         let mut view = CoreViewState::new();
@@ -2201,7 +2198,7 @@ mod tests {
             };
             handler
                 .handle_action(&AppAction::ToggleBitmapView, &mut ctx)
-                .unwrap();
+                .expect("ToggleBitmapView action should succeed");
         }
         assert_eq!(view.right_pane, RightPane::Bitmap);
         assert_eq!(view.bitmap_cursor_index, 2);
@@ -2216,20 +2213,20 @@ mod tests {
             };
             handler
                 .handle_action(&AppAction::ToggleBitmapView, &mut ctx)
-                .unwrap();
+                .expect("ToggleBitmapView action should succeed");
             assert_eq!(ctx.view.right_pane, RightPane::None);
             handler
                 .handle_action(&AppAction::ToggleBitmapView, &mut ctx)
-                .unwrap();
+                .expect("ToggleBitmapView action should succeed");
             assert_eq!(ctx.view.bitmap_cursor_index, 1);
 
             handler
                 .handle_action(&AppAction::ToggleBitmapView, &mut ctx)
-                .unwrap();
+                .expect("ToggleBitmapView action should succeed");
             ctx.view.cursor_index = idx_0900;
             handler
                 .handle_action(&AppAction::ToggleBitmapView, &mut ctx)
-                .unwrap();
+                .expect("ToggleBitmapView action should succeed");
             assert_eq!(ctx.view.bitmap_cursor_index, 0);
         }
 
@@ -2246,7 +2243,7 @@ mod tests {
             };
             handler
                 .handle_action(&AppAction::ToggleSpritesView, &mut ctx)
-                .unwrap();
+                .expect("ToggleSpritesView action should succeed");
             assert_eq!(ctx.view.sprites_cursor_index, 5);
         }
         view.right_pane = RightPane::None;
@@ -2260,14 +2257,14 @@ mod tests {
             ctx.view.cursor_index = idx_0801;
             handler
                 .handle_action(&AppAction::ToggleSpritesView, &mut ctx)
-                .unwrap();
+                .expect("ToggleSpritesView action should succeed");
             assert_eq!(ctx.view.sprites_cursor_index, 0);
 
             ctx.view.right_pane = RightPane::None;
             ctx.view.cursor_index = idx_0840;
             handler
                 .handle_action(&AppAction::ToggleSpritesView, &mut ctx)
-                .unwrap();
+                .expect("ToggleSpritesView action should succeed");
             assert_eq!(ctx.view.sprites_cursor_index, 1);
         }
 
@@ -2283,7 +2280,7 @@ mod tests {
             };
             handler
                 .handle_action(&AppAction::ToggleHexDump, &mut ctx)
-                .unwrap();
+                .expect("ToggleHexDump action should succeed");
             assert_eq!(ctx.view.right_pane, RightPane::HexDump8);
             assert_eq!(ctx.view.hex_cursor_index, 2);
             assert_eq!(ctx.view.hex_col_cursor, 5);
@@ -2303,7 +2300,7 @@ mod tests {
             };
             handler
                 .handle_action(&AppAction::ToggleHexDump, &mut ctx)
-                .unwrap();
+                .expect("ToggleHexDump action should succeed");
             assert_eq!(ctx.view.right_pane, RightPane::HexDump8);
             assert_eq!(ctx.view.hex_cursor_index, 3); // $0818
             assert_eq!(ctx.view.hex_col_cursor, 3); // $0818 + 3 = $081B
@@ -2330,7 +2327,7 @@ mod tests {
             };
             handler
                 .handle_action(&AppAction::JumpToOperand, &mut ctx)
-                .unwrap();
+                .expect("JumpToOperand action should succeed");
             assert_eq!(
                 ctx.state.disassembly[ctx.view.cursor_index].address,
                 expected

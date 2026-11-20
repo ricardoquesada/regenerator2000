@@ -1,10 +1,28 @@
 //! Address navigation, memory-grid range math, and cursor state for project saves.
 
 use crate::disassembler::DisassemblyLine;
-use crate::state::{Addr, AppState, ProjectSaveContext};
+use crate::state::{Addr, AddrSpan, AppState, ProjectSaveContext};
 use crate::view_state::{ActivePane, CoreViewState, NavigationTarget, RightPane};
 use std::collections::BTreeMap;
 use std::ops::Range;
+
+/// Inclusive zero-based byte offset span or 6502 `usize` address span (`start..=end`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OffsetSpan {
+    /// Inclusive lower bound.
+    pub start: usize,
+    /// Inclusive upper bound.
+    pub end: usize,
+}
+
+/// Grid item selection anchor and cursor indices mapped from a disassembly selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GridSelection {
+    /// Index of the selection anchor item in the grid pane.
+    pub anchor_index: usize,
+    /// Index of the cursor item in the grid pane.
+    pub cursor_index: usize,
+}
 
 /// Returns `true` when `target_addr` lies inside the inclusive wrap-aware range `start_addr..=end_addr`.
 ///
@@ -45,15 +63,15 @@ pub(crate) fn address_in_byte_span(target_addr: Addr, start_addr: Addr, byte_len
 
 /// Resolves the raw disassembly line index for `target_addr` before zero-byte header advancement.
 ///
-/// Delegates span and `$0000` preamble isolation to [`AppState::get_line_index_containing_address`],
-/// falling back to [`AppState::get_line_index_for_address`] only for non-external non-zero gaps.
+/// Delegates span and `$0000` preamble isolation to [`AppState::line_index_containing_address`],
+/// falling back to [`AppState::line_index_for_address`] only for non-external non-zero gaps.
 #[must_use]
 fn resolve_jump_line_index(app_state: &AppState, target_addr: Addr) -> Option<usize> {
     app_state
-        .get_line_index_containing_address(target_addr)
+        .line_index_containing_address(target_addr)
         .or_else(|| {
             (!app_state.is_external(target_addr) && target_addr != Addr::ZERO)
-                .then(|| app_state.get_line_index_for_address(target_addr))
+                .then(|| app_state.line_index_for_address(target_addr))
                 .flatten()
         })
 }
@@ -246,7 +264,7 @@ impl JumpTargetIndex {
                 return Some(idx);
             }
 
-            // Mirror `AppState::get_line_index_for_address` fallback ordering.
+            // Mirror `AppState::line_index_for_address` fallback ordering.
             if let Some(&idx) = self.exact_byte_line.get(&target_addr) {
                 return Some(idx);
             }
@@ -361,7 +379,7 @@ fn apply_resolved_jump(
     }
 
     if let Some(line) = app_state.disassembly.get(content_idx) {
-        view_state.sub_cursor_index = line.get_sub_index_for_address(app_state, target_addr);
+        view_state.sub_cursor_index = line.sub_index_for_address(app_state, target_addr);
     } else {
         view_state.sub_cursor_index = 0;
     }
@@ -508,14 +526,10 @@ impl AlignedGridRange {
     }
 
     /// Converts an inclusive `[start_addr, end_addr]` address range into a clamped
-    /// `(start_offset, end_offset)` byte-offset pair within `raw_data`. Returns `None` when the
-    /// range lies outside `[origin, end_address)`.
+    /// [`OffsetSpan`] within `raw_data`. Returns `None` when the range lies outside
+    /// `[origin, end_address)`.
     #[must_use]
-    pub fn clamped_byte_offsets(
-        &self,
-        start_addr: usize,
-        end_addr: usize,
-    ) -> Option<(usize, usize)> {
+    pub fn clamped_byte_offsets(&self, start_addr: usize, end_addr: usize) -> Option<OffsetSpan> {
         if self.end_address <= self.origin
             || end_addr < self.origin
             || start_addr >= self.end_address
@@ -524,20 +538,23 @@ impl AlignedGridRange {
         }
         let clamped_start = start_addr.max(self.origin) - self.origin;
         let clamped_end = end_addr.min(self.end_address - 1) - self.origin;
-        (clamped_start <= clamped_end).then_some((clamped_start, clamped_end))
+        (clamped_start <= clamped_end).then_some(OffsetSpan {
+            start: clamped_start,
+            end: clamped_end,
+        })
     }
 
     /// Converts an inclusive `(first_item, last_item)` grid index range (in either order) into a
-    /// clamped `(start_offset, end_offset)` byte-offset pair within `raw_data`.
+    /// clamped [`OffsetSpan`] within `raw_data`.
     #[must_use]
-    pub fn item_range_byte_offsets(&self, a: usize, b: usize) -> Option<(usize, usize)> {
+    pub fn item_range_byte_offsets(&self, a: usize, b: usize) -> Option<OffsetSpan> {
         let (first, last) = if a <= b { (a, b) } else { (b, a) };
         let start_addr = self.item_addr(first);
         let end_addr = self.item_addr(last) + self.item_bytes.saturating_sub(1);
         self.clamped_byte_offsets(start_addr, end_addr)
     }
 
-    /// Returns the clamped `(start_addr, end_addr)` range for grid items `first_item..=second_item`
+    /// Returns the clamped [`AddrSpan`] for grid items `first_item..=second_item`
     /// (in either order).
     ///
     /// Clamps both bounds to `[origin, end_address - 1]`. Returns `None` if the item range lies
@@ -556,13 +573,13 @@ impl AlignedGridRange {
         &self,
         first_item: usize,
         second_item: usize,
-    ) -> Option<(Addr, Addr)> {
-        let (start_offset, end_offset) = self.item_range_byte_offsets(first_item, second_item)?;
+    ) -> Option<AddrSpan> {
+        let offsets = self.item_range_byte_offsets(first_item, second_item)?;
         // `item_range_byte_offsets` clamps within `[origin, min(end_address, 0x10000) - 1]`.
-        // Therefore `self.origin + end_offset` always fits in `u16`.
-        let start_addr = Addr((self.origin + start_offset) as u16);
-        let end_addr = Addr((self.origin + end_offset) as u16);
-        Some((start_addr, end_addr))
+        // Therefore `self.origin + offsets.end` always fits in `u16`.
+        let start = Addr((self.origin + offsets.start) as u16);
+        let end = Addr((self.origin + offsets.end) as u16);
+        Some(AddrSpan { start, end })
     }
 
     /// Returns the half-open `raw_data` byte range `start..end` for a hex dump cursor and
@@ -588,10 +605,10 @@ impl AlignedGridRange {
         };
         // `clamped_byte_offsets` returns inclusive offsets `< raw_data.len()`, so `end + 1` will not overflow.
         self.clamped_byte_offsets(start_addr, end_addr)
-            .map(|(start, end)| start..(end + 1))
+            .map(|span| span.start..(span.end + 1))
     }
 
-    /// Returns the clamped `(start_addr, end_addr)` range of the focused item in `Sprites`,
+    /// Returns the clamped [`AddrSpan`] of the focused item in `Sprites`,
     /// `Charset`, or `Bitmap` when no disassembly selection is active.
     ///
     /// The disassembly view uses this range to highlight all bytes of the focused item.
@@ -605,7 +622,7 @@ impl AlignedGridRange {
     pub fn active_pane_item_addr_range(
         app_state: &AppState,
         view_state: &CoreViewState,
-    ) -> Option<(Addr, Addr)> {
+    ) -> Option<AddrSpan> {
         if view_state.selection_start.is_some() {
             return None;
         }
@@ -675,7 +692,7 @@ pub fn active_pane_byte_offset_range(
     };
     let anchor = selection.unwrap_or(cursor);
     grid.item_range_byte_offsets(cursor, anchor)
-        .map(|(start, end)| start..(end + 1))
+        .map(|span| span.start..(span.end + 1))
 }
 
 /// Returns the half-open `raw_data` byte range `start..end` covered by `line`.
@@ -683,7 +700,7 @@ pub fn active_pane_byte_offset_range(
 /// - Returns `None` for external equates, `$0000` preamble lines, splitters, scope delimiters
 ///   (`{` and `}`), and out-of-range addresses.
 /// - For collapsed blocks (`line.is_collapsed`), resolves the full block range from
-///   [`AppState::collapsed_blocks`] or [`AppState::get_block_range`].
+///   [`AppState::collapsed_blocks`] or [`AppState::block_range`].
 /// - Clamps the end offset to `state.raw_data.len()`.
 #[must_use]
 pub fn line_byte_offset_range(state: &AppState, line: &DisassemblyLine) -> Option<Range<usize>> {
@@ -703,9 +720,10 @@ pub fn line_byte_offset_range(state: &AppState, line: &DisassemblyLine) -> Optio
             let end_exclusive = end_offset.saturating_add(1).min(state.raw_data.len());
             return (start_offset < end_exclusive).then_some(start_offset..end_exclusive);
         }
-        if let Some((start_addr, end_addr)) = state.get_block_range(line.address) {
-            let block_start = start_addr.offset_from(state.origin);
-            let end_exclusive = end_addr
+        if let Some(span) = state.block_range(line.address) {
+            let block_start = span.start.offset_from(state.origin);
+            let end_exclusive = span
+                .end
                 .offset_from(state.origin)
                 .saturating_add(1)
                 .min(state.raw_data.len());
@@ -723,21 +741,24 @@ pub fn line_byte_offset_range(state: &AppState, line: &DisassemblyLine) -> Optio
     (start_offset < end_exclusive).then_some(start_offset..end_exclusive)
 }
 
-/// Returns the inclusive `usize` address range `(start, end)` covered by `line`.
+/// Returns the inclusive `usize` address [`OffsetSpan`] covered by `line`.
 ///
 /// Calls [`line_byte_offset_range`] and returns `None` for non-binary lines (such as external
 /// equates, preamble lines, splitters, and scope delimiters). Uses `usize` instead of `u16`
 /// so blocks that cross `$FFFF` (for example, `$FFFE..=$0001` as `0xFFFE..=0x10001`) do not
 /// wrap around.
 #[must_use]
-pub fn line_byte_addr_span(app_state: &AppState, line: &DisassemblyLine) -> Option<(usize, usize)> {
+pub fn line_byte_addr_span(app_state: &AppState, line: &DisassemblyLine) -> Option<OffsetSpan> {
     let range = line_byte_offset_range(app_state, line)?;
     // Guard against empty ranges before subtracting `1` from `range.end`.
     if range.is_empty() {
         return None;
     }
     let origin_usize = usize::from(app_state.origin.0);
-    Some((origin_usize + range.start, origin_usize + range.end - 1))
+    Some(OffsetSpan {
+        start: origin_usize + range.start,
+        end: origin_usize + range.end - 1,
+    })
 }
 
 /// Returns the half-open `raw_data` byte range `first.start..last.end` across `slice`.
@@ -760,7 +781,7 @@ pub fn slice_byte_offset_range(
     (first.start < last.end).then_some(first.start..last.end)
 }
 
-/// Returns the inclusive `usize` address range `(start, end)` for a disassembly selection or
+/// Returns the inclusive `usize` address [`OffsetSpan`] for a disassembly selection or
 /// cursor line.
 ///
 /// If `selection_start` is `Some(anchor)`, resolves the byte range across
@@ -771,7 +792,7 @@ pub fn disassembly_selection_addr_span(
     app_state: &AppState,
     selection_start: Option<usize>,
     cursor_index: usize,
-) -> Option<(usize, usize)> {
+) -> Option<OffsetSpan> {
     if let Some(anchor_index) = selection_start {
         let (min_index, max_index) = if anchor_index <= cursor_index {
             (anchor_index, cursor_index)
@@ -784,49 +805,57 @@ pub fn disassembly_selection_addr_span(
             return None;
         }
         let origin_usize = usize::from(app_state.origin.0);
-        Some((origin_usize + range.start, origin_usize + range.end - 1))
+        Some(OffsetSpan {
+            start: origin_usize + range.start,
+            end: origin_usize + range.end - 1,
+        })
     } else {
         let line = app_state.disassembly.get(cursor_index)?;
         line_byte_addr_span(app_state, line)
     }
 }
 
-/// Maps a disassembly selection to `(anchor_item, cursor_item)` indices in `grid`.
+/// Maps a disassembly selection to a [`GridSelection`] in `grid`.
 ///
 /// Resolves the byte range via [`disassembly_selection_addr_span`] and clamps it to
 /// `[grid.aligned_origin, grid.end_address - 1]`. Preserves selection direction: returns
-/// `(start_item, end_item)` when `selection_start <= Some(cursor_index)` and
-/// `(end_item, start_item)` when backward. Returns `None` if `selection_start` is `None` or
-/// the selection does not overlap `grid`.
+/// `{ anchor_index: start_item, cursor_index: end_item }` when `selection_start <= Some(cursor_index)`
+/// and `{ anchor_index: end_item, cursor_index: start_item }` when backward. Returns `None` if
+/// `selection_start` is `None` or the selection does not overlap `grid`.
 #[must_use]
 pub fn mirror_disassembly_selection_to_grid(
     app_state: &AppState,
     selection_start: Option<usize>,
     cursor_index: usize,
     grid: &AlignedGridRange,
-) -> Option<(usize, usize)> {
+) -> Option<GridSelection> {
     let anchor_index = selection_start?;
     if grid.end_address <= grid.aligned_origin || grid.stride == 0 {
         return None;
     }
-    let (first_start, last_end) =
-        disassembly_selection_addr_span(app_state, Some(anchor_index), cursor_index)?;
+    let span = disassembly_selection_addr_span(app_state, Some(anchor_index), cursor_index)?;
     let max_grid_addr = grid.end_address - 1;
-    if first_start > max_grid_addr || last_end < grid.aligned_origin {
+    if span.start > max_grid_addr || span.end < grid.aligned_origin {
         return None;
     }
 
     // Clamp spans that cross `$FFFF` into `[aligned_origin, max_grid_addr]` before division.
-    let clamped_start = first_start.max(grid.aligned_origin);
-    let clamped_end = last_end.min(max_grid_addr);
+    let clamped_start = span.start.max(grid.aligned_origin);
+    let clamped_end = span.end.min(max_grid_addr);
     let max_item = grid.item_count().saturating_sub(1);
     let start_item = ((clamped_start - grid.aligned_origin) / grid.stride).min(max_item);
     let end_item = ((clamped_end - grid.aligned_origin) / grid.stride).min(max_item);
 
     if anchor_index <= cursor_index {
-        Some((start_item, end_item))
+        Some(GridSelection {
+            anchor_index: start_item,
+            cursor_index: end_item,
+        })
     } else {
-        Some((end_item, start_item))
+        Some(GridSelection {
+            anchor_index: end_item,
+            cursor_index: start_item,
+        })
     }
 }
 
@@ -846,14 +875,14 @@ pub fn sync_grid_pane_from_disassembly(
     pane_cursor: &mut usize,
     pane_selection: &mut Option<usize>,
 ) {
-    if let Some((anchor_item, cursor_item)) = mirror_disassembly_selection_to_grid(
+    if let Some(selection) = mirror_disassembly_selection_to_grid(
         app_state,
         disassembly_selection,
         disassembly_cursor,
         grid,
     ) {
-        *pane_selection = Some(anchor_item);
-        *pane_cursor = cursor_item;
+        *pane_selection = Some(selection.anchor_index);
+        *pane_cursor = selection.cursor_index;
         return;
     }
 
@@ -902,17 +931,17 @@ pub fn sync_hex_pane_from_disassembly(
             grid.item_addr(view_state.hex_cursor_index) + view_state.hex_col_cursor.min(max_col);
         let expected_anchor = grid
             .clamped_addr(hex_anchor_raw)
-            .and_then(|addr| app_state.get_line_index_containing_address(addr));
+            .and_then(|addr| app_state.line_index_containing_address(addr));
         let expected_cursor = grid
             .clamped_addr(hex_cursor_raw)
-            .and_then(|addr| app_state.get_line_index_containing_address(addr));
+            .and_then(|addr| app_state.line_index_containing_address(addr));
         if expected_anchor == Some(anchor_index) && expected_cursor == Some(view_state.cursor_index)
         {
             return;
         }
     }
 
-    let Some((first_start, last_end)) =
+    let Some(span) =
         disassembly_selection_addr_span(app_state, Some(anchor_index), view_state.cursor_index)
     else {
         view_state.hex_selection_start = None;
@@ -921,14 +950,14 @@ pub fn sync_hex_pane_from_disassembly(
     };
 
     let max_grid_addr = grid.end_address - 1;
-    if first_start > max_grid_addr || last_end < grid.aligned_origin {
+    if span.start > max_grid_addr || span.end < grid.aligned_origin {
         view_state.hex_selection_start = None;
         view_state.hex_selection_start_col = 0;
         return;
     }
 
-    let clamped_start = first_start.max(grid.aligned_origin);
-    let clamped_end = last_end.min(max_grid_addr);
+    let clamped_start = span.start.max(grid.aligned_origin);
+    let clamped_end = span.end.min(max_grid_addr);
     let (anchor_addr, cursor_addr) = if anchor_index <= view_state.cursor_index {
         (clamped_start, clamped_end)
     } else {
@@ -1019,7 +1048,7 @@ mod tests {
         app_state.disassemble();
 
         let ext_label_idx = app_state
-            .get_line_index_for_address(Addr(0xD020))
+            .line_index_for_address(Addr(0xD020))
             .expect("External label should be in disassembly");
 
         let mut view_state = CoreViewState {
@@ -1029,8 +1058,10 @@ mod tests {
 
         perform_jump_to_address(&app_state, &mut view_state, Addr(0x0801));
 
-        assert!(!view_state.navigation_history.is_empty());
-        let (_pane, target) = view_state.navigation_history.last().unwrap();
+        let (_pane, target) = view_state
+            .navigation_history
+            .last()
+            .expect("navigation history should record prior position");
         match target {
             NavigationTarget::Address(addr) => {
                 assert_eq!(
@@ -1061,7 +1092,9 @@ mod tests {
         app_state.settings.all_labels = true;
         app_state.disassemble();
 
-        let ext_label_idx = app_state.get_line_index_for_address(Addr(0xD020)).unwrap();
+        let ext_label_idx = app_state
+            .line_index_for_address(Addr(0xD020))
+            .expect("line for $D020 should exist");
 
         let mut view_state = CoreViewState {
             cursor_index: ext_label_idx,
@@ -1070,10 +1103,15 @@ mod tests {
 
         perform_jump_to_address(&app_state, &mut view_state, Addr(0x0801));
 
-        let jumped_idx = app_state.get_line_index_for_address(Addr(0x0801)).unwrap();
+        let jumped_idx = app_state
+            .line_index_for_address(Addr(0x0801))
+            .expect("line for $0801 should exist");
         assert_eq!(view_state.cursor_index, jumped_idx);
 
-        let (_, target) = view_state.navigation_history.pop().unwrap();
+        let (_, target) = view_state
+            .navigation_history
+            .pop()
+            .expect("navigation history should contain jumped origin");
         match target {
             NavigationTarget::Address(addr) => {
                 perform_jump_to_address_no_history(&app_state, &mut view_state, Addr(addr));
@@ -2017,15 +2055,24 @@ mod tests {
         let sprites0 = AlignedGridRange::sprites(&zero_sprites);
         assert_eq!(
             sprites0.clamped_item_addr_range(37, 37),
-            Some((Addr(0x0940), Addr(0x097F)))
+            Some(AddrSpan {
+                start: Addr(0x0940),
+                end: Addr(0x097F)
+            })
         );
         assert_eq!(
             sprites0.clamped_item_addr_range(37, 38),
-            Some((Addr(0x0940), Addr(0x09BF)))
+            Some(AddrSpan {
+                start: Addr(0x0940),
+                end: Addr(0x09BF)
+            })
         );
         assert_eq!(
             sprites0.clamped_item_addr_range(38, 37),
-            Some((Addr(0x0940), Addr(0x09BF)))
+            Some(AddrSpan {
+                start: Addr(0x0940),
+                end: Addr(0x09BF)
+            })
         );
 
         // Sprites at `origin = $0800`: indices 37..=38 correspond to `$1140..=$11BF`.
@@ -2035,15 +2082,24 @@ mod tests {
         let sprites = AlignedGridRange::sprites(&state);
         assert_eq!(
             sprites.clamped_item_addr_range(37, 37),
-            Some((Addr(0x1140), Addr(0x117F)))
+            Some(AddrSpan {
+                start: Addr(0x1140),
+                end: Addr(0x117F)
+            })
         );
         assert_eq!(
             sprites.clamped_item_addr_range(37, 38),
-            Some((Addr(0x1140), Addr(0x11BF)))
+            Some(AddrSpan {
+                start: Addr(0x1140),
+                end: Addr(0x11BF)
+            })
         );
         assert_eq!(
             sprites.clamped_item_addr_range(38, 37),
-            Some((Addr(0x1140), Addr(0x11BF)))
+            Some(AddrSpan {
+                start: Addr(0x1140),
+                end: Addr(0x11BF)
+            })
         );
 
         // Pre-origin alignment padding only (`origin = $0809`, charset slot 0 is `$0800..=$0807`).
@@ -2061,7 +2117,10 @@ mod tests {
         partial.raw_data = vec![0xEA; 128];
         assert_eq!(
             AlignedGridRange::sprites(&partial).clamped_item_addr_range(0, 0),
-            Some((Addr(0x0801), Addr(0x083F)))
+            Some(AddrSpan {
+                start: Addr(0x0801),
+                end: Addr(0x083F)
+            })
         );
 
         // Bitmap single vs. multi-bitmap 192-byte gap.
@@ -2071,15 +2130,24 @@ mod tests {
         let bitmap = AlignedGridRange::bitmap(&bitmap_state);
         assert_eq!(
             bitmap.clamped_item_addr_range(0, 0),
-            Some((Addr(0x0000), Addr(0x1F3F)))
+            Some(AddrSpan {
+                start: Addr(0x0000),
+                end: Addr(0x1F3F)
+            })
         );
         assert_eq!(
             bitmap.clamped_item_addr_range(0, 1),
-            Some((Addr(0x0000), Addr(0x3F3F)))
+            Some(AddrSpan {
+                start: Addr(0x0000),
+                end: Addr(0x3F3F)
+            })
         );
         assert_eq!(
             bitmap.clamped_item_addr_range(1, 0),
-            Some((Addr(0x0000), Addr(0x3F3F)))
+            Some(AddrSpan {
+                start: Addr(0x0000),
+                end: Addr(0x3F3F)
+            })
         );
 
         // Bitmap origin inside trailing 192-byte tail (`$1F40..=$1FFF`).
@@ -2097,7 +2165,10 @@ mod tests {
         wrap.raw_data = vec![0xEA; 4];
         assert_eq!(
             AlignedGridRange::sprites(&wrap).clamped_item_addr_range(0, 0),
-            Some((Addr(0xFFFE), Addr(0xFFFF)))
+            Some(AddrSpan {
+                start: Addr(0xFFFE),
+                end: Addr(0xFFFF)
+            })
         );
 
         // Empty binary (both origin $0000 and unaligned non-zero origin $0801).
@@ -2169,7 +2240,10 @@ mod tests {
         view.sprites_cursor_index = 2;
         assert_eq!(
             AlignedGridRange::active_pane_item_addr_range(&state, &view),
-            Some((Addr(0x2080), Addr(0x20BF)))
+            Some(AddrSpan {
+                start: Addr(0x2080),
+                end: Addr(0x20BF)
+            })
         );
         view.selection_start = Some(0);
         assert_eq!(
@@ -2182,14 +2256,20 @@ mod tests {
         view.charset_cursor_index = 3;
         assert_eq!(
             AlignedGridRange::active_pane_item_addr_range(&state, &view),
-            Some((Addr(0x2018), Addr(0x201F)))
+            Some(AddrSpan {
+                start: Addr(0x2018),
+                end: Addr(0x201F)
+            })
         );
 
         view.active_pane = ActivePane::Bitmap;
         view.bitmap_cursor_index = 0;
         assert_eq!(
             AlignedGridRange::active_pane_item_addr_range(&state, &view),
-            Some((Addr(0x2000), Addr(0x3F3F)))
+            Some(AddrSpan {
+                start: Addr(0x2000),
+                end: Addr(0x3F3F)
+            })
         );
 
         // `active_pane_byte_offset_range` checks.
@@ -2293,7 +2373,10 @@ mod tests {
             .expect("LDA $D020 line");
         assert_eq!(
             line_byte_addr_span(&state, lda_line),
-            Some((0x0000, 0x0002))
+            Some(OffsetSpan {
+                start: 0x0000,
+                end: 0x0002
+            })
         );
 
         let scope_end_line = state
@@ -2319,7 +2402,10 @@ mod tests {
         };
         assert_eq!(
             line_byte_addr_span(&state, &synthetic_overlong),
-            Some((0x0002, 0x0003))
+            Some(OffsetSpan {
+                start: 0x0002,
+                end: 0x0003
+            })
         );
 
         // Setup B: wrapped binary collapsed block `$FFFE..=$0001`.
@@ -2338,7 +2424,10 @@ mod tests {
         assert_eq!(line_byte_offset_range(&wrap, collapsed_line), Some(0..4));
         assert_eq!(
             line_byte_addr_span(&wrap, collapsed_line),
-            Some((0xFFFE, 0x10001))
+            Some(OffsetSpan {
+                start: 0xFFFE,
+                end: 0x10001
+            })
         );
     }
 }

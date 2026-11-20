@@ -2,6 +2,7 @@
 
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Stores persistent user preferences and recent project paths.
@@ -93,7 +94,7 @@ impl SystemConfig {
         if path.extension().is_none_or(|ext| ext != "regen2000proj") {
             return;
         }
-        let canon = std::fs::canonicalize(&path).unwrap_or(path);
+        let canon = fs::canonicalize(&path).unwrap_or(path);
         self.recent_projects.retain(|p| p != &canon);
         self.recent_projects.insert(0, canon);
         self.recent_projects.truncate(20);
@@ -101,7 +102,7 @@ impl SystemConfig {
 
     /// Removes `path` from `recent_projects`, matching both the raw and canonicalized path.
     pub fn remove_recent_project(&mut self, path: &Path) {
-        let canon = std::fs::canonicalize(path).ok();
+        let canon = fs::canonicalize(path).ok();
         self.recent_projects
             .retain(|p| p.as_path() != path && canon.as_ref().is_none_or(|c| p != c));
     }
@@ -123,7 +124,7 @@ impl SystemConfig {
         // Read config.toml first.
         let toml_path = config_dir.join("config.toml");
         if toml_path.exists()
-            && let Ok(data) = std::fs::read_to_string(&toml_path)
+            && let Ok(data) = fs::read_to_string(&toml_path)
         {
             match toml::from_str::<Self>(&data) {
                 Ok(mut config) => {
@@ -132,7 +133,7 @@ impl SystemConfig {
                 }
                 Err(e) => {
                     let backup_path = toml_path.with_extension("toml.bak");
-                    let _ = std::fs::copy(&toml_path, &backup_path);
+                    let _ = fs::copy(&toml_path, &backup_path);
                     log::error!(
                         "Failed to parse config file: {}. Backed up to {:?}. Error: {}",
                         toml_path.display(),
@@ -146,13 +147,13 @@ impl SystemConfig {
         // Fall back to legacy config.json and migrate it to config.toml.
         let json_path = config_dir.join("config.json");
         if json_path.exists()
-            && let Ok(data) = std::fs::read_to_string(&json_path)
+            && let Ok(data) = fs::read_to_string(&json_path)
         {
             match serde_json::from_str::<Self>(&data) {
                 Ok(mut config) => {
                     config.clean_recent_projects();
                     if config.save().is_ok() {
-                        let _ = std::fs::remove_file(&json_path);
+                        let _ = fs::remove_file(&json_path);
                         log::info!(
                             "Migrated config from {} to {}",
                             json_path.display(),
@@ -163,7 +164,7 @@ impl SystemConfig {
                 }
                 Err(e) => {
                     let backup_path = json_path.with_extension("json.bak");
-                    let _ = std::fs::copy(&json_path, &backup_path);
+                    let _ = fs::copy(&json_path, &backup_path);
                     log::error!(
                         "Failed to parse legacy config file: {}. Backed up to {:?}. Error: {}",
                         json_path.display(),
@@ -195,10 +196,10 @@ impl SystemConfig {
         if let Some(parent) = target_path.parent()
             && !parent.as_os_str().is_empty()
         {
-            std::fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent)?;
         }
         let data = toml::to_string_pretty(self)?;
-        std::fs::write(target_path, data)?;
+        fs::write(target_path, data)?;
         Ok(())
     }
 }
@@ -206,6 +207,8 @@ impl SystemConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
+    use std::process;
 
     #[test]
     fn test_recent_projects_filtering_dedup_and_cap() {
@@ -238,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_save_to_override_path_and_clean_recent_projects() {
-        let temp_dir = std::env::temp_dir().join(format!("r2000_cfg_test_{}", std::process::id()));
+        let temp_dir = env::temp_dir().join(format!("r2000_cfg_test_{}", process::id()));
         let override_path = temp_dir.join("nested").join("config.toml");
 
         let config = SystemConfig {
@@ -250,9 +253,11 @@ mod tests {
             ..SystemConfig::default()
         };
 
-        config.save().unwrap();
-        let saved = std::fs::read_to_string(&override_path).unwrap();
-        let mut loaded: SystemConfig = toml::from_str(&saved).unwrap();
+        config.save().expect("test config should save");
+        let saved =
+            fs::read_to_string(&override_path).expect("saved config file should be readable");
+        let mut loaded: SystemConfig =
+            toml::from_str(&saved).expect("saved config TOML should parse");
         loaded.clean_recent_projects();
 
         assert_eq!(
@@ -260,6 +265,6 @@ mod tests {
             vec![PathBuf::from("/tmp/valid.regen2000proj")]
         );
 
-        let _ = std::fs::remove_dir_all(&temp_dir);
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }

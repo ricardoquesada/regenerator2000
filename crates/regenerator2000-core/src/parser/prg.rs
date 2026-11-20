@@ -1,5 +1,6 @@
 //! Commodore `.prg` binary file parser.
 
+use crate::parser::basic;
 use crate::state::types::System;
 use anyhow::{Result, anyhow};
 
@@ -39,7 +40,7 @@ pub fn parse_prg(data: &[u8]) -> Result<PrgData> {
     };
 
     let suggested_entry_point =
-        crate::parser::basic::find_sys_address(data, 2, Some(origin), suggested_system.as_ref());
+        basic::find_sys_address(data, 2, Some(origin), suggested_system.as_ref());
 
     Ok(PrgData {
         origin,

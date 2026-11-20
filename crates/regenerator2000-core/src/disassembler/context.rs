@@ -10,47 +10,48 @@ use crate::state::{
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::formatter::Formatter;
+use super::symbols::{self, ScopeNameMap};
 
 /// Read-only context that holds all state references for a disassembly pass.
-pub struct DisassemblyContext<'a> {
+pub struct DisassemblyContext<'app> {
     /// Raw binary byte slice to disassemble.
-    pub data: &'a [u8],
+    pub data: &'app [u8],
     /// Per-byte [`BlockType`] classification parallel to [`Self::data`].
-    pub block_types: &'a [BlockType],
+    pub block_types: &'app [BlockType],
     /// Address-keyed map of user, system, and auto-generated [`Label`]s.
-    pub labels: &'a BTreeMap<Addr, Vec<Label>>,
+    pub labels: &'app BTreeMap<Addr, Vec<Label>>,
     /// Base 16-bit load address (origin) of [`Self::data`].
     pub origin: Addr,
     /// Document-level disassembly and formatting settings.
-    pub settings: &'a DocumentSettings,
+    pub settings: &'app DocumentSettings,
     /// Sparse per-address annotations (comments, immediate formats, bookmarks, scopes, enums,
     /// and Tier 1/Tier 2 symbolic offsets).
-    pub annotations: &'a AnnotationManager,
+    pub annotations: &'app AnnotationManager,
     /// Inverted cross-reference index that maps target [`Addr`]s to typed [`XRef`]s.
-    pub cross_refs: &'a BTreeMap<Addr, Vec<XRef>>,
+    pub cross_refs: &'app BTreeMap<Addr, Vec<XRef>>,
     /// Inclusive `(start_offset, end_offset)` byte-offset ranges of collapsed blocks.
-    pub collapsed_blocks: &'a [(usize, usize)],
+    pub collapsed_blocks: &'app [(usize, usize)],
     /// Set of addresses with manual user block splitters.
-    pub splitters: &'a BTreeSet<Addr>,
+    pub splitters: &'app BTreeSet<Addr>,
     /// Pre-computed set of lexical scope end addresses for `O(log S)` boundary checks.
-    pub scope_ends: &'a BTreeSet<Addr>,
+    pub scope_ends: &'app BTreeSet<Addr>,
 
     /// Project-local enum definitions keyed by enum name.
-    pub enums: &'a BTreeMap<String, EnumDefinition>,
+    pub enums: &'app BTreeMap<String, EnumDefinition>,
     /// User-level global enum definitions keyed by enum name.
-    pub user_global_enums: &'a BTreeMap<String, EnumDefinition>,
+    pub user_global_enums: &'app BTreeMap<String, EnumDefinition>,
     /// Built-in platform enum definitions keyed by enum name.
-    pub builtin_enums: &'a BTreeMap<String, EnumDefinition>,
+    pub builtin_enums: &'app BTreeMap<String, EnumDefinition>,
 }
 
 /// Per-iteration values for the disassembly loop and block handlers.
-pub struct HandleArgs<'a> {
+pub struct HandleArgs<'ctx> {
     /// Current byte offset within [`DisassemblyContext::data`].
     pub pc: usize,
     /// Current 16-bit memory [`Addr`] (`origin + pc`).
     pub address: Addr,
     /// Active assembler [`Formatter`] implementation.
-    pub formatter: &'a dyn Formatter,
+    pub formatter: &'ctx dyn Formatter,
     /// Primary formatted label name at `address`, if any.
     pub label_name: Option<String>,
     /// Combined inline side comment (user or system side comment plus cross-references).
@@ -58,11 +59,20 @@ pub struct HandleArgs<'a> {
     /// Optional preceding block comment at `address`.
     pub line_comment: Option<String>,
     /// Optional local label names within the current lexical scope.
-    pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
+    pub local_label_names: Option<&'ctx BTreeMap<Addr, String>>,
     /// Optional map from scoped addresses to their enclosing scope names.
-    pub label_scope_names: Option<&'a super::symbols::ScopeNameMap>,
+    pub label_scope_names: Option<&'ctx ScopeNameMap>,
     /// Name of the lexical scope that encloses `address`, if any.
     pub current_scope_name: Option<String>,
+}
+
+/// Enum definition name and matching variant name resolved for an operand value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedEnumValue {
+    /// Name of the matching enum definition.
+    pub enum_name: String,
+    /// Variant identifier matching the literal value.
+    pub variant_name: String,
 }
 
 /// Resolves `value` against the enum annotation at `address`.
@@ -76,7 +86,7 @@ pub(crate) fn resolve_enum_at(
     builtin_enums: &BTreeMap<String, EnumDefinition>,
     address: Addr,
     value: u16,
-) -> Option<(String, String)> {
+) -> Option<ResolvedEnumValue> {
     let entry = annotations.get(address)?;
     let enum_name = entry.enum_usage.as_ref()?;
     let enum_def = enums
@@ -84,7 +94,10 @@ pub(crate) fn resolve_enum_at(
         .or_else(|| user_global_enums.get(enum_name))
         .or_else(|| builtin_enums.get(enum_name))?;
     let variant = enum_def.variants.get(&value)?;
-    Some((enum_name.clone(), variant.clone()))
+    Some(ResolvedEnumValue {
+        enum_name: enum_name.clone(),
+        variant_name: variant.clone(),
+    })
 }
 
 impl DisassemblyContext<'_> {
@@ -92,7 +105,7 @@ impl DisassemblyContext<'_> {
     ///
     /// Searches project-local, user-global, and built-in enum tables in precedence order.
     #[must_use]
-    pub fn resolve_enum_value(&self, address: Addr, value: u16) -> Option<(String, String)> {
+    pub fn resolve_enum_value(&self, address: Addr, value: u16) -> Option<ResolvedEnumValue> {
         resolve_enum_at(
             self.annotations,
             self.enums,
@@ -127,13 +140,13 @@ impl DisassemblyContext<'_> {
         // Ignore labels suppressed by an active Tier 2 `address_offset` so internal struct
         // fields (`struct_base + 1..N`) stay grouped cleanly unless split or commented.
         let has_unsuppressed_label = self.labels.contains_key(&addr)
-            && !super::symbols::has_active_address_offset(addr, self.labels, self.annotations);
+            && !symbols::has_active_address_offset(addr, self.labels, self.annotations);
         has_unsuppressed_label || self.is_split_table_subblock_boundary(addr)
     }
 
     /// Builds the inline side comment for `address` from annotations and cross-references.
     #[must_use]
-    pub fn get_side_comment(&self, address: Addr, comment_prefix: &str) -> String {
+    pub fn side_comment(&self, address: Addr, comment_prefix: &str) -> String {
         let mut comment_parts = Vec::new();
 
         if let Some(entry) = self.annotations.get(address) {
@@ -157,7 +170,7 @@ impl DisassemblyContext<'_> {
 
     /// Gets a descriptive comment for an operand `target_addr`, such as a hardware register note.
     #[must_use]
-    pub fn get_target_comment(&self, target_addr: Addr) -> Option<&str> {
+    pub fn target_comment(&self, target_addr: Addr) -> Option<&str> {
         let entry = self.annotations.get(target_addr)?;
         let is_code_target = target_addr
             .0

@@ -137,15 +137,15 @@ impl Opcode {
     ///
     /// # Examples
     /// ```
-    /// use regenerator2000_core::cpu::{AddressingMode, Opcode, get_opcodes};
+    /// use regenerator2000_core::cpu::{AddressingMode, Opcode, opcodes};
     /// use regenerator2000_core::state::XRefKind;
     ///
-    /// let opcodes = get_opcodes();
-    /// assert_eq!(opcodes[0xAD].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Read));
-    /// assert_eq!(opcodes[0x8D].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Write));
-    /// assert_eq!(opcodes[0x0A].as_ref().and_then(Opcode::xref_kind), None);
-    /// assert_eq!(opcodes[0x0E].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::ReadModifyWrite));
-    /// assert_eq!(opcodes[0x20].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Call));
+    /// let table = opcodes();
+    /// assert_eq!(table[0xAD].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Read));
+    /// assert_eq!(table[0x8D].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Write));
+    /// assert_eq!(table[0x0A].as_ref().and_then(Opcode::xref_kind), None);
+    /// assert_eq!(table[0x0E].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::ReadModifyWrite));
+    /// assert_eq!(table[0x20].as_ref().and_then(Opcode::xref_kind), Some(XRefKind::Call));
     /// ```
     #[must_use]
     pub fn xref_kind(&self) -> Option<XRefKind> {
@@ -176,7 +176,7 @@ impl Opcode {
 
 /// Returns the 256-entry MOS 6502/6510 opcode table indexed by opcode byte (`0x00..=0xFF`).
 #[must_use]
-pub fn get_opcodes() -> [Option<Opcode>; 256] {
+pub fn opcodes() -> [Option<Opcode>; 256] {
     use AddressingMode::{
         Absolute, AbsoluteX, AbsoluteY, Accumulator, Immediate, Implied, Indirect, IndirectX,
         IndirectY, Relative, ZeroPage, ZeroPageX, ZeroPageY,
@@ -471,7 +471,7 @@ mod tests {
 
     #[test]
     fn test_opcode_xref_kind_documented_opcodes() {
-        let opcodes = get_opcodes();
+        let opcodes = opcodes();
 
         let read_mnemonics = [
             "LDA", "LDX", "LDY", "EOR", "AND", "ORA", "ADC", "SBC", "CMP", "CPX", "CPY", "BIT",
@@ -555,21 +555,32 @@ mod tests {
         // Explicit spot checks required by the Test Plan:
         // JSR Absolute ($20) -> Call
         assert_eq!(
-            opcodes[0x20].as_ref().unwrap().xref_kind(),
+            opcodes[0x20]
+                .as_ref()
+                .expect("opcode $20 (JSR) must be defined")
+                .xref_kind(),
             Some(XRefKind::Call)
         );
         // JMP Absolute ($4C) and Indirect ($6C) -> Jump
         assert_eq!(
-            opcodes[0x4C].as_ref().unwrap().xref_kind(),
+            opcodes[0x4C]
+                .as_ref()
+                .expect("opcode $4C (JMP abs) must be defined")
+                .xref_kind(),
             Some(XRefKind::Jump)
         );
         assert_eq!(
-            opcodes[0x6C].as_ref().unwrap().xref_kind(),
+            opcodes[0x6C]
+                .as_ref()
+                .expect("opcode $6C (JMP ind) must be defined")
+                .xref_kind(),
             Some(XRefKind::Jump)
         );
         // ASL/LSR/ROL/ROR Accumulator ($0A, $4A, $2A, $6A) -> None
         for acc_op in [0x0A, 0x4A, 0x2A, 0x6A] {
-            let op = opcodes[acc_op].as_ref().unwrap();
+            let op = opcodes[acc_op]
+                .as_ref()
+                .expect("accumulator opcode must be defined");
             assert_eq!(op.mode, AddressingMode::Accumulator);
             assert_eq!(op.xref_kind(), None);
         }
@@ -586,11 +597,13 @@ mod tests {
 
     #[test]
     fn test_opcode_xref_kind_illegal_undocumented_opcodes() {
-        let opcodes = get_opcodes();
+        let opcodes = opcodes();
 
         // Read: LAX ($A7, $B7, $AF, $BF, $A3, $B3)
         for code in [0xA7, 0xB7, 0xAF, 0xBF, 0xA3, 0xB3] {
-            let op = opcodes[code].as_ref().unwrap();
+            let op = opcodes[code]
+                .as_ref()
+                .expect("illegal opcode must be defined");
             assert!(op.illegal);
             assert_eq!(op.mnemonic, "LAX");
             assert_eq!(
@@ -601,11 +614,19 @@ mod tests {
         }
 
         // LAX Immediate ($AB) has no memory target -> None
-        assert_eq!(opcodes[0xAB].as_ref().unwrap().xref_kind(), None);
+        assert_eq!(
+            opcodes[0xAB]
+                .as_ref()
+                .expect("opcode $AB (LAX imm) must be defined")
+                .xref_kind(),
+            None
+        );
 
         // Write: SAX ($87, $97, $8F, $83)
         for code in [0x87, 0x97, 0x8F, 0x83] {
-            let op = opcodes[code].as_ref().unwrap();
+            let op = opcodes[code]
+                .as_ref()
+                .expect("illegal opcode must be defined");
             assert!(op.illegal);
             assert_eq!(op.mnemonic, "SAX");
             assert_eq!(
@@ -627,7 +648,9 @@ mod tests {
 
         for (expected_mnemonic, codes) in rmw_sets {
             for &code in *codes {
-                let op = opcodes[code].as_ref().unwrap();
+                let op = opcodes[code]
+                    .as_ref()
+                    .expect("illegal opcode must be defined");
                 assert!(op.illegal);
                 assert_eq!(op.mnemonic, *expected_mnemonic);
                 assert_eq!(
@@ -644,7 +667,9 @@ mod tests {
 
         // Illegal immediate opcodes (ANC, ASR, ARR, SBX) -> None
         for code in [0x0B, 0x2B, 0x4B, 0x6B, 0xCB] {
-            let op = opcodes[code].as_ref().unwrap();
+            let op = opcodes[code]
+                .as_ref()
+                .expect("illegal opcode must be defined");
             assert!(op.illegal);
             assert_eq!(op.xref_kind(), None);
         }

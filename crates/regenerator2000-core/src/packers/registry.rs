@@ -89,27 +89,37 @@ pub fn find_entry_by_name(packer_name: &str) -> Option<&'static PackerSpec> {
         .find(|spec| matches_packer_name(spec, packer_name))
 }
 
-/// Returns the first matching `(&'static PackerSpec, SignatureMatch)` in `specs` for `image`.
+/// Matched packer specification paired with its resolved signature match.
+#[derive(Debug, Clone, Copy)]
+pub struct DetectedPacker {
+    /// Registry entry that matched the image.
+    pub spec: &'static PackerSpec,
+    /// Signature anchor, resolved hints, and variant display name for the match.
+    pub sig_match: SignatureMatch,
+}
+
+/// Returns the first matching [`DetectedPacker`] in `specs` for `image`.
 #[must_use]
 pub fn detect_spec_in(
     specs: &[&'static PackerSpec],
     image: &LoadedImage<'_>,
-) -> Option<(&'static PackerSpec, SignatureMatch)> {
-    specs
-        .iter()
-        .find_map(|&spec| spec.detect(image).map(|sig_match| (spec, sig_match)))
+) -> Option<DetectedPacker> {
+    specs.iter().find_map(|&spec| {
+        spec.detect(image)
+            .map(|sig_match| DetectedPacker { spec, sig_match })
+    })
 }
 
-/// Returns the first matching `(&'static PackerSpec, SignatureMatch)` in [`REGISTRY`] for `image`.
+/// Returns the first matching [`DetectedPacker`] in [`REGISTRY`] for `image`.
 #[must_use]
-pub fn detect_spec(image: &LoadedImage<'_>) -> Option<(&'static PackerSpec, SignatureMatch)> {
+pub fn detect_spec(image: &LoadedImage<'_>) -> Option<DetectedPacker> {
     detect_spec_in(REGISTRY, image)
 }
 
 /// Returns the first matching packer in [`REGISTRY`] for `image`.
 #[must_use]
 pub fn detect(image: &LoadedImage<'_>) -> Option<SignatureMatch> {
-    detect_spec(image).map(|(_spec, sig_match)| sig_match)
+    detect_spec(image).map(|detected| detected.sig_match)
 }
 
 /// Returns every matching packer in [`REGISTRY`] for `image`, in ascending priority order.
@@ -150,10 +160,13 @@ mod tests {
     use crate::packers::spec::{
         AddrSource, Anchor, Bounds, Hints, MemoryPatch, PackerHooks, Pat, PatchAddr, PointerGuard,
         RefineContext, Registers, ResolvedSpec, Signature, StepContext, is_valid_packer_id, sig,
+        system_matches,
     };
-    use crate::state::types::TargetSystem;
+    use crate::state::TargetSystem;
     use crate::unpacker::machine::Phase;
-    use crate::unpacker::{UnpackConfig, UnpackerMemory, unpack};
+    use crate::unpacker::{BoundSource, UnpackConfig, UnpackResult, UnpackerMemory, unpack};
+    use std::fs;
+    use std::thread;
 
     fn detect_c64_info(mem: &[u8], load_addr: u16, load_end: u16) -> Option<PackerInfo> {
         let view = LoadedImage::for_c64(mem, load_addr, load_end);
@@ -183,31 +196,32 @@ mod tests {
     }
 
     fn assert_corpus_cases(cases: &[ExpectedCorpusUnpack]) -> Vec<(&'static str, Vec<u8>)> {
-        let results: Vec<(
-            ExpectedCorpusUnpack,
-            Result<crate::unpacker::UnpackResult, String>,
-        )> = std::thread::scope(|s| {
-            let handles: Vec<_> = cases
-                .iter()
-                .copied()
-                .map(|case| {
-                    s.spawn(move || {
-                        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-                            .join("../../tests/6502")
-                            .join(case.file);
-                        let bytes = std::fs::read(&path)
-                            .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
-                        assert!(bytes.len() > 2, "{} is too short", case.file);
-                        let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);
-                        let payload = &bytes[2..];
-                        let res = unpack(payload, load_addr, &UnpackConfig::default(), None)
-                            .map_err(|e| e.to_string());
-                        (case, res)
+        let results: Vec<(ExpectedCorpusUnpack, Result<UnpackResult, String>)> =
+            thread::scope(|s| {
+                let handles: Vec<_> = cases
+                    .iter()
+                    .copied()
+                    .map(|case| {
+                        s.spawn(move || {
+                            let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+                                .join("../../tests/6502")
+                                .join(case.file);
+                            let bytes = fs::read(&path)
+                                .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+                            assert!(bytes.len() > 2, "{} is too short", case.file);
+                            let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);
+                            let payload = &bytes[2..];
+                            let res = unpack(payload, load_addr, &UnpackConfig::default(), None)
+                                .map_err(|e| e.to_string());
+                            (case, res)
+                        })
                     })
-                })
-                .collect();
-            handles.into_iter().map(|h| h.join().unwrap()).collect()
-        });
+                    .collect();
+                handles
+                    .into_iter()
+                    .map(|h| h.join().expect("worker thread should not panic"))
+                    .collect()
+            });
 
         let mut failures = Vec::new();
         let mut payloads = Vec::with_capacity(results.len());
@@ -393,8 +407,13 @@ mod tests {
             if !spec.systems.iter().any(TargetSystem::is_c64) {
                 continue;
             }
-            let (mem, load_addr, load_end) = spec.build_fixture_memory();
-            let c64_view = LoadedImage::new(&mem, load_addr, load_end, &TargetSystem::C64);
+            let fixture = spec.build_fixture_memory();
+            let c64_view = LoadedImage::new(
+                &fixture.mem,
+                fixture.load_addr,
+                fixture.load_end,
+                &TargetSystem::C64,
+            );
             assert!(
                 spec.detect(&c64_view).is_some(),
                 "spec `{}` must match its fixture on C64",
@@ -405,11 +424,12 @@ mod tests {
                 if spec
                     .systems
                     .iter()
-                    .any(|allowed| super::super::spec::system_matches(allowed, &sys))
+                    .any(|allowed| system_matches(allowed, &sys))
                 {
                     continue;
                 }
-                let view = LoadedImage::new(&mem, load_addr, load_end, &sys);
+                let view =
+                    LoadedImage::new(&fixture.mem, fixture.load_addr, fixture.load_end, &sys);
                 assert!(
                     spec.detect(&view).is_none(),
                     "C64 spec `{}` must not match on {sys}",
@@ -476,12 +496,12 @@ mod tests {
                 .systems
                 .first()
                 .expect("every spec declares at least one target system");
-            let (mem, load_addr, load_end) = spec.build_fixture_memory();
-            let view = LoadedImage::new(&mem, load_addr, load_end, system);
+            let fixture = spec.build_fixture_memory();
+            let view = LoadedImage::new(&fixture.mem, fixture.load_addr, fixture.load_end, system);
             let matched = spec.detect(&view).unwrap_or_else(|| {
                 panic!(
-                    "spec `{}` failed to match its own fixture at ${load_addr:04X}",
-                    spec.id
+                    "spec `{}` failed to match its own fixture at ${:04X}",
+                    spec.id, fixture.load_addr
                 )
             });
             assert_eq!(matched.spec_id, spec.id);
@@ -503,8 +523,8 @@ mod tests {
                 .systems
                 .first()
                 .expect("every spec declares at least one target system");
-            let (mem, load_addr, load_end) = spec.build_fixture_memory();
-            let view = LoadedImage::new(&mem, load_addr, load_end, system);
+            let fixture = spec.build_fixture_memory();
+            let view = LoadedImage::new(&fixture.mem, fixture.load_addr, fixture.load_end, system);
             let matches = detect_all_in_specs(specs, &view);
             let first = matches.first().unwrap_or_else(|| {
                 panic!(
@@ -529,9 +549,12 @@ mod tests {
         check_no_fixture_claimed_by_higher_priority_spec(SAMPLE_SPECS);
 
         for &spec in REGISTRY {
-            let system = spec.systems.first().unwrap();
-            let (mem, load_addr, load_end) = spec.build_fixture_memory();
-            let view = LoadedImage::new(&mem, load_addr, load_end, system);
+            let system = spec
+                .systems
+                .first()
+                .expect("every spec must list at least one system");
+            let fixture = spec.build_fixture_memory();
+            let view = LoadedImage::new(&fixture.mem, fixture.load_addr, fixture.load_end, system);
             let first = detect(&view)
                 .unwrap_or_else(|| panic!("fixture for `{}` matched nothing in REGISTRY", spec.id));
             assert_eq!(
@@ -640,8 +663,8 @@ mod tests {
     fn detect_equals_first_of_detect_all() {
         // 1. Check over `SAMPLE_SPECS`, including an image where two sample specs match at once.
         for &spec in SAMPLE_SPECS {
-            let (mem, load_addr, load_end) = spec.build_fixture_memory();
-            let view = LoadedImage::for_c64(&mem, load_addr, load_end);
+            let fixture = spec.build_fixture_memory();
+            let view = LoadedImage::for_c64(&fixture.mem, fixture.load_addr, fixture.load_end);
             let first = detect_in_specs(SAMPLE_SPECS, &view);
             let all = detect_all_in_specs(SAMPLE_SPECS, &view);
             assert!(first.is_some());
@@ -649,7 +672,9 @@ mod tests {
         }
 
         // Combined image matching both `SAMPLE_ALPHA_SPEC` (priority 10) and `SAMPLE_BETA_SPEC` (priority 20).
-        let (mut combined, load_addr, _) = SAMPLE_ALPHA_SPEC.build_fixture_memory();
+        let alpha_fixture = SAMPLE_ALPHA_SPEC.build_fixture_memory();
+        let mut combined = alpha_fixture.mem;
+        let load_addr = alpha_fixture.load_addr;
         let beta_start = usize::from(SAMPLE_BETA_SPEC.fixture_load_addr);
         combined[beta_start..beta_start + SAMPLE_BETA_SPEC.fixture.len()]
             .copy_from_slice(SAMPLE_BETA_SPEC.fixture);
@@ -664,8 +689,8 @@ mod tests {
         // 2. Check over production `REGISTRY` with both a real match (McCracken + Eagle Cruncher)
         // and each static spec fixture.
         for &spec in REGISTRY {
-            let (mem, load_addr, load_end) = spec.build_fixture_memory();
-            let view = LoadedImage::for_c64(&mem, load_addr, load_end);
+            let fixture = spec.build_fixture_memory();
+            let view = LoadedImage::for_c64(&fixture.mem, fixture.load_addr, fixture.load_end);
             let first = detect(&view);
             let all = detect_all(&view);
             assert!(first.is_some());
@@ -871,8 +896,8 @@ mod tests {
                     spec.id, spec.hints.start_addr
                 ));
             }
-            let (mem, load_addr, load_end) = spec.build_fixture_memory();
-            let view = LoadedImage::for_c64(&mem, load_addr, load_end);
+            let fixture = spec.build_fixture_memory();
+            let view = LoadedImage::for_c64(&fixture.mem, fixture.load_addr, fixture.load_end);
             let Some(sig_match) = spec.detect(&view) else {
                 failures.push(format!("{}: spec failed to match its fixture", spec.id));
                 continue;
@@ -890,7 +915,7 @@ mod tests {
                     spec.id, actual_info, expected_info
                 ));
             }
-            let reg_info = detect_c64_info(&mem, load_addr, load_end);
+            let reg_info = detect_c64_info(&fixture.mem, fixture.load_addr, fixture.load_end);
             if reg_info.as_ref() != Some(&expected_info) {
                 failures.push(format!(
                     "{}: registry info {:?} != expected {:?}",
@@ -920,11 +945,11 @@ mod tests {
                 ));
             }
 
-            let (mem, fixture_load, load_end) = spec.build_fixture_memory();
+            let fixture = spec.build_fixture_memory();
 
             if spec.id == "time_cruncher" {
                 for load_addr in [0x0000_u16, 0x0800, 0x0801, 0x0802, 0x080D, 0x0810, 0x1000] {
-                    let view = LoadedImage::for_c64(&mem, load_addr, 0x0900);
+                    let view = LoadedImage::for_c64(&fixture.mem, load_addr, 0x0900);
                     if spec.detect(&view).is_none() {
                         failures.push(format!(
                             "time_cruncher should match at load_addr=${load_addr:04X} (no load gate)"
@@ -932,13 +957,14 @@ mod tests {
                     }
                 }
             } else if spec.id == "ccs" {
-                // CCS matches at fixture_load ($040A <= $0801), and rejects > $0801.
-                let ok_view = LoadedImage::for_c64(&mem, fixture_load, load_end);
+                // CCS matches at fixture.load_addr ($040A <= $0801), and rejects > $0801.
+                let ok_view =
+                    LoadedImage::for_c64(&fixture.mem, fixture.load_addr, fixture.load_end);
                 if spec.detect(&ok_view).is_none() {
-                    failures.push("ccs failed to match at fixture_load $040A".into());
+                    failures.push("ccs failed to match at fixture.load_addr $040A".into());
                 }
                 for bad_load in [0x0802_u16, 0x080B, 0x080D, 0x0817, 0x1000] {
-                    let bad_view = LoadedImage::for_c64(&mem, bad_load, 0x0900);
+                    let bad_view = LoadedImage::for_c64(&fixture.mem, bad_load, 0x0900);
                     if spec.detect(&bad_view).is_some() {
                         failures.push(format!("ccs matched at load_addr=${bad_load:04X} > $0801"));
                     }
@@ -946,7 +972,7 @@ mod tests {
             } else {
                 // Standard $080D-anchored C64 static packer with `load_addr <= $0801`.
                 for ok_load in [0x0000_u16, 0x0400, 0x0800, 0x0801] {
-                    let view = LoadedImage::for_c64(&mem, ok_load, 0x0900);
+                    let view = LoadedImage::for_c64(&fixture.mem, ok_load, 0x0900);
                     if spec.detect(&view).is_none() {
                         failures.push(format!(
                             "{}: expected match at load_addr=${ok_load:04X}",
@@ -955,14 +981,14 @@ mod tests {
                     }
                 }
                 for bad_load in [0x0802_u16, 0x080B, 0x080D, 0x0810, 0x1000, 0xFFFF] {
-                    let view = LoadedImage::for_c64(&mem, bad_load, 0x0900);
+                    let view = LoadedImage::for_c64(&fixture.mem, bad_load, 0x0900);
                     if spec.detect(&view).is_some() {
                         failures.push(format!(
                             "{}: expected None at load_addr=${bad_load:04X} > $0801",
                             spec.id
                         ));
                     }
-                    if detect_c64_info(&mem, bad_load, 0x0900).is_some() {
+                    if detect_c64_info(&fixture.mem, bad_load, 0x0900).is_some() {
                         failures.push(format!(
                             "{}: detect_c64_info expected None at load_addr=${bad_load:04X}",
                             spec.id
@@ -982,7 +1008,10 @@ mod tests {
         let mut failures = Vec::new();
 
         for spec in STATIC_PACKER_SPECS {
-            let (base_mem, load_addr, load_end) = spec.build_fixture_memory();
+            let fixture = spec.build_fixture_memory();
+            let base_mem = fixture.mem;
+            let load_addr = fixture.load_addr;
+            let load_end = fixture.load_end;
             let base_view = LoadedImage::for_c64(&base_mem, load_addr, load_end);
             let Some(matched) = spec.detect(&base_view) else {
                 failures.push(format!("{}: failed to match baseline fixture", spec.id));
@@ -1083,9 +1112,16 @@ mod tests {
                 continue;
             }
 
-            let (base_mem, load_addr, load_end) = spec.build_fixture_memory();
+            let fixture = spec.build_fixture_memory();
+            let base_mem = fixture.mem;
+            let load_addr = fixture.load_addr;
+            let load_end = fixture.load_end;
             let base_view = LoadedImage::for_c64(&base_mem, load_addr, load_end);
-            let anchor_addr = usize::from(spec.detect(&base_view).unwrap().anchor_addr);
+            let anchor_addr = usize::from(
+                spec.detect(&base_view)
+                    .expect("spec must detect its own fixture")
+                    .anchor_addr,
+            );
 
             // 1. Every individual wildcard offset accepts all 256 byte values (`0x00..=0xFF`).
             for &offset in expected_offsets {
@@ -1130,7 +1166,10 @@ mod tests {
         let mut failures = Vec::new();
 
         // 1. Action Replay: byte at $080D + 2 ($080F) must be 0x37 or 0x34.
-        let (ar_base, ar_load, ar_end) = action_replay::SPEC.build_fixture_memory();
+        let ar_fixture = action_replay::SPEC.build_fixture_memory();
+        let ar_base = ar_fixture.mem;
+        let ar_load = ar_fixture.load_addr;
+        let ar_end = ar_fixture.load_end;
         for b2 in 0x00_u8..=0xFF {
             let mut mem = ar_base.clone();
             mem[0x080D + 2] = b2;
@@ -1144,7 +1183,8 @@ mod tests {
                 ));
             }
             if should_match {
-                let info = detect_c64_info(&mem, ar_load, ar_end).unwrap();
+                let info = detect_c64_info(&mem, ar_load, ar_end)
+                    .expect("Action Replay fixture should detect");
                 if info.name != "Action Replay"
                     || info.dep_addr != Some(0x0100)
                     || info.start_addr != Some(0x0801)
@@ -1157,7 +1197,10 @@ mod tests {
         }
 
         // 2. Cruel Cruncher: all 6 valid `(b5, b6)` pairs in `[0xA2, 0xA0] × [0x1A, 0x1F, 0x20]`.
-        let (cc_base, cc_load, cc_end) = cruel_cruncher::SPEC.build_fixture_memory();
+        let cc_fixture = cruel_cruncher::SPEC.build_fixture_memory();
+        let cc_base = cc_fixture.mem;
+        let cc_load = cc_fixture.load_addr;
+        let cc_end = cc_fixture.load_end;
         for b5 in [0xA2_u8, 0xA0] {
             for b6 in [0x1A_u8, 0x1F, 0x20] {
                 let mut mem = cc_base.clone();
@@ -1176,7 +1219,8 @@ mod tests {
                         matched.spec_name
                     ));
                 }
-                let info = detect_c64_info(&mem, cc_load, cc_end).unwrap();
+                let info = detect_c64_info(&mem, cc_load, cc_end)
+                    .expect("Cruel Cruncher fixture should detect");
                 if info.name != "Cruel Cruncher"
                     || info.dep_addr != Some(0x0100)
                     || info.start_addr != Some(0x0801)
@@ -1226,7 +1270,10 @@ mod tests {
             Some(AddrSource::OperandLe { from_match: 0x29 })
         );
 
-        let (base_mem, load_addr, load_end) = tiny_crunch::SPEC.build_fixture_memory();
+        let tc_fixture = tiny_crunch::SPEC.build_fixture_memory();
+        let base_mem = tc_fixture.mem;
+        let load_addr = tc_fixture.load_addr;
+        let load_end = tc_fixture.load_end;
         for expected_entry in [0x0000_u16, 0x080D, 0x0911, 0x1000, 0x4567, 0xC000, 0xFFFF] {
             let mut mem = base_mem.clone();
             let [lo, hi] = expected_entry.to_le_bytes();
@@ -1245,7 +1292,8 @@ mod tests {
             assert_eq!(spec_info.start_addr, Some(0x0801));
             assert_eq!(spec_info.entry_point, Some(expected_entry));
 
-            let reg_info = detect_c64_info(&mem, load_addr, load_end).unwrap();
+            let reg_info = detect_c64_info(&mem, load_addr, load_end)
+                .expect("packed fixture should detect in registry");
             assert_eq!(reg_info, spec_info);
         }
     }
@@ -1456,7 +1504,10 @@ mod tests {
         assert_eq!(card_cruncher::SPEC.load_addr_max, Some(0x0801));
 
         // 1. Candidate $080D matches and reads fixed operands at $081E and $083F.
-        let (base_mem, load_addr, load_end) = card_cruncher::SPEC.build_fixture_memory();
+        let cc_acm_fixture = card_cruncher::SPEC.build_fixture_memory();
+        let base_mem = cc_acm_fixture.mem;
+        let load_addr = cc_acm_fixture.load_addr;
+        let load_end = cc_acm_fixture.load_end;
         let base_view = LoadedImage::for_c64(&base_mem, load_addr, load_end);
         let matched_080d = card_cruncher::SPEC
             .detect(&base_view)
@@ -1543,7 +1594,9 @@ mod tests {
             let mut mem = base_mem.clone();
             mem[0x081E..0x0820].copy_from_slice(&end_val.to_le_bytes());
             let view = LoadedImage::for_c64(&mem, 0x0801, 0x0950);
-            let m = card_cruncher::SPEC.detect(&view).unwrap();
+            let m = card_cruncher::SPEC
+                .detect(&view)
+                .expect("CardCruncher variant should detect");
             let info = PackerInfo::resolve(&view, &m);
             assert_eq!(
                 info.end_addr, expected_end,
@@ -1618,7 +1671,11 @@ mod tests {
                 end_addr_ptr: None,
             }
         );
-        assert_eq!(detect_c64_info(&base_mem, 0x0801, 0x0950).unwrap(), info);
+        assert_eq!(
+            detect_c64_info(&base_mem, 0x0801, 0x0950)
+                .expect("CardCruncher base image should detect"),
+            info
+        );
         assert_eq!(
             find_entry_by_name("1001 CardCruncher v4").map(|s| s.id),
             Some("card_cruncher")
@@ -1738,8 +1795,9 @@ mod tests {
             }
         }
 
-        let (fix_mem, fix_load, _) = eca::SPEC.build_fixture_memory();
-        let short_view = LoadedImage::for_c64(&fix_mem[..0x094F], fix_load, 0x094F);
+        let eca_fixture = eca::SPEC.build_fixture_memory();
+        let short_view =
+            LoadedImage::for_c64(&eca_fixture.mem[..0x094F], eca_fixture.load_addr, 0x094F);
         assert!(eca::SPEC.detect(&short_view).is_none());
 
         assert!(failures.is_empty(), "{}", failures.join("\n"));
@@ -1852,7 +1910,7 @@ mod tests {
         assert_eq!(
             fallback_hints
                 .start_addr
-                .unwrap()
+                .expect("ECA fallback hints should specify start_addr")
                 .resolve_static(&short_image, p as u16),
             Some(0x0800)
         );
@@ -1865,7 +1923,7 @@ mod tests {
             mem[p + 0xD6] = 0x4C;
             mem[p + 0xD7..p + 0xD9].copy_from_slice(&excluded.to_le_bytes());
             let view = LoadedImage::for_c64(&mem, 0x0801, 0x0950);
-            let m = eca::SPEC.detect(&view).unwrap();
+            let m = eca::SPEC.detect(&view).expect("ECA variant should detect");
             let info = PackerInfo::resolve(&view, &m);
             assert_eq!(
                 info.entry_point, None,
@@ -1882,7 +1940,9 @@ mod tests {
         // Secondary `end_addr_ptr` scan (`p + 0xED..p + 0x108`): `[0xD0, 0xF7, 0x18, 0xA5, ptr]`.
         mem_ep_and_ptr[p + 0xF0..p + 0xF5].copy_from_slice(&[0xD0, 0xF7, 0x18, 0xA5, 0xAE]);
         let view_both = LoadedImage::for_c64(&mem_ep_and_ptr, 0x0801, 0x0950);
-        let m_both = eca::SPEC.detect(&view_both).unwrap();
+        let m_both = eca::SPEC
+            .detect(&view_both)
+            .expect("ECA variant with pointer should detect");
         let info_both = PackerInfo::resolve(&view_both, &m_both);
         assert_eq!(info_both.entry_point, Some(0x3000));
         assert_eq!(info_both.end_addr_ptr, Some(0x00AE));
@@ -1913,7 +1973,10 @@ mod tests {
             Anchor::Window(0x0912..=0x0937)
         );
 
-        let (base_mem, load_addr, load_end) = pucrunch::SPEC.build_fixture_memory();
+        let pucrunch_fixture = pucrunch::SPEC.build_fixture_memory();
+        let base_mem = pucrunch_fixture.mem;
+        let load_addr = pucrunch_fixture.load_addr;
+        let load_end = pucrunch_fixture.load_end;
 
         // 1. Secondary signature at each boundary and interior address (`$0912`, `$0920`, `$0937`).
         for p in [0x0912_usize, 0x0920, 0x0937] {
@@ -1981,7 +2044,10 @@ mod tests {
             0x84, 0x01, 0xCA, 0x9A, 0x4C, 0x00, 0x01, 0xA0, 0x00, 0x84, 0xFD, 0x84,
         ];
 
-        let (base_mem, load_addr, load_end) = tbc::SPEC.build_fixture_memory();
+        let tbc_fixture = tbc::SPEC.build_fixture_memory();
+        let base_mem = tbc_fixture.mem;
+        let load_addr = tbc_fixture.load_addr;
+        let load_end = tbc_fixture.load_end;
 
         // 1. Mask at $082C (`(b & 0xFD) == 0x84`) accepts only `0x84` and `0x86`.
         for b in 0x00_u8..=0xFF {
@@ -2039,7 +2105,7 @@ mod tests {
         tbl_empty[0x08EB] = 0x00;
         let m_empty = tbc::SPEC
             .detect(&LoadedImage::for_c64(&tbl_empty, load_addr, load_end))
-            .unwrap();
+            .expect("TBC empty reloc table should detect");
         assert_eq!(m_empty.resolved.hints.end_addr, None);
 
         // 3b: `strtmp == 0x0001` (1 entry, `tbl_len == 4`, `q = 0x08EF`, reads `$08EE..=$08EF`)
@@ -2048,7 +2114,12 @@ mod tests {
         tbl_one[0x08EB] = 4;
         tbl_one[0x08EE..0x08F0].copy_from_slice(&0x0001_u16.to_le_bytes());
         let view_one = LoadedImage::for_c64(&tbl_one, load_addr, load_end);
-        let info_one = PackerInfo::resolve(&view_one, &tbc::SPEC.detect(&view_one).unwrap());
+        let info_one = PackerInfo::resolve(
+            &view_one,
+            &tbc::SPEC
+                .detect(&view_one)
+                .expect("TBC single-entry table should detect"),
+        );
         assert_eq!(info_one.end_addr, Some(0x0000));
 
         // 3c: Multi-entry table (`tbl_len == 12`, 3 entries at `$08EE..=$08EF`, `$08F2..=$08F3`,
@@ -2060,7 +2131,12 @@ mod tests {
         tbl_multi[0x08F2..0x08F4].copy_from_slice(&0x9000_u16.to_le_bytes());
         tbl_multi[0x08F6..0x08F8].copy_from_slice(&0x4500_u16.to_le_bytes());
         let view_multi = LoadedImage::for_c64(&tbl_multi, load_addr, load_end);
-        let info_multi = PackerInfo::resolve(&view_multi, &tbc::SPEC.detect(&view_multi).unwrap());
+        let info_multi = PackerInfo::resolve(
+            &view_multi,
+            &tbc::SPEC
+                .detect(&view_multi)
+                .expect("TBC multi-entry table should detect"),
+        );
         assert_eq!(info_multi.end_addr, Some(0x8FFF));
 
         // 3d: `strtmp == 0x0000` maps to `0x10000` (beating `0x9000`), and
@@ -2068,7 +2144,12 @@ mod tests {
         let mut tbl_wrap = tbl_multi.clone();
         tbl_wrap[0x08F6..0x08F8].copy_from_slice(&0x0000_u16.to_le_bytes());
         let view_wrap = LoadedImage::for_c64(&tbl_wrap, load_addr, load_end);
-        let info_wrap = PackerInfo::resolve(&view_wrap, &tbc::SPEC.detect(&view_wrap).unwrap());
+        let info_wrap = PackerInfo::resolve(
+            &view_wrap,
+            &tbc::SPEC
+                .detect(&view_wrap)
+                .expect("TBC wrap-around table should detect"),
+        );
         assert_eq!(info_wrap.end_addr, Some(0xFFFF));
 
         // 4. `mem.len() < 0x08F0` guard rejects truncated buffers.
@@ -2226,7 +2307,9 @@ mod tests {
         let mut mem_v30_no_ep = vec![0u8; 0x1_0000];
         write_exo3_at(&mut mem_v30_no_ep, 0x0900, 0xAB, true, None);
         let view_v30_no_ep = LoadedImage::for_c64(&mem_v30_no_ep, 0x0801, 0x0950);
-        let m_v30_no_ep = exomizer::SPEC.detect(&view_v30_no_ep).unwrap();
+        let m_v30_no_ep = exomizer::SPEC
+            .detect(&view_v30_no_ep)
+            .expect("Exomizer 3.0 without entry should detect");
         let info_v30_no_ep = PackerInfo::resolve(&view_v30_no_ep, &m_v30_no_ep);
         assert_eq!(info_v30_no_ep.name, "Exomizer 3.0");
         assert_eq!(info_v30_no_ep.dep_addr, Some(0x01AB));
@@ -2256,7 +2339,9 @@ mod tests {
         let mut mem_v302_no_ep = vec![0u8; 0x1_0000];
         write_exo3_at(&mut mem_v302_no_ep, 0x0900, 0x34, false, None);
         let view_v302_no_ep = LoadedImage::for_c64(&mem_v302_no_ep, 0x0801, 0x0950);
-        let m_v302_no_ep = exomizer::SPEC.detect(&view_v302_no_ep).unwrap();
+        let m_v302_no_ep = exomizer::SPEC
+            .detect(&view_v302_no_ep)
+            .expect("Exomizer v3.02+ without entry should detect");
         let info_v302_no_ep = PackerInfo::resolve(&view_v302_no_ep, &m_v302_no_ep);
         assert_eq!(info_v302_no_ep.name, "Exomizer v3.02+");
         assert_eq!(info_v302_no_ep.entry_point, None);
@@ -2309,7 +2394,9 @@ mod tests {
         write_exo3_at(&mut mem_two_v3, 0x0850, 0x11, true, Some(0x1111));
         write_exo3_at(&mut mem_two_v3, 0x0920, 0x22, false, Some(0x2222));
         let view_two_v3 = LoadedImage::for_c64(&mem_two_v3, 0x0801, 0x0950);
-        let m_two_v3 = exomizer::SPEC.detect(&view_two_v3).unwrap();
+        let m_two_v3 = exomizer::SPEC
+            .detect(&view_two_v3)
+            .expect("Exomizer v3 pair should detect");
         assert_eq!(m_two_v3.anchor_addr, 0x0920);
         assert_eq!(m_two_v3.spec_name, "Exomizer v3.02+");
         let info_two_v3 = PackerInfo::resolve(&view_two_v3, &m_two_v3);
@@ -2321,7 +2408,9 @@ mod tests {
         write_exo2_at(&mut mem_two_v2, 0x0840, 0x34);
         write_exo2_at(&mut mem_two_v2, 0x0910, 0x50);
         let view_two_v2 = LoadedImage::for_c64(&mem_two_v2, 0x0801, 0x0950);
-        let m_two_v2 = exomizer::SPEC.detect(&view_two_v2).unwrap();
+        let m_two_v2 = exomizer::SPEC
+            .detect(&view_two_v2)
+            .expect("Exomizer v2 pair should detect");
         assert_eq!(m_two_v2.anchor_addr, 0x0910);
         assert_eq!(m_two_v2.spec_name, "Exomizer 2.x");
         let info_two_v2 = PackerInfo::resolve(&view_two_v2, &m_two_v2);
@@ -2333,7 +2422,9 @@ mod tests {
         write_exo3_at(&mut mem_v3_beats_v2, 0x0850, 0xAB, true, Some(0x3000));
         write_exo2_at(&mut mem_v3_beats_v2, 0x0950, 0x50);
         let view_v3_beats_v2 = LoadedImage::for_c64(&mem_v3_beats_v2, 0x0801, 0x0980);
-        let m_v3_beats_v2 = exomizer::SPEC.detect(&view_v3_beats_v2).unwrap();
+        let m_v3_beats_v2 = exomizer::SPEC
+            .detect(&view_v3_beats_v2)
+            .expect("Exomizer v3 should win over v2");
         assert_eq!(m_v3_beats_v2.anchor_addr, 0x0850);
         assert_eq!(m_v3_beats_v2.spec_name, "Exomizer 3.0");
         let info_v3_beats_v2 = PackerInfo::resolve(&view_v3_beats_v2, &m_v3_beats_v2);
@@ -2672,7 +2763,10 @@ mod tests {
         }
 
         // 1. Variant 1 (`TSCrunch v1.3+`): `reloc_start` at `q + 0x10` (`$081D..=$081E`).
-        let (mut mem_v1, load_addr, load_end) = tscrunch::SPEC.build_fixture_memory();
+        let tsc_fixture = tscrunch::SPEC.build_fixture_memory();
+        let mut mem_v1 = tsc_fixture.mem;
+        let load_addr = tsc_fixture.load_addr;
+        let load_end = tsc_fixture.load_end;
         let view_v1 = LoadedImage::for_c64(&mem_v1, load_addr, load_end);
         let m_v1 = tscrunch::SPEC
             .detect(&view_v1)
@@ -2684,7 +2778,9 @@ mod tests {
         for (raw, expected) in [(0x0000_u16, None), (0x0800, None), (0x0801, Some(0x0801))] {
             mem_v1[0x080D + 0x10..0x080D + 0x12].copy_from_slice(&raw.to_le_bytes());
             let view = LoadedImage::for_c64(&mem_v1, load_addr, load_end);
-            let m = tscrunch::SPEC.detect(&view).unwrap();
+            let m = tscrunch::SPEC
+                .detect(&view)
+                .expect("TSCrunch reloc variant should detect");
             assert_eq!(
                 tscrunch::resolve_reloc_start(&view, &m),
                 expected,
@@ -2696,7 +2792,9 @@ mod tests {
         mem_v1[0x080D + 20..0x080D + 28]
             .copy_from_slice(&[0xA9, 0x37, 0x85, 0x01, 0x58, 0x4C, 0x00, 0x2E]);
         let view_v1_ep = LoadedImage::for_c64(&mem_v1, load_addr, 0x0900);
-        let m_v1_ep = tscrunch::SPEC.detect(&view_v1_ep).unwrap();
+        let m_v1_ep = tscrunch::SPEC
+            .detect(&view_v1_ep)
+            .expect("TSCrunch v1 entry variant should detect");
         let info_v1_ep = PackerInfo::resolve(&view_v1_ep, &m_v1_ep);
         assert_eq!(
             info_v1_ep,
@@ -2742,7 +2840,9 @@ mod tests {
         for (raw, expected) in [(0x0000_u16, None), (0x0800, None), (0x0801, Some(0x0801))] {
             mem_v2[q + 0x18..q + 0x1A].copy_from_slice(&raw.to_le_bytes());
             let view = LoadedImage::for_c64(&mem_v2, 0x0801, 0x0900);
-            let m = tscrunch::SPEC.detect(&view).unwrap();
+            let m = tscrunch::SPEC
+                .detect(&view)
+                .expect("TSCrunch reloc variant should detect");
             assert_eq!(
                 tscrunch::resolve_reloc_start(&view, &m),
                 expected,
@@ -2837,9 +2937,15 @@ mod tests {
         );
 
         // Variant 1 (`TSCrunch v1.3+`)
-        let (mem_v1, load_addr, load_end) = tscrunch::SPEC.build_fixture_memory();
-        let view_v1 = LoadedImage::for_c64(&mem_v1, load_addr, load_end);
-        let m_v1 = tscrunch::SPEC.detect(&view_v1).unwrap();
+        let tsc_fixture = tscrunch::SPEC.build_fixture_memory();
+        let view_v1 = LoadedImage::for_c64(
+            &tsc_fixture.mem,
+            tsc_fixture.load_addr,
+            tsc_fixture.load_end,
+        );
+        let m_v1 = tscrunch::SPEC
+            .detect(&view_v1)
+            .expect("TSCrunch v1 fixture should detect");
         assert_eq!(
             m_v1.resolved.hints.start_addr,
             Some(AddrSource::BasicStart(-1))
@@ -2848,7 +2954,7 @@ mod tests {
             m_v1.resolved
                 .hints
                 .start_addr
-                .unwrap()
+                .expect("TSCrunch spec should set start_addr")
                 .resolve_static(&view_v1, m_v1.anchor_addr),
             Some(0x0800)
         );
@@ -2860,7 +2966,9 @@ mod tests {
             0xD0, 0xF7, 0x4C, 0x00, 0x01,
         ]);
         let view_v2 = LoadedImage::for_c64(&mem_v2, 0x0801, 0x0830);
-        let m_v2 = tscrunch::SPEC.detect(&view_v2).unwrap();
+        let m_v2 = tscrunch::SPEC
+            .detect(&view_v2)
+            .expect("TSCrunch v2 should detect");
         assert_eq!(m_v2.spec_name, "TSCrunch v1.3+-X2");
         assert_eq!(
             m_v2.resolved.hints.start_addr,
@@ -2870,7 +2978,7 @@ mod tests {
             m_v2.resolved
                 .hints
                 .start_addr
-                .unwrap()
+                .expect("TSCrunch spec should set start_addr")
                 .resolve_static(&view_v2, m_v2.anchor_addr),
             Some(0x0800)
         );
@@ -2943,7 +3051,7 @@ mod tests {
         assert_eq!(res.end_addr, 0x2000);
     }
 
-    /// Unpacking all 24 Exomizer and TSCrunch corpus files (17 `Exomizer 3.0`,
+    /// Unpacking all 24 Exomizer and `TSCrunch` corpus files (17 `Exomizer 3.0`,
     /// 3 `Exomizer 2.x`, 2 `TSCrunch v1.3+`, and 2 `TSCrunch v1.3+-X2`) produces the exact
     /// baseline outputs and preserves ground-truth/consensus agreement on the `moving_tubes`
     /// and `mule` groups.
@@ -3234,7 +3342,10 @@ mod tests {
     #[test]
     fn dali_refine_compares_entry_with_eb_ec() {
         // 1. Static detection & `PackerInfo::resolve` resolution:
-        let (mut mem, load_addr, load_end) = dali::SPEC.build_fixture_memory();
+        let dali_fixture = dali::SPEC.build_fixture_memory();
+        let mut mem = dali_fixture.mem;
+        let load_addr = dali_fixture.load_addr;
+        let load_end = dali_fixture.load_end;
         let q = 0x080D_usize;
         mem[q + 0x44] = 0x6B;
         mem[q + 0xFE] = 0x00;
@@ -3271,7 +3382,12 @@ mod tests {
                 end_addr_ptr: Some(0x006B),
             }
         );
-        assert_eq!(find_entry_by_name("Dali").unwrap().id, "dali");
+        assert_eq!(
+            find_entry_by_name("Dali")
+                .expect("Dali spec must be registered")
+                .id,
+            "dali"
+        );
 
         // Boundary guards on `load_addr` and `mem.len()`:
         let view_high_load = LoadedImage::for_c64(&mem, 0x0802, load_end);
@@ -3370,7 +3486,10 @@ mod tests {
     #[test]
     fn byteboozer_refine_rechecks_snapshot_and_reads_absolute() {
         // 1. Static detection & operand resolution:
-        let (mut mem, load_addr, load_end) = byteboozer::SPEC.build_fixture_memory();
+        let bb_fixture = byteboozer::SPEC.build_fixture_memory();
+        let mut mem = bb_fixture.mem;
+        let load_addr = bb_fixture.load_addr;
+        let load_end = bb_fixture.load_end;
         mem[0x0886..=0x0887].copy_from_slice(&0x0800_u16.to_le_bytes());
         mem[0x08CB..=0x08CC].copy_from_slice(&0x2800_u16.to_le_bytes());
 
@@ -3391,7 +3510,12 @@ mod tests {
                 end_addr_ptr: Some(0x0077),
             }
         );
-        assert_eq!(find_entry_by_name("ByteBoozer").unwrap().id, "byteboozer");
+        assert_eq!(
+            find_entry_by_name("ByteBoozer")
+                .expect("ByteBoozer spec must be registered")
+                .id,
+            "byteboozer"
+        );
 
         // Boundary guards:
         let view_high_load = LoadedImage::for_c64(&mem, 0x0802, load_end);
@@ -3521,7 +3645,9 @@ mod tests {
         mem[p + 0x61] = 0x4C;
         mem[p + 0x62..=p + 0x63].copy_from_slice(&0x2468_u16.to_le_bytes());
         let view_jmp = LoadedImage::for_c64(&mem, 0x0801, 0x0900);
-        let sig_match_jmp = mc_cracken::SPEC.detect(&view_jmp).unwrap();
+        let sig_match_jmp = mc_cracken::SPEC
+            .detect(&view_jmp)
+            .expect("McCracken JMP variant should detect");
         let info_jmp = PackerInfo::resolve(&view_jmp, &sig_match_jmp);
         assert_eq!(info_jmp.entry_point, Some(0x2468));
 
@@ -3585,7 +3711,7 @@ mod tests {
         assert_eq!(step7_b, 0xFFFE);
     }
 
-    /// Unpacking all 6 Dali, ByteBoozer, and McCracken corpus files (2 `Dali`,
+    /// Unpacking all 6 Dali, `ByteBoozer`, and `McCracken` corpus files (2 `Dali`,
     /// 3 `ByteBoozer`, and 1 `McCracken Compressor`) produces the exact baseline outputs
     /// and preserves ground-truth/consensus agreement on `mule`.
     #[test]
@@ -3716,7 +3842,9 @@ mod tests {
         let mut quiss_default = quiss_mem.clone();
         quiss_default[0x09CB..=0x09D0].fill(0);
         let quiss_def_view = LoadedImage::for_c64(&quiss_default, quiss_load, quiss_end);
-        let quiss_def_match = alz64::SPEC.detect(&quiss_def_view).unwrap();
+        let quiss_def_match = alz64::SPEC
+            .detect(&quiss_def_view)
+            .expect("ALZ64 Quiss variant should detect");
         assert_eq!(
             PackerInfo::resolve(&quiss_def_view, &quiss_def_match).start_addr,
             Some(0x080B)
@@ -3793,7 +3921,9 @@ mod tests {
         let mut kabuto_default = kabuto_mem.clone();
         kabuto_default[0x09E6..=0x09EB].fill(0);
         let kabuto_def_view = LoadedImage::for_c64(&kabuto_default, kabuto_load, kabuto_end);
-        let kabuto_def_match = alz64::SPEC.detect(&kabuto_def_view).unwrap();
+        let kabuto_def_match = alz64::SPEC
+            .detect(&kabuto_def_view)
+            .expect("ALZ64 Kabuto variant should detect");
         assert_eq!(
             PackerInfo::resolve(&kabuto_def_view, &kabuto_def_match).start_addr,
             Some(0x080B)
@@ -3907,7 +4037,9 @@ mod tests {
         v2_mem[0x0911] = 0x20;
         v2_mem[0x0915..=0x0916].copy_from_slice(&0x4321_u16.to_le_bytes());
         let v2_jsr_view = LoadedImage::for_c64(&v2_mem, v2_load, v2_end);
-        let v2_jsr_match = antiram::SPEC.detect(&v2_jsr_view).unwrap();
+        let v2_jsr_match = antiram::SPEC
+            .detect(&v2_jsr_view)
+            .expect("AntiRAM v2 JSR variant should detect");
         assert_eq!(
             PackerInfo::resolve(&v2_jsr_view, &v2_jsr_match).entry_point,
             Some(0x4321)
@@ -3950,7 +4082,9 @@ mod tests {
         v1_mem[0x0904] = 0x20;
         v1_mem[0x0908..=0x0909].copy_from_slice(&0x5678_u16.to_le_bytes());
         let v1_jsr_view = LoadedImage::for_c64(&v1_mem, v1_load, v1_end);
-        let v1_jsr_match = antiram::SPEC.detect(&v1_jsr_view).unwrap();
+        let v1_jsr_match = antiram::SPEC
+            .detect(&v1_jsr_view)
+            .expect("AntiRAM v1 JSR variant should detect");
         assert_eq!(
             PackerInfo::resolve(&v1_jsr_view, &v1_jsr_match).entry_point,
             Some(0x5678)
@@ -4056,7 +4190,7 @@ mod tests {
         assert_ne!(v2_mem[0x0911], 0x20);
         let v2_match = antiram::SPEC
             .detect(&LoadedImage::for_c64(&v2_mem, v2_load, v2_end))
-            .unwrap();
+            .expect("AntiRAM v2 fixture should detect");
         assert_eq!(
             PackerInfo::resolve(&LoadedImage::for_c64(&v2_mem, v2_load, v2_end), &v2_match)
                 .entry_point,
@@ -4072,7 +4206,9 @@ mod tests {
         v2_mem[0x0911] = 0x20;
         v2_mem[0x0915..=0x0916].copy_from_slice(&0x4321_u16.to_le_bytes());
         let v2_jsr_view = LoadedImage::for_c64(&v2_mem, v2_load, v2_end);
-        let v2_jsr_match = antiram::SPEC.detect(&v2_jsr_view).unwrap();
+        let v2_jsr_match = antiram::SPEC
+            .detect(&v2_jsr_view)
+            .expect("AntiRAM v2 JSR variant should detect");
         assert_eq!(
             PackerInfo::resolve(&v2_jsr_view, &v2_jsr_match).entry_point,
             Some(0x4321)
@@ -4085,7 +4221,7 @@ mod tests {
         assert_ne!(v1_mem[0x0904], 0x20);
         let v1_match = antiram::SPEC
             .detect(&LoadedImage::for_c64(&v1_mem, v1_load, v1_end))
-            .unwrap();
+            .expect("AntiRAM v1 fixture should detect");
         assert_eq!(
             PackerInfo::resolve(&LoadedImage::for_c64(&v1_mem, v1_load, v1_end), &v1_match)
                 .entry_point,
@@ -4101,7 +4237,9 @@ mod tests {
         v1_mem[0x0904] = 0x20;
         v1_mem[0x0908..=0x0909].copy_from_slice(&0x5678_u16.to_le_bytes());
         let v1_jsr_view = LoadedImage::for_c64(&v1_mem, v1_load, v1_end);
-        let v1_jsr_match = antiram::SPEC.detect(&v1_jsr_view).unwrap();
+        let v1_jsr_match = antiram::SPEC
+            .detect(&v1_jsr_view)
+            .expect("AntiRAM v1 JSR variant should detect");
         assert_eq!(
             PackerInfo::resolve(&v1_jsr_view, &v1_jsr_match).entry_point,
             Some(0x5678)
@@ -4189,7 +4327,7 @@ mod tests {
             .join("../../tests/6502")
             .join("c64_chiller.antiram_packer.prg");
         let bytes =
-            std::fs::read(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
+            fs::read(&path).unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
         let load_addr = u16::from_le_bytes([bytes[0], bytes[1]]);
         assert_eq!(load_addr, 0x0801);
 
@@ -4404,7 +4542,7 @@ mod tests {
         assert_eq!(res.data.len(), 7);
     }
 
-    /// Verifies `byteboozer` relaxed 1.0, 1.1C, 1.1E, LamerBoozer, and RoyalBoozer detection
+    /// Verifies `byteboozer` relaxed 1.0, 1.1C, 1.1E, `LamerBoozer`, and `RoyalBoozer` detection
     /// (including `RoyalBoozer` post-run `start_addr` via `$00FA` + static `end_addr`).
     #[test]
     fn byteboozer_expanded_variants_and_royalboozer() {
@@ -4420,8 +4558,12 @@ mod tests {
         bb10[0x08DD..=0x08DE].copy_from_slice(&0x2000_u16.to_le_bytes());
         bb10[0x091C..=0x091D].copy_from_slice(&0x0801_u16.to_le_bytes());
         let bb10_view = LoadedImage::for_c64(&bb10, 0x0801, 0x0A00);
-        let bb10_info =
-            PackerInfo::resolve(&bb10_view, &byteboozer::SPEC.detect(&bb10_view).unwrap());
+        let bb10_info = PackerInfo::resolve(
+            &bb10_view,
+            &byteboozer::SPEC
+                .detect(&bb10_view)
+                .expect("ByteBoozer 1.0 should detect"),
+        );
         assert_eq!(bb10_info.name, "ByteBoozer 1.0");
         assert_eq!(bb10_info.dep_addr, Some(0x0008));
         assert_eq!(bb10_info.start_addr, Some(0x0801));
@@ -4460,7 +4602,7 @@ mod tests {
         assert_eq!(royal_res.entry_point, 0x1800);
         assert_eq!(
             royal_res.report.start_source,
-            crate::unpacker::BoundSource::PointerAfterRun { addr: 0x00FA }
+            BoundSource::PointerAfterRun { addr: 0x00FA }
         );
 
         // RoyalBoozer `raw_end == 0 -> $FFFF`, `raw_end <= load_addr -> None`, and short buffer guard.
@@ -4476,7 +4618,9 @@ mod tests {
         assert_eq!(
             PackerInfo::resolve(
                 &royal_zero_end,
-                &byteboozer::SPEC.detect(&royal_zero_end).unwrap()
+                &byteboozer::SPEC
+                    .detect(&royal_zero_end)
+                    .expect("RoyalBoozer zero-end should detect")
             )
             .end_addr,
             Some(0xFFFF)
@@ -4486,7 +4630,9 @@ mod tests {
         assert_eq!(
             PackerInfo::resolve(
                 &royal_low_end,
-                &byteboozer::SPEC.detect(&royal_low_end).unwrap()
+                &byteboozer::SPEC
+                    .detect(&royal_low_end)
+                    .expect("RoyalBoozer low-end should detect")
             )
             .end_addr,
             None
@@ -4512,8 +4658,12 @@ mod tests {
         bb11c[0x08DF..=0x08E0].copy_from_slice(&0x2100_u16.to_le_bytes());
         bb11c[0x0912..=0x0913].copy_from_slice(&0x0900_u16.to_le_bytes());
         let bb11c_view = LoadedImage::for_c64(&bb11c, 0x0801, 0x0A00);
-        let bb11c_info =
-            PackerInfo::resolve(&bb11c_view, &byteboozer::SPEC.detect(&bb11c_view).unwrap());
+        let bb11c_info = PackerInfo::resolve(
+            &bb11c_view,
+            &byteboozer::SPEC
+                .detect(&bb11c_view)
+                .expect("ByteBoozer 1.1C should detect"),
+        );
         assert_eq!(bb11c_info.name, "ByteBoozer 1.1");
         assert_eq!(bb11c_info.dep_addr, Some(0x0008));
         assert_eq!(bb11c_info.start_addr, Some(0x0900));
@@ -4527,7 +4677,9 @@ mod tests {
         bb11e[0x0911..=0x0912].copy_from_slice(&0x2200_u16.to_le_bytes());
         bb11e[0x096A..=0x096B].copy_from_slice(&0x0950_u16.to_le_bytes());
         let bb11e_view = LoadedImage::for_c64(&bb11e, 0x0801, 0x0A00);
-        let bb11e_match = byteboozer::SPEC.detect(&bb11e_view).unwrap();
+        let bb11e_match = byteboozer::SPEC
+            .detect(&bb11e_view)
+            .expect("ByteBoozer 1.1E should detect");
         let bb11e_info = PackerInfo::resolve(&bb11e_view, &bb11e_match);
         assert_eq!(bb11e_info.name, "ByteBoozer 1.1");
         assert_eq!(bb11e_info.start_addr, Some(0x0950));
@@ -4546,7 +4698,9 @@ mod tests {
         lamer[0x083F..=0x0840].copy_from_slice(&0x1000_u16.to_le_bytes());
         lamer[0x08C5..=0x08C6].copy_from_slice(&0x1050_u16.to_le_bytes());
         let lamer_view = LoadedImage::for_c64(&lamer, 0x0801, 0x0A00);
-        let lamer_match = byteboozer::SPEC.detect(&lamer_view).unwrap();
+        let lamer_match = byteboozer::SPEC
+            .detect(&lamer_view)
+            .expect("LamerBoozer should detect");
         let lamer_info = PackerInfo::resolve(&lamer_view, &lamer_match);
         assert_eq!(lamer_info.name, "LamerBoozer");
         assert_eq!(lamer_info.dep_addr, Some(0x0100));
@@ -4560,7 +4714,7 @@ mod tests {
     }
 
     /// Verifies `dali` 0.3.3–0.3.5 sysless/SFX variants and `time_cruncher` v3.1 ("TSS GROUP"
-    /// vs standard split `EndAdr` and SpeedPacker).
+    /// vs standard split `EndAdr` and `SpeedPacker`).
     #[test]
     fn dali_sfx_and_time_cruncher_v31_variants() {
         // 1. Dali 0.3.5 SFX at `$0801` (sysless)
@@ -4620,7 +4774,9 @@ mod tests {
         let tc_std_view = LoadedImage::for_c64(&tc, 0x0801, 0x0A00);
         let tc_std_info = PackerInfo::resolve(
             &tc_std_view,
-            &time_cruncher::SPEC.detect(&tc_std_view).unwrap(),
+            &time_cruncher::SPEC
+                .detect(&tc_std_view)
+                .expect("Time Cruncher 3.1 should detect"),
         );
         assert_eq!(tc_std_info.name, "Time Cruncher 3.1");
         assert_eq!(tc_std_info.end_addr, Some(0x8FFF));
@@ -4636,7 +4792,9 @@ mod tests {
         let tc_tss_view = LoadedImage::for_c64(&tc, 0x0801, 0x0A00);
         let tc_tss_info = PackerInfo::resolve(
             &tc_tss_view,
-            &time_cruncher::SPEC.detect(&tc_tss_view).unwrap(),
+            &time_cruncher::SPEC
+                .detect(&tc_tss_view)
+                .expect("Time Cruncher SpeedPacker should detect"),
         );
         assert_eq!(tc_tss_info.name, "Time Cruncher 3.1 / SpeedPacker");
         assert_eq!(tc_tss_info.end_addr, Some(0xA4FF));
@@ -4644,7 +4802,7 @@ mod tests {
         assert_eq!(
             time_cruncher::SPEC
                 .detect(&tc_tss_view)
-                .unwrap()
+                .expect("Time Cruncher SpeedPacker should detect")
                 .resolved
                 .hints
                 .forced_entry,
@@ -4659,7 +4817,9 @@ mod tests {
         ]);
         tc_alt[0x0838..=0x083C].copy_from_slice(&[0x85, 0xAF, 0x4C, 0x00, 0x01]);
         let tc_alt_view = LoadedImage::for_c64(&tc_alt, 0x0801, 0x0A00);
-        let tc_alt_match = time_cruncher::SPEC.detect(&tc_alt_view).unwrap();
+        let tc_alt_match = time_cruncher::SPEC
+            .detect(&tc_alt_view)
+            .expect("Time Cruncher alt variant should detect");
         let tc_alt_info = PackerInfo::resolve(&tc_alt_view, &tc_alt_match);
         assert_eq!(tc_alt_info.name, "Time Cruncher 3.1");
         assert_eq!(tc_alt_info.start_addr, Some(0x0801));
@@ -4678,7 +4838,7 @@ mod tests {
         assert_eq!(
             time_cruncher::SPEC
                 .detect(&tc_sys_view)
-                .unwrap()
+                .expect("Time Cruncher SYS variant should detect")
                 .resolved
                 .hints
                 .forced_entry,
@@ -4692,7 +4852,9 @@ mod tests {
         assert_eq!(
             PackerInfo::resolve(
                 &tc_low_end_view,
-                &time_cruncher::SPEC.detect(&tc_low_end_view).unwrap()
+                &time_cruncher::SPEC
+                    .detect(&tc_low_end_view)
+                    .expect("Time Cruncher low-end variant should detect")
             )
             .end_addr,
             None
@@ -4713,7 +4875,9 @@ mod tests {
         d033f_80d[qf + 0xFD] = 0x4C;
         d033f_80d[qf + 0xFE..=qf + 0xFF].copy_from_slice(&0x1800_u16.to_le_bytes());
         let d033f_80d_view = LoadedImage::for_c64(&d033f_80d, 0x0801, 0x0A00);
-        let d033f_80d_match = dali::SPEC.detect(&d033f_80d_view).unwrap();
+        let d033f_80d_match = dali::SPEC
+            .detect(&d033f_80d_view)
+            .expect("Dali v0.3.3/fast $080D should detect");
         assert_eq!(d033f_80d_match.spec_name, "Dali v0.3.3 / fast");
         assert_eq!(
             d033f_80d_match.resolved.hints.forced_entry,
@@ -4736,7 +4900,9 @@ mod tests {
         d033f_reloc[qr + 0xFD] = 0x4C;
         d033f_reloc[qr + 0xFE..=qr + 0xFF].copy_from_slice(&0x1900_u16.to_le_bytes());
         let d033f_reloc_view = LoadedImage::for_c64(&d033f_reloc, 0x0801, 0x0A00);
-        let d033f_reloc_match = dali::SPEC.detect(&d033f_reloc_view).unwrap();
+        let d033f_reloc_match = dali::SPEC
+            .detect(&d033f_reloc_view)
+            .expect("Dali v0.3.3/fast reloc should detect");
         assert_eq!(d033f_reloc_match.spec_name, "Dali v0.3.3 / fast");
         assert_eq!(d033f_reloc_match.anchor_addr, 0x0805);
         assert_eq!(
@@ -4757,7 +4923,9 @@ mod tests {
         d033s[qs + 0xC2] = 0x4C;
         d033s[qs + 0xC3..=qs + 0xC4].copy_from_slice(&0x1500_u16.to_le_bytes());
         let d033s_view = LoadedImage::for_c64(&d033s, 0x0801, 0x0900);
-        let d033s_match = dali::SPEC.detect(&d033s_view).unwrap();
+        let d033s_match = dali::SPEC
+            .detect(&d033s_view)
+            .expect("Dali v0.3.3/small should detect");
         assert_eq!(d033s_match.spec_name, "Dali v0.3.3 / small");
         assert_eq!(
             PackerInfo::resolve(&d033s_view, &d033s_match).end_addr_ptr,
@@ -4782,7 +4950,7 @@ mod tests {
                 .is_none()
         );
         // Short buffer (`<= $090C`) on standard `$080D` stub (with BASIC SYS header) rejects:
-        let mut d033_short = dali::SPEC.build_fixture_memory().0;
+        let mut d033_short = dali::SPEC.build_fixture_memory().mem;
         d033_short[0x0801..=0x080B].copy_from_slice(&[
             0x0B, 0x08, 0x0A, 0x00, 0x9E, b'2', b'0', b'6', b'1', 0x00, 0x00,
         ]);

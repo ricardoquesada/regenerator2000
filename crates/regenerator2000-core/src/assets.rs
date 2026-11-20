@@ -1,11 +1,12 @@
 //! Embedded and disk asset manager for system ROMs, predefined labels, comments, and enums.
 
-use crate::state::{EnumDefinition, Label, LabelKind, LabelType, RawEnumDefinition};
+use crate::state::{EnumDefinition, Label, LabelKind, LabelType, RawEnumDefinition, System};
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 static SYSTEMS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/assets/systems");
@@ -20,19 +21,19 @@ pub static C64_CHAR_ROM: &[u8] = include_bytes!("../assets/roms/c64/characters-9
 
 /// Returns the default BASIC ROM image for `system`, if available.
 #[must_use]
-pub fn default_basic_rom(system: &crate::state::types::System) -> Option<Vec<u8>> {
+pub fn default_basic_rom(system: &System) -> Option<Vec<u8>> {
     system.is_c64().then(|| C64_BASIC_ROM.to_vec())
 }
 
 /// Returns the default KERNAL ROM image for `system`, if available.
 #[must_use]
-pub fn default_kernal_rom(system: &crate::state::types::System) -> Option<Vec<u8>> {
+pub fn default_kernal_rom(system: &System) -> Option<Vec<u8>> {
     system.is_c64().then(|| C64_KERNAL_ROM.to_vec())
 }
 
 /// Returns the default Character Generator ROM image for `system`, if available.
 #[must_use]
-pub fn default_char_rom(system: &crate::state::types::System) -> Option<Vec<u8>> {
+pub fn default_char_rom(system: &System) -> Option<Vec<u8>> {
     system.is_c64().then(|| C64_CHAR_ROM.to_vec())
 }
 
@@ -113,7 +114,7 @@ fn get_system_file_content_with_config_dir(
             if user_candidates[..idx].contains(name) {
                 continue;
             }
-            if let Ok(content) = std::fs::read_to_string(dir.join(name)) {
+            if let Ok(content) = fs::read_to_string(dir.join(name)) {
                 return Some(content);
             }
         }
@@ -141,7 +142,7 @@ fn get_system_file_content(system: &str) -> Option<String> {
 }
 
 fn dump_embedded_toml_files(embedded_dir: &Dir<'_>, prefix: &str, dest_dir: &Path) -> Result<()> {
-    std::fs::create_dir_all(dest_dir)
+    fs::create_dir_all(dest_dir)
         .with_context(|| format!("Failed to create directory {dest_dir:?}"))?;
 
     for file in embedded_dir.files() {
@@ -153,7 +154,7 @@ fn dump_embedded_toml_files(embedded_dir: &Dir<'_>, prefix: &str, dest_dir: &Pat
             continue;
         }
         let dest_path = dest_dir.join(filename);
-        std::fs::write(&dest_path, file.contents())
+        fs::write(&dest_path, file.contents())
             .with_context(|| format!("Failed to write {dest_path:?}"))?;
         println!("Wrote {dest_path:?}");
     }
@@ -185,7 +186,7 @@ fn get_available_systems_with_config_dir(config_dir: Option<&Path>) -> Vec<Strin
 
     // 1. Collect from `config_dir` first, recording both enabled and disabled system names.
     if let Some(dir) = config_dir
-        && let Ok(entries) = std::fs::read_dir(dir)
+        && let Ok(entries) = fs::read_dir(dir)
     {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -195,7 +196,7 @@ fn get_available_systems_with_config_dir(config_dir: Option<&Path>) -> Vec<Strin
             if !is_system_config_file(filename) {
                 continue;
             }
-            let Ok(content) = std::fs::read_to_string(&path) else {
+            let Ok(content) = fs::read_to_string(&path) else {
                 continue;
             };
             let Some(data) = parse_system_data(&content) else {
@@ -228,7 +229,7 @@ fn get_available_systems_with_config_dir(config_dir: Option<&Path>) -> Vec<Strin
 ///
 /// User definitions in the configuration directory override embedded definitions with the same name.
 #[must_use]
-pub fn get_available_systems() -> Vec<String> {
+pub fn available_systems() -> Vec<String> {
     get_available_systems_with_config_dir(user_config_systems_dir().as_deref())
 }
 
@@ -281,12 +282,21 @@ pub fn load_comments(system: &str) -> BTreeMap<u16, String> {
     comments
 }
 
-/// Loads predefined [`Label`] entries for `system`, filtered by `enabled_features`.
+/// A predefined platform label paired with its 16-bit target address.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlatformLabel {
+    /// 16-bit memory address associated with [`Self::label`].
+    pub address: u16,
+    /// Predefined system label definition.
+    pub label: Label,
+}
+
+/// Loads predefined [`PlatformLabel`] entries for `system`, filtered by `enabled_features`.
 #[must_use]
 pub fn load_labels(
     system: &str,
     enabled_features: Option<&HashMap<String, bool>>,
-) -> Vec<(u16, Label)> {
+) -> Vec<PlatformLabel> {
     let mut labels = Vec::new();
 
     if let Some(content) = get_system_file_content(system)
@@ -300,15 +310,15 @@ pub fn load_labels(
 
             if is_enabled {
                 for (addr_str, name) in label_map {
-                    if let Ok(addr) = u16::from_str_radix(&addr_str, 16) {
-                        labels.push((
-                            addr,
-                            Label {
+                    if let Ok(address) = u16::from_str_radix(&addr_str, 16) {
+                        labels.push(PlatformLabel {
+                            address,
+                            label: Label {
                                 name,
                                 label_type: LabelType::Predefined,
                                 kind: LabelKind::System,
                             },
-                        ));
+                        });
                     }
                 }
             }
@@ -395,7 +405,7 @@ pub fn load_builtin_enums() -> BTreeMap<String, EnumDefinition> {
         };
         if !filename.starts_with("enum-") || !filename.ends_with(".toml") {
             continue;
-        };
+        }
         let Some(content) = file.contents_utf8() else {
             continue;
         };
@@ -417,7 +427,7 @@ pub fn load_builtin_enums() -> BTreeMap<String, EnumDefinition> {
 #[must_use]
 pub fn load_global_enums(dir: &Path) -> BTreeMap<String, EnumDefinition> {
     let mut enums = BTreeMap::new();
-    let Ok(entries) = std::fs::read_dir(dir) else {
+    let Ok(entries) = fs::read_dir(dir) else {
         return enums;
     };
 
@@ -429,7 +439,7 @@ pub fn load_global_enums(dir: &Path) -> BTreeMap<String, EnumDefinition> {
         if !filename.starts_with("enum-") || !filename.ends_with(".toml") {
             continue;
         }
-        match std::fs::read_to_string(&path) {
+        match fs::read_to_string(&path) {
             Ok(content) => match toml::from_str::<RawEnumDefinition>(&content) {
                 Ok(raw) => {
                     let mut def = EnumDefinition::from(raw);
@@ -469,7 +479,7 @@ pub fn dump_enum_files(dest_dir: &Path) -> Result<()> {
 pub fn save_global_enum(def: &mut EnumDefinition) -> Result<()> {
     let dir =
         user_config_enums_dir().context("Failed to resolve user config directory for enums")?;
-    std::fs::create_dir_all(&dir).with_context(|| format!("Failed to create directory {dir:?}"))?;
+    fs::create_dir_all(&dir).with_context(|| format!("Failed to create directory {dir:?}"))?;
 
     let filename = if let Some(sf) = &def.source_file {
         sf.clone()
@@ -484,7 +494,7 @@ pub fn save_global_enum(def: &mut EnumDefinition) -> Result<()> {
     let toml_content =
         toml::to_string_pretty(&raw).context("Failed to serialize RawEnumDefinition to TOML")?;
 
-    std::fs::write(&path, toml_content)
+    fs::write(&path, toml_content)
         .with_context(|| format!("Failed to write global enum to {path:?}"))?;
 
     Ok(())
@@ -505,7 +515,7 @@ pub fn delete_global_enum(name: &str, state_def: Option<&EnumDefinition>) -> Res
     };
     let path = dir.join(filename);
     if path.exists() {
-        std::fs::remove_file(&path)
+        fs::remove_file(&path)
             .with_context(|| format!("Failed to delete global enum at {path:?}"))?;
     }
     Ok(())
@@ -514,11 +524,12 @@ pub fn delete_global_enum(name: &str, state_def: Option<&EnumDefinition>) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+    use std::env;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn test_assets_load() {
-        let systems = get_available_systems();
+        let systems = available_systems();
         assert!(!systems.is_empty(), "Should have at least one system");
     }
 
@@ -542,9 +553,12 @@ mod tests {
         let config = load_system_config("Commodore 64");
         assert!(!config.features.is_empty(), "C64 should have features");
 
-        let kernal = config.features.iter().find(|f| f.id == "KERNAL");
-        assert!(kernal.is_some(), "C64 should have KERNAL feature");
-        assert!(kernal.unwrap().default, "KERNAL should default to true");
+        let kernal = config
+            .features
+            .iter()
+            .find(|f| f.id == "KERNAL")
+            .expect("C64 should have KERNAL feature");
+        assert!(kernal.default, "KERNAL should default to true");
 
         let config_vic20 = load_system_config("Commodore VIC-20");
         assert!(
@@ -573,19 +587,19 @@ mod tests {
     /// without duplicating or re-enabling disabled systems.
     #[test]
     fn test_user_config_dir_overrides_builtin() {
-        let test_id = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
+        let test_id = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
             .map(|d| d.subsec_nanos())
             .unwrap_or(0);
-        let config_dir = std::env::temp_dir().join(format!("r2000_test_assets_{test_id}"));
-        fs::create_dir_all(&config_dir).unwrap();
+        let config_dir = env::temp_dir().join(format!("r2000_test_assets_{test_id}"));
+        fs::create_dir_all(&config_dir).expect("temp config directory should be created");
 
         let custom_toml = make_custom_system_toml("My Custom System");
         fs::write(
             config_dir.join("system-my_custom_system.toml"),
             &custom_toml,
         )
-        .unwrap();
+        .expect("custom system TOML fixture should be written");
 
         let content =
             get_system_file_content_with_config_dir("my_custom_system", Some(&config_dir));
@@ -596,7 +610,8 @@ mod tests {
         assert!(systems.contains(&"Commodore 64".to_string()));
 
         let override_toml = make_custom_system_toml("Commodore 64");
-        fs::write(config_dir.join("system-commodore_64.toml"), &override_toml).unwrap();
+        fs::write(config_dir.join("system-commodore_64.toml"), &override_toml)
+            .expect("override TOML should be written");
 
         let overridden = get_system_file_content_with_config_dir("Commodore 64", Some(&config_dir));
         assert_eq!(overridden.as_deref(), Some(override_toml.as_str()));
@@ -613,7 +628,7 @@ mod tests {
             config_dir.join("system-commodore_64.toml"),
             "system_name = \"Commodore 64\"\nenabled = false\n",
         )
-        .unwrap();
+        .expect("system disable config should be written");
         let systems_after_disable = get_available_systems_with_config_dir(Some(&config_dir));
         assert!(
             !systems_after_disable.contains(&"Commodore 64".to_string()),
@@ -626,19 +641,19 @@ mod tests {
     /// Verifies that legacy `platform-*.json` files in `config_dir` remain supported.
     #[test]
     fn test_legacy_json_backward_compatibility() {
-        let test_id = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
+        let test_id = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
             .map(|d| d.subsec_nanos())
             .unwrap_or(0);
-        let config_dir = std::env::temp_dir().join(format!("r2000_test_json_compat_{test_id}"));
-        fs::create_dir_all(&config_dir).unwrap();
+        let config_dir = env::temp_dir().join(format!("r2000_test_json_compat_{test_id}"));
+        fs::create_dir_all(&config_dir).expect("temp config directory should be created");
 
         let custom_json = make_custom_system_json("Legacy JSON System");
         fs::write(
             config_dir.join("platform-legacy_json_platform.json"),
             &custom_json,
         )
-        .unwrap();
+        .expect("legacy custom JSON fixture should be written");
 
         let systems = get_available_systems_with_config_dir(Some(&config_dir));
         assert!(

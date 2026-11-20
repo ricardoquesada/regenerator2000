@@ -397,10 +397,7 @@ fn run_headless_mcp(mut app_state: AppState, use_stdio: bool) -> Result<()> {
     if use_stdio {
         let _theme = regenerator2000_tui::theme::Theme::from_name(&app_state.system_config.theme);
         let view_state = regenerator2000_core::view_state::CoreViewState::new();
-        let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(async {
-            regenerator2000_core::mcp::stdio::run_headless_stdio_loop(app_state, view_state).await;
-        });
+        regenerator2000_core::mcp::stdio::run_headless_stdio_loop(app_state, view_state);
     } else {
         let mut view_state = regenerator2000_core::view_state::CoreViewState::new();
         let (mcp_req_tx, mut mcp_req_rx) = tokio::sync::mpsc::channel(100);
@@ -556,18 +553,19 @@ fn apply_initial_load_result(
     ui_state: &mut UIState,
     core: &mut regenerator2000_core::Core,
     initial_load_result: Option<
-        regenerator2000_core::Result<(regenerator2000_core::state::LoadedProjectData, PathBuf)>,
+        regenerator2000_core::Result<regenerator2000_core::state::InitialLoad>,
     >,
     file_was_specified: bool,
 ) {
     if let Some(result) = initial_load_result {
         match result {
-            Ok((loaded_data, path)) => {
-                ui_state.restore_session(&loaded_data, &core.state);
+            Ok(loaded) => {
+                ui_state.restore_session(&loaded.data, &core.state);
                 // Sync the restored view state back to Core so it's not overwritten by run_app
                 core.view = ui_state.core.clone();
                 if !file_was_specified {
-                    ui_state.set_status_message(format!("Loaded recent project: {path:?}"));
+                    ui_state
+                        .set_status_message(format!("Loaded recent project: {:?}", loaded.path));
                 }
             }
             Err(e) => {
@@ -775,11 +773,11 @@ fn main() -> Result<()> {
             }
             InputFileType::Other => {
                 initial_load_result = core.state.resolve_initial_load(Some(file_str));
-                if let Some(Ok((_, path))) = &initial_load_result
+                if let Some(Ok(loaded)) = &initial_load_result
                     && headless
                     && !mcp_server
                 {
-                    println!("Loaded: {path:?}");
+                    println!("Loaded: {:?}", loaded.path);
                 }
                 if let Some(Err(e)) = &initial_load_result {
                     eprintln!("Error loading file: {e}");

@@ -24,7 +24,7 @@ use regenerator2000_core::disassembler::{
     LabelPlacement,
 };
 use regenerator2000_core::navigation::{AlignedGridRange, line_byte_addr_span};
-use regenerator2000_core::state::{Addr, AppState, BlockType};
+use regenerator2000_core::state::{AddrSpan, AppState, BlockType};
 
 use super::layout::get_visual_line_count_for_instruction;
 use crate::ui_state::{ActivePane, UIState};
@@ -988,15 +988,11 @@ fn render_instruction_sub_rows(ctx: &RowRenderContext<'_>, parts: &mut Vec<Line<
 /// delimiters return `false`. Collapsed blocks use non-wrapping `usize` bounds and remain
 /// accurate across `$FFFF`.
 #[must_use]
-fn line_overlaps_addr_span(
-    line: &DisassemblyLine,
-    app_state: &AppState,
-    (span_start, span_end): (Addr, Addr),
-) -> bool {
-    let Some((line_start, line_end)) = line_byte_addr_span(app_state, line) else {
+fn line_overlaps_addr_span(line: &DisassemblyLine, app_state: &AppState, span: AddrSpan) -> bool {
+    let Some(line_span) = line_byte_addr_span(app_state, line) else {
         return false;
     };
-    line_start <= usize::from(span_end.0) && line_end >= usize::from(span_start.0)
+    line_span.start <= usize::from(span.end.0) && line_span.end >= usize::from(span.start.0)
 }
 
 /// Renders the disassembly view widget into the specified frame area.
@@ -2010,10 +2006,10 @@ mod tests {
         app_state.disassemble();
 
         let line_0800 = app_state
-            .get_line_index_containing_address(Addr(0x0800))
+            .line_index_containing_address(Addr(0x0800))
             .expect("line index for $0800");
         let line_0808 = app_state
-            .get_line_index_containing_address(Addr(0x0808))
+            .line_index_containing_address(Addr(0x0808))
             .expect("line index for $0808");
 
         let row_text = |buffer: &Buffer, y: u16| -> String {
@@ -2271,7 +2267,7 @@ mod tests {
         tail_ui.bitmap_selection_start = None;
         tail_ui.selection_start = None;
         tail_ui.cursor_index = tail_state
-            .get_line_index_containing_address(Addr(0x1F3E))
+            .line_index_containing_address(Addr(0x1F3E))
             .expect("line index for $1F3E");
 
         let mut tail_terminal =

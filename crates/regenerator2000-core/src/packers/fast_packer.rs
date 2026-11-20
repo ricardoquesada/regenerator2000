@@ -138,8 +138,8 @@ mod tests {
 
     #[test]
     fn fast_packer_resolves_computed_end_and_high_ram_dep_addr() {
-        let (mem, load_addr, load_end) = SPEC.build_fixture_memory();
-        let view = LoadedImage::for_c64(&mem, load_addr, load_end);
+        let fixture = SPEC.build_fixture_memory();
+        let view = LoadedImage::for_c64(&fixture.mem, fixture.load_addr, fixture.load_end);
         let sig_match = SPEC.detect(&view).expect("Fast Packer must match");
         let info = PackerInfo::resolve(&view, &sig_match);
         assert_eq!(info.name, "Fast Packer v1.0");
@@ -149,36 +149,53 @@ mod tests {
         assert_eq!(info.entry_point, Some(0x2000));
 
         // Exact `$1_0000` boundary (`$8000 + $8000`) resolves `$FFFF`.
-        let mut exact_mem = mem.clone();
+        let mut exact_mem = fixture.mem.clone();
         exact_mem[0x0A90..=0x0A91].copy_from_slice(&0x8000_u16.to_le_bytes());
         exact_mem[0x0A92..=0x0A93].copy_from_slice(&0x8000_u16.to_le_bytes());
-        let exact_view = LoadedImage::for_c64(&exact_mem, load_addr, load_end);
-        let exact_info = PackerInfo::resolve(&exact_view, &SPEC.detect(&exact_view).unwrap());
+        let exact_view = LoadedImage::for_c64(&exact_mem, fixture.load_addr, fixture.load_end);
+        let exact_info = PackerInfo::resolve(
+            &exact_view,
+            &SPEC
+                .detect(&exact_view)
+                .expect("Fast Packer exact-end fixture should detect"),
+        );
         assert_eq!(exact_info.end_addr, Some(0xFFFF));
 
         // Overflow past `$1_0000` (`$8001 + $8000`) drops `end_addr` to `None` instead of wrapping.
-        let mut over_mem = mem.clone();
+        let mut over_mem = fixture.mem.clone();
         over_mem[0x0A90..=0x0A91].copy_from_slice(&0x8000_u16.to_le_bytes());
         over_mem[0x0A92..=0x0A93].copy_from_slice(&0x8001_u16.to_le_bytes());
-        let over_view = LoadedImage::for_c64(&over_mem, load_addr, load_end);
+        let over_view = LoadedImage::for_c64(&over_mem, fixture.load_addr, fixture.load_end);
         assert_eq!(
-            PackerInfo::resolve(&over_view, &SPEC.detect(&over_view).unwrap()).end_addr,
+            PackerInfo::resolve(
+                &over_view,
+                &SPEC
+                    .detect(&over_view)
+                    .expect("Fast Packer over-end fixture should detect")
+            )
+            .end_addr,
             None
         );
 
         // Zero length also leaves `end_addr = None`.
-        let mut zero_mem = mem.clone();
+        let mut zero_mem = fixture.mem.clone();
         zero_mem[0x0A90..=0x0A91].copy_from_slice(&0x0000_u16.to_le_bytes());
-        let zero_view = LoadedImage::for_c64(&zero_mem, load_addr, load_end);
+        let zero_view = LoadedImage::for_c64(&zero_mem, fixture.load_addr, fixture.load_end);
         assert_eq!(
-            PackerInfo::resolve(&zero_view, &SPEC.detect(&zero_view).unwrap()).end_addr,
+            PackerInfo::resolve(
+                &zero_view,
+                &SPEC
+                    .detect(&zero_view)
+                    .expect("Fast Packer zero-end fixture should detect")
+            )
+            .end_addr,
             None
         );
 
         // `SPEC.detect` rejects short buffers (`<= $0A93`) and `load_addr > $0801`.
-        let short_view = LoadedImage::for_c64(&mem[..0x0A93], 0x0801, 0x0A93);
+        let short_view = LoadedImage::for_c64(&fixture.mem[..0x0A93], 0x0801, 0x0A93);
         assert!(SPEC.detect(&short_view).is_none());
-        let high_load = LoadedImage::for_c64(&mem, 0x0802, load_end);
+        let high_load = LoadedImage::for_c64(&fixture.mem, 0x0802, fixture.load_end);
         assert!(SPEC.detect(&high_load).is_none());
     }
 }

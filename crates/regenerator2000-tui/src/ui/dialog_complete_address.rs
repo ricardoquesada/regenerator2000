@@ -149,7 +149,7 @@ impl Widget for CompleteAddressDialog {
                     app_state.apply_immediate_format(self.address, Some(fmt));
 
                     if let Some(addr) = restore_addr
-                        && let Some(new_idx) = app_state.get_line_index_for_address(addr)
+                        && let Some(new_idx) = app_state.line_index_for_address(addr)
                     {
                         ui_state.cursor_index = new_idx;
                         if let Some(line) = app_state.disassembly.get(new_idx) {

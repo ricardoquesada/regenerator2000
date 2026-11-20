@@ -66,6 +66,7 @@ impl From<&UnpackResult> for UnpackedImage {
 
 /// A failed R2000 unpack.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
 pub struct R2000Error {
     /// The `UnpackError` variant name (for example `Phase2Timeout`).
     pub variant: String,

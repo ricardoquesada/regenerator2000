@@ -2,7 +2,7 @@
 
 use super::formatter::{FormatContext, Formatter, TextFragment};
 use crate::cpu::AddressingMode;
-use crate::state::Addr;
+use crate::state::{Addr, EnumDefinition};
 use std::fmt::Write;
 
 /// Syntax formatter for the `ACME` cross-assembler.
@@ -187,7 +187,7 @@ impl Formatter for AcmeFormatter {
         format!("{enum_name}_{variant_name}")
     }
 
-    fn format_enum_definition(&self, enum_def: &crate::state::EnumDefinition) -> String {
+    fn format_enum_definition(&self, enum_def: &EnumDefinition) -> String {
         let mut s = String::new();
         for (&val, variant) in &enum_def.variants {
             let val_str = if val <= 0xFF {

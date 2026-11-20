@@ -3,13 +3,20 @@
 //! This module defines schemas and execution handlers that unpack compressed 6502 binaries,
 //! save `.regen2000proj` project files, and step backward or forward through the undo stack.
 
-use crate::mcp::tools::common::{get_optional_address, make_mcp_error};
+use crate::mcp::tools::common::{make_mcp_error, parse_optional_address_arg};
 use crate::mcp::types::McpError;
-use crate::state::AppState;
+use crate::navigation;
 #[cfg(test)]
-use crate::state::types::Addr;
+use crate::state::Addr;
+#[cfg(test)]
+use crate::state::LabelLocality;
+use crate::state::{AppState, GlobalConfigUpdate};
+use crate::unpacker::{self, UnpackConfig};
 use crate::view_state::CoreViewState;
 use serde_json::{Value, json};
+use std::mem;
+#[cfg(test)]
+use std::path::Path;
 
 /// Returns JSON schemas for session, project, and undo/redo tools.
 #[must_use]
@@ -75,26 +82,22 @@ fn unpack_binary_impl(
     view_state: &mut CoreViewState,
     args: &Value,
 ) -> Result<Value, McpError> {
-    let mut config = crate::unpacker::UnpackConfig {
-        forced_entry: get_optional_address(args, "entry_point")?.map(|a| a.0),
-        forced_ret_addr: get_optional_address(args, "return_address")?.map(|a| a.0),
-        forced_dep_addr: get_optional_address(args, "depacker_address")?.map(|a| a.0),
-        ..crate::unpacker::UnpackConfig::default()
+    let mut config = UnpackConfig {
+        forced_entry: parse_optional_address_arg(args, "entry_point")?.map(|a| a.0),
+        forced_ret_addr: parse_optional_address_arg(args, "return_address")?.map(|a| a.0),
+        forced_dep_addr: parse_optional_address_arg(args, "depacker_address")?.map(|a| a.0),
+        ..UnpackConfig::default()
     };
 
     if let Some(max_inst) = args.get("max_instructions").and_then(Value::as_u64) {
         config.max_instructions = max_inst;
     }
 
-    let result = crate::unpacker::unpack(&app_state.raw_data, app_state.origin.0, &config, None)
+    let result = unpacker::unpack(&app_state.raw_data, app_state.origin.0, &config, None)
         .map_err(|e| make_mcp_error(-32603, format!("Unpack failed: {e}")))?;
 
     let outcome = app_state.apply_unpack_result(&result);
-    crate::navigation::perform_jump_to_address_no_history(
-        app_state,
-        view_state,
-        outcome.entry_point,
-    );
+    navigation::perform_jump_to_address_no_history(app_state, view_state, outcome.entry_point);
 
     Ok(json!({
         "content": [{
@@ -120,9 +123,9 @@ fn save_project_impl(
         ));
     }
 
-    let ctx = crate::navigation::create_save_context(app_state, view_state);
+    let ctx = navigation::create_save_context(app_state, view_state);
     app_state
-        .save_project(ctx, true)
+        .save_project(ctx, GlobalConfigUpdate::Update)
         .map_err(|e| make_mcp_error(-32603, format!("Failed to save project: {e}")))?;
 
     let path_str = app_state
@@ -141,7 +144,7 @@ fn save_project_impl(
 /// Executes one undo step on `app_state.undo_stack`.
 #[must_use]
 fn undo_impl(app_state: &mut AppState) -> Value {
-    let mut stack = std::mem::take(&mut app_state.undo_stack);
+    let mut stack = mem::take(&mut app_state.undo_stack);
     let msg_opt = stack.undo(app_state);
     app_state.undo_stack = stack;
 
@@ -155,7 +158,7 @@ fn undo_impl(app_state: &mut AppState) -> Value {
 /// Executes one redo step on `app_state.undo_stack`.
 #[must_use]
 fn redo_impl(app_state: &mut AppState) -> Value {
-    let mut stack = std::mem::take(&mut app_state.undo_stack);
+    let mut stack = mem::take(&mut app_state.undo_stack);
     let msg_opt = stack.redo(app_state);
     app_state.undo_stack = stack;
 
@@ -179,8 +182,8 @@ mod tests {
         assert!(!app_state.undo_stack.can_undo());
 
         let cmd = app_state
-            .create_set_user_label_command(Addr(0x1000), "test_lbl", false)
-            .unwrap();
+            .create_set_user_label_command(Addr(0x1000), "test_lbl", LabelLocality::Global)
+            .expect("valid user label command should construct");
         cmd.apply(&mut app_state);
         app_state.push_command(cmd);
 
@@ -192,7 +195,7 @@ mod tests {
         assert!(
             undo_res["content"][0]["text"]
                 .as_str()
-                .unwrap()
+                .expect("undo response text should be string")
                 .contains("Undo:")
         );
         assert!(!app_state.undo_stack.can_undo());
@@ -204,7 +207,7 @@ mod tests {
         assert!(
             redo_res["content"][0]["text"]
                 .as_str()
-                .unwrap()
+                .expect("redo response text should be string")
                 .contains("Redo:")
         );
         assert!(app_state.undo_stack.can_undo());
@@ -212,7 +215,7 @@ mod tests {
 
     #[test]
     fn mcp_unpack_binary_summary_contains_provenance() {
-        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/6502/c64_FppScroller.byte_boozer2.prg");
         let mut app_state = AppState::new();
         app_state.load_file(&fixture).expect("fixture should load");

@@ -126,8 +126,8 @@ mod tests {
 
     #[test]
     fn spark_packer_resolves_split_start_and_inclusive_end_ptr() {
-        let (mem, load_addr, load_end) = SPEC.build_fixture_memory();
-        let view = LoadedImage::for_c64(&mem, load_addr, load_end);
+        let fixture = SPEC.build_fixture_memory();
+        let view = LoadedImage::for_c64(&fixture.mem, fixture.load_addr, fixture.load_end);
         let sig_match = SPEC.detect(&view).expect("Spark Packer must match");
         let info = PackerInfo::resolve(&view, &sig_match);
         assert_eq!(info.name, "Spark Packer");
@@ -137,13 +137,13 @@ mod tests {
         assert_eq!(info.end_addr_ptr, Some(0x00FE));
 
         // Short buffer (`<= $0884`), `load_addr > $0801`, and corrupted secondary marker reject cleanly.
-        let short_view = LoadedImage::for_c64(&mem[..0x0884], 0x0801, 0x0884);
+        let short_view = LoadedImage::for_c64(&fixture.mem[..0x0884], 0x0801, 0x0884);
         assert!(SPEC.detect(&short_view).is_none());
-        let high_load = LoadedImage::for_c64(&mem, 0x0802, load_end);
+        let high_load = LoadedImage::for_c64(&fixture.mem, 0x0802, fixture.load_end);
         assert!(SPEC.detect(&high_load).is_none());
-        let mut corrupt = mem;
+        let mut corrupt = fixture.mem;
         corrupt[0x084F] = 0x00;
-        let corrupt_view = LoadedImage::for_c64(&corrupt, load_addr, load_end);
+        let corrupt_view = LoadedImage::for_c64(&corrupt, fixture.load_addr, fixture.load_end);
         assert!(SPEC.detect(&corrupt_view).is_none());
     }
 }

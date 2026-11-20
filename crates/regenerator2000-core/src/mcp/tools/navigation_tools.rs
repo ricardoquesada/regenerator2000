@@ -3,9 +3,12 @@
 //! This module defines schemas and execution handlers that read the active disassembly
 //! cursor address and jump the cursor to a target address.
 
-use crate::mcp::tools::common::{get_address, make_mcp_error};
+use crate::mcp::tools::common::{make_mcp_error, parse_address_arg};
 use crate::mcp::types::McpError;
+use crate::navigation;
 use crate::state::AppState;
+#[cfg(test)]
+use crate::state::{BlockType, Label, LabelKind, LabelType};
 use crate::view_state::CoreViewState;
 use serde_json::{Value, json};
 
@@ -75,10 +78,9 @@ fn jump_to_address_impl(
     view_state: &mut CoreViewState,
     args: &Value,
 ) -> Result<Value, McpError> {
-    let address = get_address(args, "address")?;
+    let address = parse_address_arg(args, "address")?;
 
-    let line_exists =
-        crate::navigation::resolve_jump_content_line_index(app_state, address).is_some();
+    let line_exists = navigation::resolve_jump_content_line_index(app_state, address).is_some();
 
     if !line_exists {
         return Err(make_mcp_error(
@@ -87,7 +89,7 @@ fn jump_to_address_impl(
         ));
     }
 
-    crate::navigation::perform_jump_to_address(app_state, view_state, address);
+    navigation::perform_jump_to_address(app_state, view_state, address);
     Ok(json!({
         "content": [{
             "type": "text",
@@ -100,7 +102,7 @@ fn jump_to_address_impl(
 mod tests {
     use super::*;
     use crate::mcp::tools::common::{make_app_state, make_view_state};
-    use crate::state::types::Addr;
+    use crate::state::Addr;
 
     #[test]
     fn test_r2000_get_disassembly_cursor_initial() {
@@ -150,13 +152,13 @@ mod tests {
         app_state.settings.all_labels = true;
         // JSR $FFD2 at $1000..$1002 creates an external equate for $FFD2 and spans $1000..=$1002.
         app_state.raw_data[0..3].copy_from_slice(&[0x20, 0xD2, 0xFF]);
-        app_state.block_types[0..3].fill(crate::state::BlockType::Code);
+        app_state.block_types[0..3].fill(BlockType::Code);
         app_state.labels.insert(
             Addr(0x1001),
-            vec![crate::state::Label {
+            vec![Label {
                 name: "mid_label".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
             }],
         );
         app_state.perform_analysis();

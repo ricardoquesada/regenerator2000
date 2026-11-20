@@ -6,7 +6,7 @@
 use std::fmt;
 
 use regenerator2000_core::state::types::System;
-use regenerator2000_core::unpacker::machine::get_basic_start;
+use regenerator2000_core::unpacker::machine::basic_start;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 use super::UNP64_TOP_PAGE;
@@ -279,10 +279,10 @@ impl fmt::Display for ExpectedFailReason {
 /// Returns the candidate BASIC start addresses for `padding_byte`:
 ///
 /// 1. `system.default_basic_start()`: the default system BASIC start address.
-/// 2. [`get_basic_start`]`(load_addr)`: the BASIC start address that the
+/// 2. [`basic_start`]`(load_addr)`: the BASIC start address that the
 ///    unpacker engine computes from `load_addr`.
 fn basic_start_candidates(load_addr: u16, system: &System) -> [u16; 2] {
-    [system.default_basic_start(), get_basic_start(load_addr)]
+    [system.default_basic_start(), basic_start(load_addr)]
 }
 
 /// Returns `true` if `unp64_start` and `r2000_start` form the BASIC link byte

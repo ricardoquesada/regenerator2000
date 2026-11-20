@@ -5,19 +5,31 @@
 //! Tools include `r2000_set_symbolic_offset`, Tier 2 expressions in `r2000_set_label_name`, and
 //! signed displacements in `r2000_set_immediate_format`.
 
+use crate::analyzer;
 use crate::commands::Command;
 use crate::cpu::AddressingMode;
+use crate::disassembler::symbols;
+#[cfg(test)]
+use crate::mcp::handler;
+#[cfg(test)]
+use crate::mcp::tools::common;
 use crate::mcp::tools::common::{
-    convert_region, get_address, get_optional_address, get_optional_address_range, make_mcp_error,
+    convert_region, make_mcp_error, parse_address_arg, parse_optional_address_arg,
+    parse_optional_address_range_arg,
 };
 use crate::mcp::types::McpError;
 use crate::state::AppState;
+use crate::state::app_state::SymbolicBaseCache;
 use crate::state::types::{
-    Addr, BlockType, CommentKind, EnumDefinition, ImmediateFormat, LabelKind, OffsetRadix,
-    SymbolicOffset,
+    Addr, AddrSpan, BlockType, CommentKind, EnumDefinition, ImmediateFormat, LabelKind,
+    LabelLocality, OffsetAddressing, OffsetRadix, SymbolicOffset,
 };
+#[cfg(test)]
+use rmcp::model::ListToolsResult;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
+#[cfg(test)]
+use std::mem;
 
 /// Returns JSON schemas for memory modification and state-mutation tools.
 #[must_use]
@@ -231,7 +243,7 @@ pub fn handle_call(
 ///
 /// Returns [`McpError`] if `"address"` is missing, invalid, or outside the loaded binary range.
 fn disassemble_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpError> {
-    let address = get_address(args, "address")?;
+    let address = parse_address_arg(args, "address")?;
     if app_state.is_external(address) {
         return Err(make_mcp_error(
             -32602,
@@ -242,7 +254,7 @@ fn disassemble_impl(app_state: &mut AppState, args: &Value) -> Result<Value, Mcp
         ));
     }
 
-    let ranges = crate::analyzer::flow_analyze(app_state, address);
+    let ranges = analyzer::flow_analyze(app_state, address);
     if ranges.is_empty() {
         return Ok(json!({
             "content": [{
@@ -270,7 +282,8 @@ fn disassemble_impl(app_state: &mut AppState, args: &Value) -> Result<Value, Mcp
         }
     }
 
-    let (_, msg) = app_state.perform_analysis();
+    let outcome = app_state.perform_analysis();
+    let msg = outcome.status_message;
     let analysis_cmd = Command::SetAnalysisData {
         labels: app_state.labels.clone(),
         cross_refs: app_state.cross_refs.clone(),
@@ -294,18 +307,19 @@ fn disassemble_impl(app_state: &mut AppState, args: &Value) -> Result<Value, Mcp
 ///
 /// Returns [`McpError`] if `"address"` or `"name"` is missing or if label or expression checks fail.
 fn set_label_name_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpError> {
-    let address = get_address(args, "address")?;
+    let address = parse_address_arg(args, "address")?;
     let label_name = args
         .get("name")
         .and_then(|v| v.as_str())
         .ok_or_else(|| make_mcp_error(-32602, "Missing or invalid 'name'"))?;
 
     let applied_offset = app_state
-        .apply_user_label_or_address_offset(address, label_name, false, None)
+        .apply_user_label_or_address_offset(address, label_name, LabelLocality::Global, None)
         .map_err(|msg| make_mcp_error(-32602, msg))?;
 
     let msg = if let Some(sym) = applied_offset {
-        let expr = app_state.format_symbolic_offset(sym, None, address.0 <= 0x00FF);
+        let expr =
+            app_state.format_symbolic_offset(sym, None, OffsetAddressing::for_address(address));
         format!("Label set at ${address:04X} ({expr})")
     } else {
         format!("Label set at ${address:04X}")
@@ -413,8 +427,8 @@ impl OffsetInputSpec {
         app_state: &AppState,
         effective_addr: Addr,
         is_zero_page_mode: bool,
-        current_scope: Option<(Addr, Addr)>,
-        cache: &mut crate::state::app_state::SymbolicBaseCache,
+        current_scope: Option<AddrSpan>,
+        cache: &mut SymbolicBaseCache,
     ) -> Result<Option<SymbolicOffset>, McpError> {
         if self.is_clear && self.input.is_empty() {
             return Ok(None);
@@ -560,9 +574,9 @@ fn parse_optional_base_token(args: &Value) -> Result<Option<String>, McpError> {
 /// Returns [`McpError`] when address or range arguments conflict or when no offset input is given.
 /// Also returns [`McpError`] when any site or address fails bounds, zero-page base, or expression checks.
 fn set_symbolic_offset_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpError> {
-    let single_addr = get_optional_address(args, "address")?;
-    let has_any_range_endpoint = args.get("start_address").filter(|v| !v.is_null()).is_some()
-        || args.get("end_address").filter(|v| !v.is_null()).is_some();
+    let single_addr = parse_optional_address_arg(args, "address")?;
+    let has_any_range_endpoint = args.get("start_address").is_some_and(|v| !v.is_null())
+        || args.get("end_address").is_some_and(|v| !v.is_null());
 
     if single_addr.is_some() && has_any_range_endpoint {
         return Err(make_mcp_error(
@@ -571,10 +585,10 @@ fn set_symbolic_offset_impl(app_state: &mut AppState, args: &Value) -> Result<Va
         ));
     }
 
-    let range_opt = get_optional_address_range(args)?;
+    let range_opt = parse_optional_address_range_arg(args)?;
     let (start, end) = match (single_addr, range_opt) {
         (Some(addr), None) => (addr, addr),
-        (None, Some((s, e))) => (s, e),
+        (None, Some(range)) => (range.start, range.end),
         (Some(_), Some(_)) => {
             return Err(make_mcp_error(
                 -32602,
@@ -627,7 +641,7 @@ fn set_symbolic_offset_impl(app_state: &mut AppState, args: &Value) -> Result<Va
                     .and_then(|e| e.address_offset)
                     .is_some()
                     || extracted_targets.iter().any(|t| {
-                        crate::disassembler::symbols::has_active_address_offset(
+                        symbols::has_active_address_offset(
                             t.raw_target,
                             &app_state.labels,
                             &app_state.annotations,
@@ -650,7 +664,7 @@ fn set_symbolic_offset_impl(app_state: &mut AppState, args: &Value) -> Result<Va
         }
     };
 
-    let mut base_cache = crate::state::app_state::SymbolicBaseCache::default();
+    let mut base_cache = SymbolicBaseCache::default();
 
     match resolved_scope {
         ResolvedSymbolicScope::Operand => {
@@ -861,7 +875,7 @@ fn set_symbolic_offset_impl(app_state: &mut AppState, args: &Value) -> Result<Va
 ///
 /// Returns [`McpError`] if parameters are missing or invalid, or if `"type"` is not `"line"` or `"side"`.
 fn set_comment_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpError> {
-    let address = get_address(args, "address")?;
+    let address = parse_address_arg(args, "address")?;
     if args.get("text").is_some() {
         return Err(make_mcp_error(
             -32602,
@@ -958,7 +972,7 @@ fn set_data_type_impl(app_state: &mut AppState, args: &Value) -> Result<Value, M
 ///
 /// Returns [`McpError`] if `"address"` is missing or invalid.
 fn toggle_splitter_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpError> {
-    let address = get_address(args, "address")?;
+    let address = parse_address_arg(args, "address")?;
     let command = Command::ToggleSplitter { address };
     command.apply(app_state);
     app_state.push_command(command);
@@ -977,13 +991,13 @@ fn set_immediate_format_mcp_impl(
     app_state: &mut AppState,
     args: &Value,
 ) -> Result<Value, McpError> {
-    let address = get_address(args, "address")?;
+    let address = parse_address_arg(args, "address")?;
     let format_str = args
         .get("format")
         .or_else(|| args.get("format_type"))
         .and_then(|v| v.as_str())
         .ok_or_else(|| make_mcp_error(-32602, "Missing 'format'"))?;
-    let target_address = get_optional_address(args, "target_address")?;
+    let target_address = parse_optional_address_arg(args, "target_address")?;
     let offset = parse_optional_i16_offset(args, "offset")?;
     let radix = parse_optional_radix(args)?.unwrap_or(OffsetRadix::Decimal);
 
@@ -1005,11 +1019,7 @@ fn set_immediate_format_mcp_impl(
 /// to disambiguate base vs. effective target addresses on immediate byte operators.
 #[must_use]
 fn immediate_base_symbol_rank(app_state: &AppState, addr: Addr) -> u8 {
-    if crate::disassembler::symbols::has_active_address_offset(
-        addr,
-        &app_state.labels,
-        &app_state.annotations,
-    ) {
+    if symbols::has_active_address_offset(addr, &app_state.labels, &app_state.annotations) {
         return 3;
     }
     app_state
@@ -1402,7 +1412,7 @@ fn delete_project_enum_mcp(app_state: &mut AppState, args: &Value) -> Result<Val
         .get("name")
         .and_then(|v| v.as_str())
         .ok_or_else(|| make_mcp_error(-32602, "Missing 'name'"))?;
-    let force = args.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
+    let force = args.get("force").and_then(Value::as_bool).unwrap_or(false);
 
     let trimmed_name = enum_name.trim();
     delete_project_enum_impl(app_state, trimmed_name, force)?;
@@ -1481,7 +1491,7 @@ pub(crate) fn delete_project_enum_impl(
 /// Returns [`McpError`] if `"address"` is invalid, if `"name"` is not a string,
 /// or if the requested enum does not exist.
 fn apply_enum_usage_impl(app_state: &mut AppState, args: &Value) -> Result<Value, McpError> {
-    let address = get_address(args, "address")?;
+    let address = parse_address_arg(args, "address")?;
     let name_opt = match args.get("name") {
         None | Some(Value::Null) => None,
         Some(Value::String(s)) => {
@@ -1494,7 +1504,7 @@ fn apply_enum_usage_impl(app_state: &mut AppState, args: &Value) -> Result<Value
     };
 
     if let Some(ref enum_name) = name_opt
-        && app_state.get_enum(enum_name).is_none()
+        && app_state.enum_definition(enum_name).is_none()
     {
         return Err(make_mcp_error(
             -32602,
@@ -1541,12 +1551,16 @@ mod tests {
         assert!(
             res["content"][0]["text"]
                 .as_str()
-                .unwrap()
+                .expect("tool content text should be string")
                 .contains("Label set at $1000")
         );
         assert!(app_state.undo_stack.can_undo());
         assert_eq!(
-            app_state.labels.get(&Addr(0x1000)).unwrap()[0].name,
+            app_state
+                .labels
+                .get(&Addr(0x1000))
+                .expect("label at $1000 should exist")[0]
+                .name,
             "main_entry"
         );
     }
@@ -1555,15 +1569,16 @@ mod tests {
     fn test_r2000_set_label_name_remove() {
         let mut app_state = make_app_state(0x1000, 256);
         let args_add = json!({ "address": 0x1000, "name": "main_entry" });
-        set_label_name_impl(&mut app_state, &args_add).unwrap();
+        set_label_name_impl(&mut app_state, &args_add).expect("set_label_name add should succeed");
 
         let args_rem = json!({ "address": 0x1000, "name": "" });
-        set_label_name_impl(&mut app_state, &args_rem).unwrap();
+        set_label_name_impl(&mut app_state, &args_rem)
+            .expect("set_label_name clear should succeed");
         assert!(
             app_state
                 .labels
                 .get(&Addr(0x1000))
-                .is_none_or(|l| l.is_empty())
+                .is_none_or(Vec::is_empty)
         );
     }
 
@@ -1571,12 +1586,15 @@ mod tests {
     fn test_r2000_set_comment_line_and_side() {
         let mut app_state = make_app_state(0x1000, 256);
         let args_line = json!({ "address": 0x1000, "comment": "Header comment", "type": "line" });
-        set_comment_impl(&mut app_state, &args_line).unwrap();
+        set_comment_impl(&mut app_state, &args_line).expect("set_comment line should succeed");
 
         let args_side = json!({ "address": 0x1000, "comment": "Inline comment", "type": "side" });
-        set_comment_impl(&mut app_state, &args_side).unwrap();
+        set_comment_impl(&mut app_state, &args_side).expect("set_comment side should succeed");
 
-        let annotation = app_state.annotations.get(Addr(0x1000)).unwrap();
+        let annotation = app_state
+            .annotations
+            .get(Addr(0x1000))
+            .expect("annotation at $1000 should exist");
         assert_eq!(
             annotation.user_line_comment.as_deref(),
             Some("Header comment")
@@ -1596,16 +1614,16 @@ mod tests {
             &mut app_state,
             &json!({ "address": 0x1000, "comment": "Inline comment", "type": "side" }),
         )
-        .unwrap();
+        .expect("set_comment side call should succeed");
         let res_empty = set_comment_impl(
             &mut app_state,
             &json!({ "address": 0x1000, "comment": "", "type": "side" }),
         )
-        .unwrap();
+        .expect("set_comment side call should succeed");
         assert!(
             res_empty["content"][0]["text"]
                 .as_str()
-                .unwrap()
+                .expect("tool content text should be string")
                 .contains("Comment removed at $1000")
         );
         assert!(app_state.annotations.get(Addr(0x1000)).is_none());
@@ -1616,16 +1634,16 @@ mod tests {
             &mut app_state,
             &json!({ "address": 0x1000, "comment": "Inline comment", "type": "side" }),
         )
-        .unwrap();
+        .expect("set_comment side call should succeed");
         let res_ws = set_comment_impl(
             &mut app_state,
             &json!({ "address": 0x1000, "comment": "   ", "type": "side" }),
         )
-        .unwrap();
+        .expect("set_comment side call should succeed");
         assert!(
             res_ws["content"][0]["text"]
                 .as_str()
-                .unwrap()
+                .expect("tool content text should be string")
                 .contains("Comment removed at $1000")
         );
         assert!(app_state.annotations.get(Addr(0x1000)).is_none());
@@ -1636,16 +1654,16 @@ mod tests {
             &mut app_state,
             &json!({ "address": 0x1000, "comment": "Header comment", "type": "line" }),
         )
-        .unwrap();
+        .expect("set_comment line call should succeed");
         let res_omit = set_comment_impl(
             &mut app_state,
             &json!({ "address": 0x1000, "type": "line" }),
         )
-        .unwrap();
+        .expect("set_comment line call should succeed");
         assert!(
             res_omit["content"][0]["text"]
                 .as_str()
-                .unwrap()
+                .expect("tool content text should be string")
                 .contains("Comment removed at $1000")
         );
         assert!(app_state.annotations.get(Addr(0x1000)).is_none());
@@ -1704,14 +1722,14 @@ mod tests {
         assert!(
             res["content"][0]["text"]
                 .as_str()
-                .unwrap()
+                .expect("tool content text should be string")
                 .contains("Disassembled successfully")
         );
         assert_eq!(app_state.block_types[0], BlockType::Code);
         assert!(!app_state.labels.contains_key(&Addr(0x1050)));
 
         // Undoing r2000_disassemble must restore both Undefined block types and pre-existing auto labels.
-        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        let mut stack = mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
         assert_eq!(app_state.block_types[0], BlockType::Undefined);
@@ -1844,17 +1862,11 @@ mod tests {
         app_state.perform_analysis();
 
         // Verify `tools/list` deserializes cleanly into `rmcp::model::ListToolsResult` (HTTP transport).
-        let mut view_state = crate::mcp::tools::common::make_view_state();
-        let list_resp = crate::mcp::handler::handle_method(
-            "tools/list",
-            &Value::Null,
-            &mut app_state,
-            &mut view_state,
-        );
-        serde_json::from_value::<rmcp::model::ListToolsResult>(
-            list_resp.result.expect("tools/list result"),
-        )
-        .expect("updated MCP schemas must deserialize into rmcp::model::ListToolsResult");
+        let mut view_state = common::make_view_state();
+        let list_resp =
+            handler::handle_method("tools/list", &Value::Null, &mut app_state, &mut view_state);
+        serde_json::from_value::<ListToolsResult>(list_resp.result.expect("tools/list result"))
+            .expect("updated MCP schemas must deserialize into rmcp::model::ListToolsResult");
 
         // 1. External `scope: "auto"` with integer `base` (251 = $00FB) sets Tier 2 `address_offset`.
         handle_call(
@@ -1985,7 +1997,11 @@ mod tests {
                 .is_none()
         );
         assert_eq!(
-            app_state.labels.get(&Addr(0x1020)).unwrap()[0].name,
+            app_state
+                .labels
+                .get(&Addr(0x1020))
+                .expect("label at $1020 should exist")[0]
+                .name,
             "player"
         );
         for disp in 1i16..=3 {
@@ -2153,7 +2169,11 @@ mod tests {
         )
         .expect("set temp_fc");
         assert_eq!(
-            app_state.labels.get(&Addr(0x00FC)).unwrap()[0].name,
+            app_state
+                .labels
+                .get(&Addr(0x00FC))
+                .expect("label at $00FC should exist")[0]
+                .name,
             "temp_fc"
         );
 
@@ -2206,7 +2226,11 @@ mod tests {
                 .is_none()
         );
         assert_eq!(
-            app_state.labels.get(&Addr(0x00FC)).unwrap()[0].name,
+            app_state
+                .labels
+                .get(&Addr(0x00FC))
+                .expect("label at $00FC should exist")[0]
+                .name,
             "plain_fc"
         );
 
@@ -2469,7 +2493,11 @@ mod tests {
         )
         .expect("valid identifier should succeed");
         assert_eq!(
-            app_state.labels.get(&Addr(0x1000)).unwrap()[0].name,
+            app_state
+                .labels
+                .get(&Addr(0x1000))
+                .expect("label at $1000 should exist")[0]
+                .name,
             "_valid_ident_1"
         );
 
@@ -2495,8 +2523,8 @@ mod tests {
             &json!({ "start_address": 0x1010, "end_address": 0x1013, "offset": -1 }),
             &mut app_state,
         )
-        .unwrap()
-        .unwrap();
+        .expect("MCP call should return outer result")
+        .expect("MCP tool call should succeed");
         handle_call(
             "r2000_set_symbolic_offset",
             &json!({
@@ -2507,8 +2535,8 @@ mod tests {
             }),
             &mut app_state,
         )
-        .unwrap()
-        .unwrap();
+        .expect("MCP call should return outer result")
+        .expect("MCP tool call should succeed");
 
         assert!(
             app_state
@@ -2538,7 +2566,7 @@ mod tests {
                 }),
                 &mut app_state,
             )
-            .unwrap()
+            .expect("MCP call should return outer result")
             .expect_err(&format!("unbalanced '{bad_expr}' must return error"));
             assert_eq!(err.code, -32602);
         }
@@ -2562,7 +2590,7 @@ mod tests {
             }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect("nested balanced '( (0) )' must clear multi-address Tier 2 range");
 
         for addr in 0x1020u16..=0x1023u16 {
@@ -2585,7 +2613,7 @@ mod tests {
             }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect("nested balanced '( (0) )' must clear multi-entry Tier 1 range");
 
         for addr in 0x1010u16..=0x1013u16 {
@@ -2625,8 +2653,8 @@ mod tests {
             }),
             &mut app_state,
         )
-        .unwrap()
-        .unwrap();
+        .expect("MCP call should return outer result")
+        .expect("MCP tool call should succeed");
 
         // 2. 512-byte Tier 2 struct range update resolving `"big_struct"` via `SymbolicBaseCache`
         handle_call(
@@ -2639,8 +2667,8 @@ mod tests {
             }),
             &mut app_state,
         )
-        .unwrap()
-        .unwrap();
+        .expect("MCP call should return outer result")
+        .expect("MCP tool call should succeed");
 
         assert_eq!(
             app_state
@@ -2706,10 +2734,17 @@ mod tests {
             &json!({ "address": 4096, "offset": 1, "scope": "address" }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect("scope: address on instruction should bind target $00FC");
 
-        assert_eq!(app_state.labels.get(&Addr(0x1000)).unwrap()[0].name, "main");
+        assert_eq!(
+            app_state
+                .labels
+                .get(&Addr(0x1000))
+                .expect("label at $1000 should exist")[0]
+                .name,
+            "main"
+        );
         assert!(
             app_state
                 .annotations
@@ -2744,7 +2779,7 @@ mod tests {
             }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect("multi-site scope: address range should succeed");
         assert!(
             app_state
@@ -2768,7 +2803,7 @@ mod tests {
             &json!({ "address": 0x00FF, "expression": "$0100 - 1", "scope": "address" }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect_err("Tier 2 on $00FF must reject base > $00FF");
         assert_eq!(err_ext.code, -32602);
 
@@ -2777,7 +2812,7 @@ mod tests {
             &json!({ "address": 0x1004, "expression": "$0100 - 1", "scope": "address" }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect_err("Tier 2 via 3-byte $1004 targeting $00FF must reject base > $00FF");
         assert_eq!(err_via_inst.code, -32602);
     }
@@ -2800,8 +2835,8 @@ mod tests {
             &json!({ "address": 252, "base": "zp_ptr" }),
             &mut app_state,
         )
-        .unwrap()
-        .unwrap();
+        .expect("MCP call should return outer result")
+        .expect("MCP tool call should succeed");
 
         // 1. `{"address": 251, "base": "zp_ptr"}` (`base == target`) fails with `-32602`.
         let err_same = handle_call(
@@ -2809,7 +2844,7 @@ mod tests {
             &json!({ "address": 251, "base": "zp_ptr" }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect_err("base == target must fail with -32602");
         assert_eq!(err_same.code, -32602);
 
@@ -2819,7 +2854,7 @@ mod tests {
             &json!({ "address": 252, "base": "zp_ptr", "offset": 0 }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect_err("combining base with offset 0 must fail with -32602");
         assert_eq!(err_combo.code, -32602);
         assert!(
@@ -2836,7 +2871,7 @@ mod tests {
             &json!({ "address": 252, "offset": 0 }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect("offset: 0 alone must clear cleanly");
         assert!(
             app_state
@@ -2864,7 +2899,7 @@ mod tests {
             }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect("multi-entry .word range with base: table should succeed");
 
         assert_eq!(
@@ -2899,7 +2934,9 @@ mod tests {
             .iter()
             .find(|s| s["name"] == "r2000_set_symbolic_offset")
             .expect("r2000_set_symbolic_offset schema");
-        let sym_desc = sym_schema["description"].as_str().unwrap();
+        let sym_desc = sym_schema["description"]
+            .as_str()
+            .expect("description should be string");
         assert!(sym_desc.contains("lo_hi_address"));
         assert!(sym_desc.contains("lo_hi_word"));
 
@@ -2907,7 +2944,9 @@ mod tests {
             .iter()
             .find(|s| s["name"] == "r2000_set_data_type")
             .expect("r2000_set_data_type schema");
-        let dt_desc = dt_schema["description"].as_str().unwrap();
+        let dt_desc = dt_schema["description"]
+            .as_str()
+            .expect("description should be string");
         assert!(dt_desc.contains("lo_hi_address"));
         assert!(dt_desc.contains("r2000_set_symbolic_offset"));
 
@@ -2932,7 +2971,7 @@ mod tests {
             }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect_err("LoHiWord must reject operand-scope offset with actionable hint");
         assert_eq!(err.code, -32602);
         assert!(err.message.contains("lo_hi_address"));
@@ -2947,7 +2986,7 @@ mod tests {
             }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect("convert to lo_hi_address");
 
         handle_call(
@@ -2960,7 +2999,7 @@ mod tests {
             }),
             &mut app_state,
         )
-        .unwrap()
+        .expect("MCP call should return outer result")
         .expect("lo_hi_address RTS offset -1 should succeed");
 
         let lo_line = app_state

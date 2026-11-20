@@ -78,10 +78,15 @@ impl Widget for LabelDialog {
                     .map(|l| l.address);
                 // Check input before emitting `AppAction::ApplyLabel`.
                 // Returning `WidgetResult::Handled` on error keeps user text and `dialog_queue` intact.
+                let locality = if self.is_local {
+                    crate::state::LabelLocality::Local
+                } else {
+                    crate::state::LabelLocality::Global
+                };
                 if let Err(err) = app_state.validate_user_label_or_address_offset(
                     self.address,
                     &label_name,
-                    self.is_local,
+                    locality,
                     site_addr,
                 ) {
                     return self.modal.fail_validation(err, ui_state);

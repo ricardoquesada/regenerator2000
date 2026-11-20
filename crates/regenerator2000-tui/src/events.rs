@@ -1062,10 +1062,16 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
 
     // Sync Blocks view and retain `items` for `BlocksView::render` in the same frame.
     if ui_state.right_pane == RightPane::Blocks && app_state.system_config.sync_blocks_view {
-        let items = app_state.get_blocks_view_items();
+        let items = app_state.blocks_view_items();
         if allow_cursor_sync
-            && let Some(index) =
-                AppState::find_block_index_in_items(&items, target_addr, is_splitter)
+            && let Some(index) = {
+                let target = if is_splitter {
+                    crate::state::BlockItemTarget::Splitter
+                } else {
+                    crate::state::BlockItemTarget::BlockOrScope
+                };
+                AppState::find_block_index_in_items(&items, target_addr, target)
+            }
         {
             ui_state.blocks_list_state.select(Some(index));
         }
@@ -1372,7 +1378,7 @@ mod tests {
 
         // 1. In-range PC ($0802) must land on the JSR $FFD2 line despite prepended external labels.
         let expected_idx = app_state
-            .get_line_index_containing_address(Addr(0x0802))
+            .line_index_containing_address(Addr(0x0802))
             .expect("JSR instruction at $0802");
         handle_vice_registers_get(&build_pc_msg(0x0802), &mut app_state, &mut ui_state);
         assert_eq!(ui_state.cursor_index, expected_idx);
@@ -1542,7 +1548,7 @@ mod tests {
         let mut ui_state = UIState::new(crate::theme::Theme::default());
         ui_state.active_pane = ActivePane::Disassembly;
         ui_state.cursor_index = app_state
-            .get_line_index_containing_address(Addr(0x4010))
+            .line_index_containing_address(Addr(0x4010))
             .expect("line at $4010");
 
         ui_state.right_pane = RightPane::HexDump16;
@@ -1561,7 +1567,7 @@ mod tests {
         app_state.system_config.sync_bitmap_view = true;
 
         let sel_start_idx = app_state
-            .get_line_index_containing_address(Addr(0x2008))
+            .line_index_containing_address(Addr(0x2008))
             .expect("line at $2008");
         ui_state.selection_start = Some(sel_start_idx);
 
@@ -1707,16 +1713,16 @@ mod tests {
 
         // Sprites backward 2-item ($20BF -> $2000 -> Some(2), 0) and ($20BF -> $2040 -> Some(2), 1)
         let index_2000 = app_state
-            .get_line_index_containing_address(Addr(0x2000))
+            .line_index_containing_address(Addr(0x2000))
             .expect("$2000");
         let index_2040 = app_state
-            .get_line_index_containing_address(Addr(0x2040))
+            .line_index_containing_address(Addr(0x2040))
             .expect("$2040");
         let index_20bf = app_state
-            .get_line_index_containing_address(Addr(0x20BF))
+            .line_index_containing_address(Addr(0x20BF))
             .expect("$20BF");
         let index_203f = app_state
-            .get_line_index_containing_address(Addr(0x203F))
+            .line_index_containing_address(Addr(0x203F))
             .expect("$203F");
         ui_state.right_pane = RightPane::Sprites2Col;
         ui_state.selection_start = Some(index_20bf);
@@ -1739,10 +1745,10 @@ mod tests {
 
         // Charset backward ($2017 Char 2 -> $2008 Char 1)
         let index_2008 = app_state
-            .get_line_index_containing_address(Addr(0x2008))
+            .line_index_containing_address(Addr(0x2008))
             .expect("$2008");
         let index_2017 = app_state
-            .get_line_index_containing_address(Addr(0x2017))
+            .line_index_containing_address(Addr(0x2017))
             .expect("$2017");
         ui_state.right_pane = RightPane::Charset8Col;
         ui_state.selection_start = Some(index_2017);
@@ -1753,10 +1759,10 @@ mod tests {
 
         // Bitmap backward ($5F3F Bitmap 1 -> $2000 Bitmap 0) and 1-item ($3F3F -> $2000)
         let index_5f3f = app_state
-            .get_line_index_containing_address(Addr(0x5F3F))
+            .line_index_containing_address(Addr(0x5F3F))
             .expect("$5F3F");
         let index_3f3f = app_state
-            .get_line_index_containing_address(Addr(0x3F3F))
+            .line_index_containing_address(Addr(0x3F3F))
             .expect("$3F3F");
         ui_state.right_pane = RightPane::Bitmap;
         ui_state.selection_start = Some(index_5f3f);
@@ -1960,7 +1966,7 @@ mod tests {
         hex_state.system_config.sync_hex_dump = true;
         hex_state.disassemble();
         let line_0804 = hex_state
-            .get_line_index_containing_address(Addr(0x0804))
+            .line_index_containing_address(Addr(0x0804))
             .expect("JSR at $0804");
 
         // 5a. selection_start.is_none() clears stale hex_selection_start + col and syncs cursor
@@ -1997,7 +2003,7 @@ mod tests {
 
         // 5c. Extending Disassembly selection past $0804 updates HexDump from sub-instruction bounds.
         let line_0807 = hex_state
-            .get_line_index_containing_address(Addr(0x0807))
+            .line_index_containing_address(Addr(0x0807))
             .expect("RTS at $0807");
         ui_state.selection_start = Some(line_0804);
         ui_state.cursor_index = line_0807;
@@ -2009,7 +2015,7 @@ mod tests {
 
         // 5d. Fresh Disassembly selection ($0800..=$0806) mirrors into HexDump when no hex anchor exists.
         let line_0800 = hex_state
-            .get_line_index_containing_address(Addr(0x0800))
+            .line_index_containing_address(Addr(0x0800))
             .expect("NOP at $0800");
         ui_state.hex_selection_start = None;
         ui_state.hex_selection_start_col = 0;

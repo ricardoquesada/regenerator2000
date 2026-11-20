@@ -90,14 +90,22 @@ pub fn screencode_to_petscii(byte: u8) -> u8 {
     }
 }
 
-/// Converts a PETSCII byte to its Unicode representation for the selected shift mode.
+/// Character set shift mode used by [`petscii_to_unicode`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PetsciiCharset {
+    /// Standard uppercase + PETSCII graphics mode.
+    Unshifted,
+    /// Shifted lowercase + uppercase mode.
+    Shifted,
+}
+
+/// Converts a PETSCII byte to its Unicode representation for the selected character set mode.
 #[must_use]
-pub fn petscii_to_unicode(byte: u8, shifted: bool) -> char {
+pub fn petscii_to_unicode(byte: u8, charset: PetsciiCharset) -> char {
     let (unshifted_char, shifted_char) = PETSCII_MAP[byte as usize];
-    if shifted {
-        shifted_char
-    } else {
-        unshifted_char
+    match charset {
+        PetsciiCharset::Shifted => shifted_char,
+        PetsciiCharset::Unshifted => unshifted_char,
     }
 }
 
@@ -381,47 +389,49 @@ static PETSCII_MAP: [(char, char); 256] = [
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
+    use std::process;
 
     #[test]
     fn test_petscii_to_unicode_alphanumeric() {
         // Unshifted: 0x41 is 'A'
-        assert_eq!(petscii_to_unicode(0x41, false), 'A');
-        assert_eq!(petscii_to_unicode(0x5A, false), 'Z');
+        assert_eq!(petscii_to_unicode(0x41, PetsciiCharset::Unshifted), 'A');
+        assert_eq!(petscii_to_unicode(0x5A, PetsciiCharset::Unshifted), 'Z');
 
         // Shifted: 0x41 is 'a'
-        assert_eq!(petscii_to_unicode(0x41, true), 'a');
-        assert_eq!(petscii_to_unicode(0x5A, true), 'z');
+        assert_eq!(petscii_to_unicode(0x41, PetsciiCharset::Shifted), 'a');
+        assert_eq!(petscii_to_unicode(0x5A, PetsciiCharset::Shifted), 'z');
 
-        assert_eq!(petscii_to_unicode(0x30, false), '0');
-        assert_eq!(petscii_to_unicode(0x39, false), '9');
+        assert_eq!(petscii_to_unicode(0x30, PetsciiCharset::Unshifted), '0');
+        assert_eq!(petscii_to_unicode(0x39, PetsciiCharset::Unshifted), '9');
     }
 
     #[test]
     fn test_petscii_to_unicode_graphics() {
         // 0x61: Unshifted ♠ (Spade), Shifted 'A'
-        assert_eq!(petscii_to_unicode(0x61, false), '♠');
-        assert_eq!(petscii_to_unicode(0x61, true), 'A');
+        assert_eq!(petscii_to_unicode(0x61, PetsciiCharset::Unshifted), '♠');
+        assert_eq!(petscii_to_unicode(0x61, PetsciiCharset::Shifted), 'A');
 
         // 0x60: ─
-        assert_eq!(petscii_to_unicode(0x60, false), '─');
+        assert_eq!(petscii_to_unicode(0x60, PetsciiCharset::Unshifted), '─');
 
         // 0x5E: ↑
-        assert_eq!(petscii_to_unicode(0x5E, false), '↑');
+        assert_eq!(petscii_to_unicode(0x5E, PetsciiCharset::Unshifted), '↑');
     }
 
     #[test]
     fn test_petscii_to_unicode_control() {
-        assert_eq!(petscii_to_unicode(0x00, false), '.');
-        assert_eq!(petscii_to_unicode(0x00, true), '.');
+        assert_eq!(petscii_to_unicode(0x00, PetsciiCharset::Unshifted), '.');
+        assert_eq!(petscii_to_unicode(0x00, PetsciiCharset::Shifted), '.');
     }
 
     #[test]
     fn test_petscii_to_unicode_upper_range() {
         // 0xA0: Space
-        assert_eq!(petscii_to_unicode(0xA0, false), ' ');
+        assert_eq!(petscii_to_unicode(0xA0, PetsciiCharset::Unshifted), ' ');
         // 0xFF: π / ▒
-        assert_eq!(petscii_to_unicode(0xFF, false), 'π');
-        assert_eq!(petscii_to_unicode(0xFF, true), '▒');
+        assert_eq!(petscii_to_unicode(0xFF, PetsciiCharset::Unshifted), 'π');
+        assert_eq!(petscii_to_unicode(0xFF, PetsciiCharset::Shifted), '▒');
     }
 
     #[test]
@@ -459,7 +469,10 @@ mod tests {
         for sc in 0u8..=0x7F {
             assert_eq!(screencode_to_petscii(sc | 0x80), screencode_to_petscii(sc));
         }
-        assert_eq!(petscii_to_unicode(screencode_to_petscii(0x84), false), 'D');
+        assert_eq!(
+            petscii_to_unicode(screencode_to_petscii(0x84), PetsciiCharset::Unshifted),
+            'D'
+        );
     }
 
     #[test]
@@ -470,18 +483,23 @@ mod tests {
 
     #[test]
     fn test_list_files_sorts_dirs_first_and_filters_case_insensitively() {
-        let temp_dir =
-            std::env::temp_dir().join(format!("r2000_utils_test_{}", std::process::id()));
+        let temp_dir = env::temp_dir().join(format!("r2000_utils_test_{}", process::id()));
         let sub_dir = temp_dir.join("zeta_dir");
-        fs::create_dir_all(&sub_dir).unwrap();
-        fs::write(temp_dir.join("b.PRG"), [0u8]).unwrap();
-        fs::write(temp_dir.join("a.prg"), [0u8]).unwrap();
-        fs::write(temp_dir.join("ignore.txt"), [0u8]).unwrap();
+        fs::create_dir_all(&sub_dir).expect("temp test subdir should be created");
+        fs::write(temp_dir.join("b.PRG"), [0u8]).expect("temp b.PRG fixture should write");
+        fs::write(temp_dir.join("a.prg"), [0u8]).expect("temp a.prg fixture should write");
+        fs::write(temp_dir.join("ignore.txt"), [0u8])
+            .expect("temp ignore.txt fixture should write");
 
         let listed = list_files(&temp_dir, &["prg".to_string()]);
         let names: Vec<_> = listed
             .iter()
-            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .map(|p| {
+                p.file_name()
+                    .expect("file path should have filename")
+                    .to_string_lossy()
+                    .into_owned()
+            })
             .collect();
         assert_eq!(names, vec!["zeta_dir", "a.prg", "b.PRG"]);
 

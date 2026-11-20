@@ -7,7 +7,7 @@
 //!
 //! - **[`state`]** — Application state: memory, block types, labels, comments, cross-references, and undo stack.
 //! - **[`action_handlers`]** — Domain action handlers that process user and MCP actions.
-//! - **[`disassembler`]** — 6502 instruction decoders and assembler formatters (64tass, ACME, KickAssembler, ca65).
+//! - **[`disassembler`]** — 6502 instruction decoders and assembler formatters (64tass, ACME, `KickAssembler`, ca65).
 //! - **[`analyzer`]** — Static analyzer that identifies code and data regions and generates labels and cross-references.
 //! - **[`commands`]** — Undoable command system (`Command::apply` and `Command::undo`).
 //! - **[`parser`]** — File parsers for PRG, CRT, D64/D71/D81, T64, VSF, `.dis65`, and VICE labels.

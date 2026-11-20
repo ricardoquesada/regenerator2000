@@ -1,5 +1,6 @@
 //! Command-line parsing and exit statuses for `unpacker_compare_all`.
 
+use std::error::Error;
 use std::ffi::OsString;
 use std::fmt;
 use std::process::ExitCode;
@@ -55,6 +56,7 @@ pub enum Command {
 
 /// Invalid command-line arguments.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use]
 pub enum UsageError {
     /// Unrecognized argument.
     UnknownArgument(String),
@@ -74,7 +76,7 @@ impl fmt::Display for UsageError {
     }
 }
 
-impl std::error::Error for UsageError {}
+impl Error for UsageError {}
 
 /// Parses the command-line arguments without the program name.
 ///
