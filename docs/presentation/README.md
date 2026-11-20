@@ -1,105 +1,117 @@
-# Regenerator 2000 — Talk & Live Demo Guide
+# Regenerator 2000 Talk and Demo Notes
 
-This directory contains the [presenterm](https://mfontanini.github.io/presenterm/) slide deck (`transmission64_2026.md`) and a step-by-step **20-Minute Live Demo Playbook** designed for **Transmission64 2026**.
+This directory holds the [presenterm](https://mfontanini.github.io/presenterm/) slide deck (`transmission64_2026.md`) and a 20-minute live demo guide for Transmission64 2026.
 
----
+## Slides (~5 min)
 
-## Running the Slides (`~5 Minutes`)
-
-Use a terminal with inline image support (**Ghostty**, **Kitty**, **iTerm2**, or **WezTerm**) so the embedded screenshots and logo render at full resolution:
+Use a terminal with inline image support (Ghostty, Kitty, iTerm2, or WezTerm) so screenshots and the logo render cleanly.
 
 ```bash
-# Run the presentation from the repository root (or inside docs/presentation/)
+# Run from the repository root (or inside docs/presentation/)
 presenterm docs/presentation/transmission64_2026.md
 
-# Or in presentation mode (hides slide index until needed, full-screen focus)
+# Presentation mode (hides the slide index until needed)
 presenterm -p docs/presentation/transmission64_2026.md
 ```
 
-### Optional: Speaker Notes in a Second Terminal Window
+### Speaker Notes in a Second Terminal
 
-Every slide in `transmission64_2026.md` includes `<!-- speaker_note: ... -->` talking points. To view them live on a secondary monitor or split pane while presenting:
+Every slide in `transmission64_2026.md` has `<!-- speaker_note: ... -->` notes. Run two terminals to keep speaker notes on your laptop while the projector shows the slides:
 
 ```bash
-# Terminal 1 (Projector / Shared Screen):
+# Terminal 1 (projector or shared screen)
 presenterm -P docs/presentation/transmission64_2026.md
 
-# Terminal 2 (Laptop Screen / Speaker Notes):
+# Terminal 2 (laptop screen for speaker notes)
 presenterm -l docs/presentation/transmission64_2026.md
 ```
 
-### Useful `presenterm` Controls During the Talk
+### `presenterm` Controls
 
 | Key | Action |
 | :--- | :--- |
 | `l` / `Right` / `Space` | Next slide |
 | `h` / `Left` / `Backspace` | Previous slide |
-| `gg` / `G` | Jump to first / last slide |
-| `<number>G` | Jump directly to slide `<number>` (e.g., `4G`) |
-| `Ctrl+P` | Open slide index modal |
-| `q` | Quit presentation |
+| `gg` / `G` | Jump to first or last slide |
+| `<number>G` | Jump to slide `<number>` (for example, `4G`) |
+| `Ctrl+P` | Open slide index |
+| `q` | Quit |
 
----
+## Live Demo (~20 min)
 
-## 20-Minute Live Demo Playbook
+After Slide 12 ("Live Demo Time!"), open a terminal window (`120x35` or larger) with a retro font. Cover these five sections in order.
 
-After Slide 12 (**Live Demo Time!**), open a pre-sized terminal window (`120x35` or larger, retro font). Run these 5 acts in order.
+### 1. Startup, Unpacker, and Layout (~3 min)
 
-### Act 1: Instant Startup, Unpacking & Orientation (`~3 mins`)
+1. Open a packed `.prg` (for example, Exomizer, TSCrunch, or ByteBoozer). You can also pick a file from a `.d64` or `.crt` image in the container picker.
+   - Note the fast startup (`< 10 ms`).
+   - Show the built-in 6502 unpacker. It runs the decruncher in a sandbox, removes the depacker stub, and moves the cursor to the entry point.
+2. Show the minimap bar at the top of the screen. It colors Code blue, Data green or yellow, and Undefined grey.
+   - Press `Alt+1` to toggle the Blocks view on the right.
+   - Press `Tab` to focus the Blocks view.
+   - Press `Enter` to jump to an unanalyzed block, or click the minimap bar with the mouse.
 
-1. **Launch a Packed Binary (or `.d64` / `.crt`)**:
-   - Open a classic packed intro or game `.prg` (e.g., an Exomizer, TSCrunch, or ByteBoozer packed file) or pick a file from a `.d64` disk image via the container picker.
-   - **Talking point**: Point out how fast it launches (`< 10 ms`) and how the built-in 2-phase 6502 unpacker automatically runs the decruncher in a sandbox, strips the depacker stub, and drops the cursor straight onto the real unpacked entry point.
-2. **Minimap & Blocks View (`Alt+1`)**:
-   - Point out the **Minimap bar** at the top of the screen showing Code (Blue), Data (Green/Yellow), and Undefined (Grey) across the binary.
-   - Press `Alt+1` to toggle the **Blocks View** on the right, use `Tab` to focus it, jump to an unanalyzed block with `Enter`, or click directly on the Minimap bar with the mouse.
+### 2. Graphics and Text Assets (~4 min)
 
-### Act 2: Hunting Graphics & Text Assets (`~4 mins`)
+1. Press `Alt+2` to open the Hex Dump view next to the disassembly.
+   - Note how byte-value colors make zeros, `$FF` runs, and repeated patterns clear.
+   - Press `Tab` to focus the Hex Dump view.
+   - Press `m` to cycle PETSCII and Screencode modes until a scrolltext or highscore table appears.
+   - Press `Enter` to jump the disassembly cursor to that address.
+   - Select the text with `Shift+V` and `j`/`k`, or drag with the mouse.
+   - Press `p` for PETSCII or `s` for Screencode to format the block.
+2. Inspect the graphics views.
+   - Press `Alt+3` to open the Sprites view. Scroll the view. Press `m` to toggle multicolor mode.
+   - Click a sprite or press `Enter` to jump to its address in the disassembly.
+   - Press `Alt+4` to inspect the 8x8 Charset view. Press `m` for multicolor mode.
+   - Press `Alt+5` to open the Bitmap view. It renders 320x200 hi-res and 160x200 multicolor graphics with Kitty, iTerm2, or Sixel (or Halfblocks fallback).
 
-1. **Hex Dump & Text Decoding (`Alt+2`)**:
-   - Press `Alt+2` to open the side-by-side **Hex Dump**.
-   - Highlight the value-based byte coloring (zeros, `$FF`s, and repeating patterns jump out visually).
-   - Press `Tab` to focus the Hex Dump and press `m` to cycle between **PETSCII** and **Screencode** text until you spot a scrolltext or highscore table.
-   - Press `Enter` to jump the Disassembly cursor to that exact address, then select the text (`Shift+V` + `j`/`k` or mouse drag) and press `p` (PETSCII) or `s` (Screencode) to format it!
-2. **Sprites (`Alt+3`), Charset (`Alt+4`), and Bitmap (`Alt+5`)**:
-   - Press `Alt+3` to open the **Sprites View**. Scroll through memory, press `m` to toggle **Multicolor mode**, and click/press `Enter` on a sprite to jump to its address in the disassembly.
-   - Press `Alt+4` to inspect the **8×8 Charset** (`m` for multicolor).
-   - Press `Alt+5` to show the **Bitmap View** rendering full 320×200 hi-res / 160×200 multicolor graphics right inside the terminal using Unicode quadrant blocks.
+### 3. Keyboard Disassembly (~6 min)
 
-### Act 3: High-Speed Keyboard Disassembly (`~6 mins`)
+1. Return to the entry point and trace control flow.
+   - Press `Enter` on `jsr` or `jmp` instructions to jump to the target.
+   - Press `Backspace` to return to the previous location.
+   - Show the control-flow arrows in the left margin for local branches and loops.
+2. Reclassify blocks and show undo.
+   - Find raw bytes that are code (for example, an unreferenced raster IRQ handler).
+   - Press `c` to mark code, or press `d` to run flow disassembly.
+   - Press `b` on a code block to convert it to bytes.
+   - Press `u` to undo. Press `Ctrl+R` to redo.
+3. Show 6502 helpers for pointers, split tables, scopes, and cross-references.
+   - Find an IRQ routine that loads a low byte and high byte into `$0314`/`$0315` or `$FFFE`/`$FFFF`.
+   - Select both immediate loads to link `#<label` and `#>label`. Press `[` when the low byte comes first, or `]` when the high byte comes first.
+   - Find a split Lo/Hi jump table or raster table. Select it in Visual Mode (`Shift+V`). Press `<` for a Lo/Hi address table or `>` for a Hi/Lo address table.
+   - Press `l` on a subroutine to rename it (for example, `raster_irq_top`).
+   - Press `;` to add a side comment.
+   - Press `i` to cycle immediate formats (`$hex`, `dec`, `%bin`).
+   - Press `r` to wrap a subroutine in a lexical scope to keep local labels separate.
+   - Press `Ctrl+X` on a hardware register or zero-page pointer to inspect its cross-references (`Read`, `Write`, `Call`, `Jump`).
 
-1. **Following Control Flow**:
-   - Return to the entry point. Follow `jsr` / `jmp` instructions by pressing `Enter`, and pop back with `Backspace`.
-   - Show the left-margin **control-flow arrows** for local branches and loops.
-2. **Single-Key Formatting & Undo**:
-   - Find a block of raw bytes that is actually code (e.g., an unreferenced raster IRQ handler) and press `c` (or `d` to flow-disassemble).
-   - Intentionally press `b` on code to turn it into bytes, then press `u` (**Undo**) to show instant, fearless undo/redo (`Ctrl+R`).
-3. **6502-Specific Superpowers (Immediates, Split Tables, Scopes & Enums)**:
-   - Find an IRQ setup loading `#<irq` and `#>irq` into `$0314`/`$0315` or `$FFFE`/`$FFFF`. Press `[` on the low byte and `]` on the high byte to link them into symbolic `#<label` / `#>label` operands!
-   - Find a split Lo/Hi jump or raster table, select it in Visual Mode (`Shift+V`), and press `<` (Lo/Hi Address Table) or `>` (Hi/Lo Address Table).
-   - Press `l` on a subroutine to give it a meaningful name (e.g., `raster_irq_top`), `;` to add a side comment, `i` to toggle immediate format (`$hex` / `dec` / `%bin`), and `r` to wrap a subroutine in a lexical scope so local labels stay clean.
-   - Press `Ctrl+X` to inspect all typed **Cross-References** (`Read`, `Write`, `Call`, `Jump`) to a hardware register or zero-page pointer.
+### 4. Live VICE Debugger (~4 min)
 
-### Act 4: Live VICE Debugging (`~4 mins`)
+1. Start `x64sc -binarymonitor demo.prg` alongside the terminal.
+   - Press `Alt+6` to open the Debugger panel, or press `Alt+U` and select `Connect to VICE...`.
+2. Step instructions and inspect hardware state.
+   - Move to the raster IRQ routine in the Disassembly view. Press `F2` to set a breakpoint.
+   - Wait for VICE to pause at the breakpoint. Show the CPU registers, stack, VIC-II and CIA registers, and `$00`/`$01` banking port.
+   - Press `F7` (Step Into) and `F8` (Step Over) to show delta highlighting on changed registers and hardware state.
+   - Press `Tab` to focus the Debugger panel.
+   - Press `m` and enter `0400` or `D020`. A live 64-byte memory dump updates on each step.
+   - Press `F9` to resume execution.
 
-1. **Connect to VICE**:
-   - Have `x64sc -binarymonitor demo.prg` running alongside the terminal.
-   - Press `Alt+6` to open the **Debugger Panel** (or connect via `Alt+U` → **Connect to VICE...**).
-2. **Breakpoints, Stepping & Hardware State**:
-   - Navigate to the raster IRQ routine in the Disassembly pane and press `F2` to set a breakpoint.
-   - Show the Debugger pane pausing at the breakpoint: point out the **CPU registers**, **Stack**, **VIC-II / CIA registers**, and **`$00`/`$01` banking port**.
-   - Step a few instructions with `F7` (Step Into) and `F8` (Step Over) to show **delta highlighting** (changed registers and hardware state lighting up).
-   - Focus the Debugger pane (`Tab`), press `m`, and enter `0400` or `D020` to watch a live 64-byte **Memory Dump** update on each step. Press `F9` to resume execution.
+### 5. Export and Verification (~3 min)
 
-### Act 5: Multi-Assembler Export & Byte-Exact Verification (`~3 mins`)
+1. Press `Alt+D` to open Document Settings.
+   - Switch the target assembler between 64tass, ACME, KickAssembler, and ca65.
+   - Show the disassembly syntax update in place.
+2. Export and verify the rebuild.
+   - Press `Ctrl+S` to save the project.
+   - Press `Ctrl+E` to export the `.asm` file.
+   - Run this command in a shell or split pane:
 
-1. **Switch Target Assembler Live (`Alt+D`)**:
-   - Press `Alt+D` (**Document Settings**) and switch the target assembler between **64tass**, **ACME**, **KickAssembler**, and **ca65** — watch the disassembly syntax update immediately in place!
-2. **Export & Roundtrip Verify (`Ctrl+E` & `--verify`)**:
-   - Save the project (`Ctrl+S`) and export to `.asm` (`Ctrl+E`).
-   - Drop to the shell (or a split pane) and run:
      ```bash
      regenerator2000 --verify demo.regen2000proj
      ```
-   - Show that Regenerator 2000 exports the `.asm`, runs the real assembler, and confirms a **100% byte-for-byte match** against the original binary.
-   - Wrap up by taking audience questions!
+
+   - Show that Regenerator 2000 exports the `.asm` file, runs the assembler, and verifies a byte-for-byte match with the original binary.
+   - Take audience questions.
