@@ -217,6 +217,12 @@ impl UIState {
         }
     }
 
+    /// Resets the debugger flash counter and clears the live disassembly cache.
+    pub fn clear_debugger_state(&mut self) {
+        self.debugger_flash_remaining = 0;
+        self.debugger_disasm_cache = None;
+    }
+
     /// Infers the full terminal bounds from the recorded layout rectangles.
     /// Falls back to `u16::MAX` height when only `menu_area` is set, such as in unit tests.
     #[must_use]

@@ -68,11 +68,9 @@ impl DomainActionHandler for DebugActionHandler {
                 match crate::vice::ViceClient::connect(addr, tx) {
                     Ok(mut client) => {
                         client.set_event_receiver(rx);
-                        ctx.state.vice_state.previous = Some(ctx.state.vice_state.snapshot());
-                        ctx.state.vice_state.connected = true;
                         client.send_registers_get();
                         client.send_checkpoint_list();
-                        ctx.state.vice_client = Some(client);
+                        ctx.state.attach_vice_client(client);
                         ctx.events.push(CoreEvent::StatusMessage(format!(
                             "Connected to VICE at {addr}"
                         )));
@@ -87,8 +85,7 @@ impl DomainActionHandler for DebugActionHandler {
                 Ok(true)
             }
             AppAction::ViceDisconnect => {
-                ctx.state.vice_client = None;
-                ctx.state.vice_state.connected = false;
+                ctx.state.disconnect_vice();
                 ctx.events.push(CoreEvent::StatusMessage(
                     "Disconnected from VICE".to_string(),
                 ));
@@ -273,7 +270,9 @@ mod tests {
     use super::*;
     use crate::state::AppState;
     use crate::state::types::Addr;
+    use crate::vice::state::{BreakpointKind, ViceBreakpoint};
     use crate::view_state::CoreViewState;
+    use std::net::TcpListener;
 
     #[test]
     fn test_vice_connect_address_retains_event_receiver() {
@@ -365,5 +364,58 @@ mod tests {
                 "Not connected to VICE".to_string()
             )]
         );
+    }
+
+    #[test]
+    fn test_vice_disconnect_clears_client_and_resets_state() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test TCP listener");
+        let address = listener
+            .local_addr()
+            .expect("read listener local address")
+            .to_string();
+
+        let mut state = AppState::new();
+        let mut view = CoreViewState::new();
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+
+        let handler = DebugActionHandler::new();
+        assert!(
+            handler
+                .handle_action(&AppAction::ViceConnectAddress(address), &mut ctx)
+                .expect("connect action succeeds")
+        );
+        let _server = listener.accept().expect("accept test connection");
+
+        ctx.state.vice_state.running = true;
+        ctx.state.vice_state.pc = Some(0x1000);
+        ctx.state.vice_state.live_memory = Some(vec![0xEA, 0x60]);
+        ctx.state.vice_state.stop_reason = Some("Breakpoint #1".to_string());
+        ctx.state.vice_state.breakpoints.push(ViceBreakpoint {
+            id: 1,
+            address: 0x1000,
+            enabled: true,
+            kind: BreakpointKind::Exec,
+        });
+        ctx.events.clear();
+
+        assert!(
+            handler
+                .handle_action(&AppAction::ViceDisconnect, &mut ctx)
+                .expect("disconnect action succeeds")
+        );
+
+        assert!(ctx.state.vice_client.is_none());
+        assert!(!ctx.state.is_vice_connected());
+        assert!(!ctx.state.vice_state.connected);
+        assert!(!ctx.state.vice_state.running);
+        assert_eq!(ctx.state.vice_state.pc, None);
+        assert!(ctx.state.vice_state.breakpoints.is_empty());
+        assert_eq!(ctx.state.vice_state.live_memory, None);
+        assert_eq!(ctx.state.vice_state.stop_reason, None);
     }
 }

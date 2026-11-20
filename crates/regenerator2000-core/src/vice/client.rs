@@ -4,8 +4,21 @@ use super::protocol::{ViceCommand, ViceCpuOp, ViceMessage};
 use crate::error::ViceError;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::thread;
+
+static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
+
+/// Monotonic identifier for a [`ViceClient`] session.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ViceConnectionId(u64);
+
+impl ViceConnectionId {
+    fn next() -> Self {
+        Self(NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed))
+    }
+}
 
 /// Lifecycle or message event emitted by the [`ViceClient`] reader thread.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,6 +33,7 @@ pub enum ViceEvent {
 
 /// Threaded TCP client that sends [`ViceMessage`] commands and streams [`ViceEvent`] notifications.
 pub struct ViceClient {
+    connection_id: ViceConnectionId,
     cmd_tx: Sender<ViceMessage>,
     event_rx: Option<mpsc::Receiver<ViceEvent>>,
 }
@@ -109,10 +123,19 @@ impl ViceClient {
             let _ = write_stream.shutdown(Shutdown::Both);
         });
 
+        let connection_id = ViceConnectionId::next();
+
         Ok(Self {
+            connection_id,
             cmd_tx,
             event_rx: None,
         })
+    }
+
+    /// Returns the session identifier for this client.
+    #[must_use]
+    pub fn connection_id(&self) -> ViceConnectionId {
+        self.connection_id
     }
 
     /// Stores the [`ViceEvent`] channel receiver inside this client so headless callers keep the reader channel open.
@@ -306,5 +329,29 @@ mod tests {
             ev3,
             ViceEvent::Disconnected(ref s) if s.contains("Protocol error")
         ));
+    }
+
+    #[test]
+    fn connect_assigns_monotonic_connection_ids() {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test TCP listener");
+        let address = listener
+            .local_addr()
+            .expect("read listener local address")
+            .to_string();
+
+        let (tx1, _rx1) = mpsc::channel();
+        let client1 = ViceClient::connect(&address, tx1).expect("connect first client");
+        let _server1 = listener.accept().expect("accept first connection");
+
+        let (tx2, _rx2) = mpsc::channel();
+        let client2 = ViceClient::connect(&address, tx2).expect("connect second client");
+        let _server2 = listener.accept().expect("accept second connection");
+
+        assert!(
+            client2.connection_id() > client1.connection_id(),
+            "expected second connection ID ({:?}) to exceed first ({:?})",
+            client2.connection_id(),
+            client1.connection_id()
+        );
     }
 }

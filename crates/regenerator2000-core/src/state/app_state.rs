@@ -14,6 +14,7 @@ use super::types::{
 use crate::config::SystemConfig;
 use crate::cpu::AddressingMode;
 use crate::disassembler::{Disassembler, DisassemblyLine};
+use crate::vice::{ViceClient, ViceConnectionId, ViceState};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
@@ -148,9 +149,9 @@ pub struct AppState {
     /// Last filename used in the Export HTML dialog.
     pub last_export_html_filename: Option<String>,
     /// Live VICE binary monitor debugger state (registers, breakpoints, memory snapshot).
-    pub vice_state: crate::vice::ViceState,
+    pub vice_state: ViceState,
     /// Active VICE binary monitor network client, if connected.
-    pub vice_client: Option<crate::vice::ViceClient>,
+    pub vice_client: Option<ViceClient>,
     /// Whether an HTTP or stdio MCP server is currently attached to this session.
     pub mcp_server_running: bool,
 }
@@ -213,10 +214,46 @@ impl AppState {
             last_save_as_filename: None,
             last_export_asm_filename: None,
             last_export_html_filename: None,
-            vice_state: crate::vice::ViceState::new(),
+            vice_state: ViceState::new(),
             vice_client: None,
             mcp_server_running: false,
         }
+    }
+
+    /// Attaches a connected [`ViceClient`] to this state.
+    ///
+    /// Sets [`ViceState`] to connected, resets registers and checkpoints, and preserves `dump_address`.
+    /// Stores an empty baseline snapshot to highlight changed values.
+    pub fn attach_vice_client(&mut self, client: ViceClient) {
+        let dump_address = self.vice_state.dump_address;
+        self.vice_client = Some(client);
+        self.vice_state.connected = true;
+        self.vice_state.reset_registers();
+        self.vice_state.dump_address = dump_address;
+        self.vice_state.previous = Some(self.vice_state.snapshot());
+    }
+
+    /// Closes the active [`ViceClient`] session and resets [`ViceState`] to disconnected.
+    ///
+    /// Clears `vice_client` to close the command channel and stop its background threads.
+    pub fn disconnect_vice(&mut self) {
+        self.vice_client = None;
+        self.vice_state.connected = false;
+        self.vice_state.reset_registers();
+    }
+
+    /// Returns `true` if this state holds an attached, connected [`ViceClient`].
+    #[must_use]
+    pub fn is_vice_connected(&self) -> bool {
+        self.vice_client.is_some() && self.vice_state.connected
+    }
+
+    /// Returns `true` if the attached [`ViceClient`] has `connection_id`.
+    #[must_use]
+    pub fn is_active_vice_connection(&self, connection_id: ViceConnectionId) -> bool {
+        self.vice_client
+            .as_ref()
+            .is_some_and(|client| client.connection_id() == connection_id)
     }
 
     /// Reloads platform system labels, comments, and excluded addresses for [`DocumentSettings::system`].

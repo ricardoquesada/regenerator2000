@@ -570,7 +570,7 @@ impl MenuState {
                                 item.disabled = active_pane != ActivePane::Disassembly;
                             }
                             AppAction::ViceConnect => {
-                                item.disabled = app_state.vice_client.is_some();
+                                item.disabled = app_state.is_vice_connected();
                             }
                             AppAction::StartMcpServer => {
                                 item.disabled = app_state.mcp_server_running;
@@ -583,7 +583,7 @@ impl MenuState {
                             | AppAction::ViceBreakpointDialog
                             | AppAction::ViceToggleWatchpoint
                             | AppAction::ViceMemoryDumpDialog => {
-                                item.disabled = app_state.vice_client.is_none();
+                                item.disabled = !app_state.is_vice_connected();
                             }
                             AppAction::ViceStep
                             | AppAction::ViceStepOver
@@ -591,12 +591,26 @@ impl MenuState {
                             | AppAction::ViceContinue
                             | AppAction::ViceRunToCursor => {
                                 item.disabled =
-                                    app_state.vice_client.is_none() || app_state.vice_state.running;
+                                    !app_state.is_vice_connected() || app_state.vice_state.running;
                             }
                             _ => item.disabled = false,
                         }
                     }
                 }
+            }
+        }
+
+        if self.active {
+            let needs_reselect =
+                self.categories
+                    .get(self.selected_category)
+                    .is_some_and(|category| {
+                        self.selected_item
+                            .and_then(|selected| category.items.get(selected))
+                            .is_none_or(|item| item.is_separator || item.disabled)
+                    });
+            if needs_reselect {
+                self.select_first_enabled_item();
             }
         }
     }

@@ -612,40 +612,21 @@ fn spawn_update_check(event_tx: &std::sync::mpsc::Sender<events::AppEvent>) {
     });
 }
 
-/// Auto-connect to the VICE binary monitor at the given address.
+/// Connects to the VICE Binary Monitor at `vice_addr`.
 fn connect_vice(
     app_state: &mut AppState,
     ui_state: &mut UIState,
     vice_addr: &str,
     event_tx: &std::sync::mpsc::Sender<events::AppEvent>,
 ) {
-    let vice_tx = vice_event_adapter(event_tx);
-    match regenerator2000_core::vice::ViceClient::connect(vice_addr, vice_tx) {
-        Ok(client) => {
-            app_state.vice_client = Some(client);
+    match events::connect_vice_client(app_state, vice_addr, event_tx) {
+        Ok(()) => {
             ui_state.set_status_message(format!("Connecting to VICE at {vice_addr}..."));
         }
         Err(e) => {
-            ui_state.set_status_message(format!("Failed to connect to VICE at {vice_addr}: {e}"));
+            ui_state.set_status_message(e.to_string());
         }
     }
-}
-
-/// Create a `Sender<ViceEvent>` that wraps events into `AppEvent::Vice` and
-/// forwards them to the given `Sender<AppEvent>`.
-fn vice_event_adapter(
-    app_tx: &std::sync::mpsc::Sender<events::AppEvent>,
-) -> std::sync::mpsc::Sender<regenerator2000_core::vice::ViceEvent> {
-    let (vice_tx, vice_rx) = std::sync::mpsc::channel();
-    let app_tx = app_tx.clone();
-    std::thread::spawn(move || {
-        while let Ok(event) = vice_rx.recv() {
-            if app_tx.send(events::AppEvent::Vice(event)).is_err() {
-                break;
-            }
-        }
-    });
-    vice_tx
 }
 
 // ---------------------------------------------------------------------------

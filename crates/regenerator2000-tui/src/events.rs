@@ -1,18 +1,22 @@
 pub mod input;
 
+use crate::state::actions::AppAction;
 use crate::ui::dialog_import_context::ImportContextDialog;
 use crate::ui::ui;
 use crate::ui_state::{ActivePane, RightPane, UIState};
+use crate::vice::{ViceClient, ViceConnectionId, ViceEvent};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, MouseEvent};
 use input::handle_global_input;
 use ratatui::{Terminal, backend::Backend};
 use regenerator2000_core::Core;
+use regenerator2000_core::error::ViceError;
 use regenerator2000_core::navigation::{
     AlignedGridRange, sync_grid_pane_from_disassembly, sync_hex_pane_from_disassembly,
 };
 use regenerator2000_core::state::types::System;
 use regenerator2000_core::state::{AppState, EntryAnalysisMode};
 use std::io;
+use std::sync::mpsc::{self, Sender};
 
 pub enum AppEvent {
     Crossterm(Event),
@@ -24,7 +28,13 @@ pub enum AppEvent {
         port: u16,
     },
     McpServerStopped,
-    Vice(crate::vice::ViceEvent),
+    /// Lifecycle or protocol event from a VICE client session.
+    Vice {
+        /// Session identifier of the [`ViceClient`] that sent the event.
+        connection_id: ViceConnectionId,
+        /// Lifecycle or protocol event from VICE.
+        event: ViceEvent,
+    },
     Tick,
     UpdateAvailable(String),
     /// Progress update from the background unpacker thread (instruction count).
@@ -122,8 +132,11 @@ pub fn run_app<B: Backend>(
                 ui_state.set_status_message(format!("MCP Error: {err_msg}"));
                 should_render = true;
             }
-            AppEvent::Vice(vice_event) => {
-                handle_vice_event(vice_event, &mut core.state, &mut ui_state);
+            AppEvent::Vice {
+                connection_id,
+                event,
+            } => {
+                handle_vice_event(connection_id, event, &mut core.state, &mut ui_state);
                 should_render = true;
             }
             AppEvent::Tick => {
@@ -351,14 +364,18 @@ pub fn handle_unpack_complete(
 // ---------------------------------------------------------------------------
 
 fn handle_vice_event(
-    vice_event: crate::vice::ViceEvent,
+    connection_id: ViceConnectionId,
+    vice_event: ViceEvent,
     app_state: &mut AppState,
     ui_state: &mut UIState,
 ) {
+    if !app_state.is_active_vice_connection(connection_id) {
+        return;
+    }
     match vice_event {
-        crate::vice::ViceEvent::Connected => {
+        ViceEvent::Connected => {
             app_state.vice_state.connected = true;
-            ui_state.right_pane = crate::ui_state::RightPane::Debugger;
+            ui_state.right_pane = RightPane::Debugger;
             ui_state.active_pane = ActivePane::Debugger;
             // Sync existing breakpoints from VICE (e.g. set in a previous session)
             if let Some(client) = &app_state.vice_client {
@@ -366,12 +383,12 @@ fn handle_vice_event(
             }
             ui_state.set_status_message("Connected to VICE Monitor");
         }
-        crate::vice::ViceEvent::Disconnected(reason) => {
-            app_state.vice_state.connected = false;
-            app_state.vice_state.reset_registers();
+        ViceEvent::Disconnected(reason) => {
+            app_state.disconnect_vice();
+            ui_state.clear_debugger_state();
             ui_state.set_status_message(format!("Disconnected from VICE: {reason}"));
         }
-        crate::vice::ViceEvent::Message(msg) => {
+        ViceEvent::Message(msg) => {
             handle_vice_message(&msg, app_state, ui_state);
         }
     }
@@ -675,7 +692,7 @@ fn handle_key_event(
         use crate::ui::widget::Widget;
         let result = crate::ui::menu::Menu.handle_input(key, &mut core.state, ui_state);
         if let crate::ui::widget::WidgetResult::Action(action) = result {
-            dispatch_menu_action(action, core, ui_state, event_tx, false);
+            dispatch_menu_action(action, core, ui_state, event_tx);
         }
     } else if ui_state.vim_search_active {
         match key.code {
@@ -690,13 +707,7 @@ fn handle_key_event(
                 // implementation (including collapsed-block matching).
                 ui_state.last_search_query = ui_state.vim_search_input.clone();
                 ui_state.vim_search_active = false;
-                dispatch_menu_action(
-                    crate::state::actions::AppAction::FindNext,
-                    core,
-                    ui_state,
-                    event_tx,
-                    false,
-                );
+                dispatch_menu_action(AppAction::FindNext, core, ui_state, event_tx);
             }
             KeyCode::Backspace => {
                 ui_state.vim_search_input.pop();
@@ -744,7 +755,7 @@ fn apply_dialog_result(
                 ui_state.active_dialog = Some(dialog);
             }
             *should_render = true;
-            dispatch_menu_action(action, core, ui_state, event_tx, false);
+            dispatch_menu_action(action, core, ui_state, event_tx);
             ui_state.promote_next_dialog();
         }
     }
@@ -787,7 +798,7 @@ fn handle_key_event_active_view(
             // Event handled, will render below
         }
         WidgetResult::Action(action) => {
-            dispatch_menu_action(action, core, ui_state, event_tx, false);
+            dispatch_menu_action(action, core, ui_state, event_tx);
         }
         WidgetResult::Ignored => {
             // Try global input handler
@@ -955,7 +966,7 @@ fn handle_mouse_views(
     }
 
     if let crate::ui::widget::WidgetResult::Action(action) = widget_result {
-        dispatch_menu_action(action, core, ui_state, event_tx, true);
+        dispatch_menu_action(action, core, ui_state, event_tx);
     }
 }
 
@@ -963,40 +974,53 @@ fn handle_mouse_views(
 // Shared helper: dispatch a AppAction (de-duplicates ViceConnectAddress logic)
 // ---------------------------------------------------------------------------
 
-/// Routes an `AppAction` to the VICE connect flow or the generic menu handler.
+/// Connects to the VICE Binary Monitor at `addr` and attaches the client to `app_state`.
 ///
-/// When `send_registers_on_connect` is true, this function requests VICE registers
-/// immediately after connection so the debugger panel populates.
+/// Starts a background thread to forward [`ViceEvent`] messages to `event_tx`.
+///
+/// # Errors
+///
+/// Returns [`ViceError`] if the TCP connection or socket configuration fails.
+pub fn connect_vice_client(
+    app_state: &mut AppState,
+    addr: &str,
+    event_tx: &Sender<AppEvent>,
+) -> Result<(), ViceError> {
+    let (vice_tx, vice_rx) = mpsc::channel();
+    let client = ViceClient::connect(addr, vice_tx)?;
+    let connection_id = client.connection_id();
+    app_state.attach_vice_client(client);
+
+    let app_tx = event_tx.clone();
+    std::thread::spawn(move || {
+        while let Ok(event) = vice_rx.recv() {
+            if app_tx
+                .send(AppEvent::Vice {
+                    connection_id,
+                    event,
+                })
+                .is_err()
+            {
+                break;
+            }
+        }
+    });
+    Ok(())
+}
+
+/// Routes an `AppAction` to the VICE connect flow or the generic menu handler.
 fn dispatch_menu_action(
-    action: crate::state::actions::AppAction,
+    action: AppAction,
     core: &mut Core,
     ui_state: &mut UIState,
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
-    send_registers_on_connect: bool,
+    event_tx: &Sender<AppEvent>,
 ) {
-    if let crate::state::actions::AppAction::ViceConnectAddress(addr) = action {
-        let (vice_tx, vice_rx) = std::sync::mpsc::channel();
-        let app_tx = event_tx.clone();
-        std::thread::spawn(move || {
-            while let Ok(event) = vice_rx.recv() {
-                if app_tx.send(AppEvent::Vice(event)).is_err() {
-                    break;
-                }
-            }
-        });
-        if let Ok(client) = crate::vice::ViceClient::connect(&addr, vice_tx) {
-            // Snapshot empty state so the first update appears as changed (yellow)
-            core.state.vice_state.previous = Some(core.state.vice_state.snapshot());
-
-            if send_registers_on_connect {
-                client.send_registers_get();
-            }
-            core.state.vice_client = Some(client);
-        } else {
-            ui_state.set_status_message("Failed to connect to VICE");
+    if let AppAction::ViceConnectAddress(addr) = action {
+        if let Err(err) = connect_vice_client(&mut core.state, &addr, event_tx) {
+            ui_state.set_status_message(err.to_string());
         }
     } else {
-        if matches!(action, crate::state::actions::AppAction::ApplyOrigin(_)) {
+        if matches!(action, AppAction::ApplyOrigin(_)) {
             ui_state.invalidate_bitmap_cache();
         }
         crate::ui::menu::handle_menu_action(core, ui_state, action, event_tx);
@@ -2247,6 +2271,241 @@ mod tests {
                 .expect("selection_start set for backward charset drag")]
             .address,
             Addr(0x080F)
+        );
+    }
+
+    fn recv_vice_event(receiver: &mpsc::Receiver<AppEvent>) -> (ViceConnectionId, ViceEvent) {
+        match receiver
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("receive VICE event before timeout")
+        {
+            AppEvent::Vice {
+                connection_id,
+                event,
+            } => (connection_id, event),
+            _ => panic!("expected AppEvent::Vice"),
+        }
+    }
+
+    #[test]
+    fn vice_remote_disconnect_updates_menu_availability_and_allows_reconnect() {
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test TCP listener");
+        let address = listener
+            .local_addr()
+            .expect("read listener local address")
+            .to_string();
+
+        let mut core = Core::new();
+        core.state
+            .load_binary(Addr(0x0801), vec![0xEA; 16])
+            .expect("load test binary");
+        let mut ui_state = UIState::new(Theme::default());
+        let (tx, rx) = mpsc::channel::<AppEvent>();
+
+        // 1. Connect to VICE and verify dump_address survives connection setup.
+        core.state.vice_state.dump_address = Some(0xD000);
+        dispatch_menu_action(
+            AppAction::ViceConnectAddress(address.clone()),
+            &mut core,
+            &mut ui_state,
+            &tx,
+        );
+        assert_eq!(core.state.vice_state.dump_address, Some(0xD000));
+        let (server_stream, _) = listener.accept().expect("accept first VICE connection");
+        let (connection_id, event) = recv_vice_event(&rx);
+        assert_eq!(event, ViceEvent::Connected);
+        handle_vice_event(connection_id, event, &mut core.state, &mut ui_state);
+        sync_views_before_render(&core.state, &mut ui_state);
+
+        let debugger_category_index = ui_state
+            .menu
+            .categories
+            .iter()
+            .position(|category| category.name == "Debugger")
+            .expect("Debugger menu category must exist");
+        let item_disabled = |ui_state: &UIState, action: AppAction| -> bool {
+            ui_state.menu.categories[debugger_category_index]
+                .items
+                .iter()
+                .find(|item| item.action.as_ref() == Some(&action))
+                .unwrap_or_else(|| panic!("missing menu item for {action:?}"))
+                .disabled
+        };
+
+        assert!(item_disabled(&ui_state, AppAction::ViceConnect));
+        assert!(!item_disabled(&ui_state, AppAction::ViceDisconnect));
+        assert!(!item_disabled(&ui_state, AppAction::ViceContinue));
+
+        // 2. Resume execution (F9).
+        dispatch_menu_action(AppAction::ViceContinue, &mut core, &mut ui_state, &tx);
+        sync_views_before_render(&core.state, &mut ui_state);
+        assert!(core.state.vice_state.running);
+        assert!(item_disabled(&ui_state, AppAction::ViceConnect));
+        assert!(!item_disabled(&ui_state, AppAction::ViceDisconnect));
+        assert!(item_disabled(&ui_state, AppAction::ViceContinue));
+        assert!(item_disabled(&ui_state, AppAction::ViceStep));
+
+        // Open the Debugger menu on "Disconnect from VICE" before VICE exits.
+        ui_state.menu.active = true;
+        ui_state.menu.selected_category = debugger_category_index;
+        ui_state.menu.select_first_enabled_item();
+        assert_eq!(ui_state.menu.selected_item, Some(1));
+
+        // 3. Close the server socket to simulate a VICE exit.
+        drop(server_stream);
+
+        let (disconnect_id, disconnect_event) = recv_vice_event(&rx);
+        assert_eq!(disconnect_id, connection_id);
+        assert!(matches!(disconnect_event, ViceEvent::Disconnected(_)));
+        handle_vice_event(
+            disconnect_id,
+            disconnect_event,
+            &mut core.state,
+            &mut ui_state,
+        );
+        sync_views_before_render(&core.state, &mut ui_state);
+
+        assert!(!core.state.is_vice_connected());
+        assert!(core.state.vice_client.is_none());
+        assert!(!core.state.vice_state.connected);
+        assert!(!core.state.vice_state.running);
+
+        assert!(!item_disabled(&ui_state, AppAction::ViceConnect));
+        for item in &ui_state.menu.categories[debugger_category_index].items {
+            if item.is_separator || item.action.as_ref() == Some(&AppAction::ViceConnect) {
+                continue;
+            }
+            assert!(
+                item.disabled,
+                "menu item '{}' must be disabled after disconnect",
+                item.name
+            );
+        }
+        assert_eq!(ui_state.menu.selected_item, Some(0));
+
+        // 4. Reconnect to VICE.
+        dispatch_menu_action(
+            AppAction::ViceConnectAddress(address),
+            &mut core,
+            &mut ui_state,
+            &tx,
+        );
+        let (_second_server, _) = listener.accept().expect("accept second VICE connection");
+        let (second_connection_id, second_event) = recv_vice_event(&rx);
+        assert!(
+            second_connection_id > connection_id,
+            "expected second connection ID ({second_connection_id:?}) to exceed first ({connection_id:?})"
+        );
+        assert_eq!(second_event, ViceEvent::Connected);
+        handle_vice_event(
+            second_connection_id,
+            second_event,
+            &mut core.state,
+            &mut ui_state,
+        );
+        sync_views_before_render(&core.state, &mut ui_state);
+
+        assert!(core.state.is_vice_connected());
+        assert!(item_disabled(&ui_state, AppAction::ViceConnect));
+        assert!(!item_disabled(&ui_state, AppAction::ViceDisconnect));
+    }
+
+    #[test]
+    fn vice_stale_connection_events_are_ignored_after_disconnect_and_reconnect() {
+        use std::net::TcpListener;
+
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test TCP listener");
+        let address = listener
+            .local_addr()
+            .expect("read listener local address")
+            .to_string();
+
+        let mut core = Core::new();
+        core.state
+            .load_binary(Addr(0x0801), vec![0xEA; 16])
+            .expect("load test binary");
+        let mut ui_state = UIState::new(Theme::default());
+        let (tx, rx) = mpsc::channel::<AppEvent>();
+
+        // Connect session 1.
+        dispatch_menu_action(
+            AppAction::ViceConnectAddress(address.clone()),
+            &mut core,
+            &mut ui_state,
+            &tx,
+        );
+        let (_first_server, _) = listener.accept().expect("accept session 1");
+        let first_id = core
+            .state
+            .vice_client
+            .as_ref()
+            .expect("first client attached")
+            .connection_id();
+        let _ = recv_vice_event(&rx);
+
+        // Disconnect session 1 manually.
+        crate::ui::menu::handle_menu_action(
+            &mut core,
+            &mut ui_state,
+            AppAction::ViceDisconnect,
+            &tx,
+        );
+        assert!(!core.state.is_vice_connected());
+
+        // Ignore a stale Connected event from session 1.
+        handle_vice_event(
+            first_id,
+            ViceEvent::Connected,
+            &mut core.state,
+            &mut ui_state,
+        );
+        assert!(!core.state.is_vice_connected());
+        assert!(!core.state.vice_state.connected);
+
+        // Connect session 2.
+        dispatch_menu_action(
+            AppAction::ViceConnectAddress(address),
+            &mut core,
+            &mut ui_state,
+            &tx,
+        );
+        let (_second_server, _) = listener.accept().expect("accept session 2");
+        let second_id = core
+            .state
+            .vice_client
+            .as_ref()
+            .expect("second client attached")
+            .connection_id();
+        assert!(
+            second_id > first_id,
+            "expected second connection ID ({second_id:?}) to exceed first ({first_id:?})"
+        );
+
+        handle_vice_event(
+            second_id,
+            ViceEvent::Connected,
+            &mut core.state,
+            &mut ui_state,
+        );
+        assert_eq!(
+            ui_state.status_message.as_deref(),
+            Some("Connected to VICE Monitor")
+        );
+
+        // Ignore a stale Disconnected event from session 1 so session 2 and the status stay unchanged.
+        handle_vice_event(
+            first_id,
+            ViceEvent::Disconnected("Connection closed".to_string()),
+            &mut core.state,
+            &mut ui_state,
+        );
+        assert!(core.state.is_vice_connected());
+        assert!(core.state.is_active_vice_connection(second_id));
+        assert_eq!(
+            ui_state.status_message.as_deref(),
+            Some("Connected to VICE Monitor")
         );
     }
 }
