@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "origin": 2048,
+  "raw_data_base64": "H4sIAAAAAAAA/+3QRVgUYQDG8RlXdNTFQUBs+RxbAdcWe11R1MVRQOxYVxR1cRQQuzvp7maBobu7u7u7u+uBA0fuPOzv+p7+L01cUgxI40w6YOAyOJCXAgp0gDHoskxcDpOAINrErkRwWIBNKBNATRGoswDGZqlwCNWJfaab7ENQKgwoKD8KhPmACAwwCixIRYWm+qf5B55Dmcs3bz6yYOEiKv9iVGCJoJDwUpFly1esXLV6zVpRsA5bv2Hjps1btm7bLiYusYO2c9fuPXv37T8gefDQ4SNHjx2nn2CclDp1WvrM2XNMmfP4hYuycvKXFC5fuXrt+o2bt27fYd1l31O8/0Dp4aPHHOUnxNNnKqpqz9VfvHz1+s3bd+8/fPz0+cvXb99//Pz1+8/ff/81NLW0dXT19A0MjYxNTM3MLSytrG1s7ewdHLlOzi6kq5u7h6eXt4+vn39AYFBwSGhYeERkVHRMbFx8QmJSckpqWnpGZlZ2Tm5efkFhUXFJaVl5RWVVdU1tXX1DY1NzS2tbe0dnV3dPb1//wODQ8Mjo2Kzv5+Hh4ZmpSAghYYQUQEhRhAtxoXEc84K2EAgAAA==",
+  "blocks": [
+    {
+      "start": 0,
+      "end": 5,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6,
+      "end": 255,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 256,
+      "end": 286,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 287,
+      "end": 318,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 319,
+      "end": 574,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 575,
+      "end": 830,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 831,
+      "end": 2063,
+      "type_": "Undefined",
+      "collapsed": false
+    }
+  ],
+  "labels": {
+    "2048": [
+      {
+        "name": "start",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ]
+  },
+  "settings": {
+    "all_labels": false,
+    "preserve_long_bytes": true,
+    "brk_single_byte": true,
+    "patch_brk": false,
+    "system": "Commodore 64",
+    "assembler": "Tass64",
+    "max_xref_count": 5,
+    "max_arrow_columns": 6,
+    "use_illegal_opcodes": false,
+    "text_char_limit": 40,
+    "addresses_per_line": 5,
+    "bytes_per_line": 8,
+    "enabled_features": {},
+    "description": "",
+    "auto_analyze": true,
+    "show_system_comments": true,
+    "fill_run_threshold": 8,
+    "exclude_well_known_labels": true
+  },
+  "cursor_address": 2335,
+  "hex_dump_cursor_address": 2320,
+  "sprites_cursor_address": 2048,
+  "charset_cursor_address": 2048,
+  "right_pane_visible": "HexDump16",
+  "sprite_multicolor_mode": false,
+  "charset_multicolor_mode": false,
+  "bitmap_cursor_address": 0,
+  "bitmap_multicolor_mode": false,
+  "hexdump_view_mode": "ScreencodeShifted",
+  "splitters": [],
+  "blocks_view_cursor": null,
+  "enums": {},
+  "user_excluded_addresses": []
+}

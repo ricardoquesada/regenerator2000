@@ -21,10 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install 64tass only on Linux (where it's easy and might be expected by legacy setups)
-      - name: Install 64tass (Linux)
+      # Install 6502 cross-assemblers on Linux so roundtrip tests exercise 64tass, ACME, and ca65 in CI.
+      - name: Install 6502 Assemblers (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y 64tass
+        run: sudo apt-get update && sudo apt-get install -y 64tass acme cc65
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -41,6 +41,24 @@ jobs:
 
       - name: Run tests
         run: cargo test --verbose
+
+      - name: Verify Project Roundtrips (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          for proj in \
+            tests/6502/rq_intro_01.regen2000proj \
+            tests/6502/test_dispatch_table.regen2000proj \
+            tests/6502/test_text.regen2000proj; do
+            echo "=== Verifying $proj ==="
+            output=$(target/debug/regenerator2000 --verify "$proj") || { echo "$output"; exit 1; }
+            echo "$output"
+            for expected in "✓ 64tass" "✓ ACME" "✓ ca65"; do
+              if ! printf '%s\n' "$output" | grep -qF "$expected"; then
+                echo "ERROR: Expected '$expected' to pass for $proj (assembler may have been skipped)"
+                exit 1
+              fi
+            done
+          done
 
       - name: Audit Dependencies
         if: matrix.os == 'ubuntu-latest'

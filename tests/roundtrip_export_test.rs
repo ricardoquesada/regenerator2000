@@ -18,7 +18,7 @@
 
 use regenerator2000_core::exporter::{verify_all_assemblers, verify_roundtrip};
 use regenerator2000_core::state::{AppState, Assembler};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Helper: Load a PRG file and set up an `AppState` suitable for verification.
 /// Returns the `AppState` with disassembly populated.
@@ -41,15 +41,36 @@ fn load_prg_for_verify(prg_path: &str) -> AppState {
 fn load_project_for_verify(proj_path: &str) -> AppState {
     let mut state = AppState::new();
     state.settings.auto_analyze = true;
-    let path = PathBuf::from(proj_path);
-    let result = state.load_file(path);
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(proj_path);
+    let result = state.load_file(&path);
     assert!(
         result.is_ok(),
         "Failed to load {}: {:?}",
-        proj_path,
+        path.display(),
         result.err()
     );
     state
+}
+
+/// Helper: Load a `.regen2000proj` fixture and verify roundtrip assembly across all available assemblers.
+fn verify_project_all_assemblers(proj_path: &str) {
+    let state = load_project_for_verify(proj_path);
+
+    let results = verify_all_assemblers(&state);
+    for r in &results {
+        println!("{r}");
+    }
+
+    for r in &results {
+        if r.message.contains("not found in PATH") {
+            continue; // skip unavailable assemblers
+        }
+        assert!(
+            r.success,
+            "{} roundtrip failed for {proj_path}: {}",
+            r.assembler, r.message
+        );
+    }
 }
 
 /// Check if an assembler is available by trying to run it.
@@ -128,28 +149,51 @@ fn test_roundtrip_sprmux32_acme() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
-// Test: Project file with regen2000proj - all assemblers
+// Test: Project files with regen2000proj - all assemblers & CLI --verify
 // ════════════════════════════════════════════════════════════════════════════════
 
 #[test]
 fn test_roundtrip_project_file_all_assemblers() {
-    let state = load_project_for_verify("tests/6502/rq_intro_01.regen2000proj");
+    verify_project_all_assemblers("tests/6502/rq_intro_01.regen2000proj");
+}
 
-    let results = verify_all_assemblers(&state);
-    for r in &results {
-        println!("{r}");
+#[test]
+fn test_roundtrip_test_text_project_all_assemblers() {
+    verify_project_all_assemblers("tests/6502/test_text.regen2000proj");
+}
+
+#[test]
+fn test_roundtrip_test_dispatch_table_project_all_assemblers() {
+    verify_project_all_assemblers("tests/6502/test_dispatch_table.regen2000proj");
+}
+
+#[test]
+fn test_cli_verify_test_text_project() {
+    let proj_path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/6502/test_text.regen2000proj");
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_regenerator2000"))
+        .arg("--verify")
+        .arg(&proj_path)
+        .output()
+        .expect("failed to execute regenerator2000 --verify");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if !output.status.success() && stderr.contains("No assemblers found") {
+        println!("Skipping CLI --verify test: no assemblers installed");
+        return;
     }
 
-    for r in &results {
-        if r.message.contains("not found in PATH") {
-            continue; // skip unavailable assemblers
-        }
-        assert!(
-            r.success,
-            "{} roundtrip failed for rq_intro_01.regen2000proj: {}",
-            r.assembler, r.message
-        );
-    }
+    assert!(
+        output.status.success(),
+        "regenerator2000 --verify failed for {}:\nstdout:\n{stdout}\nstderr:\n{stderr}",
+        proj_path.display()
+    );
+    assert!(
+        stdout.contains("All roundtrip verifications passed."),
+        "Unexpected --verify output:\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════════

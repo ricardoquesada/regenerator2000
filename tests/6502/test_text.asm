@@ -16,6 +16,12 @@
 	.TEXT  "0-9, hola como te va ""carlos"".", 0
 	.ENDENCODE
 
+	; PETSCII
+	.byte range(256)
+
+	; ASCII
+	.byte range(256)
+
 * = $1000
 	lda $800
 	lda $801
