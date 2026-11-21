@@ -29,9 +29,10 @@ The project is split into two main crates to separate logic from presentation:
   - `view_state.rs`: View state management (`CoreViewState`).
 
 - **`regenerator2000-tui`**: Contains all terminal UI-related code.
-  - `ui/`: TUI widgets (`widget.rs`, `navigable.rs`), top menu (`menu/`), views (`view_disassembly/` submodule breakdown [`layout.rs`, `navigation.rs`, `mouse.rs`, `render.rs`, `mod.rs`], HexDump, Sprites, Charset, Bitmap, Blocks, Debugger), and modal dialogs (`dialog_*.rs`, including unified `FileBrowserDialog`, `PromptDialog`, `ContainerPickerDialog`, and table-driven `DocumentSettingsDialog`).
+  - `ui/`: Top-level frame composition (`render.rs`, re-exported via thin `mod.rs`), TUI widgets (`widget.rs`, `navigable.rs`, `minimap_bar.rs`, `statusbar.rs`, `scoped_input.rs`), top menu (`menu/`: `menu_model.rs`, `menu_render.rs`, `menu_action.rs`, `menu_widget.rs`, thin `mod.rs`), views (`view_disassembly/` submodule breakdown [`layout.rs`, `navigation.rs`, `mouse.rs`, `render.rs`, `view.rs`, `mod.rs`], HexDump, Sprites, Charset, Bitmap, Blocks, Debugger), and modal dialogs (`dialog_*.rs`, including unified `FileBrowserDialog`, `PromptDialog`, `ContainerPickerDialog`, and table-driven `DocumentSettingsDialog`).
   - `ui_state.rs`: Transient UI state (cursor, scroll, active dialog, wrapping `CoreViewState` via `Deref`).
-  - `events.rs` & `events/`: Event loop, background task coordination, and input handling.
+  - `events/`: Event loop (`runner.rs`), event enum (`app_event.rs`), global input mapping (`input.rs`), background MCP coordination (`mcp.rs`), and VICE monitor integration (`vice.rs`), re-exported via thin `mod.rs`.
+  - `terminal_graphics.rs`: Terminal image protocol probing, Kitty/iTerm2/Sixel helpers, and headless picker setup.
   - `theme.rs`: Color scheme and styling logic.
   - `theme_file.rs`: Theme file parsing and custom theme support.
   - `utils.rs`: TUI utility functions.
@@ -60,7 +61,7 @@ Regenerator 2000 follows a unidirectional data flow (Redux/Elm style):
 2. **Dispatch**: `handle_menu_action` (`crates/regenerator2000-tui/src/ui/menu/menu_action.rs`) forwards `AppAction` to `Core::apply_action`, which delegates to `action_handlers/` and converts actions into `Command` variants and `CoreEvent` notifications.
 3. **Execution**: `Command::apply(&mut AppState)` modifies the state and pushes to `UndoStack`.
 4. **Analysis**: `AppState::perform_analysis()` (via `analyzer.rs`) updates labels and typed cross-references (`XRef`).
-5. **Render**: `ui()` in `crates/regenerator2000-tui/src/ui.rs` re-renders the TUI from `AppState` + `UIState`.
+5. **Render**: `ui()` in `crates/regenerator2000-tui/src/ui/render.rs` (re-exported from `ui/mod.rs`) re-renders the TUI from `AppState` + `UIState`.
 
 ### No Logic Duplication — State Logic Lives in Core
 
@@ -106,7 +107,7 @@ All AI-generated code MUST follow the rules below. The workspace enforces baseli
 
 ### Module Layout and Imports
 
-- **Thin `mod.rs` files**: Keep non-leaf `mod.rs` files limited to module declarations, module doc comments (`//!`), and `pub use` re-exports. Place structs, traits, implementations, and unit tests in named leaf submodules (e.g., `action_handlers/context.rs`, `disassembler/engine.rs`, `disassembler/line.rs`, `packers/info.rs`, `unpacker/runner.rs`, and `bin/unpacker_compare_all/{corpus/constants.rs,unp64/runner.rs}`).
+- **Thin `mod.rs` files**: Keep non-leaf `mod.rs` files limited to module declarations, module doc comments (`//!`), and `pub use` re-exports. Place structs, traits, implementations, and unit tests in named leaf submodules (e.g., `action_handlers/context.rs`, `disassembler/engine.rs`, `disassembler/line.rs`, `packers/info.rs`, `unpacker/runner.rs`, `bin/unpacker_compare_all/{corpus/constants.rs,unp64/runner.rs}`, `events/runner.rs`, `ui/render.rs`, `ui/menu/menu_widget.rs`, and `ui/view_disassembly/view.rs`).
 - **Flat `use` statements**: Import items from one module per `use` statement — avoid nested `use` trees (write separate `use std::collections::BTreeMap;` and `use std::fs;` imports rather than `use std::{collections::BTreeMap, fs};`). Grouping sibling items from the same module in `{...}` is fine (e.g., `use crate::state::{Addr, AppState};`).
 - **Import types; avoid inline multi-segment paths**: Import types, traits, and enums at module scope (or inside `#[cfg(test)] mod tests`) and refer to them unqualified (`Range<usize>`, `HashSet<Addr>`, `Path`). Qualify free functions with their parent module when it improves clarity or avoids name collisions (`fs::read`, `analyzer::analyze`, `navigation::resolve_jump_content_line_index`, `basic::find_sys_address`). Exceptions: disambiguating shadowed prelude names (`std::result::Result` where `crate::Result` is in scope) and `$crate::...` paths inside `macro_rules!`.
 - **No glob imports in production code**: Avoid `use foo::*;`. Glob imports are permitted only for facade re-exports (`pub use error::*;` in `lib.rs`, `pub use ...::*;` in `state/mod.rs`) and `use super::*;` inside `#[cfg(test)] mod tests`.
@@ -147,12 +148,12 @@ Production code must never panic silently.
 
 ### Documentation
 
-- All `pub` items in `regenerator2000-core` — including modules (`//!`), structs, struct fields, enums, enum variants, functions, and constants — must have doc comments (`///`).
+- All `pub` items in `regenerator2000-core` and `regenerator2000-tui` — including modules (`//!`), structs, struct fields, enums, enum variants, functions, and constants — must have doc comments (`///`).
 - Functions returning `Result` must include a `# Errors` section explaining when they fail.
 - Functions that can panic (outside tests) must include a `# Panics` section.
 - Wrap code identifiers, CamelCase names (e.g., `` `AppState` ``, `` `KickAssembler` ``), hex addresses (`$0801`), flags, and file paths in backticks (`clippy::doc_markdown`).
 - Use shorthand intra-doc links (`` [`TypeName`] ``) to cross-reference types rather than redundant explicit targets such as `` [`EnumDefinition`](EnumDefinition) `` (`rustdoc::redundant_explicit_links`).
-- Run `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` and `cargo clippy -p regenerator2000-core --all-targets --all-features -- -D warnings -D missing_docs -D clippy::doc_markdown` to verify doc links, doc-tests, and coverage.
+- Run `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` and `cargo clippy -p regenerator2000-core -p regenerator2000-tui --all-targets --all-features -- -D warnings -D missing_docs -D clippy::doc_markdown` to verify doc links, doc-tests, and coverage.
 
 ### Type Design
 
@@ -208,10 +209,10 @@ Currently enforced (error in CI via `-D warnings`):
 | `missing_errors_doc` | Documentation |
 | `missing_panics_doc` | Documentation |
 
-Aspirational / Readability Checks (apply to new code, enforced via `-D` on `regenerator2000-core` readability passes):
+Aspirational / Readability Checks (apply to new code, enforced via `-D` on `regenerator2000-core` and `regenerator2000-tui` readability passes):
 | Lint | Category / Apply when |
 |---|---|
-| `missing_docs` | Public API docs in `regenerator2000-core` |
+| `missing_docs` | Public API docs in `regenerator2000-core` and `regenerator2000-tui` |
 | `clippy::doc_markdown` | Backtick code/identifiers in doc comments |
 | `clippy::redundant_clone` | Unnecessary `.clone()` calls |
 | `clippy::assigning_clones` | Reassigning via `.clone()` instead of `clone_from` / slice copy |
@@ -235,11 +236,11 @@ cargo test --workspace --all-features                                    # Run a
 cargo fmt --all -- --check                                               # Check formatting
 cargo clippy --workspace --all-targets --all-features -- -D warnings     # Workspace lints (warnings are errors)
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features # Verify rustdoc builds and intra-doc links
-cargo clippy -p regenerator2000-core --all-targets --all-features -- \
+cargo clippy -p regenerator2000-core -p regenerator2000-tui --all-targets --all-features -- \
   -D warnings -D missing_docs -D clippy::doc_markdown \
   -D clippy::redundant_clone -D clippy::assigning_clones \
   -D clippy::needless_pass_by_value -D clippy::manual_is_variant_and \
-  -D clippy::uninlined_format_args -D clippy::format_collect              # Strict core readability lint pass
+  -D clippy::uninlined_format_args -D clippy::format_collect              # Strict readability lint pass
 ```
 
 ### Adding Features

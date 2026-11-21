@@ -4,13 +4,22 @@
 //! into account), page up/down navigation, direct instruction index jumping, and G-command visual line jumping.
 
 use crate::ui::view_disassembly::layout::{
-    get_index_for_visual_line, get_line_visual_height, get_visual_line_count_for_instruction,
+    index_for_visual_line, line_visual_height, visual_line_count_for_instruction,
 };
 use crate::ui_state::UIState;
 use regenerator2000_core::state::AppState;
 
 /// Default number of instruction lines scrolled during page up and page down actions.
 pub const PAGE_SCROLL_AMOUNT: usize = 30;
+
+/// Direction to search first when resolving a navigable disassembly line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchDirection {
+    /// Scan forward toward the end of the listing first, then backward.
+    Forward,
+    /// Scan backward toward the start of the listing first, then forward.
+    Backward,
+}
 
 /// Synchronizes range selection state before a non-Shift cursor movement.
 ///
@@ -28,10 +37,14 @@ pub fn sync_selection_on_move(ui_state: &mut UIState) {
 
 /// Finds the closest index in `app_state.disassembly` where `line.is_navigable()` holds.
 ///
-/// Searches in the preferred direction (`prefer_forward`) first, then searches in the
+/// Searches in the preferred `direction` first, then searches in the
 /// opposite direction if no navigable line exists in the preferred direction.
 #[must_use]
-pub fn nearest_navigable_index(app_state: &AppState, index: usize, prefer_forward: bool) -> usize {
+pub fn nearest_navigable_index(
+    app_state: &AppState,
+    index: usize,
+    direction: SearchDirection,
+) -> usize {
     let len = app_state.disassembly.len();
     if len == 0 {
         return 0;
@@ -41,25 +54,32 @@ pub fn nearest_navigable_index(app_state: &AppState, index: usize, prefer_forwar
         return clamped;
     }
 
-    if prefer_forward {
-        if let Some(found) = (clamped + 1..len).find(|&i| app_state.disassembly[i].is_navigable()) {
-            return found;
+    match direction {
+        SearchDirection::Forward => {
+            if let Some(found) =
+                (clamped + 1..len).find(|&i| app_state.disassembly[i].is_navigable())
+            {
+                return found;
+            }
+            if let Some(found) = (0..clamped)
+                .rev()
+                .find(|&i| app_state.disassembly[i].is_navigable())
+            {
+                return found;
+            }
         }
-        if let Some(found) = (0..clamped)
-            .rev()
-            .find(|&i| app_state.disassembly[i].is_navigable())
-        {
-            return found;
-        }
-    } else {
-        if let Some(found) = (0..clamped)
-            .rev()
-            .find(|&i| app_state.disassembly[i].is_navigable())
-        {
-            return found;
-        }
-        if let Some(found) = (clamped + 1..len).find(|&i| app_state.disassembly[i].is_navigable()) {
-            return found;
+        SearchDirection::Backward => {
+            if let Some(found) = (0..clamped)
+                .rev()
+                .find(|&i| app_state.disassembly[i].is_navigable())
+            {
+                return found;
+            }
+            if let Some(found) =
+                (clamped + 1..len).find(|&i| app_state.disassembly[i].is_navigable())
+            {
+                return found;
+            }
         }
     }
 
@@ -83,7 +103,7 @@ fn is_index_visually_visible(app_state: &AppState, ui_state: &UIState, index: us
         .iter()
         .enumerate()
     {
-        let height = get_line_visual_height(line, app_state);
+        let height = line_visual_height(line, app_state);
         let used = if i == 0 {
             height.saturating_sub(ui_state.scroll_sub_index)
         } else {
@@ -115,7 +135,7 @@ pub fn move_cursor_down(app_state: &AppState, ui_state: &mut UIState, amount: us
 
     for _ in 0..amount {
         let line = &app_state.disassembly[ui_state.cursor_index];
-        let visual_len = get_visual_line_count_for_instruction(line, app_state);
+        let visual_len = visual_line_count_for_instruction(line, app_state);
 
         if ui_state.sub_cursor_index + 1 < visual_len && ui_state.selection_start.is_none() {
             ui_state.sub_cursor_index += 1;
@@ -169,7 +189,7 @@ pub fn move_cursor_up(app_state: &AppState, ui_state: &mut UIState, amount: usiz
             let prev_line = &app_state.disassembly[prev_idx];
             if prev_line.is_navigable() {
                 ui_state.cursor_index = prev_idx;
-                let prev_counts = get_visual_line_count_for_instruction(prev_line, app_state);
+                let prev_counts = visual_line_count_for_instruction(prev_line, app_state);
                 ui_state.sub_cursor_index = prev_counts.saturating_sub(1);
             }
         }
@@ -189,9 +209,10 @@ pub fn page_down(app_state: &AppState, ui_state: &mut UIState, total_len: usize)
     }
     sync_selection_on_move(ui_state);
     let raw_target = (ui_state.cursor_index + PAGE_SCROLL_AMOUNT).min(total_len.saturating_sub(1));
-    ui_state.cursor_index = nearest_navigable_index(app_state, raw_target, true);
+    ui_state.cursor_index =
+        nearest_navigable_index(app_state, raw_target, SearchDirection::Forward);
     let line = &app_state.disassembly[ui_state.cursor_index];
-    let max_sub = get_visual_line_count_for_instruction(line, app_state);
+    let max_sub = visual_line_count_for_instruction(line, app_state);
     if ui_state.sub_cursor_index >= max_sub {
         ui_state.sub_cursor_index = max_sub.saturating_sub(1);
     }
@@ -209,9 +230,10 @@ pub fn page_up(app_state: &AppState, ui_state: &mut UIState) {
     }
     sync_selection_on_move(ui_state);
     let raw_target = ui_state.cursor_index.saturating_sub(PAGE_SCROLL_AMOUNT);
-    ui_state.cursor_index = nearest_navigable_index(app_state, raw_target, false);
+    ui_state.cursor_index =
+        nearest_navigable_index(app_state, raw_target, SearchDirection::Backward);
     let line = &app_state.disassembly[ui_state.cursor_index];
-    let max_sub = get_visual_line_count_for_instruction(line, app_state);
+    let max_sub = visual_line_count_for_instruction(line, app_state);
     if ui_state.sub_cursor_index >= max_sub {
         ui_state.sub_cursor_index = max_sub.saturating_sub(1);
     }
@@ -232,7 +254,12 @@ pub fn jump_to(app_state: &AppState, ui_state: &mut UIState, index: usize, total
     sync_selection_on_move(ui_state);
     let max = total_len.saturating_sub(1);
     let clamped = index.min(max);
-    let target_idx = nearest_navigable_index(app_state, clamped, clamped < max);
+    let direction = if clamped < max {
+        SearchDirection::Forward
+    } else {
+        SearchDirection::Backward
+    };
+    let target_idx = nearest_navigable_index(app_state, clamped, direction);
     ui_state.cursor_index = target_idx;
     ui_state.sub_cursor_index = 0;
 
@@ -263,11 +290,11 @@ pub fn jump_to_user_input(
         Some(nearest_navigable_index(
             app_state,
             total_len.saturating_sub(1),
-            false,
+            SearchDirection::Backward,
         ))
     } else {
-        get_index_for_visual_line(app_state, input)
-            .map(|idx| nearest_navigable_index(app_state, idx, true))
+        index_for_visual_line(app_state, input)
+            .map(|idx| nearest_navigable_index(app_state, idx, SearchDirection::Forward))
     };
 
     if let Some(idx) = new_cursor {
@@ -285,6 +312,7 @@ pub fn jump_to_user_input(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::theme::Theme;
     use regenerator2000_core::disassembler::DisassemblyLine;
     use regenerator2000_core::state::Addr;
 
@@ -325,7 +353,7 @@ mod tests {
     #[test]
     fn test_move_cursor_down_sub_cursor_step() {
         let app_state = make_multiline_test_app_state();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.cursor_index = 0;
         ui_state.sub_cursor_index = 0;
 
@@ -345,7 +373,7 @@ mod tests {
     #[test]
     fn test_move_cursor_down_bounds_clamp() {
         let app_state = make_multiline_test_app_state();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.cursor_index = 0;
         ui_state.sub_cursor_index = 0;
 
@@ -356,7 +384,7 @@ mod tests {
     #[test]
     fn test_move_cursor_up_from_top() {
         let app_state = make_multiline_test_app_state();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.cursor_index = 0;
         ui_state.sub_cursor_index = 0;
 
@@ -384,7 +412,7 @@ mod tests {
                 is_collapsed: false,
             });
         }
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.cursor_index = 0;
 
         page_down(&app_state, &mut ui_state, app_state.disassembly.len());
@@ -397,7 +425,7 @@ mod tests {
     #[test]
     fn test_navigation_with_active_selection() {
         let app_state = make_multiline_test_app_state();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.cursor_index = 0;
         ui_state.sub_cursor_index = 0;
         ui_state.selection_start = Some(0);
@@ -432,7 +460,7 @@ mod tests {
             });
         }
 
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let len = app_state.disassembly.len();
 
         jump_to(&app_state, &mut ui_state, 0, len);
@@ -452,7 +480,7 @@ mod tests {
     #[test]
     fn test_jump_to_checks_visual_height_and_syncs_selection() {
         let app_state = make_multiline_test_app_state();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.scroll_index = 0;
         ui_state.scroll_sub_index = 0;
         ui_state.disassembly_viewport_height = 2; // line 0 has visual height 3, so line 1 is off-screen

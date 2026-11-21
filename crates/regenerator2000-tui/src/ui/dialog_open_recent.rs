@@ -1,22 +1,25 @@
-use crate::state::AppState;
-use crate::ui::widget::{Widget, WidgetResult};
-use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    widgets::{Clear, List, ListItem},
-};
+//! Modal dialog for reopening a recently accessed project or binary.
 
+use crate::state::AppState;
+use crate::ui::dialog_file_browser::FileBrowserDialog;
+use crate::ui::widget::{self, Widget, WidgetResult};
+use crate::ui_state::UIState;
+use crate::utils;
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::widgets::{Clear, List, ListItem, Paragraph};
+
+/// Modal dialog for selecting and reopening a recently accessed project or binary.
 pub struct OpenRecentDialog;
 
 impl Widget for OpenRecentDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" Open Recent ", theme);
+        let block = widget::create_dialog_block(" Open Recent ", theme);
 
-        let area = crate::utils::centered_rect_adaptive(80, 60, 80, 24, area);
+        let area = utils::centered_rect_adaptive(80, 60, 80, 24, area);
 
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
@@ -27,11 +30,11 @@ impl Widget for OpenRecentDialog {
         let recents = &app_state.system_config.recent_projects;
 
         if recents.is_empty() {
-            let p = ratatui::widgets::Paragraph::new(
+            let p = Paragraph::new(
                 "No recent projects.\nProjects are automatically saved here when opened.",
             )
             .style(Style::default().fg(theme.menu_disabled_fg))
-            .alignment(ratatui::layout::Alignment::Center);
+            .alignment(Alignment::Center);
 
             let v_layout = Layout::default()
                 .direction(Direction::Vertical)
@@ -116,13 +119,11 @@ impl Widget for OpenRecentDialog {
             KeyCode::Enter => {
                 if let Some(i) = ui_state.recent_list_state.selected() {
                     if let Some(path) = recents.get(i).cloned() {
-                        if let Err(msg) =
-                            crate::ui::dialog_file_browser::FileBrowserDialog::open_file_or_container(
-                                path.clone(),
-                                app_state,
-                                ui_state,
-                            )
-                        {
+                        if let Err(msg) = FileBrowserDialog::open_file_or_container(
+                            path.clone(),
+                            app_state,
+                            ui_state,
+                        ) {
                             ui_state.set_status_message(msg);
                             app_state.system_config.remove_recent_project(&path);
                             let _ = app_state.system_config.save();
@@ -147,6 +148,9 @@ mod tests {
     use crossterm::event::KeyModifiers;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
+    use ratatui::buffer::Cell;
+    use std::env;
+    use std::fs;
     use std::path::PathBuf;
 
     #[test]
@@ -157,25 +161,25 @@ mod tests {
 
         // 1. Empty recents renders placeholder message.
         let backend = TestBackend::new(80, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing OpenRecentDialog should succeed");
         let empty_rendered: String = terminal
             .backend()
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         assert!(empty_rendered.contains("No recent projects."));
 
         // 2. Populated recents wrap on Up/Down and prune missing files on Enter.
         let p1 = PathBuf::from("/tmp/nonexistent_r2000_1.regen2000proj");
         let p2 = PathBuf::from("/tmp/nonexistent_r2000_2.regen2000proj");
-        app_state.system_config.recent_projects = vec![p1.clone(), p2.clone()];
+        app_state.system_config.recent_projects = vec![p1, p2.clone()];
         ui_state.recent_list_state.select(Some(0));
 
         dialog.handle_input(
@@ -216,8 +220,8 @@ mod tests {
         t64_bytes[80..96].copy_from_slice(b"DEMO            ");
         t64_bytes[96..98].copy_from_slice(&[0xEA, 0x60]);
 
-        let tmp_t64 = std::env::temp_dir().join("r2000_open_recent_test.t64");
-        std::fs::write(&tmp_t64, &t64_bytes).unwrap();
+        let tmp_t64 = env::temp_dir().join("r2000_open_recent_test.t64");
+        fs::write(&tmp_t64, &t64_bytes).expect("writing temporary T64 fixture should succeed");
         app_state.system_config.recent_projects = vec![tmp_t64.clone()];
         ui_state.recent_list_state.select(Some(0));
         ui_state.active_dialog = None;
@@ -234,6 +238,6 @@ mod tests {
             ui_state.active_dialog.is_some(),
             "Expected ContainerPickerDialog to be pushed when opening T64 from OpenRecentDialog"
         );
-        let _ = std::fs::remove_file(&tmp_t64);
+        let _ = fs::remove_file(&tmp_t64);
     }
 }

@@ -1,3 +1,5 @@
+//! Shared VIC-II graphics constants for C64 rendering (sprites, charset, bitmaps).
+
 /// Common graphics utilities for C64 rendering (sprites, charset, bitmaps).
 ///
 /// Provides the shared VIC-II 16-color RGB palette used by bitmap rendering.

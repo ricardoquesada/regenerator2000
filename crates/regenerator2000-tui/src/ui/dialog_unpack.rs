@@ -1,24 +1,33 @@
+//! Modal dialog for configuring parameters before running the 6502 binary unpacker.
+
 use crate::state::AppState;
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::{AppAction, UIState};
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Clear, Paragraph},
-};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Clear, Paragraph};
+use regenerator2000_core::state::FileInfo;
 use regenerator2000_core::unpacker::UnpackConfig;
+use std::sync::OnceLock;
 
-use crate::ui::widget::{Widget, WidgetResult};
-
+/// Modal dialog allowing the user to override entry, return, depacker, and step limit settings
+/// before invoking the binary unpacker.
 pub struct UnpackDialog {
+    /// Hex entry point override (empty for auto-SYS detection).
     pub entry_input: String,
+    /// Hex return address override (empty for system RAM start).
     pub ret_input: String,
+    /// Hex depacker routine start override (empty for auto-detection).
     pub dep_input: String,
+    /// Decimal maximum emulated instruction budget.
     pub max_inst_input: String,
-    pub active_field: usize, // 0: entry, 1: return, 2: depacker, 3: max_inst, 4: Unpack button, 5: Cancel button
-    cached_file_info: std::sync::OnceLock<regenerator2000_core::state::FileInfo>,
+    /// Active form field index (0..=3 text fields, 4 = Unpack, 5 = Cancel).
+    pub active_field: usize,
+    cached_file_info: OnceLock<FileInfo>,
 }
 
 impl Default for UnpackDialog {
@@ -28,6 +37,7 @@ impl Default for UnpackDialog {
 }
 
 impl UnpackDialog {
+    /// Creates an [`UnpackDialog`] with default instruction budget (`50000000`) and empty address overrides.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -36,7 +46,7 @@ impl UnpackDialog {
             dep_input: String::new(),
             max_inst_input: "50000000".to_string(),
             active_field: 0,
-            cached_file_info: std::sync::OnceLock::new(),
+            cached_file_info: OnceLock::new(),
         }
     }
 
@@ -84,9 +94,9 @@ impl UnpackDialog {
 impl Widget for UnpackDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" Unpack Binary Options ", theme);
+        let block = widget::create_dialog_block(" Unpack Binary Options ", theme);
 
-        let area = crate::utils::centered_rect_adaptive(55, 50, 0, 14, area);
+        let area = utils::centered_rect_adaptive(55, 50, 0, 14, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -380,11 +390,18 @@ impl Widget for UnpackDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::System;
+    use crate::theme::Theme;
+    use ratatui::Terminal;
+    use ratatui::backend::{Backend, TestBackend};
+    use ratatui::buffer::Cell;
 
     #[test]
     fn test_unpack_dialog_build_config_defaults() {
         let dialog = UnpackDialog::new();
-        let config = dialog.build_config().unwrap();
+        let config = dialog
+            .build_config()
+            .expect("default UnpackDialog fields should produce a valid UnpackConfig");
         assert_eq!(config, UnpackConfig::default());
     }
 
@@ -396,7 +413,9 @@ mod tests {
         dialog.dep_input = "033C".to_string();
         dialog.max_inst_input = "1000000".to_string();
 
-        let config = dialog.build_config().unwrap();
+        let config = dialog
+            .build_config()
+            .expect("valid hex and instruction count should produce UnpackConfig");
         assert_eq!(config.forced_entry, Some(0x0810));
         assert_eq!(config.forced_ret_addr, Some(0x0800));
         assert_eq!(config.forced_dep_addr, Some(0x033C));
@@ -415,7 +434,7 @@ mod tests {
         let mut dialog = UnpackDialog::new();
         dialog.entry_input = "0810".to_string();
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         let res = dialog.handle_input(
             KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
@@ -436,23 +455,23 @@ mod tests {
 
     #[test]
     fn test_unpack_dialog_render_clamps_cursor_on_narrow_terminal() {
-        use ratatui::Terminal;
-        use ratatui::backend::{Backend, TestBackend};
-
         let mut dialog = UnpackDialog::new();
         dialog.entry_input = "0810".to_string();
         let app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         let backend = TestBackend::new(20, 12);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing UnpackDialog on narrow terminal should succeed");
 
-        let pos = terminal.backend_mut().get_cursor_position().unwrap();
+        let pos = terminal
+            .backend_mut()
+            .get_cursor_position()
+            .expect("reading narrow terminal cursor position should succeed");
         assert!(
             pos.x < 20 && pos.y < 12,
             "Expected clamped cursor inside 20x12 terminal, got {pos:?}"
@@ -461,28 +480,25 @@ mod tests {
 
     #[test]
     fn test_unpack_dialog_render_uses_system_ram_start() {
-        use ratatui::Terminal;
-        use ratatui::backend::TestBackend;
-
         let dialog = UnpackDialog::new();
         let mut app_state = AppState::new();
-        app_state.settings.system = crate::state::System::from("C128");
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        app_state.settings.system = System::from("C128");
+        let mut ui_state = UIState::new(Theme::default());
 
         let backend = TestBackend::new(80, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing UnpackDialog with C128 RAM start should succeed");
 
         let rendered: String = terminal
             .backend()
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         assert!(rendered.contains("(blank for $1C00)"));
     }

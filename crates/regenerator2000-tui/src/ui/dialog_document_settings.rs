@@ -1,23 +1,52 @@
-use crate::assets::SystemConfig;
-use crate::state::{AppState, Assembler, AssetReload, DocumentSettings, Reanalysis, System};
+//! Modal dialog for editing per-project [`DocumentSettings`] and toggling system features.
+
+use crate::assets::{self, SystemConfig};
+use crate::state::{Addr, AppState, Assembler, AssetReload, DocumentSettings, Reanalysis, System};
 use crate::theme::Theme;
-use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui::view_disassembly::DisassemblyView;
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
 use ratatui::widgets::{Clear, List, ListItem, ListState, Paragraph};
+use ratatui_textarea::{CursorMove, TextArea};
+
+/// Inclusive bounds for an integer [`DocumentSettings`] value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NumericBounds {
+    /// Minimum allowed value.
+    pub min: usize,
+    /// Maximum allowed value.
+    pub max: usize,
+}
+
+/// Active inline numeric input buffer in [`DocumentSettingsDialog`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EditingNumber {
+    /// Numeric setting currently being edited.
+    pub setting: NumericSetting,
+    /// Uncommitted ASCII digit string typed by the user.
+    pub input: String,
+}
 
 /// Numeric document settings that support inline text editing and `Left`/`Right` stepping.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NumericSetting {
+    /// Maximum cross-references rendered per address.
     MaxXrefCount,
+    /// Maximum arrow columns shown in the disassembly gutter.
     MaxArrowColumns,
+    /// Character limit per PETSCII/screencode string line.
     TextCharLimit,
+    /// Number of addresses/words emitted per data directive line.
     AddressesPerLine,
+    /// Number of bytes emitted per `.byte` directive line.
     BytesPerLine,
+    /// Minimum repeated-byte run length eligible for fill directives (`0` = off).
     FillRunThreshold,
 }
 
@@ -35,16 +64,16 @@ impl NumericSetting {
         }
     }
 
-    /// Inclusive `(min, max)` bounds allowed for this setting.
+    /// Inclusive bounds allowed for this setting.
     #[must_use]
-    pub const fn bounds(self) -> (usize, usize) {
+    pub const fn bounds(self) -> NumericBounds {
         match self {
-            Self::MaxXrefCount => (0, 40),
-            Self::MaxArrowColumns => (1, 10),
-            Self::TextCharLimit => (1, 80),
-            Self::AddressesPerLine => (1, 8),
-            Self::BytesPerLine => (1, 40),
-            Self::FillRunThreshold => (0, 64),
+            Self::MaxXrefCount => NumericBounds { min: 0, max: 40 },
+            Self::MaxArrowColumns => NumericBounds { min: 1, max: 10 },
+            Self::TextCharLimit => NumericBounds { min: 1, max: 80 },
+            Self::AddressesPerLine => NumericBounds { min: 1, max: 8 },
+            Self::BytesPerLine => NumericBounds { min: 1, max: 40 },
+            Self::FillRunThreshold => NumericBounds { min: 0, max: 64 },
         }
     }
 
@@ -90,7 +119,7 @@ impl NumericSetting {
 
     /// Adjusts the setting by `delta` within [`Self::bounds`], returning `true` if the value changed.
     pub fn step(self, settings: &mut DocumentSettings, delta: isize) -> bool {
-        let (min, max) = self.bounds();
+        let bounds = self.bounds();
         let field = self.field_mut(settings);
         let current = *field;
         let next = if delta < 0 {
@@ -98,7 +127,7 @@ impl NumericSetting {
         } else {
             current.saturating_add(delta.cast_unsigned())
         }
-        .clamp(min, max);
+        .clamp(bounds.min, bounds.max);
 
         if next == current {
             return false;
@@ -289,13 +318,20 @@ const FIXED_ROWS: &[RowDescriptor] = &[
 
 const SYSTEM_ROW_INDEX: usize = FIXED_ROWS.len() - 1;
 
+/// Modal dialog for configuring per-document disassembly settings and system features.
 pub struct DocumentSettingsDialog {
+    /// Currently highlighted row index inside the computed active rows table.
     pub selected_index: usize,
+    /// `true` while the target machine system picker popup is open.
     pub is_selecting_system: bool,
+    /// `true` while the target assembler picker popup is open.
     pub is_selecting_assembler: bool,
-    pub editing_number: Option<(NumericSetting, String)>,
+    /// Active inline numeric input popup state, if a numeric row is being edited.
+    pub editing_number: Option<EditingNumber>,
+    /// `true` while editing the inline project description text field.
     pub is_editing_description: bool,
-    pub description_input: ratatui_textarea::TextArea<'static>,
+    /// Single-line text editor state for the project description field.
+    pub description_input: TextArea<'static>,
 }
 
 impl Default for DocumentSettingsDialog {
@@ -382,7 +418,7 @@ impl DocumentSettingsDialog {
         theme: &Theme,
     ) {
         f.render_widget(Clear, popup_area);
-        let block = crate::ui::widget::create_dialog_block(title, theme);
+        let block = widget::create_dialog_block(title, theme);
         let list_items: Vec<ListItem> = options
             .iter()
             .enumerate()
@@ -433,7 +469,7 @@ impl DocumentSettingsDialog {
     }
 
     fn cycle_system(&mut self, app_state: &mut AppState, ui_state: &mut UIState, delta: isize) {
-        let systems = crate::assets::available_systems();
+        let systems = assets::available_systems();
         if systems.is_empty() {
             return;
         }
@@ -482,7 +518,7 @@ impl DocumentSettingsDialog {
     fn restore_cursor(
         app_state: &AppState,
         ui_state: &mut UIState,
-        restore_addr: Option<crate::state::Addr>,
+        restore_addr: Option<Addr>,
         old_sub_cursor: usize,
     ) {
         if let Some(addr) = restore_addr
@@ -490,9 +526,7 @@ impl DocumentSettingsDialog {
         {
             ui_state.cursor_index = new_idx;
             if let Some(line) = app_state.disassembly.get(new_idx) {
-                let counts = crate::ui::view_disassembly::DisassemblyView::get_visual_line_counts(
-                    line, app_state,
-                );
+                let counts = DisassemblyView::visual_line_counts(line, app_state);
                 if old_sub_cursor < counts.total() {
                     ui_state.sub_cursor_index = old_sub_cursor;
                 } else {
@@ -506,9 +540,9 @@ impl DocumentSettingsDialog {
 impl Widget for DocumentSettingsDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" Document Settings ", theme);
+        let block = widget::create_dialog_block(" Document Settings ", theme);
 
-        let area = crate::utils::centered_rect_adaptive(60, 60, 60, 28, area);
+        let area = utils::centered_rect_adaptive(60, 60, 60, 28, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -519,7 +553,7 @@ impl Widget for DocumentSettingsDialog {
         }
 
         let settings = &app_state.settings;
-        let system_config = crate::assets::load_system_config(settings.system.as_str());
+        let system_config = assets::load_system_config(settings.system.as_str());
         let rows = Self::active_rows(&system_config);
 
         let required_rows: u16 = rows.iter().copied().map(RowDescriptor::visual_height).sum();
@@ -581,7 +615,7 @@ impl Widget for DocumentSettingsDialog {
                 }
                 RowDescriptor::Numeric(setting) => {
                     let value_str = match &self.editing_number {
-                        Some((active, input)) if *active == setting => input.clone(),
+                        Some(editing) if editing.setting == setting => editing.input.clone(),
                         _ => setting.display_value(settings),
                     };
                     let text = format!("{}: < {value_str} >", setting.label());
@@ -632,12 +666,12 @@ impl Widget for DocumentSettingsDialog {
         }
 
         if self.is_selecting_system {
-            let systems = crate::assets::available_systems();
+            let systems = assets::available_systems();
             let selected_idx = systems
                 .iter()
                 .position(|p| settings.system == *p)
                 .unwrap_or(0);
-            let popup_area = crate::utils::centered_rect_adaptive(40, 50, 50, 10, area);
+            let popup_area = utils::centered_rect_adaptive(40, 50, 50, 10, area);
             Self::render_selection_popup(
                 f,
                 popup_area,
@@ -655,7 +689,7 @@ impl Widget for DocumentSettingsDialog {
                 .iter()
                 .position(|a| *a == settings.assembler)
                 .unwrap_or(0);
-            let popup_area = crate::utils::centered_rect_adaptive(40, 30, 30, 8, area);
+            let popup_area = utils::centered_rect_adaptive(40, 30, 30, 8, area);
             Self::render_selection_popup(
                 f,
                 popup_area,
@@ -666,13 +700,13 @@ impl Widget for DocumentSettingsDialog {
             );
         }
 
-        if let Some((setting, value_str)) = &self.editing_number {
-            let popup_area = crate::utils::centered_rect_adaptive(30, 40, 0, 3, area);
+        if let Some(editing) = &self.editing_number {
+            let popup_area = utils::centered_rect_adaptive(30, 40, 0, 3, area);
             f.render_widget(Clear, popup_area);
-            let title = format!(" Edit {} ", setting.label());
-            let block = crate::ui::widget::create_dialog_block(&title, theme);
+            let title = format!(" Edit {} ", editing.setting.label());
+            let block = widget::create_dialog_block(&title, theme);
 
-            let widget = Paragraph::new(value_str.as_str())
+            let widget = Paragraph::new(editing.input.as_str())
                 .style(
                     Style::default()
                         .fg(theme.highlight_fg)
@@ -682,7 +716,7 @@ impl Widget for DocumentSettingsDialog {
             f.render_widget(widget, popup_area);
 
             if popup_area.width > 2 && popup_area.height > 1 {
-                let cursor_x = (popup_area.x + 1 + value_str.chars().count() as u16)
+                let cursor_x = (popup_area.x + 1 + editing.input.chars().count() as u16)
                     .min(popup_area.right().saturating_sub(2));
                 f.set_cursor_position((cursor_x, popup_area.y + 1));
             }
@@ -714,17 +748,17 @@ impl Widget for DocumentSettingsDialog {
             return WidgetResult::Handled;
         }
 
-        if let Some((setting, ref mut input)) = self.editing_number {
+        if let Some(editing) = self.editing_number.as_mut() {
             match key.code {
                 KeyCode::Esc => {
                     self.editing_number = None;
                 }
                 KeyCode::Enter | KeyCode::Char(' ') => {
-                    let (min, max) = setting.bounds();
-                    if let Ok(val) = input.parse::<usize>()
-                        && (min..=max).contains(&val)
+                    let bounds = editing.setting.bounds();
+                    if let Ok(val) = editing.input.parse::<usize>()
+                        && (bounds.min..=bounds.max).contains(&val)
                     {
-                        setting.set(&mut app_state.settings, val);
+                        editing.setting.set(&mut app_state.settings, val);
                         self.editing_number = None;
                         Self::sync_disassembly(
                             app_state,
@@ -733,15 +767,18 @@ impl Widget for DocumentSettingsDialog {
                             Reanalysis::Skip,
                         );
                     } else {
-                        ui_state.set_status_message(format!("Enter a value from {min} to {max}"));
-                        input.clear();
+                        ui_state.set_status_message(format!(
+                            "Enter a value from {} to {}",
+                            bounds.min, bounds.max
+                        ));
+                        editing.input.clear();
                     }
                 }
                 KeyCode::Backspace => {
-                    input.pop();
+                    editing.input.pop();
                 }
-                KeyCode::Char(c) if c.is_ascii_digit() && input.len() < 4 => {
-                    input.push(c);
+                KeyCode::Char(c) if c.is_ascii_digit() && editing.input.len() < 4 => {
+                    editing.input.push(c);
                 }
                 _ => {}
             }
@@ -772,7 +809,7 @@ impl Widget for DocumentSettingsDialog {
             return WidgetResult::Handled;
         }
 
-        let system_config = crate::assets::load_system_config(app_state.settings.system.as_str());
+        let system_config = assets::load_system_config(app_state.settings.system.as_str());
         let rows = Self::active_rows(&system_config);
         let total_items = rows.len();
         let selected_row = rows.get(self.selected_index).copied();
@@ -827,14 +864,14 @@ impl Widget for DocumentSettingsDialog {
                 Some(RowDescriptor::Checkbox(setting)) => setting.toggle(app_state, ui_state),
                 Some(RowDescriptor::Description) => {
                     self.is_editing_description = true;
-                    let mut textarea = ratatui_textarea::TextArea::default();
+                    let mut textarea = TextArea::default();
                     textarea.insert_str(&app_state.settings.description);
-                    textarea.move_cursor(ratatui_textarea::CursorMove::End);
+                    textarea.move_cursor(CursorMove::End);
                     self.description_input = textarea;
                 }
                 Some(RowDescriptor::Numeric(setting)) => {
-                    let current = setting.get(&app_state.settings).to_string();
-                    self.editing_number = Some((setting, current));
+                    let input = setting.get(&app_state.settings).to_string();
+                    self.editing_number = Some(EditingNumber { setting, input });
                 }
                 Some(RowDescriptor::Assembler) => {
                     self.is_selecting_assembler = true;
@@ -884,7 +921,10 @@ mod tests {
         let mut dialog = DocumentSettingsDialog::new();
 
         // 1. Esc while editing number cancels only numeric editing.
-        dialog.editing_number = Some((NumericSetting::FillRunThreshold, "16".to_string()));
+        dialog.editing_number = Some(EditingNumber {
+            setting: NumericSetting::FillRunThreshold,
+            input: "16".to_string(),
+        });
         assert_eq!(
             dialog.handle_input(
                 KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
@@ -949,7 +989,10 @@ mod tests {
         let mut app_state = AppState::new();
         let mut ui_state = UIState::new(Theme::default());
         let mut dialog = DocumentSettingsDialog::new();
-        dialog.editing_number = Some((NumericSetting::MaxXrefCount, "99".to_string()));
+        dialog.editing_number = Some(EditingNumber {
+            setting: NumericSetting::MaxXrefCount,
+            input: "99".to_string(),
+        });
 
         let res = dialog.handle_input(
             KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
@@ -959,7 +1002,10 @@ mod tests {
         assert_eq!(res, WidgetResult::Handled);
         assert_eq!(
             dialog.editing_number,
-            Some((NumericSetting::MaxXrefCount, String::new()))
+            Some(EditingNumber {
+                setting: NumericSetting::MaxXrefCount,
+                input: String::new(),
+            })
         );
         assert_eq!(
             ui_state.status_message.as_deref(),
@@ -977,7 +1023,7 @@ mod tests {
         let fill_idx = FIXED_ROWS
             .iter()
             .position(|r| *r == RowDescriptor::Numeric(NumericSetting::FillRunThreshold))
-            .unwrap();
+            .expect("FillRunThreshold row must exist");
         dialog.selected_index = fill_idx;
         app_state.settings.fill_run_threshold = 1;
 
@@ -1000,7 +1046,10 @@ mod tests {
         );
         assert_eq!(
             dialog.editing_number,
-            Some((NumericSetting::FillRunThreshold, "0".to_string()))
+            Some(EditingNumber {
+                setting: NumericSetting::FillRunThreshold,
+                input: "0".to_string(),
+            })
         );
         dialog.handle_input(
             KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE),
@@ -1031,27 +1080,32 @@ mod tests {
 
         for (w, h) in [(80, 28), (80, 24), (20, 10), (3, 3)] {
             let backend = TestBackend::new(w, h);
-            let mut terminal = Terminal::new(backend).unwrap();
+            let mut terminal =
+                Terminal::new(backend).expect("creating test terminal should succeed");
             terminal
                 .draw(|f| {
                     let area = f.area();
                     dialog.render(f, area, &app_state, &mut ui_state);
                 })
-                .unwrap();
+                .expect("drawing DocumentSettingsDialog should succeed");
         }
 
         // Render active popups (system selector, assembler selector, numeric editor, description editor).
         dialog.is_selecting_system = true;
         dialog.is_selecting_assembler = true;
-        dialog.editing_number = Some((NumericSetting::BytesPerLine, "16".to_string()));
+        dialog.editing_number = Some(EditingNumber {
+            setting: NumericSetting::BytesPerLine,
+            input: "16".to_string(),
+        });
         dialog.is_editing_description = true;
         let backend = TestBackend::new(80, 28);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal =
+            Terminal::new(backend).expect("creating popup test terminal should succeed");
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing DocumentSettingsDialog popups should succeed");
     }
 }

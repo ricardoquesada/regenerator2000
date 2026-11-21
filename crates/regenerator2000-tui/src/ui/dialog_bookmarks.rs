@@ -1,17 +1,21 @@
-use crate::state::AppState;
-use crate::ui::widget::{Widget, WidgetResult, create_dialog_block};
-use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    widgets::{Clear, List, ListItem},
-};
+//! Modal dialog (`Alt+B` / `Ctrl+B`) for browsing, jumping to, and deleting bookmarks.
 
+use crate::state::actions::AppAction;
+use crate::state::{Addr, AppState};
+use crate::ui::widget::{self, Widget, WidgetResult};
+use crate::ui_state::UIState;
+use crate::utils;
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::widgets::{Clear, List, ListItem, Paragraph};
+
+/// Modal dialog listing all bookmarked addresses for quick navigation or removal.
 pub struct BookmarksDialog;
 
 impl BookmarksDialog {
+    /// Creates a new [`BookmarksDialog`].
     #[must_use]
     pub fn new() -> Self {
         Self
@@ -27,9 +31,9 @@ impl Default for BookmarksDialog {
 impl Widget for BookmarksDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = create_dialog_block(" Bookmarks ", theme);
+        let block = widget::create_dialog_block(" Bookmarks ", theme);
 
-        let area = crate::utils::centered_rect_adaptive(50, 40, 50, 20, area);
+        let area = utils::centered_rect_adaptive(50, 40, 50, 20, area);
 
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
@@ -37,18 +41,16 @@ impl Widget for BookmarksDialog {
 
         let inner = block.inner(area);
 
-        let bookmarks: Vec<(crate::state::Addr, &String)> = app_state
+        let bookmarks: Vec<(Addr, &String)> = app_state
             .annotations
             .iter()
             .filter_map(|(addr, entry)| entry.bookmark.as_ref().map(|name| (addr, name)))
             .collect();
 
         if bookmarks.is_empty() {
-            let p = ratatui::widgets::Paragraph::new(
-                "No bookmarks set.\nPress Ctrl+B to toggle bookmark.",
-            )
-            .style(Style::default().fg(theme.menu_disabled_fg))
-            .alignment(ratatui::layout::Alignment::Center);
+            let p = Paragraph::new("No bookmarks set.\nPress Ctrl+B to toggle bookmark.")
+                .style(Style::default().fg(theme.menu_disabled_fg))
+                .alignment(Alignment::Center);
 
             // Vertical center the text
             let v_layout = Layout::default()
@@ -97,7 +99,7 @@ impl Widget for BookmarksDialog {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        let bookmarks: Vec<crate::state::Addr> = app_state
+        let bookmarks: Vec<Addr> = app_state
             .annotations
             .iter()
             .filter_map(|(addr, entry)| entry.bookmark.as_ref().map(|_| addr))
@@ -143,9 +145,7 @@ impl Widget for BookmarksDialog {
             KeyCode::Enter => {
                 if let Some(i) = ui_state.bookmarks_list_state.selected() {
                     if let Some(&addr) = bookmarks.get(i) {
-                        WidgetResult::Action(crate::state::actions::AppAction::NavigateToAddress(
-                            addr,
-                        ))
+                        WidgetResult::Action(AppAction::NavigateToAddress(addr))
                     } else {
                         WidgetResult::Handled
                     }
@@ -186,15 +186,16 @@ impl Widget for BookmarksDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::theme::Theme;
     use crossterm::event::KeyModifiers;
 
     #[test]
     fn test_bookmarks_dialog_delete_pushes_undoable_command() {
         let mut app_state = AppState::new();
-        let addr = crate::state::Addr(0x1000);
+        let addr = Addr(0x1000);
         app_state.set_bookmark(addr, Some("Entry".to_string()));
 
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.bookmarks_list_state.select(Some(0));
         let mut dialog = BookmarksDialog::new();
 

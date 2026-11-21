@@ -1,38 +1,45 @@
-use crate::state::AppState;
-use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line as TextLine, Span},
-    widgets::Paragraph,
-};
-use ratatui_textarea::{CursorMove, DataCursor, TextArea};
+//! Modal dialog for adding or editing line and side comments.
 
-use crate::ui::widget::{Widget, WidgetResult};
+use crate::state::Addr;
+use crate::state::AppState;
+use crate::state::actions::AppAction;
+use crate::state::types::CommentKind;
+use crate::ui::widget::{self, Widget, WidgetResult};
+use crate::ui_state::UIState;
+use crate::utils;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line as TextLine, Span};
+use ratatui::widgets::{Clear, Paragraph};
+use ratatui_textarea::{CursorMove, DataCursor, TextArea};
 
 const SEPARATOR_LEN: usize = 78;
 
+/// Comment flavor edited by [`CommentDialog`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommentType {
+    /// Inline comment appended to a single disassembly line.
     Side,
+    /// Multi-line block comment rendered above an address.
     Line,
 }
 
+/// Modal text-area dialog for creating or editing a line or side comment at an address.
 pub struct CommentDialog {
+    /// Text editor widget holding comment lines.
     pub textarea: TextArea<'static>,
+    /// Whether the dialog edits a side comment or multi-line header comment.
     pub comment_type: CommentType,
-    pub address: crate::state::Addr,
+    /// Target memory address owning this comment.
+    pub address: Addr,
 }
 
 impl CommentDialog {
+    /// Creates a [`CommentDialog`] pre-populated with `current_comment` when non-empty.
     #[must_use]
-    pub fn new(
-        current_comment: Option<&str>,
-        comment_type: CommentType,
-        address: crate::state::Addr,
-    ) -> Self {
+    pub fn new(current_comment: Option<&str>, comment_type: CommentType, address: Addr) -> Self {
         let mut textarea = if let Some(comment) = current_comment {
             let mut t = TextArea::from(comment.lines());
             if comment.is_empty() {
@@ -69,11 +76,7 @@ impl CommentDialog {
     /// In both cases the cursor ends up on the line following the separator.
     fn insert_separator(&mut self, sep: &str) {
         let DataCursor(row, _) = self.textarea.cursor();
-        let current_line_empty = self
-            .textarea
-            .lines()
-            .get(row)
-            .is_none_or(std::string::String::is_empty);
+        let current_line_empty = self.textarea.lines().get(row).is_none_or(String::is_empty);
 
         if current_line_empty {
             // Replace the empty line: just insert the text here.
@@ -97,15 +100,15 @@ impl Widget for CommentDialog {
             CommentType::Side => " Enter Side Comment ",
         };
 
-        let block = crate::ui::widget::create_dialog_block(title, theme);
+        let block = widget::create_dialog_block(title, theme);
 
         // Fixed height of 10 for multi-line
         let area = match self.comment_type {
-            CommentType::Side => crate::utils::centered_rect_adaptive(70, 40, 0, 3, area),
-            CommentType::Line => crate::utils::centered_rect_adaptive(70, 40, 40, 12, area),
+            CommentType::Side => utils::centered_rect_adaptive(70, 40, 0, 3, area),
+            CommentType::Line => utils::centered_rect_adaptive(70, 40, 40, 12, area),
         };
         ui_state.active_dialog_area = area;
-        f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(Clear, area);
 
         let inner = block.inner(area);
         f.render_widget(block, area);
@@ -198,10 +201,10 @@ impl Widget for CommentDialog {
                         } else {
                             let lines = self.textarea.lines();
                             let full_comment = lines.join("\n");
-                            WidgetResult::Action(crate::state::actions::AppAction::ApplyComment {
+                            WidgetResult::Action(AppAction::ApplyComment {
                                 address: self.address,
                                 text: full_comment,
-                                kind: crate::state::types::CommentKind::Line,
+                                kind: CommentKind::Line,
                             })
                         }
                     }
@@ -209,10 +212,10 @@ impl Widget for CommentDialog {
                     CommentType::Side => {
                         let lines = self.textarea.lines();
                         let full_comment = lines.join(" ");
-                        WidgetResult::Action(crate::state::actions::AppAction::ApplyComment {
+                        WidgetResult::Action(AppAction::ApplyComment {
                             address: self.address,
                             text: full_comment,
-                            kind: crate::state::types::CommentKind::Side,
+                            kind: CommentKind::Side,
                         })
                     }
                 }
@@ -312,12 +315,14 @@ impl Widget for CommentDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::theme::Theme;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
 
     #[test]
     fn test_cursor_position_at_end() {
         let comment = "Hello\nWorld";
-        let dialog =
-            CommentDialog::new(Some(comment), CommentType::Side, crate::state::Addr(0x1000));
+        let dialog = CommentDialog::new(Some(comment), CommentType::Side, Addr(0x1000));
         let cursor = dialog.textarea.cursor();
         // cursor is (row, col)
         // Rows are 0-indexed. Hello is row 0. World is row 1.
@@ -328,15 +333,14 @@ mod tests {
     #[test]
     fn test_cursor_position_single_line() {
         let comment = "Hello";
-        let dialog =
-            CommentDialog::new(Some(comment), CommentType::Side, crate::state::Addr(0x1000));
+        let dialog = CommentDialog::new(Some(comment), CommentType::Side, Addr(0x1000));
         let cursor = dialog.textarea.cursor();
         assert_eq!(cursor, DataCursor(0, 5));
     }
 
     #[test]
     fn test_cursor_position_default_line_comment() {
-        let dialog = CommentDialog::new(None, CommentType::Line, crate::state::Addr(0x1000));
+        let dialog = CommentDialog::new(None, CommentType::Line, Addr(0x1000));
         let cursor = dialog.textarea.cursor();
         // Dialog now starts empty; cursor should be at (0, 0).
         assert_eq!(cursor, DataCursor(0, 0));
@@ -344,7 +348,7 @@ mod tests {
 
     #[test]
     fn test_insert_separator_dashes() {
-        let mut dialog = CommentDialog::new(None, CommentType::Line, crate::state::Addr(0x1000));
+        let mut dialog = CommentDialog::new(None, CommentType::Line, Addr(0x1000));
         dialog.insert_separator(&"-".repeat(SEPARATOR_LEN));
         let lines = dialog.textarea.lines();
         // Last line is empty (cursor row). Second-to-last is the separator.
@@ -357,7 +361,7 @@ mod tests {
 
     #[test]
     fn test_insert_separator_equals() {
-        let mut dialog = CommentDialog::new(None, CommentType::Line, crate::state::Addr(0x1000));
+        let mut dialog = CommentDialog::new(None, CommentType::Line, Addr(0x1000));
         dialog.insert_separator(&"=".repeat(SEPARATOR_LEN));
         let lines = dialog.textarea.lines();
         let sep_line = &lines[lines.len() - 2];
@@ -368,25 +372,21 @@ mod tests {
 
     #[test]
     fn test_comment_dialog_render_records_viewport_for_page_up_and_page_down() {
-        use ratatui::Terminal;
-        use ratatui::backend::TestBackend;
-
         let text = (0..25)
             .map(|i| format!("Line {i}"))
             .collect::<Vec<_>>()
             .join("\n");
-        let mut dialog =
-            CommentDialog::new(Some(&text), CommentType::Line, crate::state::Addr(0x1000));
+        let mut dialog = CommentDialog::new(Some(&text), CommentType::Line, Addr(0x1000));
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         let backend = TestBackend::new(80, 24);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing CommentDialog should succeed");
 
         // Cursor starts at the last row (row 24).
         assert_eq!(dialog.textarea.cursor().0, 24);

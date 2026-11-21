@@ -1,23 +1,25 @@
+//! Right-pane C64 bitmap graphics viewer and selection widget.
+
 use crate::state::AppState;
 use crate::terminal_graphics::{centered_image_rect, new_or_reused_protocol, theme_color_to_rgba};
 use crate::ui::graphics_common::VIC_II_RGB;
-use crate::ui_state::{ActivePane, AppAction, ScreenRamMode, UIState};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
-use image::{DynamicImage, Rgb, RgbImage};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::Style,
-    widgets::{Block, Borders, Paragraph},
-};
-use ratatui_image::{FilterType, Resize, StatefulImage, picker::ProtocolType};
-
 use crate::ui::navigable::{
-    AlignedGridRange, Navigable, handle_grid_selection_input, handle_nav_input, jump_grid_cursor,
-    move_grid_cursor_down, move_grid_cursor_up, right_pane_mouse_inner_area,
-    sync_grid_item_to_disassembly,
+    AlignedGridRange, GridSelectionContext, Navigable, SelectionExtend, VisualMode,
+    handle_grid_selection_input, handle_nav_input, jump_grid_cursor, move_grid_cursor_down,
+    move_grid_cursor_up, right_pane_mouse_inner_area, sync_grid_item_to_disassembly,
 };
 use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui_state::{
+    ActivePane, AppAction, BitmapCacheKey, CachedBitmapProtocol, ScreenRamMode, UIState,
+};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+use image::{DynamicImage, Rgb, RgbImage};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::Style;
+use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui_image::picker::ProtocolType;
+use ratatui_image::{FilterType, Resize, StatefulImage};
 
 /// Syncs the bitmap cursor and selection to `DisassemblyView` for the current frame.
 fn sync_bitmap_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
@@ -110,8 +112,8 @@ impl Navigable for BitmapView {
         move_grid_cursor_down(
             &mut ui_state.core.bitmap_cursor_index,
             &mut ui_state.core.bitmap_selection_start,
-            ui_state.core.is_visual_mode,
-            /* extend_selection= */ false,
+            VisualMode::from_active(ui_state.core.is_visual_mode),
+            SelectionExtend::Replace,
             amount,
             total,
         );
@@ -124,8 +126,8 @@ impl Navigable for BitmapView {
         move_grid_cursor_up(
             &mut ui_state.core.bitmap_cursor_index,
             &mut ui_state.core.bitmap_selection_start,
-            ui_state.core.is_visual_mode,
-            /* extend_selection= */ false,
+            VisualMode::from_active(ui_state.core.is_visual_mode),
+            SelectionExtend::Replace,
             amount,
         );
     }
@@ -143,7 +145,7 @@ impl Navigable for BitmapView {
         jump_grid_cursor(
             &mut ui_state.core.bitmap_cursor_index,
             &mut ui_state.core.bitmap_selection_start,
-            ui_state.core.is_visual_mode,
+            VisualMode::from_active(ui_state.core.is_visual_mode),
             index,
             total,
         );
@@ -309,8 +311,12 @@ impl Widget for BitmapView {
 
         // --- ratatui-image integration with lazy caching & zero-leak ID reuse ---
         let multicolor_mode = ui_state.bitmap_multicolor_mode;
-        let cache_key: crate::ui_state::BitmapCacheKey =
-            (grid.origin, bitmap_addr, multicolor_mode, screen_ram_addr);
+        let cache_key = BitmapCacheKey {
+            origin: grid.origin,
+            bitmap_address: bitmap_addr,
+            multicolor_mode,
+            screen_ram_address: screen_ram_addr,
+        };
 
         ui_state.bitmap_cache.entry(cache_key).or_insert_with(|| {
             convert_to_dynamic_image(
@@ -327,39 +333,44 @@ impl Widget for BitmapView {
             // Rebuild before overlay suppression so Kitty keeps its transmission sequence ready
             // for the next unoccluded frame.
             let bg = theme_color_to_rgba(ui_state.theme.background);
-            let needs_rebuild =
-                ui_state
-                    .bitmap_protocol
-                    .as_ref()
-                    .is_none_or(|(cached_key, proto)| {
-                        *cached_key != Some(cache_key)
-                            || proto.background_color() != bg
-                            || proto.protocol_kind() != picker.protocol_type()
-                    });
+            let needs_rebuild = ui_state.bitmap_protocol.as_ref().is_none_or(|cached| {
+                cached.key != Some(cache_key)
+                    || cached.protocol.background_color() != bg
+                    || cached.protocol.protocol_kind() != picker.protocol_type()
+            });
             if needs_rebuild && let Some(img) = ui_state.bitmap_cache.get(&cache_key) {
-                let prev = ui_state.bitmap_protocol.take().map(|(_, p)| p);
+                let prev = ui_state
+                    .bitmap_protocol
+                    .take()
+                    .map(|cached| cached.protocol);
                 let protocol = new_or_reused_protocol(picker, prev, img.clone(), bg);
-                ui_state.bitmap_protocol = Some((Some(cache_key), protocol));
+                ui_state.bitmap_protocol = Some(CachedBitmapProtocol {
+                    key: Some(cache_key),
+                    protocol,
+                });
             }
 
             // Skip image rendering on tiny terminals (`inner_area.height <= 5`) so footer rows
             // stay intact.
             if available_image_area.width > 0
                 && available_image_area.height > 0
-                && let Some((_, proto)) = ui_state.bitmap_protocol.as_ref()
+                && let Some(cached) = ui_state.bitmap_protocol.as_ref()
             {
-                let render_area =
-                    centered_image_rect(proto, &Self::BITMAP_RESIZE, available_image_area);
+                let render_area = centered_image_rect(
+                    &cached.protocol,
+                    &Self::BITMAP_RESIZE,
+                    available_image_area,
+                );
                 // Keep `Halfblocks` active under overlays because Ratatui layers regular cells
                 // cleanly. Suppress `Kitty`, `Iterm2`, and `Sixel` so raw escapes cannot bleed
                 // over overlays or lose Kitty's one-shot `(0, 0)` transmission string.
                 let suppress_for_overlay = picker.protocol_type() != ProtocolType::Halfblocks
                     && is_occluded_by_overlay(ui_state, f.area(), render_area);
-                if !suppress_for_overlay && let Some((_, proto)) = &mut ui_state.bitmap_protocol {
+                if !suppress_for_overlay && let Some(cached) = &mut ui_state.bitmap_protocol {
                     f.render_stateful_widget(
                         StatefulImage::new().resize(Self::BITMAP_RESIZE),
                         render_area,
-                        proto,
+                        &mut cached.protocol,
                     );
                 }
             }
@@ -433,10 +444,12 @@ impl Widget for BitmapView {
             key,
             app_state,
             ui_state,
-            &grid,
-            1,
-            cursor,
-            selection,
+            GridSelectionContext {
+                grid: &grid,
+                grid_cols: 1,
+                cursor,
+                selection,
+            },
             |ui, new_cursor, new_selection| {
                 ui.bitmap_cursor_index = new_cursor;
                 ui.bitmap_selection_start = new_selection;
@@ -547,6 +560,7 @@ mod tests {
     use crate::state::{Addr, BlockType};
     use crate::terminal_graphics::{create_headless_picker, extract_kitty_transmit_id};
     use crate::theme::Theme;
+    use crate::ui;
     use crate::ui::dialog_keyboard_shortcut::ShortcutsDialog;
     use crate::ui_state::RightPane;
     use image::Rgba;
@@ -615,12 +629,12 @@ mod tests {
         // Rendering bitmap 0 must clamp padding to 8000 bytes and lazily cache only 1 entry.
         let area = Rect::new(0, 0, 90, 20);
         let backend = TestBackend::new(90, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
         terminal
             .draw(|f| {
                 view.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw bitmap frame");
 
         assert_eq!(
             ui_state.bitmap_cache.len(),
@@ -734,17 +748,17 @@ mod tests {
 
         let view = BitmapView;
         let large_area = Rect::new(0, 0, 120, 45);
-        let mut large_term = Terminal::new(TestBackend::new(120, 45)).unwrap();
+        let mut large_term = Terminal::new(TestBackend::new(120, 45)).expect("create large_term");
         large_term
             .draw(|f| view.render(f, large_area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw large_term");
 
         let available_image_area = Rect::new(1, 3, 118, 38);
         let proto = &ui_state
             .bitmap_protocol
             .as_ref()
             .expect("bitmap_protocol should be populated")
-            .1;
+            .protocol;
         let render_area =
             centered_image_rect(proto, &BitmapView::BITMAP_RESIZE, available_image_area);
         assert_eq!(render_area.width, 118);
@@ -764,20 +778,21 @@ mod tests {
 
         // Tiny terminal guard: inner_area.height == 4 -> image_height == 0; zero panic, footer intact.
         let tiny_area = Rect::new(0, 0, 40, 6);
-        let mut tiny_term = Terminal::new(TestBackend::new(40, 6)).unwrap();
+        let mut tiny_term = Terminal::new(TestBackend::new(40, 6)).expect("create tiny_term");
         tiny_term
             .draw(|f| view.render(f, tiny_area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw tiny_term");
         let tiny_buf = tiny_term.backend().buffer();
         assert!(row_text(tiny_buf, 1, 39, 3).contains("Screen RAM:"));
         assert!(row_text(tiny_buf, 1, 39, 4).contains("[s] next"));
 
         // Picker == None fallback message and [None] title.
         ui_state.picker = None;
-        let mut fallback_term = Terminal::new(TestBackend::new(120, 45)).unwrap();
+        let mut fallback_term =
+            Terminal::new(TestBackend::new(120, 45)).expect("create fallback_term");
         fallback_term
             .draw(|f| view.render(f, large_area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw fallback_term");
         let fallback_buf = fallback_term.backend().buffer();
         assert!(row_text(fallback_buf, 0, 120, 0).contains("[None]"));
         assert!(
@@ -798,10 +813,10 @@ mod tests {
 
         let view = BitmapView;
         let area = Rect::new(0, 0, 80, 30);
-        let mut term1 = Terminal::new(TestBackend::new(80, 30)).unwrap();
+        let mut term1 = Terminal::new(TestBackend::new(80, 30)).expect("create term1");
         term1
             .draw(|f| view.render(f, area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw term1");
 
         let available = Rect::new(1, 3, 78, 23);
         let (render_area, id1, fg1) = {
@@ -809,7 +824,7 @@ mod tests {
                 .bitmap_protocol
                 .as_ref()
                 .expect("protocol should exist")
-                .1;
+                .protocol;
             assert_eq!(proto.background_color(), Some(Rgba([40, 42, 54, 255])));
             let render_area = centered_image_rect(proto, &BitmapView::BITMAP_RESIZE, available);
             let buf1 = term1.backend().buffer();
@@ -823,10 +838,10 @@ mod tests {
 
         // Live theme switch flips to `id1 ^ 1`, invalidating all rows in `Buffer::diff`.
         ui_state.theme = Theme::from_name("Solarized Light");
-        let mut term2 = Terminal::new(TestBackend::new(80, 30)).unwrap();
+        let mut term2 = Terminal::new(TestBackend::new(80, 30)).expect("create term2");
         term2
             .draw(|f| view.render(f, area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw term2");
 
         assert_eq!(ui_state.bitmap_cache.len(), 1);
         assert_eq!(
@@ -834,7 +849,7 @@ mod tests {
                 .bitmap_protocol
                 .as_ref()
                 .expect("protocol should exist")
-                .1
+                .protocol
                 .background_color(),
             Some(Rgba([253, 246, 227, 255]))
         );
@@ -856,10 +871,10 @@ mod tests {
         // Toggle multicolor + Screen RAM offset: cache grows to 2 while flipping back to `id1`.
         ui_state.bitmap_multicolor_mode = true;
         ui_state.bitmap_screen_ram_mode = ScreenRamMode::BankOffset(2);
-        let mut term3 = Terminal::new(TestBackend::new(80, 30)).unwrap();
+        let mut term3 = Terminal::new(TestBackend::new(80, 30)).expect("create term3");
         term3
             .draw(|f| view.render(f, area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw term3");
 
         assert_eq!(ui_state.bitmap_cache.len(), 2);
         let buf3 = term3.backend().buffer();
@@ -892,12 +907,16 @@ mod tests {
         let area = Rect::new(0, 0, 80, 30);
         let available = Rect::new(1, 3, 78, 23);
 
-        let mut term1 = Terminal::new(TestBackend::new(80, 30)).unwrap();
+        let mut term1 = Terminal::new(TestBackend::new(80, 30)).expect("create term1");
         term1
             .draw(|f| view.render(f, area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw term1");
         let render_area = centered_image_rect(
-            &ui_state.bitmap_protocol.as_ref().unwrap().1,
+            &ui_state
+                .bitmap_protocol
+                .as_ref()
+                .expect("protocol should exist")
+                .protocol,
             &BitmapView::BITMAP_RESIZE,
             available,
         );
@@ -910,10 +929,10 @@ mod tests {
         // Changing origin directly (as Undo/Redo or MCP does) keeps the same $2000 bucket key
         // prefix while differentiating cache_key by origin, re-encoding under `id1 ^ 1`.
         app_state.origin = Addr(0x1F50);
-        let mut term2 = Terminal::new(TestBackend::new(80, 30)).unwrap();
+        let mut term2 = Terminal::new(TestBackend::new(80, 30)).expect("create term2");
         term2
             .draw(|f| view.render(f, area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw term2");
         assert_eq!(ui_state.bitmap_cache.len(), 2);
         let buf2 = term2.backend().buffer();
         let id2 = extract_kitty_transmit_id(buf2[(rx, ry)].symbol())
@@ -926,17 +945,29 @@ mod tests {
         app_state.raw_data[0] = 0xFF;
         ui_state.invalidate_bitmap_cache();
         assert!(ui_state.bitmap_cache.is_empty());
-        assert!(ui_state.bitmap_protocol.is_some());
-        assert_eq!(ui_state.bitmap_protocol.as_ref().unwrap().0, None);
+        let invalidated = ui_state
+            .bitmap_protocol
+            .as_ref()
+            .expect("bitmap_protocol slot should remain after invalidation");
+        assert_eq!(invalidated.key, None);
 
-        let mut term3 = Terminal::new(TestBackend::new(80, 30)).unwrap();
+        let mut term3 = Terminal::new(TestBackend::new(80, 30)).expect("create term3");
         term3
             .draw(|f| view.render(f, area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw term3");
         assert_eq!(ui_state.bitmap_cache.len(), 1);
         assert_eq!(
-            ui_state.bitmap_protocol.as_ref().unwrap().0,
-            Some((0x1F50, 0x0000, false, 8000))
+            ui_state
+                .bitmap_protocol
+                .as_ref()
+                .expect("bitmap_protocol should repopulate after invalidation")
+                .key,
+            Some(BitmapCacheKey {
+                origin: 0x1F50,
+                bitmap_address: 0x0000,
+                multicolor_mode: false,
+                screen_ram_address: 8000,
+            })
         );
         let buf3 = term3.backend().buffer();
         let id3 = extract_kitty_transmit_id(buf3[(rx, ry)].symbol())
@@ -959,14 +990,18 @@ mod tests {
         let view = BitmapView;
         let area = Rect::new(0, 0, 120, 40);
         let available = Rect::new(1, 3, 118, 33);
-        let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(120, 40)).expect("create terminal");
 
         // 1. Frame 1 (High-Res).
         terminal
             .draw(|f| view.render(f, area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw high-res frame");
         let render_area = centered_image_rect(
-            &ui_state.bitmap_protocol.as_ref().unwrap().1,
+            &ui_state
+                .bitmap_protocol
+                .as_ref()
+                .expect("protocol should exist")
+                .protocol,
             &BitmapView::BITMAP_RESIZE,
             available,
         );
@@ -979,7 +1014,7 @@ mod tests {
         ui_state.bitmap_multicolor_mode = true;
         terminal
             .draw(|f| view.render(f, area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("draw multicolor frame");
         let buf_multi = terminal.backend().buffer().clone();
         let id2 = extract_kitty_transmit_id(buf_multi[(render_area.x, render_area.y)].symbol())
             .expect("Multicolor frame must emit Kitty transmission");
@@ -998,7 +1033,7 @@ mod tests {
         ui_state.bitmap_multicolor_mode = false;
         terminal
             .draw(|f| view.render(f, area, &app_state, &mut ui_state))
-            .unwrap();
+            .expect("drawing high-res toggle back should succeed");
         let buf_hires_again = terminal.backend().buffer();
         let id3 =
             extract_kitty_transmit_id(buf_hires_again[(render_area.x, render_area.y)].symbol())
@@ -1102,10 +1137,11 @@ mod tests {
         ui_kitty.menu_area = Rect::new(0, 0, 120, 1);
         ui_kitty.active_dialog = Some(Box::new(ShortcutsDialog::new()));
 
-        let mut kitty_suppressed_term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        let mut kitty_suppressed_term =
+            Terminal::new(TestBackend::new(120, 30)).expect("create kitty_suppressed_term");
         kitty_suppressed_term
             .draw(|f| view.render(f, full_area, &app_state, &mut ui_kitty))
-            .unwrap();
+            .expect("draw kitty_suppressed_term");
         let kitty_suppressed_buf = kitty_suppressed_term.backend().buffer();
         assert!(!area_contains_any_cell(
             kitty_suppressed_buf,
@@ -1116,13 +1152,18 @@ mod tests {
         ));
 
         ui_kitty.active_dialog = None;
-        let mut kitty_resumed_term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        let mut kitty_resumed_term =
+            Terminal::new(TestBackend::new(120, 30)).expect("create kitty_resumed_term");
         kitty_resumed_term
             .draw(|f| view.render(f, full_area, &app_state, &mut ui_kitty))
-            .unwrap();
+            .expect("draw kitty_resumed_term");
         let kitty_resumed_buf = kitty_resumed_term.backend().buffer();
         let kitty_render_area = centered_image_rect(
-            &ui_kitty.bitmap_protocol.as_ref().unwrap().1,
+            &ui_kitty
+                .bitmap_protocol
+                .as_ref()
+                .expect("kitty protocol should be populated")
+                .protocol,
             &BitmapView::BITMAP_RESIZE,
             available_image_area,
         );
@@ -1143,10 +1184,11 @@ mod tests {
             ui_state.menu_area = Rect::new(0, 0, 120, 1);
             ui_state.active_dialog = Some(Box::new(ShortcutsDialog::new()));
 
-            let mut suppressed_term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+            let mut suppressed_term =
+                Terminal::new(TestBackend::new(120, 30)).expect("create suppressed_term");
             suppressed_term
                 .draw(|f| view.render(f, full_area, &app_state, &mut ui_state))
-                .unwrap();
+                .expect("draw suppressed_term");
             assert!(!area_contains_any_cell(
                 suppressed_term.backend().buffer(),
                 available_image_area,
@@ -1156,13 +1198,18 @@ mod tests {
             ));
 
             ui_state.active_dialog = None;
-            let mut visible_term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+            let mut visible_term =
+                Terminal::new(TestBackend::new(120, 30)).expect("create visible_term");
             visible_term
                 .draw(|f| view.render(f, full_area, &app_state, &mut ui_state))
-                .unwrap();
+                .expect("draw visible_term");
             let buf = visible_term.backend().buffer();
             let render_area = centered_image_rect(
-                &ui_state.bitmap_protocol.as_ref().unwrap().1,
+                &ui_state
+                    .bitmap_protocol
+                    .as_ref()
+                    .expect("protocol should be populated")
+                    .protocol,
                 &BitmapView::BITMAP_RESIZE,
                 available_image_area,
             );
@@ -1190,10 +1237,10 @@ mod tests {
         ui_menu.menu.active = true;
         ui_menu.menu.selected_category = 6; // Help (overlaps right pane BitmapView)
 
-        let mut help_term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        let mut help_term = Terminal::new(TestBackend::new(120, 30)).expect("create help_term");
         help_term
-            .draw(|f| crate::ui::ui(f, &app_state, &mut ui_menu))
-            .unwrap();
+            .draw(|f| ui::ui(f, &app_state, &mut ui_menu))
+            .expect("draw help_term");
         let right_inner = Rect::new(41, 5, 78, 20);
         assert!(!area_contains_any_cell(
             help_term.backend().buffer(),
@@ -1202,10 +1249,10 @@ mod tests {
         ));
 
         ui_menu.menu.selected_category = 0; // File (stays on left pane, x < 41)
-        let mut file_term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        let mut file_term = Terminal::new(TestBackend::new(120, 30)).expect("create file_term");
         file_term
-            .draw(|f| crate::ui::ui(f, &app_state, &mut ui_menu))
-            .unwrap();
+            .draw(|f| ui::ui(f, &app_state, &mut ui_menu))
+            .expect("draw file_term");
         assert!(area_contains_any_cell(
             file_term.backend().buffer(),
             right_inner,
@@ -1222,10 +1269,11 @@ mod tests {
         ui_hb.menu_area = Rect::new(0, 0, 120, 1);
         ui_hb.active_dialog = Some(Box::new(ShortcutsDialog::new()));
 
-        let mut hb_direct_term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        let mut hb_direct_term =
+            Terminal::new(TestBackend::new(120, 30)).expect("create hb_direct_term");
         hb_direct_term
             .draw(|f| view.render(f, full_area, &app_state, &mut ui_hb))
-            .unwrap();
+            .expect("draw hb_direct_term");
         let hb_direct_buf = hb_direct_term.backend().buffer();
         assert!(area_contains_any_cell(
             hb_direct_buf,
@@ -1233,10 +1281,11 @@ mod tests {
             |s| s == "▀" || s == "▄"
         ));
 
-        let mut hb_full_term = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        let mut hb_full_term =
+            Terminal::new(TestBackend::new(120, 30)).expect("create hb_full_term");
         hb_full_term
-            .draw(|f| crate::ui::ui(f, &app_state, &mut ui_hb))
-            .unwrap();
+            .draw(|f| ui::ui(f, &app_state, &mut ui_hb))
+            .expect("draw hb_full_term");
         let hb_full_buf = hb_full_term.backend().buffer();
         let dialog_area = ui_hb.active_dialog_area;
         assert!(dialog_area.width > 0 && dialog_area.height > 0);
@@ -1271,7 +1320,7 @@ mod tests {
         let mut app_state = AppState::new();
         app_state
             .load_binary(Addr(0x0801), vec![0xEA; 0x5000])
-            .unwrap();
+            .expect("loading bitmap navigation test binary should succeed");
 
         for sync_enabled in [false, true] {
             app_state.system_config.sync_bitmap_view = sync_enabled;
@@ -1328,7 +1377,7 @@ mod tests {
             // Typing numeric prefix '2' must NOT move Disassembly before 'G' is pressed.
             ui_state.cursor_index = app_state
                 .line_index_containing_address(Addr(0x4000))
-                .unwrap();
+                .expect("address $4000 must exist in disassembly");
             press(&mut view, KeyCode::Char('2'), &mut app_state, &mut ui_state);
             assert_eq!(ui_state.input_buffer, "2");
             assert_eq!(disasm_addr(&app_state, &ui_state), Addr(0x4000));

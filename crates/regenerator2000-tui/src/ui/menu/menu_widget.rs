@@ -1,0 +1,371 @@
+//! Top-level menu bar [`Widget`] implementation and input/mouse handling.
+
+use super::menu_render::render_menu;
+use crate::state::AppState;
+use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui_state::UIState;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+
+/// Interactive top-level menu bar widget.
+pub struct Menu;
+
+impl Widget for Menu {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+        render_menu(
+            f,
+            area,
+            &ui_state.menu,
+            &ui_state.theme,
+            ui_state.new_version_available.as_deref(),
+        );
+    }
+
+    fn handle_mouse(
+        &mut self,
+        mouse: MouseEvent,
+        _app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+            return WidgetResult::Ignored;
+        }
+
+        let area = ui_state.menu_area;
+        let col = mouse.column;
+        let row = mouse.row;
+
+        // 1. Check Menu Bar
+        if row == area.y && col >= area.x && col < area.x + area.width {
+            let mut current_x = area.x;
+            for (i, category) in ui_state.menu.categories.iter().enumerate() {
+                let width = category.bar_width();
+                if col >= current_x && col < current_x + width {
+                    ui_state.menu.selected_category = i;
+                    ui_state.menu.active = true;
+                    ui_state.menu.select_first_enabled_item();
+                    return WidgetResult::Handled;
+                }
+                current_x += width;
+            }
+            if ui_state.menu.active {
+                ui_state.menu.active = false;
+                ui_state.menu.selected_item = None;
+                return WidgetResult::Handled;
+            }
+        }
+
+        // 2. Check Popup if active
+        if ui_state.menu.active {
+            let term_area = ui_state.terminal_area();
+            let bar_area = Rect::new(area.x, area.y, area.width, 1);
+            let popup_area = ui_state.menu.popup_rect(bar_area, term_area);
+
+            // Check if click is inside popup
+            if col >= popup_area.x
+                && col < popup_area.x.saturating_add(popup_area.width)
+                && row >= popup_area.y
+                && row < popup_area.y.saturating_add(popup_area.height)
+            {
+                let rel_y = row - popup_area.y;
+                if rel_y > 0 && rel_y < popup_area.height.saturating_sub(1) {
+                    let inner_height = (popup_area.height as usize).saturating_sub(2);
+                    let offset = ui_state.menu.popup_scroll_offset(inner_height);
+                    let item_idx = offset + (rel_y - 1) as usize;
+                    let category = &ui_state.menu.categories[ui_state.menu.selected_category];
+                    if let Some(item) = category.items.get(item_idx) {
+                        if item.is_separator || item.disabled {
+                            return WidgetResult::Handled;
+                        }
+                        if let Some(action) = &item.action {
+                            let action = action.clone();
+                            ui_state.menu.active = false;
+                            ui_state.menu.selected_item = None;
+                            return WidgetResult::Action(action);
+                        }
+                    }
+                }
+                return WidgetResult::Handled;
+            }
+        }
+
+        WidgetResult::Ignored
+    }
+
+    fn handle_input(
+        &mut self,
+        key: KeyEvent,
+        _app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        match key.code {
+            KeyCode::Esc => {
+                ui_state.menu.active = false;
+                ui_state.menu.selected_item = None;
+                ui_state.set_status_message("Ready");
+                WidgetResult::Handled
+            }
+            KeyCode::Right => {
+                ui_state.menu.next_category();
+                WidgetResult::Handled
+            }
+            KeyCode::Left => {
+                ui_state.menu.previous_category();
+                WidgetResult::Handled
+            }
+            KeyCode::Char(c)
+                if key.modifiers == KeyModifiers::ALT
+                    && ui_state.menu.select_category_by_accelerator(c) =>
+            {
+                WidgetResult::Handled
+            }
+            KeyCode::Down => {
+                ui_state.menu.next_item();
+                WidgetResult::Handled
+            }
+            KeyCode::Up => {
+                ui_state.menu.previous_item();
+                WidgetResult::Handled
+            }
+            KeyCode::Enter => {
+                if let Some(item_idx) = ui_state.menu.selected_item {
+                    let category_idx = ui_state.menu.selected_category;
+                    let item = &ui_state.menu.categories[category_idx].items[item_idx];
+
+                    if item.disabled {
+                        // Optional: Feedback that it's disabled
+                        ui_state.set_status_message("Item is disabled");
+                    } else {
+                        let action = item.action.clone();
+                        if let Some(action) = action {
+                            // Close menu after valid action
+                            ui_state.menu.active = false;
+                            ui_state.menu.selected_item = None;
+                            return WidgetResult::Action(action);
+                        }
+                    }
+                } else {
+                    // Enter on category -> open first item?
+                    ui_state.menu.select_first_enabled_item();
+                }
+                WidgetResult::Handled
+            }
+            _ => WidgetResult::Ignored,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::actions::AppAction;
+    use crate::theme::Theme;
+    use crate::ui::menu::render_menu_popup;
+    use crate::ui_state::MenuState;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use ratatui::layout::{Constraint, Direction, Layout};
+    use ratatui::style::Modifier;
+
+    #[test]
+    fn test_render_menu_popup_bounds_panic() {
+        let backend = TestBackend::new(20, 5);
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
+
+        let mut menu_state = MenuState::new();
+        menu_state.selected_category = 0; // File menu
+        menu_state.active = true;
+
+        let theme = Theme::default();
+
+        let res = terminal.draw(|f| {
+            let area = f.area();
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(1), Constraint::Min(0)])
+                .split(area);
+
+            let top_area = chunks[0];
+            render_menu_popup(f, top_area, &menu_state, &theme);
+        });
+
+        assert!(res.is_ok(), "menu popup draw should succeed: {res:?}");
+    }
+
+    #[test]
+    fn test_next_item_from_none_and_mouse_category_click() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.menu_area = Rect::new(0, 0, 80, 1);
+        ui_state.menu.selected_item = None;
+
+        // next_item from None should select index 0, not index 1
+        ui_state.menu.next_item();
+        assert_eq!(ui_state.menu.selected_item, Some(0));
+
+        // Reset and test mouse category click on "File" (x = 1, y = 0)
+        ui_state.menu.active = false;
+        ui_state.menu.selected_item = None;
+        let mut menu = Menu;
+        let click_file = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 1,
+            row: 0,
+            modifiers: KeyModifiers::NONE,
+        };
+        assert_eq!(
+            menu.handle_mouse(click_file, &mut app_state, &mut ui_state),
+            WidgetResult::Handled
+        );
+        assert!(ui_state.menu.active);
+        assert_eq!(ui_state.menu.selected_category, 0);
+        assert_eq!(ui_state.menu.selected_item, Some(0));
+
+        // Clicking empty space to the right of all categories on the menu bar closes the menu
+        let click_empty_bar = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: 75,
+            row: 0,
+            modifiers: KeyModifiers::NONE,
+        };
+        assert_eq!(
+            menu.handle_mouse(click_empty_bar, &mut app_state, &mut ui_state),
+            WidgetResult::Handled
+        );
+        assert!(!ui_state.menu.active);
+        assert_eq!(ui_state.menu.selected_item, None);
+    }
+
+    #[test]
+    fn test_popup_scrolling_and_mouse_hit_testing_on_24_row_terminal() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.menu_area = Rect::new(0, 0, 80, 1);
+        ui_state.status_bar_area = Rect::new(0, 23, 80, 1);
+
+        // Select "Edit" category (index 1, 39 items) and select the last item ("Document Settings", index 38)
+        ui_state.menu.active = true;
+        ui_state.menu.selected_category = 1;
+        let last_idx = ui_state.menu.categories[1].items.len() - 1;
+        ui_state.menu.selected_item = Some(last_idx);
+
+        let popup_rect = ui_state
+            .menu
+            .popup_rect(ui_state.menu_area, Rect::new(0, 0, 80, 24));
+        assert_eq!(popup_rect.y, 1);
+        assert_eq!(popup_rect.height, 23);
+
+        let backend = TestBackend::new(80, 24);
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
+        terminal
+            .draw(|f| {
+                render_menu_popup(f, ui_state.menu_area, &ui_state.menu, &ui_state.theme);
+            })
+            .expect("draw menu popup");
+
+        let buffer = terminal.backend().buffer();
+        let last_visible_row: String = (popup_rect.x..popup_rect.x + popup_rect.width)
+            .map(|x| {
+                buffer
+                    .cell((x, 22))
+                    .map_or(String::new(), |c| c.symbol().to_string())
+            })
+            .collect();
+        assert!(
+            last_visible_row.contains("Document Settings"),
+            "Expected scrolled popup row 22 to contain 'Document Settings', got: {last_visible_row:?}"
+        );
+
+        let mut menu = Menu;
+        // Clicking the bottom border at row 23 (`rel_y == popup_rect.height - 1`) is rejected as Handled
+        let click_bottom_border = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: popup_rect.x + 2,
+            row: 23,
+            modifiers: KeyModifiers::NONE,
+        };
+        assert_eq!(
+            menu.handle_mouse(click_bottom_border, &mut app_state, &mut ui_state),
+            WidgetResult::Handled
+        );
+        assert!(ui_state.menu.active);
+
+        // Clicking row 22 (the last visible inner row) triggers the scrolled last item ("Document Settings")
+        let click_last_visible = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: popup_rect.x + 2,
+            row: 22,
+            modifiers: KeyModifiers::NONE,
+        };
+        assert_eq!(
+            menu.handle_mouse(click_last_visible, &mut app_state, &mut ui_state),
+            WidgetResult::Action(AppAction::DocumentSettings)
+        );
+        assert!(!ui_state.menu.active);
+    }
+
+    #[test]
+    fn test_menu_category_accelerators_and_underlined_rendering() {
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.menu.active = true;
+        let mut menu = Menu;
+
+        let expected = [
+            ('f', "File", 1u16),
+            ('t', "Edit", 10u16),
+            ('j', "Jump", 13u16),
+            ('r', "Search", 22u16),
+            ('v', "View", 27u16),
+            ('u', "Debugger", 36u16),
+            ('h', "Help", 43u16),
+        ];
+
+        for (idx, &(accel, name, _)) in expected.iter().enumerate() {
+            assert_eq!(ui_state.menu.categories[idx].name, name);
+            assert_eq!(ui_state.menu.categories[idx].accelerator, accel);
+            let res = menu.handle_input(
+                KeyEvent::new(KeyCode::Char(accel), KeyModifiers::ALT),
+                &mut app_state,
+                &mut ui_state,
+            );
+            assert_eq!(
+                res,
+                WidgetResult::Handled,
+                "Expected Alt+{accel} to select category {name}"
+            );
+            assert_eq!(ui_state.menu.selected_category, idx);
+            assert!(ui_state.menu.selected_item.is_some());
+        }
+
+        // Unmatched Alt+<char> when menu is active is ignored by Menu::handle_input
+        assert_eq!(
+            menu.handle_input(
+                KeyEvent::new(KeyCode::Char('z'), KeyModifiers::ALT),
+                &mut app_state,
+                &mut ui_state,
+            ),
+            WidgetResult::Ignored
+        );
+
+        let backend = TestBackend::new(80, 1);
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
+        terminal
+            .draw(|f| {
+                render_menu(f, f.area(), &ui_state.menu, &ui_state.theme, None);
+            })
+            .expect("draw menu bar");
+
+        let buffer = terminal.backend().buffer();
+        for &(_, _, col) in &expected {
+            let cell = buffer
+                .cell((col, 0))
+                .expect("menu bar cell should exist at expected column");
+            assert!(
+                cell.modifier.contains(Modifier::UNDERLINED),
+                "Expected underlined accelerator at col {col}, got cell {cell:?}"
+            );
+        }
+    }
+}

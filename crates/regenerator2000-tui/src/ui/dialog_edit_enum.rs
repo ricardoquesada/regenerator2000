@@ -1,19 +1,32 @@
-use crate::ui::widget::{Widget, WidgetResult, create_dialog_block};
+//! Modal dialog for creating or editing a project or global enum definition.
+
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::{AppAction, UIState};
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
-};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui_textarea::TextArea;
 use regenerator2000_core::state::{AppState, EnumDefinition};
+use std::collections::BTreeMap;
+use std::num::ParseIntError;
 
+/// Target storage scope for an enum created or edited in [`EditEnumDialog`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnumScope {
+    /// Stored in the active `.regen2000proj` project file.
+    Project,
+    /// Stored in the global user enum configuration.
+    Global,
+}
+
+/// Modal dialog for creating or editing a project or global [`EnumDefinition`].
 pub struct EditEnumDialog {
     original_def: Option<EnumDefinition>,
-    is_global: bool,
+    scope: EnumScope,
     name_textarea: TextArea<'static>,
     desc_textarea: TextArea<'static>,
     variants: Vec<(String, String)>, // (Key string, Value string)
@@ -23,8 +36,9 @@ pub struct EditEnumDialog {
 }
 
 impl EditEnumDialog {
+    /// Creates an [`EditEnumDialog`] optionally pre-populated with `original_def`.
     #[must_use]
-    pub fn new(original_def: Option<EnumDefinition>, is_global: bool) -> Self {
+    pub fn new(original_def: Option<EnumDefinition>, scope: EnumScope) -> Self {
         let mut name_textarea = TextArea::default();
         let mut desc_textarea = TextArea::default();
         let mut variants = Vec::new();
@@ -49,7 +63,7 @@ impl EditEnumDialog {
 
         Self {
             original_def,
-            is_global,
+            scope,
             name_textarea,
             desc_textarea,
             variants,
@@ -59,11 +73,11 @@ impl EditEnumDialog {
         }
     }
 
-    fn get_name(&self) -> String {
+    fn name(&self) -> String {
         self.name_textarea.lines().join("").trim().to_string()
     }
 
-    fn get_description(&self) -> Option<String> {
+    fn description(&self) -> Option<String> {
         let desc = self.desc_textarea.lines().join("\n").trim().to_string();
         if desc.is_empty() { None } else { Some(desc) }
     }
@@ -211,7 +225,7 @@ impl Widget for EditEnumDialog {
     }
 }
 
-fn parse_variant_key(k_str: &str) -> Result<u16, std::num::ParseIntError> {
+fn parse_variant_key(k_str: &str) -> Result<u16, ParseIntError> {
     let k_trimmed = k_str.trim();
     if let Some(hex) = k_trimmed
         .strip_prefix("0x")
@@ -227,14 +241,14 @@ fn parse_variant_key(k_str: &str) -> Result<u16, std::num::ParseIntError> {
 
 impl EditEnumDialog {
     fn save_enum(&self, app_state: &AppState, ui_state: &mut UIState) -> WidgetResult {
-        let name = self.get_name();
+        let name = self.name();
         let is_rename = self.original_def.as_ref().is_none_or(|d| d.name != name);
         if is_rename && let Err(err) = app_state.validate_new_enum_name(&name) {
             ui_state.set_status_message(format!("Error: {err}"));
             return WidgetResult::Handled;
         }
 
-        let mut variants_map = std::collections::BTreeMap::new();
+        let mut variants_map = BTreeMap::new();
         for (k_str, v_str) in &self.variants {
             match parse_variant_key(k_str) {
                 Ok(val) => {
@@ -249,7 +263,7 @@ impl EditEnumDialog {
 
         let new_def = EnumDefinition {
             name: name.clone(),
-            description: self.get_description(),
+            description: self.description(),
             variants: variants_map,
             source_file: self
                 .original_def
@@ -258,18 +272,17 @@ impl EditEnumDialog {
         };
 
         let rename_from = self.original_def.as_ref().map(|d| d.name.clone());
-        if self.is_global {
-            WidgetResult::Action(AppAction::ApplyGlobalEnumDefinition {
+        match self.scope {
+            EnumScope::Global => WidgetResult::Action(AppAction::ApplyGlobalEnumDefinition {
                 name,
                 definition: Some(new_def),
                 rename_from,
-            })
-        } else {
-            WidgetResult::Action(AppAction::ApplyEnumDefinition {
-                name: name.clone(),
+            }),
+            EnumScope::Project => WidgetResult::Action(AppAction::ApplyEnumDefinition {
+                name,
                 definition: Some(new_def),
                 rename_from,
-            })
+            }),
         }
     }
 
@@ -286,11 +299,14 @@ impl EditEnumDialog {
         } else {
             "Add"
         };
-        let scope_str = if self.is_global { "Global" } else { "Project" };
+        let scope_str = match self.scope {
+            EnumScope::Global => "Global",
+            EnumScope::Project => "Project",
+        };
         let title = format!(" {mode_str} {scope_str} Enum ");
-        let block = create_dialog_block(&title, theme);
+        let block = widget::create_dialog_block(&title, theme);
 
-        let area = crate::utils::centered_rect_adaptive(60, 65, 0, 22, area);
+        let area = utils::centered_rect_adaptive(60, 65, 0, 22, area);
         ui_state.active_dialog_area = area;
 
         f.render_widget(Clear, area);
@@ -395,7 +411,7 @@ impl EditEnumDialog {
             _ => "",
         };
         let helpers = Paragraph::new(helpers_str)
-            .alignment(ratatui::layout::Alignment::Center)
+            .alignment(Alignment::Center)
             .style(Style::default().fg(theme.highlight_fg));
         f.render_widget(helpers, helpers_area);
     }
@@ -447,9 +463,9 @@ impl AddVariantDialog {
         } else {
             " Add Variant "
         };
-        let block = create_dialog_block(title, theme);
+        let block = widget::create_dialog_block(title, theme);
 
-        let area = crate::utils::centered_rect_adaptive(45, 30, 0, 10, area);
+        let area = utils::centered_rect_adaptive(45, 30, 0, 10, area);
         ui_state.active_dialog_area = area;
 
         f.render_widget(Clear, area);
@@ -497,7 +513,7 @@ impl AddVariantDialog {
         f.render_widget(&val_textarea, layout[1]);
 
         let helpers = Paragraph::new(" [Tab] Next  [Enter] Apply  [Esc] Cancel ")
-            .alignment(ratatui::layout::Alignment::Center)
+            .alignment(Alignment::Center)
             .style(Style::default().fg(theme.highlight_fg));
         f.render_widget(helpers, layout[2]);
     }
@@ -547,20 +563,21 @@ impl AddVariantDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::theme::Theme;
 
     #[test]
     fn test_edit_enum_replaces_existing_variant_with_duplicate_key() {
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let mut def = EnumDefinition {
             name: "Colors".to_string(),
             description: None,
-            variants: std::collections::BTreeMap::new(),
+            variants: BTreeMap::new(),
             source_file: None,
         };
         def.variants.insert(1, "BLACK".to_string());
 
-        let mut dialog = EditEnumDialog::new(Some(def), false);
+        let mut dialog = EditEnumDialog::new(Some(def), EnumScope::Project);
         dialog.active_focus = 2;
 
         // Open AddVariantDialog via 'a'

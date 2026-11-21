@@ -6,20 +6,16 @@
 //! (`[render_start, render_end)`) and uses 1-line placeholders outside the viewport to preserve
 //! [`ratatui::widgets::ListState`] scroll offsets.
 
-use crate::state::{AppState, BlockType};
+use crate::state::{Addr, AppState, BlockItem, BlockType};
+use crate::ui::navigable::{self, Navigable, handle_nav_input};
+use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::{ActivePane, AppAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::Style,
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem},
-};
-
-use crate::ui::widget::{Widget, WidgetResult};
-
-use crate::ui::navigable::{Navigable, handle_nav_input};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, List, ListItem};
 
 /// Side-pane widget that displays memory blocks, manual splitters, and lexical scopes.
 pub struct BlocksView;
@@ -36,25 +32,25 @@ impl BlocksView {
         ui_state.blocks_selected_index = Some(index);
 
         let (target_addr, line_idx) = match block_item {
-            crate::state::BlockItem::Block { start, .. } => {
+            BlockItem::Block { start, .. } => {
                 let idx = app_state.disassembly.iter().position(|line| {
                     line.address == *start && (!line.bytes.is_empty() || line.is_collapsed)
                 });
                 (*start, idx)
             }
-            crate::state::BlockItem::Splitter(addr) => {
+            BlockItem::Splitter(addr) => {
                 let idx = app_state
                     .disassembly
                     .iter()
                     .position(|line| line.address == *addr && line.is_splitter());
                 (*addr, idx)
             }
-            crate::state::BlockItem::Scope { start, .. } => {
+            BlockItem::Scope { start, .. } => {
                 (*start, app_state.line_index_containing_address(*start))
             }
         };
 
-        crate::ui::navigable::jump_to_disassembly_at_line_idx(ui_state, line_idx, target_addr);
+        navigable::jump_to_disassembly_at_line_idx(ui_state, line_idx, target_addr);
         true
     }
 }
@@ -196,14 +192,14 @@ impl Widget for BlocksView {
 
         // Update `current_scope_end` across all items before the visibility check.
         // Visible `Block` and `Splitter` rows keep 2-space indentation when their `Scope` header scrolls off screen.
-        let mut current_scope_end: Option<crate::state::types::Addr> = None;
+        let mut current_scope_end: Option<Addr> = None;
         let items: Vec<ListItem> = block_items
             .iter()
             .enumerate()
             .map(|(idx, item)| {
                 let is_visible = idx >= render_start && idx < render_end;
                 match item {
-                    crate::state::BlockItem::Scope { start, end, name } => {
+                    BlockItem::Scope { start, end, name } => {
                         current_scope_end = Some(*end);
                         if !is_visible {
                             return ListItem::new(Line::default());
@@ -214,10 +210,10 @@ impl Widget for BlocksView {
                             text,
                             Style::default()
                                 .fg(ui_state.theme.label_def)
-                                .add_modifier(ratatui::style::Modifier::BOLD),
+                                .add_modifier(Modifier::BOLD),
                         )))
                     }
-                    crate::state::BlockItem::Block {
+                    BlockItem::Block {
                         start,
                         end,
                         type_,
@@ -259,7 +255,7 @@ impl Widget for BlocksView {
                         );
                         ListItem::new(Line::from(Span::styled(text, Style::default().fg(color))))
                     }
-                    crate::state::BlockItem::Splitter(addr) => {
+                    BlockItem::Splitter(addr) => {
                         if let Some(scope_end) = current_scope_end
                             && *addr > scope_end
                         {
@@ -328,7 +324,7 @@ mod tests {
     use crate::theme::Theme;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
-    use regenerator2000_core::state::Addr;
+    use regenerator2000_core::view_state::NavigationTarget;
 
     // Verify scope indentation and mouse click index math when scrolled past Scope header
     #[test]
@@ -336,7 +332,7 @@ mod tests {
         let mut app_state = AppState::new();
         app_state
             .load_binary(Addr(0x1000), vec![0xEA; 0x200])
-            .unwrap();
+            .expect("loading 512-byte test binary should succeed");
         app_state.block_types = vec![BlockType::Code; 0x200];
 
         // Define a scope $1000..=$10FF and 30 split sub-blocks inside it
@@ -361,14 +357,14 @@ mod tests {
         let area = Rect::new(0, 0, 50, 10);
         ui_state.right_pane_area = area;
         let backend = TestBackend::new(50, 10);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
 
         let mut view = BlocksView;
         terminal
             .draw(|f| {
                 view.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing BlocksView inside scope should succeed");
 
         // Scope header at index 0 must be scrolled off the top of the 8-row inner viewport
         assert!(
@@ -409,10 +405,7 @@ mod tests {
         assert_eq!(ui_state.blocks_selected_index, Some(expected_index));
         assert_eq!(
             ui_state.navigation_history.last(),
-            Some(&(
-                ActivePane::Blocks,
-                regenerator2000_core::view_state::NavigationTarget::Index(expected_index)
-            ))
+            Some(&(ActivePane::Blocks, NavigationTarget::Index(expected_index)))
         );
 
         // Now scroll to the very end (outside the scope, $1100+) and verify no scope indentation
@@ -422,7 +415,7 @@ mod tests {
             .draw(|f| {
                 view.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing BlocksView at bottom of list should succeed");
 
         let buffer_end = terminal.backend().buffer();
         let bottom_row: String = (1..49)
@@ -442,7 +435,9 @@ mod tests {
     #[test]
     fn test_blocks_view_handle_input_unhandled_and_handled_keys() {
         let mut app_state = AppState::new();
-        app_state.load_binary(Addr(0x1000), vec![0xEA; 16]).unwrap();
+        app_state
+            .load_binary(Addr(0x1000), vec![0xEA; 16])
+            .expect("loading 16-byte test binary should succeed");
         app_state.block_types = vec![BlockType::Code; 16];
         app_state.annotations.update(Addr(0x1000), |e| {
             e.scope = Some(Addr(0x1007));

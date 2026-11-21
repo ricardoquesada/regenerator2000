@@ -1,21 +1,21 @@
-use crate::state::{AppState, HexdumpViewMode};
-use crate::ui_state::{ActivePane, AppAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::Style,
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem},
-};
-use regenerator2000_core::navigation::disassembly_selection_addr_span;
+//! Right-pane hexadecimal and PETSCII/screencode byte inspector widget.
 
+use crate::state::{AppState, HexdumpViewMode};
 use crate::ui::navigable::{
-    AlignedGridRange, Navigable, compute_scroll_offset, handle_nav_input,
-    is_mouse_selection_extend, jump_to_disassembly_at_address, right_pane_mouse_inner_area,
-    sync_pane_to_disassembly,
+    AlignedGridRange, Navigable, SelectionExtend, VisualMode, compute_scroll_offset,
+    handle_nav_input, is_mouse_selection_extend, jump_to_disassembly_at_address,
+    right_pane_mouse_inner_area, sync_pane_to_disassembly,
 };
 use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui_state::{ActivePane, AppAction, UIState};
+use crate::utils::{self, PetsciiCharset};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::Style;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, List, ListItem};
+use regenerator2000_core::navigation::disassembly_selection_addr_span;
 
 /// Immediately mirror the hex cursor / selection into the disassembly view's
 /// `cursor_index` / `selection_start`.  Called eagerly from every input handler so
@@ -38,6 +38,13 @@ fn sync_hex_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
     );
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StepDirection {
+    Backward,
+    Forward,
+}
+
+/// Interactive right-pane hex dump and PETSCII/screencode viewer.
 pub struct HexDumpView;
 
 impl HexDumpView {
@@ -48,17 +55,18 @@ impl HexDumpView {
 
     /// Sets or clears `(hex_selection_start, hex_selection_start_col)` before cursor movement.
     ///
-    /// Sets the anchor when `extend` or `ui_state.is_visual_mode` is `true` and `total_rows > 0`.
-    /// Clears both row and column anchors when moving without selection.
-    fn prepare_selection(ui_state: &mut UIState, total_rows: usize, extend: bool) {
+    /// Sets the anchor when `extend` is [`SelectionExtend::Extend`] or `ui_state.is_visual_mode`
+    /// is `true` and `total_rows > 0`. Clears both row and column anchors otherwise.
+    fn prepare_selection(ui_state: &mut UIState, total_rows: usize, extend: SelectionExtend) {
+        let keep_selection = extend == SelectionExtend::Extend || ui_state.is_visual_mode;
         if total_rows == 0 {
-            if !extend && !ui_state.is_visual_mode {
+            if !keep_selection {
                 ui_state.hex_selection_start = None;
                 ui_state.hex_selection_start_col = 0;
             }
             return;
         }
-        if extend || ui_state.is_visual_mode {
+        if keep_selection {
             if ui_state.hex_selection_start.is_none() {
                 ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
                 ui_state.hex_selection_start_col = ui_state.hex_col_cursor;
@@ -73,25 +81,30 @@ impl HexDumpView {
         ui_state: &mut UIState,
         total_rows: usize,
         max_col: usize,
-        forward: bool,
-        extend: bool,
+        direction: StepDirection,
+        extend: SelectionExtend,
     ) {
         Self::prepare_selection(ui_state, total_rows, extend);
         if total_rows == 0 {
             return;
         }
-        if forward {
-            if ui_state.hex_col_cursor < max_col {
-                ui_state.hex_col_cursor += 1;
-            } else if ui_state.hex_cursor_index + 1 < total_rows {
-                ui_state.hex_cursor_index += 1;
-                ui_state.hex_col_cursor = 0;
+        match direction {
+            StepDirection::Forward => {
+                if ui_state.hex_col_cursor < max_col {
+                    ui_state.hex_col_cursor += 1;
+                } else if ui_state.hex_cursor_index + 1 < total_rows {
+                    ui_state.hex_cursor_index += 1;
+                    ui_state.hex_col_cursor = 0;
+                }
             }
-        } else if ui_state.hex_col_cursor > 0 {
-            ui_state.hex_col_cursor -= 1;
-        } else if ui_state.hex_cursor_index > 0 {
-            ui_state.hex_cursor_index -= 1;
-            ui_state.hex_col_cursor = max_col;
+            StepDirection::Backward => {
+                if ui_state.hex_col_cursor > 0 {
+                    ui_state.hex_col_cursor -= 1;
+                } else if ui_state.hex_cursor_index > 0 {
+                    ui_state.hex_cursor_index -= 1;
+                    ui_state.hex_col_cursor = max_col;
+                }
+            }
         }
     }
 }
@@ -112,7 +125,7 @@ impl Navigable for HexDumpView {
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
         let grid = Self::grid_range(app_state, ui_state);
         let total = grid.item_count();
-        Self::prepare_selection(ui_state, total, /* extend= */ false);
+        Self::prepare_selection(ui_state, total, SelectionExtend::Replace);
         if total == 0 {
             return;
         }
@@ -124,7 +137,7 @@ impl Navigable for HexDumpView {
     fn move_up(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
         let grid = Self::grid_range(app_state, ui_state);
         let total = grid.item_count();
-        Self::prepare_selection(ui_state, total, /* extend= */ false);
+        Self::prepare_selection(ui_state, total, SelectionExtend::Replace);
         if total == 0 {
             return;
         }
@@ -134,7 +147,7 @@ impl Navigable for HexDumpView {
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
         let total = Self::grid_range(app_state, ui_state).item_count();
-        Self::prepare_selection(ui_state, total, /* extend= */ false);
+        Self::prepare_selection(ui_state, total, SelectionExtend::Replace);
         if total == 0 {
             return;
         }
@@ -183,7 +196,7 @@ impl Widget for HexDumpView {
             Self::prepare_selection(
                 ui_state,
                 total_rows,
-                is_mouse_selection_extend(&mouse, ui_state.is_visual_mode),
+                is_mouse_selection_extend(&mouse, VisualMode::from_active(ui_state.is_visual_mode)),
             );
             ui_state.hex_cursor_index = row_index;
 
@@ -353,27 +366,19 @@ impl Widget for HexDumpView {
                         spans.push(Span::styled(format!("{b:02X} "), byte_style));
 
                         let char_to_render = match ui_state.hexdump_view_mode {
-                            HexdumpViewMode::PETSCIIShifted => crate::utils::petscii_to_unicode(
-                                b,
-                                crate::utils::PetsciiCharset::Shifted,
-                            ),
-                            HexdumpViewMode::PETSCIIUnshifted => crate::utils::petscii_to_unicode(
-                                b,
-                                crate::utils::PetsciiCharset::Unshifted,
-                            ),
+                            HexdumpViewMode::PETSCIIShifted => {
+                                utils::petscii_to_unicode(b, PetsciiCharset::Shifted)
+                            }
+                            HexdumpViewMode::PETSCIIUnshifted => {
+                                utils::petscii_to_unicode(b, PetsciiCharset::Unshifted)
+                            }
                             HexdumpViewMode::ScreencodeShifted => {
-                                let petscii = crate::utils::screencode_to_petscii(b);
-                                crate::utils::petscii_to_unicode(
-                                    petscii,
-                                    crate::utils::PetsciiCharset::Shifted,
-                                )
+                                let petscii = utils::screencode_to_petscii(b);
+                                utils::petscii_to_unicode(petscii, PetsciiCharset::Shifted)
                             }
                             HexdumpViewMode::ScreencodeUnshifted => {
-                                let petscii = crate::utils::screencode_to_petscii(b);
-                                crate::utils::petscii_to_unicode(
-                                    petscii,
-                                    crate::utils::PetsciiCharset::Unshifted,
-                                )
+                                let petscii = utils::screencode_to_petscii(b);
+                                utils::petscii_to_unicode(petscii, PetsciiCharset::Unshifted)
                             }
                         };
                         ascii_spans.push(Span::styled(char_to_render.to_string(), byte_style));
@@ -432,12 +437,24 @@ impl Widget for HexDumpView {
         let result = match key.code {
             KeyCode::Left | KeyCode::Char('h') if key.modifiers.is_empty() => {
                 ui_state.input_buffer.clear();
-                Self::step_byte(ui_state, total, max_col, false, false);
+                Self::step_byte(
+                    ui_state,
+                    total,
+                    max_col,
+                    StepDirection::Backward,
+                    SelectionExtend::Replace,
+                );
                 WidgetResult::Handled
             }
             KeyCode::Right | KeyCode::Char('l') if key.modifiers.is_empty() => {
                 ui_state.input_buffer.clear();
-                Self::step_byte(ui_state, total, max_col, true, false);
+                Self::step_byte(
+                    ui_state,
+                    total,
+                    max_col,
+                    StepDirection::Forward,
+                    SelectionExtend::Replace,
+                );
                 WidgetResult::Handled
             }
             KeyCode::Esc if key.modifiers.is_empty() => {
@@ -470,18 +487,26 @@ impl Widget for HexDumpView {
             }
             KeyCode::Left if key.modifiers == KeyModifiers::SHIFT => {
                 Self::step_byte(
-                    ui_state, total, max_col, /* forward= */ false, /* extend= */ true,
+                    ui_state,
+                    total,
+                    max_col,
+                    StepDirection::Backward,
+                    SelectionExtend::Extend,
                 );
                 WidgetResult::Handled
             }
             KeyCode::Right if key.modifiers == KeyModifiers::SHIFT => {
                 Self::step_byte(
-                    ui_state, total, max_col, /* forward= */ true, /* extend= */ true,
+                    ui_state,
+                    total,
+                    max_col,
+                    StepDirection::Forward,
+                    SelectionExtend::Extend,
                 );
                 WidgetResult::Handled
             }
             KeyCode::Down if key.modifiers == KeyModifiers::SHIFT => {
-                Self::prepare_selection(ui_state, total, /* extend= */ true);
+                Self::prepare_selection(ui_state, total, SelectionExtend::Extend);
                 if total > 0 {
                     ui_state.hex_cursor_index =
                         (ui_state.hex_cursor_index + 1).min(total.saturating_sub(1));
@@ -489,7 +514,7 @@ impl Widget for HexDumpView {
                 WidgetResult::Handled
             }
             KeyCode::Up if key.modifiers == KeyModifiers::SHIFT => {
-                Self::prepare_selection(ui_state, total, /* extend= */ true);
+                Self::prepare_selection(ui_state, total, SelectionExtend::Extend);
                 if total > 0 {
                     ui_state.hex_cursor_index = ui_state.hex_cursor_index.saturating_sub(1);
                 }
@@ -549,11 +574,9 @@ mod tests {
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
     use ratatui::layout::Rect;
-    use regenerator2000_core::state::Addr;
-    use regenerator2000_core::{
-        state::{AppState, BlockType, LabelKind, LabelType},
-        view_state::CoreViewState,
-    };
+    use regenerator2000_core::state::project::Label;
+    use regenerator2000_core::state::{Addr, AppState, Assembler, BlockType, LabelKind, LabelType};
+    use regenerator2000_core::view_state::CoreViewState;
 
     /// Regression test for: hex-dump right-arrow at the last column of a row
     /// that sits inside a large multi-byte block (e.g. `.fill`) causes the
@@ -567,12 +590,10 @@ mod tests {
     /// `disassembly` array) with a large address, before the real content line.
     #[test]
     fn test_sync_hex_to_disassembly_fill_block_row_boundary_with_all_labels() {
-        use regenerator2000_core::state::project::Label;
-
         // --- Build AppState ---
         // Origin $3A00; 48 bytes of identical data → emitted as one .fill block.
         let mut app_state = AppState::new();
-        app_state.origin = regenerator2000_core::state::Addr(0x3A00);
+        app_state.origin = Addr(0x3A00);
         app_state.raw_data = vec![0x98u8; 48];
         app_state.block_types = vec![BlockType::DataByte; 48];
 
@@ -582,7 +603,7 @@ mod tests {
         // winner of the "first address >= target" third pass.
         app_state
             .labels
-            .entry(regenerator2000_core::state::Addr(0x989A))
+            .entry(Addr(0x989A))
             .or_default()
             .push(Label {
                 name: "s_external_routine".to_string(),
@@ -615,8 +636,8 @@ mod tests {
         // Because this test lives in the same module as sync_hex_to_disassembly
         // we can call it with a real UIState too, but constructing one requires
         // a Theme.  Use Theme::default() if available, otherwise build manually.
-        let theme = crate::theme::Theme::default();
-        let mut ui_state = crate::ui_state::UIState::new(theme);
+        let theme = Theme::default();
+        let mut ui_state = UIState::new(theme);
         // Overwrite the core view state with our carefully crafted one.
         ui_state.core = core;
 
@@ -655,9 +676,9 @@ mod tests {
     fn test_hexdump8_end_and_g_keys_jump_to_final_8_byte_row() {
         let mut app_state = AppState::new();
         app_state
-            .load_binary(regenerator2000_core::state::Addr(0x1000), vec![0xEA; 64])
-            .unwrap();
-        let mut ui_state = crate::ui_state::UIState::new(crate::theme::Theme::default());
+            .load_binary(Addr(0x1000), vec![0xEA; 64])
+            .expect("loading test binary should succeed");
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.right_pane = RightPane::HexDump8;
 
         let mut view = HexDumpView;
@@ -703,9 +724,9 @@ mod tests {
     fn test_hexdump_left_right_clears_selection_and_b_ignores_alignment_padding() {
         let mut app_state = AppState::new();
         app_state
-            .load_binary(regenerator2000_core::state::Addr(0x0801), vec![0xEA; 16])
-            .unwrap();
-        let mut ui_state = crate::ui_state::UIState::new(crate::theme::Theme::default());
+            .load_binary(Addr(0x0801), vec![0xEA; 16])
+            .expect("loading alignment test binary should succeed");
+        let mut ui_state = UIState::new(Theme::default());
         let mut view = HexDumpView;
 
         // Cell (row 0, col 0) is $0800, which is alignment padding before origin $0801.
@@ -805,8 +826,6 @@ mod tests {
 
     #[test]
     fn test_hexdump_render_collapsed_block_and_scope_closing_brace_highlights() {
-        use regenerator2000_core::state::Assembler;
-
         let mut app_state = AppState::new();
         app_state
             .load_binary(Addr(0x2000), vec![0xEA; 48])

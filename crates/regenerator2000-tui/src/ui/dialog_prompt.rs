@@ -1,16 +1,19 @@
+//! Single-line hexadecimal and line-number prompt modal dialogs.
+
 use crate::state::actions::AppAction;
 use crate::state::{Addr, AppState};
-use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui::navigable;
+use crate::ui::view_disassembly::DisassemblyView;
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
-use crate::vice::state::BreakpointKind;
+use crate::utils;
+use crate::vice::state::{BreakpointKind, ViceBreakpoint};
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::Paragraph,
-};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Clear, Paragraph};
 
 /// Operation mode for [`PromptDialog`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -124,10 +127,7 @@ impl PromptDialog {
         }
     }
 
-    fn existing_breakpoint<'a>(
-        input: &str,
-        app_state: &'a AppState,
-    ) -> Option<&'a crate::vice::state::ViceBreakpoint> {
+    fn existing_breakpoint<'a>(input: &str, app_state: &'a AppState) -> Option<&'a ViceBreakpoint> {
         u16::from_str_radix(input, 16).ok().and_then(|addr| {
             app_state
                 .vice_state
@@ -152,14 +152,12 @@ impl PromptDialog {
             PromptMode::JumpToLine => {
                 if let Ok(line_num) = self.input.parse::<usize>() {
                     if let Some(target_idx) =
-                        crate::ui::view_disassembly::DisassemblyView::get_index_for_visual_line(
-                            app_state, line_num,
-                        )
+                        DisassemblyView::index_for_visual_line(app_state, line_num)
                     {
                         let target_addr = app_state.disassembly[target_idx]
                             .external_label_address
                             .unwrap_or(app_state.disassembly[target_idx].address);
-                        crate::ui::navigable::jump_to_disassembly_at_line_idx(
+                        navigable::jump_to_disassembly_at_line_idx(
                             ui_state,
                             Some(target_idx),
                             target_addr,
@@ -218,17 +216,16 @@ impl PromptDialog {
 impl Widget for PromptDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(self.mode.dialog_title(), theme);
+        let block = widget::create_dialog_block(self.mode.dialog_title(), theme);
 
         let percent_x = if self.mode == PromptMode::Origin {
             40
         } else {
             30
         };
-        let area =
-            crate::utils::centered_rect_adaptive(percent_x, 40, 0, self.mode.min_height(), area);
+        let area = utils::centered_rect_adaptive(percent_x, 40, 0, self.mode.min_height(), area);
         ui_state.active_dialog_area = area;
-        f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(Clear, area);
 
         let dim = Style::default().fg(theme.comment);
         let value_style = Style::default()
@@ -306,17 +303,19 @@ impl Widget for PromptDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::BlockType;
+    use crate::theme::Theme;
     use crossterm::event::KeyModifiers;
 
     #[test]
     fn test_jump_to_line_updates_cursor_and_history() {
         let mut app_state = AppState::new();
-        app_state.origin = crate::state::Addr(0x1000);
+        app_state.origin = Addr(0x1000);
         app_state.raw_data = vec![0xEA; 10];
-        app_state.block_types = vec![crate::state::BlockType::Code; 10];
+        app_state.block_types = vec![BlockType::Code; 10];
         app_state.disassemble();
 
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.cursor_index = 0;
 
         let mut dialog = PromptDialog::new_jump_to_line();
@@ -339,7 +338,7 @@ mod tests {
         let mut app_state = AppState::new();
         app_state.origin = Addr(0x0801);
         app_state.raw_data = vec![0xEA; 16];
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         let mut jump_dialog = PromptDialog::new_jump_to_address();
         for ch in ['c', '0', '0', '0', 'f'] {

@@ -1,23 +1,28 @@
+//! Generic modal confirmation dialog for destructive or pending [`AppAction`] items.
+
 use crate::state::AppState;
 use crate::state::actions::AppAction;
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    widgets::Paragraph,
-};
+use crate::utils;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::widgets::{Clear, Paragraph};
 
-use crate::ui::widget::{Widget, WidgetResult};
-
+/// Modal prompt asking the user to confirm or cancel an [`AppAction`].
 pub struct ConfirmationDialog {
+    /// Dialog title shown in the border.
     pub title: String,
+    /// Explanatory confirmation question shown to the user.
     pub message: String,
+    /// Action wrapped in [`AppAction::Confirmed`] when confirmed.
     pub action: AppAction,
 }
 
 impl ConfirmationDialog {
+    /// Creates a new [`ConfirmationDialog`] for `title`, `message`, and `action`.
     pub fn new(title: impl Into<String>, message: impl Into<String>, action: AppAction) -> Self {
         Self {
             title: title.into(),
@@ -31,11 +36,11 @@ impl Widget for ConfirmationDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let title = format!(" {} ", self.title);
-        let block = crate::ui::widget::create_dialog_block(&title, theme);
+        let block = widget::create_dialog_block(&title, theme);
 
-        let area = crate::utils::centered_rect_adaptive(50, 40, 40, 5, area);
+        let area = utils::centered_rect_adaptive(50, 40, 40, 5, area);
         ui_state.active_dialog_area = area;
-        f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
 
         let inner = block.inner(area);
@@ -52,7 +57,7 @@ impl Widget for ConfirmationDialog {
             .split(inner);
 
         let message = Paragraph::new(self.message.clone())
-            .alignment(ratatui::layout::Alignment::Center)
+            .alignment(Alignment::Center)
             .style(
                 Style::default()
                     .fg(theme.dialog_fg)
@@ -62,7 +67,7 @@ impl Widget for ConfirmationDialog {
         f.render_widget(message, layout[1]);
 
         let instructions = Paragraph::new("Enter: Proceed  |  Esc: Cancel")
-            .alignment(ratatui::layout::Alignment::Center)
+            .alignment(Alignment::Center)
             .style(Style::default().fg(theme.highlight_fg));
 
         f.render_widget(instructions, layout[3]);
@@ -80,9 +85,9 @@ impl Widget for ConfirmationDialog {
                 WidgetResult::Close
             }
             KeyCode::Char('n' | 'N')
-                if !key.modifiers.intersects(
-                    crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT,
-                ) =>
+                if !key
+                    .modifiers
+                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
             {
                 ui_state.set_status_message("Action cancelled");
                 WidgetResult::Close
@@ -91,9 +96,9 @@ impl Widget for ConfirmationDialog {
                 WidgetResult::Action(AppAction::Confirmed(Box::new(self.action.clone())))
             }
             KeyCode::Char('y' | 'Y')
-                if !key.modifiers.intersects(
-                    crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::ALT,
-                ) =>
+                if !key
+                    .modifiers
+                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
             {
                 WidgetResult::Action(AppAction::Confirmed(Box::new(self.action.clone())))
             }
@@ -106,9 +111,9 @@ impl Widget for ConfirmationDialog {
 mod tests {
     use super::*;
     use crate::theme::Theme;
-    use crossterm::event::KeyModifiers;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
+    use ratatui::buffer::Cell;
 
     #[test]
     fn test_confirmation_dialog_render_confirm_and_cancel() {
@@ -118,19 +123,19 @@ mod tests {
             ConfirmationDialog::new("Confirm Exit", "Discard unsaved changes?", AppAction::Exit);
 
         let backend = TestBackend::new(80, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw confirmation dialog");
 
         let rendered: String = terminal
             .backend()
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         assert!(rendered.contains("Discard unsaved changes?"));
 

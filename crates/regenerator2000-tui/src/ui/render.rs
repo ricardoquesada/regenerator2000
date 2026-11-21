@@ -1,59 +1,20 @@
-//! Top-level TUI rendering composition and widget module registry.
-//!
-//! Splits the terminal frame into the menu bar, minimap bar, main workspace, and status bar.
-//! Overlays active menu popups and modal [`Widget`] dialogs on top.
+//! Top-level TUI frame layout composition and pane dispatch.
 
+use super::menu::{self, Menu};
+use super::minimap_bar::MinimapBar;
+use super::statusbar::StatusBar;
+use super::view_bitmap::BitmapView;
+use super::view_blocks::BlocksView;
+use super::view_charset::CharsetView;
+use super::view_debugger::DebuggerView;
+use super::view_disassembly::DisassemblyView;
+use super::view_hexdump::HexDumpView;
+use super::view_sprites::SpritesView;
+use super::widget::Widget;
 use crate::state::AppState;
 use crate::ui_state::{RightPane, UIState};
-
-pub(crate) mod dialog_about;
-pub(crate) mod dialog_apply_enum;
-pub(crate) mod dialog_bookmarks;
-pub(crate) mod dialog_comment;
-pub(crate) mod dialog_complete_address;
-pub(crate) mod dialog_confirmation;
-pub mod dialog_container_picker;
-pub mod dialog_crt_picker;
-pub(crate) mod dialog_document_settings;
-pub(crate) mod dialog_edit_enum;
-pub(crate) mod dialog_file_browser;
-pub(crate) mod dialog_file_info;
-pub(crate) mod dialog_find_references;
-pub(crate) mod dialog_go_to_symbol;
-pub(crate) mod dialog_import_context;
-pub(crate) mod dialog_jump_to_operand;
-pub(crate) mod dialog_keyboard_shortcut;
-pub(crate) mod dialog_label;
-pub(crate) mod dialog_manage_enums;
-pub(crate) mod dialog_open_recent;
-pub(crate) mod dialog_prompt;
-pub(crate) mod dialog_search;
-pub(crate) mod dialog_settings;
-pub(crate) mod dialog_symbolic_offset;
-pub(crate) mod dialog_unpack;
-pub(crate) mod dialog_vice_connect;
-pub(crate) mod dialog_watchpoint_address;
-pub(crate) mod graphics_common;
-pub(crate) mod menu;
-pub(crate) mod minimap_bar;
-pub(crate) mod navigable;
-pub(crate) mod scoped_input;
-pub(crate) mod statusbar;
-pub(crate) mod view_bitmap;
-pub(crate) mod view_blocks;
-pub(crate) mod view_charset;
-pub(crate) mod view_debugger;
-pub(crate) mod view_disassembly;
-pub(crate) mod view_hexdump;
-pub(crate) mod view_sprites;
-pub mod widget;
-
-use crate::ui::widget::Widget;
-
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
 /// Renders a full TUI frame and updates cached hit-test rectangles on `ui_state`.
 ///
@@ -74,10 +35,10 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     ui_state.main_area = chunks[2];
     ui_state.status_bar_area = chunks[3];
 
-    menu::Menu.render(f, chunks[0], app_state, ui_state);
-    minimap_bar::MinimapBar.render(f, ui_state.minimap_area, app_state, ui_state);
+    Menu.render(f, chunks[0], app_state, ui_state);
+    MinimapBar.render(f, ui_state.minimap_area, app_state, ui_state);
     render_main_view(f, chunks[2], app_state, ui_state);
-    statusbar::StatusBar.render(f, chunks[3], app_state, ui_state);
+    StatusBar.render(f, chunks[3], app_state, ui_state);
 
     // Render the menu popup last so it stays on top.
     if ui_state.menu.active {
@@ -120,23 +81,23 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
     ui_state.disassembly_area = layout[0];
     ui_state.right_pane_area = layout[1];
 
-    view_disassembly::DisassemblyView.render(f, layout[0], app_state, ui_state);
+    DisassemblyView.render(f, layout[0], app_state, ui_state);
 
     match ui_state.right_pane {
         RightPane::None => {}
         RightPane::HexDump16 | RightPane::HexDump8 => {
-            view_hexdump::HexDumpView.render(f, layout[1], app_state, ui_state);
+            HexDumpView.render(f, layout[1], app_state, ui_state);
         }
         RightPane::Sprites2Col | RightPane::Sprites1Col => {
-            view_sprites::SpritesView.render(f, layout[1], app_state, ui_state);
+            SpritesView.render(f, layout[1], app_state, ui_state);
         }
         RightPane::Charset8Col | RightPane::Charset4Col => {
-            view_charset::CharsetView.render(f, layout[1], app_state, ui_state);
+            CharsetView.render(f, layout[1], app_state, ui_state);
         }
-        RightPane::Bitmap => view_bitmap::BitmapView.render(f, layout[1], app_state, ui_state),
-        RightPane::Blocks => view_blocks::BlocksView.render(f, layout[1], app_state, ui_state),
+        RightPane::Bitmap => BitmapView.render(f, layout[1], app_state, ui_state),
+        RightPane::Blocks => BlocksView.render(f, layout[1], app_state, ui_state),
         RightPane::Debugger => {
-            view_debugger::DebuggerView.render(f, layout[1], app_state, ui_state);
+            DebuggerView.render(f, layout[1], app_state, ui_state);
         }
     }
 }
@@ -146,7 +107,11 @@ mod tests {
     use super::*;
     use crate::state::{Addr, BlockType};
     use crate::theme::Theme;
-    use ratatui::{Terminal, backend::TestBackend};
+    use crate::ui::dialog_keyboard_shortcut::ShortcutsDialog;
+    use crate::ui::dialog_symbolic_offset::{SymbolicOffsetDialog, SymbolicOffsetDialogParams};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use ratatui::buffer::Cell;
 
     #[test]
     fn ui_populates_layout_rects_and_splits_right_pane() {
@@ -161,8 +126,10 @@ mod tests {
         ui_state.right_pane = RightPane::HexDump16;
 
         let backend = TestBackend::new(140, 30);
-        let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| ui(f, &app_state, &mut ui_state)).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
+        terminal
+            .draw(|f| ui(f, &app_state, &mut ui_state))
+            .expect("draw split right-pane frame");
 
         assert_eq!(ui_state.menu_area, Rect::new(0, 0, 140, 1));
         assert_eq!(ui_state.minimap_area, Rect::new(0, 1, 140, 1));
@@ -172,7 +139,9 @@ mod tests {
         assert_eq!(ui_state.disassembly_area.width, 140 - 78);
 
         ui_state.right_pane = RightPane::None;
-        terminal.draw(|f| ui(f, &app_state, &mut ui_state)).unwrap();
+        terminal
+            .draw(|f| ui(f, &app_state, &mut ui_state))
+            .expect("draw full-width disassembly frame");
         assert_eq!(ui_state.right_pane_area.width, 0);
         assert_eq!(ui_state.disassembly_area.width, 140);
     }
@@ -182,13 +151,13 @@ mod tests {
         let app_state = AppState::new();
         let mut ui_state = UIState::new(Theme::default());
         ui_state.dismiss_logo = true;
-        ui_state.push_dialog(Box::new(
-            crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
-        ));
+        ui_state.push_dialog(Box::new(ShortcutsDialog::new()));
 
         let backend = TestBackend::new(100, 30);
-        let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| ui(f, &app_state, &mut ui_state)).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
+        terminal
+            .draw(|f| ui(f, &app_state, &mut ui_state))
+            .expect("draw active dialog frame");
 
         assert!(ui_state.active_dialog.is_some());
         assert!(ui_state.active_dialog_area.width > 0);
@@ -204,23 +173,23 @@ mod tests {
 
         let mut ui_state = UIState::new(Theme::default());
         ui_state.dismiss_logo = true;
-        ui_state.active_dialog = Some(Box::new(
-            crate::ui::dialog_symbolic_offset::SymbolicOffsetDialog::new(
-                crate::ui::dialog_symbolic_offset::SymbolicOffsetDialogParams {
-                    site_address: Some(Addr(0x0800)),
-                    target_address: Addr(0x00FC),
-                    address_range: None,
-                    initial_input: "zp_ptr + 1",
-                    is_global: false,
-                    lock_global: false,
-                    is_zero_page_mode: true,
-                },
-            ),
-        ));
+        ui_state.active_dialog = Some(Box::new(SymbolicOffsetDialog::new(
+            SymbolicOffsetDialogParams {
+                site_address: Some(Addr(0x0800)),
+                target_address: Addr(0x00FC),
+                address_range: None,
+                initial_input: "zp_ptr + 1",
+                is_global: false,
+                lock_global: false,
+                is_zero_page_mode: true,
+            },
+        )));
 
         let backend = TestBackend::new(100, 30);
-        let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| ui(f, &app_state, &mut ui_state)).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
+        terminal
+            .draw(|f| ui(f, &app_state, &mut ui_state))
+            .expect("draw symbolic offset modal frame");
 
         assert!(ui_state.active_dialog.is_some());
         assert_eq!(ui_state.active_dialog_area.height, 8);
@@ -231,7 +200,7 @@ mod tests {
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         assert!(rendered.contains(" Symbolic Offset for $00FC (at $0800) "));
         assert!(rendered.contains("zp_ptr + 1"));

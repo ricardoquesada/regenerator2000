@@ -1,10 +1,14 @@
-// TUI-specific utility functions. Pure-logic utilities live in regenerator2000_core::utils.
-// Re-export core utils so `crate::utils::calculate_entropy` etc. keep working.
-pub use regenerator2000_core::utils::*;
+//! TUI layout and asset utilities, plus explicit re-exports of core helpers.
+
+pub use regenerator2000_core::utils::{
+    PetsciiCharset, calculate_crc32, calculate_entropy, list_files, petscii_to_unicode,
+    screencode_to_petscii,
+};
 
 use image::DynamicImage;
 use ratatui::layout::Rect;
 
+/// Computes a centered rectangle inside `r` using percentage sizing with minimum pixel/cell bounds.
 #[must_use]
 pub fn centered_rect_adaptive(
     percent_x: u16,
@@ -26,6 +30,7 @@ pub fn centered_rect_adaptive(
     Rect::new(r.x.saturating_add(x), r.y.saturating_add(y), width, height)
 }
 
+/// Decodes the embedded application logo PNG for the startup and About dialogs.
 #[must_use]
 pub fn load_logo() -> Option<DynamicImage> {
     let logo_bytes = include_bytes!("../assets/regenerator2000_logo.png");

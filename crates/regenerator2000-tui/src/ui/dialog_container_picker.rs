@@ -1,17 +1,20 @@
-use crate::parser::d64::{D64FileEntry, DiskType, FileType};
-use crate::parser::t64::T64Entry;
+//! Unified modal dialog for picking a PRG entry from D64/D71/D81 disk images or T64 tape archives.
+
+use crate::parser::d64::{self, D64FileEntry, DiskType, FileType};
+use crate::parser::prg;
+use crate::parser::t64::{self, T64Entry};
 use crate::state::types::System;
 use crate::state::{Addr, AppState};
-use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{List, ListItem, ListState},
-};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Clear, List, ListItem, ListState};
+use std::fs;
 use std::path::PathBuf;
 
 /// Container image format displayed by [`ContainerPickerDialog`].
@@ -43,8 +46,8 @@ impl ContainerPickerEntry {
         let mut entropy = None;
 
         if entry.file_type == FileType::PRG
-            && let Ok(prg_bytes) = crate::parser::d64::extract_file(container_data, &entry)
-            && let Ok(prg_data) = crate::parser::prg::parse_prg(&prg_bytes)
+            && let Ok(prg_bytes) = d64::extract_file(container_data, &entry)
+            && let Ok(prg_data) = prg::parse_prg(&prg_bytes)
         {
             start_addr = Some(prg_data.origin);
             if prg_data.raw_data.is_empty() {
@@ -56,7 +59,7 @@ impl ContainerPickerEntry {
                         .origin
                         .wrapping_add(prg_data.raw_data.len().saturating_sub(1) as u16),
                 );
-                entropy = Some(crate::utils::calculate_entropy(&prg_data.raw_data));
+                entropy = Some(utils::calculate_entropy(&prg_data.raw_data));
             }
         }
 
@@ -73,13 +76,13 @@ impl ContainerPickerEntry {
         let mut entropy = None;
         let mut size = 0;
 
-        if let Ok(prg_bytes) = crate::parser::t64::extract_file(container_data, &entry)
-            && let Ok(prg_data) = crate::parser::prg::parse_prg(&prg_bytes)
+        if let Ok(prg_bytes) = t64::extract_file(container_data, &entry)
+            && let Ok(prg_data) = prg::parse_prg(&prg_bytes)
         {
             entropy = if prg_data.raw_data.is_empty() {
                 Some(0.0)
             } else {
-                Some(crate::utils::calculate_entropy(&prg_data.raw_data))
+                Some(utils::calculate_entropy(&prg_data.raw_data))
             };
             size = prg_data.raw_data.len();
         }
@@ -223,10 +226,7 @@ impl ContainerPickerDialog {
                         System::new(System::C128)
                     }
                 };
-                (
-                    crate::parser::d64::extract_file(&self.container_data, entry),
-                    system,
-                )
+                (d64::extract_file(&self.container_data, entry), system)
             }
             ContainerEntrySource::T64(entry) => {
                 if entry.file_type != 1 {
@@ -237,14 +237,14 @@ impl ContainerPickerDialog {
                     return WidgetResult::Handled;
                 }
                 (
-                    crate::parser::t64::extract_file(&self.container_data, entry),
+                    t64::extract_file(&self.container_data, entry),
                     System::new(System::C64),
                 )
             }
         };
 
         match extract_result {
-            Ok(prg_bytes) => match crate::parser::prg::parse_prg(&prg_bytes) {
+            Ok(prg_bytes) => match prg::parse_prg(&prg_bytes) {
                 Ok(prg_data) => {
                     match app_state.load_binary(Addr(prg_data.origin), prg_data.raw_data) {
                         Ok(mut loaded_data) => {
@@ -252,7 +252,7 @@ impl ContainerPickerDialog {
                                 prg_data.suggested_system.or(Some(default_system));
                             loaded_data.suggested_entry_point =
                                 prg_data.suggested_entry_point.map(Addr);
-                            let abs_path = std::fs::canonicalize(&self.container_path)
+                            let abs_path = fs::canonicalize(&self.container_path)
                                 .unwrap_or_else(|_| self.container_path.clone());
                             app_state.system_config.add_recent_project(abs_path);
                             let _ = app_state.system_config.save();
@@ -293,11 +293,11 @@ impl Widget for ContainerPickerDialog {
             ContainerKind::T64 => "File",
         };
         let title = format!(" Select {noun} from {container_name} (Enter: Load, Esc: Cancel) ");
-        let block = crate::ui::widget::create_dialog_block(&title, theme);
+        let block = widget::create_dialog_block(&title, theme);
 
-        let area = crate::utils::centered_rect_adaptive(80, 60, 80, 14, area);
+        let area = utils::centered_rect_adaptive(80, 60, 80, 14, area);
         ui_state.active_dialog_area = area;
-        f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(Clear, area);
 
         let items: Vec<ListItem> = self
             .files
@@ -382,7 +382,10 @@ impl Widget for ContainerPickerDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::{Terminal, backend::TestBackend};
+    use crate::theme::Theme;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use ratatui::buffer::Cell;
 
     #[test]
     fn test_d64_picker_multibyte_filename_render_does_not_panic() {
@@ -408,23 +411,23 @@ mod tests {
         let dialog =
             ContainerPickerDialog::new_d64(vec![entry], Vec::new(), PathBuf::from("test.d64"));
         let app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(100, 30);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
 
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing D64 ContainerPickerDialog should succeed");
 
         let rendered: String = terminal
             .backend()
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         assert!(rendered.contains(&truncated));
     }
@@ -434,7 +437,7 @@ mod tests {
         let mut dialog =
             ContainerPickerDialog::new_d64(Vec::new(), Vec::new(), PathBuf::from("empty.d64"));
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         let result = dialog.handle_input(
             KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
@@ -456,23 +459,23 @@ mod tests {
         let dialog =
             ContainerPickerDialog::new_t64(vec![entry], Vec::new(), PathBuf::from("test.t64"));
         let app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(100, 30);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
 
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing T64 ContainerPickerDialog should succeed");
 
         let rendered: String = terminal
             .backend()
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         assert!(rendered.contains(&format!("{}...", "█".repeat(34))));
     }
@@ -482,7 +485,7 @@ mod tests {
         let mut dialog =
             ContainerPickerDialog::new_t64(Vec::new(), Vec::new(), PathBuf::from("empty.t64"));
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         let result = dialog.handle_input(
             KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
@@ -515,7 +518,7 @@ mod tests {
         let mut dialog =
             ContainerPickerDialog::new_d64(entries, Vec::new(), PathBuf::from("test.d64"));
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         // Enter on SEQ entry is rejected with a status message.
         assert_eq!(

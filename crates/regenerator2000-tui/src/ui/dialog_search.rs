@@ -1,29 +1,31 @@
+//! Modal dialog for entering a disassembly search query and toggling [`SearchFilters`].
+
 use crate::state::AppState;
-// Theme import removed
-use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::Paragraph,
-};
-use ratatui_textarea::{CursorMove, TextArea};
-
-use crate::ui::widget::{Widget, WidgetResult};
-
+use crate::state::actions::AppAction;
 // Re-export SearchFilters so existing `use crate::ui::dialog_search::SearchFilters` paths
 // continue to work.
-pub use crate::state::search::SearchFilters;
-
-// Import search engine functions from the centralized module.
 use crate::state::search;
+pub use crate::state::search::SearchFilters;
+use crate::ui::widget::{self, Widget, WidgetResult};
+use crate::ui_state::UIState;
+use crate::utils;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui_textarea::{CursorMove, TextArea};
 
+/// Modal dialog for text/regex search queries and [`SearchFilters`] toggles.
 pub struct SearchDialog {
+    /// Single-line text editor holding the active search query.
     pub textarea: TextArea<'static>,
+    /// Whether keyboard focus is currently on the filter checklist rather than the query field.
     pub editing_filters: bool,
+    /// Highlighted filter row index when [`Self::editing_filters`] is active.
     pub selected_filter: usize,
+    /// Active search filter flags (labels, comments, instructions, hex bytes, text, regex).
     pub filters: SearchFilters,
     /// Holds a regex error message when [`SearchFilters::use_regex`] is `true`
     /// and the current query is not a valid regular expression.
@@ -31,6 +33,7 @@ pub struct SearchDialog {
 }
 
 impl SearchDialog {
+    /// Creates a [`SearchDialog`] pre-filled with `initial_query` and `filters`.
     #[must_use]
     pub fn new(initial_query: impl AsRef<str>, filters: SearchFilters) -> Self {
         let initial_query = initial_query.as_ref();
@@ -69,8 +72,6 @@ impl SearchDialog {
     }
 }
 
-use crossterm::event::KeyModifiers;
-
 const FILTER_COUNT: usize = 6;
 
 // Each entry: (label_text, shortcut_char, shortcut_position_in_label)
@@ -89,12 +90,12 @@ impl Widget for SearchDialog {
 
         // Create a proper centered modal dialog
         // Height: 2 (border) + 3 (input w/ border) + 1 (filters label) + 6 (filters) + 1 (error hint) + 1 (help) = 14
-        let dialog_area = crate::utils::centered_rect_adaptive(50, 40, 50, 14, area);
+        let dialog_area = utils::centered_rect_adaptive(50, 40, 50, 14, area);
         ui_state.active_dialog_area = dialog_area;
 
-        f.render_widget(ratatui::widgets::Clear, dialog_area);
+        f.render_widget(Clear, dialog_area);
 
-        let block = crate::ui::widget::create_dialog_block(" Search ", theme);
+        let block = widget::create_dialog_block(" Search ", theme);
         f.render_widget(block.clone(), dialog_area);
 
         let inner = block.inner(dialog_area);
@@ -132,8 +133,8 @@ impl Widget for SearchDialog {
 
         let mut textarea = self.textarea.clone();
         textarea.set_block(
-            ratatui::widgets::Block::default()
-                .borders(ratatui::widgets::Borders::ALL)
+            Block::default()
+                .borders(Borders::ALL)
                 .border_style(input_border_style)
                 .style(Style::default().bg(theme.highlight_bg)),
         );
@@ -226,8 +227,7 @@ impl Widget for SearchDialog {
                 format!(" [!] {err}")
             };
             f.render_widget(
-                Paragraph::new(truncated)
-                    .style(Style::default().fg(ratatui::style::Color::LightRed)),
+                Paragraph::new(truncated).style(Style::default().fg(Color::LightRed)),
                 error_area,
             );
         }
@@ -278,7 +278,7 @@ impl Widget for SearchDialog {
                 // via `AppAction::FindNext.closes_dialog()`.
                 ui_state.last_search_query = self.input_text();
                 ui_state.search_filters = self.filters.clone();
-                WidgetResult::Action(crate::state::actions::AppAction::FindNext)
+                WidgetResult::Action(AppAction::FindNext)
             }
             KeyCode::Tab | KeyCode::BackTab => {
                 self.editing_filters = !self.editing_filters;
@@ -321,7 +321,9 @@ impl Widget for SearchDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ratatui::{Terminal, backend::TestBackend};
+    use crate::theme::Theme;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
 
     #[test]
     fn test_search_dialog_multibyte_regex_error_render_does_not_panic() {
@@ -334,16 +336,16 @@ mod tests {
         assert!(dialog.regex_error.is_some());
 
         let app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(80, 24);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
 
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing SearchDialog should succeed");
     }
 
     #[test]
@@ -351,7 +353,7 @@ mod tests {
         let filters = SearchFilters::default();
         let mut dialog = SearchDialog::new("[unclosed", filters);
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         assert!(dialog.regex_error.is_none());
 

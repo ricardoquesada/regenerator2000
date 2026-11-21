@@ -3,7 +3,8 @@
 //! This module processes mouse scroll wheel inputs (moving cursor up/down), left clicks inside
 //! the disassembly pane (positioning cursor and sub-cursor), and click-and-drag range selection events.
 
-use crate::ui::view_disassembly::layout::get_visual_line_counts;
+use super::layout::visual_line_counts;
+use super::navigation;
 use crate::ui::widget::WidgetResult;
 use crate::ui_state::UIState;
 use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
@@ -29,13 +30,13 @@ pub fn handle_mouse_events(
 ) -> WidgetResult {
     match mouse.kind {
         MouseEventKind::ScrollDown => {
-            crate::ui::view_disassembly::navigation::sync_selection_on_move(ui_state);
-            crate::ui::view_disassembly::navigation::move_cursor_down(app_state, ui_state, 3);
+            navigation::sync_selection_on_move(ui_state);
+            navigation::move_cursor_down(app_state, ui_state, 3);
             return WidgetResult::Handled;
         }
         MouseEventKind::ScrollUp => {
-            crate::ui::view_disassembly::navigation::sync_selection_on_move(ui_state);
-            crate::ui::view_disassembly::navigation::move_cursor_up(app_state, ui_state, 3);
+            navigation::sync_selection_on_move(ui_state);
+            navigation::move_cursor_up(app_state, ui_state, 3);
             return WidgetResult::Handled;
         }
         MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => {}
@@ -78,7 +79,7 @@ pub fn handle_mouse_events(
 
     while current_inst < app_state.disassembly.len() {
         let line = &app_state.disassembly[current_inst];
-        let counts = get_visual_line_counts(line, app_state).total();
+        let counts = visual_line_counts(line, app_state).total();
         let visible_part_count = counts.saturating_sub(current_sub);
 
         if click_row < current_y + visible_part_count {
@@ -122,6 +123,7 @@ pub fn handle_mouse_events(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::theme::Theme;
     use regenerator2000_core::disassembler::DisassemblyLine;
     use regenerator2000_core::state::Addr;
 
@@ -143,7 +145,7 @@ mod tests {
             is_collapsed: false,
         });
 
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.disassembly_area = Rect {
             x: 0,
             y: 0,
@@ -181,7 +183,7 @@ mod tests {
             is_collapsed: false,
         });
 
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.disassembly_area = Rect {
             x: 0,
             y: 0,

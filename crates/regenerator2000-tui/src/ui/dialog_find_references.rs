@@ -6,15 +6,15 @@
 
 use crate::state::actions::AppAction;
 use crate::state::{Addr, AppState, XRef};
-use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Modifier, Style},
-    widgets::{List, ListItem, ListState},
-};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Modifier, Style};
+use ratatui::widgets::{Clear, List, ListItem, ListState};
+use std::fmt::Write as _;
 
 /// Modal dialog that displays incoming typed cross-references ([`XRef`]) for a target [`Addr`].
 pub struct FindReferencesDialog {
@@ -62,15 +62,16 @@ impl FindReferencesDialog {
                 // Find line to get instruction details
                 if let Some(idx) = app_state.line_index_for_address(ref_addr) {
                     if let Some(line) = app_state.disassembly.get(idx) {
-                        text.push_str(&format!(" {} {}", line.mnemonic, line.operand));
+                        let _ = write!(text, " {} {}", line.mnemonic, line.operand);
                     }
                 } else if let Some(idx) = app_state.line_index_containing_address(ref_addr) {
                     // Inside a block (e.g. data block)
                     if let Some(line) = app_state.disassembly.get(idx) {
-                        text.push_str(&format!(
+                        let _ = write!(
+                            text,
                             " {} ${:04X} (Inside Block)",
                             line.mnemonic, line.address
-                        ));
+                        );
                     }
                 }
                 list_items.push(text);
@@ -108,11 +109,11 @@ impl Widget for FindReferencesDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let title = format!(" References to ${:04X} ", self.target_address);
-        let block = crate::ui::widget::create_dialog_block(&title, theme);
+        let block = widget::create_dialog_block(&title, theme);
 
-        let area = crate::utils::centered_rect_adaptive(60, 50, 50, 14, area);
+        let area = utils::centered_rect_adaptive(60, 50, 50, 14, area);
         ui_state.active_dialog_area = area;
-        f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(Clear, area);
 
         let items: Vec<ListItem> = self
             .list_items
@@ -174,7 +175,8 @@ mod tests {
     use crate::state::XRefKind;
     use crate::theme::Theme;
     use crossterm::event::KeyModifiers;
-    use ratatui::{Terminal, backend::TestBackend};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
 
     #[test]
     fn test_find_references_dialog_sorts_and_stores_typed_xrefs() {
@@ -242,14 +244,14 @@ mod tests {
         let dialog = FindReferencesDialog::new(&app_state, target);
         let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(80, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
 
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing FindReferencesDialog should succeed");
 
         let buffer = terminal.backend().buffer();
         let mut rendered = String::new();

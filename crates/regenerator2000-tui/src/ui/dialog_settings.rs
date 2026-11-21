@@ -1,30 +1,39 @@
+//! Modal dialog for configuring application-wide settings and themes.
+
 use crate::state::AppState;
+use crate::theme::Theme;
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
-use crossterm::event::KeyCode;
+use crate::utils;
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Clear, List, ListItem, ListState, Paragraph};
 
-use crate::ui::widget::{Widget, WidgetResult};
-
 #[derive(Default)]
+/// Modal dialog for editing global application settings and choosing the active UI theme.
 pub struct SettingsDialog {
+    /// Highlighted setting row index (`0..=9`).
     pub selected_index: usize,
+    /// Whether the theme picker sub-popup is open.
     pub is_selecting_theme: bool,
 }
 
 impl SettingsDialog {
+    /// Creates a [`SettingsDialog`] focused on the first setting row.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Advances [`Self::selected_index`] to the next setting row, wrapping around.
     pub fn next(&mut self) {
         let max_items = 10;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
+    /// Moves [`Self::selected_index`] to the previous setting row, wrapping around.
     pub fn previous(&mut self) {
         let max_items = 10;
         if self.selected_index == 0 {
@@ -35,7 +44,7 @@ impl SettingsDialog {
     }
 
     fn cycle_theme(app_state: &mut AppState, ui_state: &mut UIState, delta: isize) {
-        let themes = crate::theme::Theme::all_names();
+        let themes = Theme::all_names();
         if themes.is_empty() {
             return;
         }
@@ -49,7 +58,7 @@ impl SettingsDialog {
         };
         let new_theme = themes[new_idx].clone();
         app_state.system_config.theme.clone_from(&new_theme);
-        ui_state.theme = crate::theme::Theme::from_name(&new_theme);
+        ui_state.theme = Theme::from_name(&new_theme);
         let _ = app_state.system_config.save();
     }
 }
@@ -57,9 +66,9 @@ impl SettingsDialog {
 impl Widget for SettingsDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" Settings ", theme);
+        let block = widget::create_dialog_block(" Settings ", theme);
 
-        let area = crate::utils::centered_rect_adaptive(50, 40, 40, 17, area);
+        let area = utils::centered_rect_adaptive(50, 40, 40, 17, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -174,11 +183,11 @@ impl Widget for SettingsDialog {
 
         // Theme Selection Popup
         if self.is_selecting_theme {
-            let popup_area = crate::utils::centered_rect_adaptive(40, 30, 30, 13, area);
+            let popup_area = utils::centered_rect_adaptive(40, 30, 30, 13, area);
             f.render_widget(Clear, popup_area);
-            let block = crate::ui::widget::create_dialog_block(" Select Theme ", theme);
+            let block = widget::create_dialog_block(" Select Theme ", theme);
 
-            let themes = crate::theme::Theme::all_names();
+            let themes = Theme::all_names();
             let list_items: Vec<ListItem> = themes
                 .iter()
                 .map(|t| {
@@ -211,7 +220,7 @@ impl Widget for SettingsDialog {
 
     fn handle_input(
         &mut self,
-        key: crossterm::event::KeyEvent,
+        key: KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
@@ -367,12 +376,12 @@ mod tests {
         assert!(dialog.is_selecting_theme);
 
         let backend = TestBackend::new(80, 24);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing SettingsDialog should succeed");
 
         assert_eq!(
             dialog.handle_input(

@@ -1,36 +1,52 @@
-use crate::state::AppState;
+//! Shared cursor, scrolling, and 2D grid selection helpers for navigable TUI panes.
+
+use crate::state::{Addr, AppState};
 use crate::ui::view_disassembly::DisassemblyView;
 use crate::ui::widget::WidgetResult;
-use crate::ui_state::{AppAction, UIState};
+use crate::ui_state::{ActivePane, AppAction, NavigationTarget, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
+use regenerator2000_core::navigation;
 
 /// Shared cursor-navigation contract implemented by all scrollable/grid TUI views
 /// (`DisassemblyView`, `HexDumpView`, `SpritesView`, `CharsetView`, `BitmapView`, `BlocksView`).
 pub trait Navigable {
+    /// Returns the total number of navigable items in this view for `app_state`.
     fn len(&self, app_state: &AppState) -> usize;
 
+    /// Returns `true` when this view currently has no navigable items.
+    fn is_empty(&self, app_state: &AppState) -> bool {
+        self.len(app_state) == 0
+    }
+
+    /// Returns the total number of navigable items taking transient `ui_state` into account.
     fn len_with_ui(&self, app_state: &AppState, _ui_state: &UIState) -> usize {
         self.len(app_state)
     }
 
+    /// Returns the active item index in this view.
     fn current_index(&self, app_state: &AppState, ui_state: &UIState) -> usize;
 
+    /// Moves the active cursor forward by `amount` items.
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize);
+
+    /// Moves the active cursor backward by `amount` items.
     fn move_up(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize);
 
+    /// Moves the active cursor down by one page (`10` items by default).
     fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
         self.move_down(app_state, ui_state, 10);
     }
 
+    /// Moves the active cursor up by one page (`10` items by default).
     fn page_up(&self, app_state: &AppState, ui_state: &mut UIState) {
         self.move_up(app_state, ui_state, 10);
     }
 
-    // Jump to absolute index (e.g. from Home/End or computed target)
+    /// Jumps to an absolute zero-based `index`.
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize);
 
-    // Jump based on 1-based user input (e.g. from `[N]G`, where `0` jumps to the last item)
+    /// Jumps based on 1-based user input (for `[N]G`, where `0` jumps to the last item).
     fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
         let total = self.len_with_ui(app_state, ui_state);
         let target = if input == 0 {
@@ -41,10 +57,56 @@ pub trait Navigable {
         self.jump_to(app_state, ui_state, target);
     }
 
+    /// Human-readable singular item noun used in status bar feedback (e.g., `"sprite"`).
     fn item_name(&self) -> &str;
 }
 
 pub use regenerator2000_core::navigation::AlignedGridRange;
+
+/// Whether visual selection mode is active in the focused pane.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VisualMode {
+    /// Visual selection mode is off.
+    Inactive,
+    /// Visual selection mode is active; movement preserves the selection anchor.
+    Active,
+}
+
+impl VisualMode {
+    /// Converts a raw boolean flag into [`VisualMode`].
+    #[must_use]
+    pub const fn from_active(active: bool) -> Self {
+        if active { Self::Active } else { Self::Inactive }
+    }
+
+    /// Returns `true` when visual selection mode is active.
+    #[must_use]
+    pub const fn is_active(self) -> bool {
+        matches!(self, Self::Active)
+    }
+}
+
+/// Whether a cursor motion or click extends the active selection anchor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectionExtend {
+    /// Replace any active selection anchor.
+    Replace,
+    /// Establish or keep the selection anchor.
+    Extend,
+}
+
+/// Snapshot of grid geometry, cursor position, and selection anchor for [`handle_grid_selection_input`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GridSelectionContext<'grid> {
+    /// Address layout of items in the right-pane grid.
+    pub grid: &'grid AlignedGridRange,
+    /// Number of items rendered per visual row (`1`, `2`, `4`, or `8`).
+    pub grid_cols: usize,
+    /// Current item cursor index.
+    pub cursor: usize,
+    /// Optional selection anchor index.
+    pub selection: Option<usize>,
+}
 
 /// Mirrors a right-pane cursor address and optional selection anchor into the disassembly view.
 ///
@@ -85,7 +147,7 @@ pub fn sync_pane_to_disassembly(
     if let Some(inst_idx) = inst_idx {
         ui_state.cursor_index = inst_idx;
         let counts =
-            DisassemblyView::get_visual_line_counts(&app_state.disassembly[inst_idx], app_state);
+            DisassemblyView::visual_line_counts(&app_state.disassembly[inst_idx], app_state);
         ui_state.sub_cursor_index = counts.opcode_sub_index();
 
         ui_state.selection_start = selection_raw_addr
@@ -213,30 +275,38 @@ pub fn right_pane_mouse_inner_area(ui_state: &UIState, mouse: &MouseEvent) -> Op
         .then_some(inner)
 }
 
-/// Returns `true` when a mouse press/drag event should extend the current selection
+/// Returns whether a mouse press/drag event should extend the current selection
 /// (mouse drag, `Shift+Click`, or active visual mode).
 #[must_use]
-pub fn is_mouse_selection_extend(mouse: &MouseEvent, is_visual_mode: bool) -> bool {
-    matches!(mouse.kind, MouseEventKind::Drag(_))
+pub fn is_mouse_selection_extend(mouse: &MouseEvent, visual_mode: VisualMode) -> SelectionExtend {
+    if matches!(mouse.kind, MouseEventKind::Drag(_))
         || mouse.modifiers.contains(KeyModifiers::SHIFT)
-        || is_visual_mode
+        || visual_mode.is_active()
+    {
+        SelectionExtend::Extend
+    } else {
+        SelectionExtend::Replace
+    }
 }
 
 /// Applies a left-click or drag hit-test result to a 1D grid cursor and optional selection anchor.
 pub fn apply_grid_mouse_click(
     mouse: &MouseEvent,
-    is_visual_mode: bool,
+    visual_mode: VisualMode,
     cursor_index: &mut usize,
     selection_start: &mut Option<usize>,
     hit_index: Option<usize>,
 ) {
     if let Some(idx) = hit_index {
-        if is_mouse_selection_extend(mouse, is_visual_mode) {
-            if selection_start.is_none() {
-                *selection_start = Some(*cursor_index);
+        match is_mouse_selection_extend(mouse, visual_mode) {
+            SelectionExtend::Extend => {
+                if selection_start.is_none() {
+                    *selection_start = Some(*cursor_index);
+                }
             }
-        } else {
-            *selection_start = None;
+            SelectionExtend::Replace => {
+                *selection_start = None;
+            }
         }
         *cursor_index = idx;
     }
@@ -244,23 +314,25 @@ pub fn apply_grid_mouse_click(
 
 /// Moves a grid cursor forward by `delta` and updates `selection_start`.
 ///
-/// Keeps or sets `selection_start` when `extend_selection` or `is_visual_mode` is `true`, and
-/// clears it otherwise. If `total == 0`, returns without setting `selection_start`.
+/// Keeps or sets `selection_start` when `extend_selection` is [`SelectionExtend::Extend`] or
+/// `visual_mode` is [`VisualMode::Active`], and clears it otherwise. If `total == 0`, returns
+/// without setting `selection_start`.
 pub fn move_grid_cursor_down(
     cursor_index: &mut usize,
     selection_start: &mut Option<usize>,
-    is_visual_mode: bool,
-    extend_selection: bool,
+    visual_mode: VisualMode,
+    extend_selection: SelectionExtend,
     delta: usize,
     total: usize,
 ) {
+    let keep_selection = extend_selection == SelectionExtend::Extend || visual_mode.is_active();
     if total == 0 {
-        if !extend_selection && !is_visual_mode {
+        if !keep_selection {
             *selection_start = None;
         }
         return;
     }
-    if extend_selection || is_visual_mode {
+    if keep_selection {
         if selection_start.is_none() {
             *selection_start = Some(*cursor_index);
         }
@@ -272,16 +344,17 @@ pub fn move_grid_cursor_down(
 
 /// Moves a grid cursor backward by `delta` and updates `selection_start`.
 ///
-/// Keeps or sets `selection_start` when `extend_selection` or `is_visual_mode` is `true`, and
-/// clears it otherwise. Callers must check `total > 0` before passing `extend_selection = true`.
+/// Keeps or sets `selection_start` when `extend_selection` is [`SelectionExtend::Extend`] or
+/// `visual_mode` is [`VisualMode::Active`], and clears it otherwise. Callers must check
+/// `total > 0` before passing [`SelectionExtend::Extend`].
 pub fn move_grid_cursor_up(
     cursor_index: &mut usize,
     selection_start: &mut Option<usize>,
-    is_visual_mode: bool,
-    extend_selection: bool,
+    visual_mode: VisualMode,
+    extend_selection: SelectionExtend,
     delta: usize,
 ) {
-    if extend_selection || is_visual_mode {
+    if extend_selection == SelectionExtend::Extend || visual_mode.is_active() {
         if selection_start.is_none() {
             *selection_start = Some(*cursor_index);
         }
@@ -298,17 +371,17 @@ pub fn move_grid_cursor_up(
 pub fn jump_grid_cursor(
     cursor_index: &mut usize,
     selection_start: &mut Option<usize>,
-    is_visual_mode: bool,
+    visual_mode: VisualMode,
     index: usize,
     total: usize,
 ) {
     if total == 0 {
-        if !is_visual_mode {
+        if !visual_mode.is_active() {
             *selection_start = None;
         }
         return;
     }
-    if is_visual_mode {
+    if visual_mode.is_active() {
         if selection_start.is_none() {
             *selection_start = Some(*cursor_index);
         }
@@ -329,18 +402,21 @@ pub fn jump_grid_cursor(
 /// - `b`: Converts the selected or focused items to `DataByte` and clears selections. Ignores
 ///   items that lie only in alignment padding before `origin`.
 /// - `Enter`: Jumps focus to `DisassemblyView` at the current item's clamped address.
-#[allow(clippy::too_many_arguments)]
 pub fn handle_grid_selection_input(
     key: KeyEvent,
     app_state: &AppState,
     ui_state: &mut UIState,
-    grid: &AlignedGridRange,
-    grid_cols: usize,
-    mut cursor: usize,
-    mut selection: Option<usize>,
+    ctx: GridSelectionContext<'_>,
     set_state: impl FnOnce(&mut UIState, usize, Option<usize>),
 ) -> WidgetResult {
+    let GridSelectionContext {
+        grid,
+        grid_cols,
+        mut cursor,
+        mut selection,
+    } = ctx;
     let has_items = !app_state.raw_data.is_empty() && grid.item_count() > 0;
+    let visual_mode = VisualMode::from_active(ui_state.is_visual_mode);
     match key.code {
         KeyCode::Esc if key.modifiers.is_empty() => {
             if selection.is_some() || ui_state.is_visual_mode {
@@ -374,8 +450,8 @@ pub fn handle_grid_selection_input(
                 move_grid_cursor_down(
                     &mut cursor,
                     &mut selection,
-                    ui_state.is_visual_mode,
-                    /* extend_selection= */ true,
+                    visual_mode,
+                    SelectionExtend::Extend,
                     grid_cols,
                     grid.item_count(),
                 );
@@ -388,8 +464,8 @@ pub fn handle_grid_selection_input(
                 move_grid_cursor_up(
                     &mut cursor,
                     &mut selection,
-                    ui_state.is_visual_mode,
-                    /* extend_selection= */ true,
+                    visual_mode,
+                    SelectionExtend::Extend,
                     grid_cols,
                 );
                 set_state(ui_state, cursor, selection);
@@ -401,8 +477,8 @@ pub fn handle_grid_selection_input(
                 move_grid_cursor_up(
                     &mut cursor,
                     &mut selection,
-                    ui_state.is_visual_mode,
-                    /* extend_selection= */ true,
+                    visual_mode,
+                    SelectionExtend::Extend,
                     1,
                 );
                 set_state(ui_state, cursor, selection);
@@ -414,8 +490,8 @@ pub fn handle_grid_selection_input(
                 move_grid_cursor_down(
                     &mut cursor,
                     &mut selection,
-                    ui_state.is_visual_mode,
-                    /* extend_selection= */ true,
+                    visual_mode,
+                    SelectionExtend::Extend,
                     1,
                     grid.item_count(),
                 );
@@ -431,8 +507,8 @@ pub fn handle_grid_selection_input(
                 move_grid_cursor_up(
                     &mut cursor,
                     &mut selection,
-                    ui_state.is_visual_mode,
-                    /* extend_selection= */ false,
+                    visual_mode,
+                    SelectionExtend::Replace,
                     1,
                 );
                 set_state(ui_state, cursor, selection);
@@ -445,8 +521,8 @@ pub fn handle_grid_selection_input(
                 move_grid_cursor_down(
                     &mut cursor,
                     &mut selection,
-                    ui_state.is_visual_mode,
-                    /* extend_selection= */ false,
+                    visual_mode,
+                    SelectionExtend::Replace,
                     1,
                     grid.item_count(),
                 );
@@ -532,8 +608,12 @@ pub fn handle_nav_input<T: Navigable>(
         }
         KeyCode::End => {
             ui_state.input_buffer.clear();
-            let len = target.len_with_ui(app_state, ui_state);
-            target.jump_to(app_state, ui_state, len.saturating_sub(1));
+            let end_idx = if target.is_empty(app_state) {
+                0
+            } else {
+                target.len_with_ui(app_state, ui_state).saturating_sub(1)
+            };
+            target.jump_to(app_state, ui_state, end_idx);
             WidgetResult::Handled
         }
         // Accept both `KeyModifiers::NONE` and `KeyModifiers::SHIFT` for uppercase `'G'` across
@@ -547,10 +627,10 @@ pub fn handle_nav_input<T: Navigable>(
             ui_state.input_buffer.clear();
 
             // Push history before jumping
-            ui_state.core.navigation_history.push((
-                active_pane,
-                crate::ui_state::NavigationTarget::Index(current_idx),
-            ));
+            ui_state
+                .core
+                .navigation_history
+                .push((active_pane, NavigationTarget::Index(current_idx)));
 
             if is_buffer_empty {
                 let len = target.len_with_ui(app_state, ui_state);
@@ -571,57 +651,42 @@ pub fn handle_nav_input<T: Navigable>(
     }
 }
 
-/// Switches focus to [`crate::ui_state::ActivePane::Disassembly`] at the line containing
-/// `target_addr` and records the caller pane and index in `navigation_history`.
+/// Switches focus to [`ActivePane::Disassembly`] at the line containing `target_addr` and
+/// records the caller pane and index in `navigation_history`.
 pub fn jump_to_disassembly_at_address(
     app_state: &AppState,
     ui_state: &mut UIState,
-    target_addr: crate::state::Addr,
+    target_addr: Addr,
 ) -> WidgetResult {
-    regenerator2000_core::navigation::perform_jump_to_address(
-        app_state,
-        &mut ui_state.core,
-        target_addr,
-    );
+    navigation::perform_jump_to_address(app_state, &mut ui_state.core, target_addr);
     ui_state.sync_status_message();
     WidgetResult::Handled
 }
 
-/// Switches focus to [`crate::ui_state::ActivePane::Disassembly`] at `line_idx` (if `Some`),
-/// recording the previous pane's cursor position in `navigation_history` for `Backspace` navigation.
+/// Switches focus to [`ActivePane::Disassembly`] at `line_idx` (if `Some`), recording the
+/// previous pane's cursor position in `navigation_history` for `Backspace` navigation.
 pub fn jump_to_disassembly_at_line_idx(
     ui_state: &mut UIState,
     line_idx: Option<usize>,
-    target_addr: crate::state::Addr,
+    target_addr: Addr,
 ) -> WidgetResult {
     if let Some(line_idx) = line_idx {
         let active_pane = ui_state.active_pane;
         let target = match active_pane {
-            crate::ui_state::ActivePane::Disassembly => {
-                crate::ui_state::NavigationTarget::Index(ui_state.core.cursor_index)
+            ActivePane::Disassembly | ActivePane::Debugger => {
+                NavigationTarget::Index(ui_state.core.cursor_index)
             }
-            crate::ui_state::ActivePane::HexDump => {
-                crate::ui_state::NavigationTarget::Index(ui_state.hex_cursor_index)
-            }
-            crate::ui_state::ActivePane::Sprites => {
-                crate::ui_state::NavigationTarget::Index(ui_state.sprites_cursor_index)
-            }
-            crate::ui_state::ActivePane::Charset => {
-                crate::ui_state::NavigationTarget::Index(ui_state.charset_cursor_index)
-            }
-            crate::ui_state::ActivePane::Bitmap => {
-                crate::ui_state::NavigationTarget::Index(ui_state.bitmap_cursor_index)
-            }
-            crate::ui_state::ActivePane::Blocks => crate::ui_state::NavigationTarget::Index(
-                ui_state.blocks_selected_index.unwrap_or(0),
-            ),
-            crate::ui_state::ActivePane::Debugger => {
-                crate::ui_state::NavigationTarget::Index(ui_state.core.cursor_index)
+            ActivePane::HexDump => NavigationTarget::Index(ui_state.hex_cursor_index),
+            ActivePane::Sprites => NavigationTarget::Index(ui_state.sprites_cursor_index),
+            ActivePane::Charset => NavigationTarget::Index(ui_state.charset_cursor_index),
+            ActivePane::Bitmap => NavigationTarget::Index(ui_state.bitmap_cursor_index),
+            ActivePane::Blocks => {
+                NavigationTarget::Index(ui_state.blocks_selected_index.unwrap_or(0))
             }
         };
         ui_state.core.navigation_history.push((active_pane, target));
         ui_state.cursor_index = line_idx;
-        ui_state.active_pane = crate::ui_state::ActivePane::Disassembly;
+        ui_state.active_pane = ActivePane::Disassembly;
         ui_state.sub_cursor_index = 0;
 
         // Also reset scroll if not visible
@@ -647,6 +712,7 @@ mod tests {
     use crate::state::{Addr, BlockType};
     use crate::theme::Theme;
     use crate::ui_state::ActivePane;
+    use regenerator2000_core::navigation::OffsetSpan;
 
     #[test]
     fn test_jump_to_disassembly_at_address_skips_splitter_and_sets_sub_cursor() {
@@ -680,10 +746,7 @@ mod tests {
         );
         assert_eq!(
             ui_state.core.navigation_history,
-            vec![(
-                ActivePane::HexDump,
-                crate::ui_state::NavigationTarget::Index(3)
-            )]
+            vec![(ActivePane::HexDump, NavigationTarget::Index(3))]
         );
     }
 
@@ -707,7 +770,7 @@ mod tests {
         // Item 0 covers [$0800..=$083F]; clamped to origin $0801 it yields offsets 0..=0x3E.
         assert_eq!(
             grid.item_range_byte_offsets(0, 0),
-            Some(regenerator2000_core::navigation::OffsetSpan {
+            Some(OffsetSpan {
                 start: 0,
                 end: 0x3E
             })
@@ -715,7 +778,7 @@ mod tests {
         // Reversed anchor/cursor order produces the same inclusive offset range.
         assert_eq!(
             grid.item_range_byte_offsets(1, 0),
-            Some(regenerator2000_core::navigation::OffsetSpan {
+            Some(OffsetSpan {
                 start: 0,
                 end: 0x7E
             })
@@ -918,10 +981,12 @@ mod tests {
                 KeyEvent::new(code, modifiers),
                 &empty_state,
                 &mut ui_state,
-                &empty_grid,
-                2,
-                cursor,
-                selection,
+                GridSelectionContext {
+                    grid: &empty_grid,
+                    grid_cols: 2,
+                    cursor,
+                    selection,
+                },
                 |_, new_cursor, new_selection| {
                     cursor = new_cursor;
                     selection = new_selection;
@@ -948,10 +1013,12 @@ mod tests {
             KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT),
             &bitmap_state,
             &mut ui_state,
-            &bitmap_grid,
-            1,
-            cursor,
-            selection,
+            GridSelectionContext {
+                grid: &bitmap_grid,
+                grid_cols: 1,
+                cursor,
+                selection,
+            },
             |_, new_cursor, new_selection| {
                 cursor = new_cursor;
                 selection = new_selection;
@@ -966,10 +1033,12 @@ mod tests {
             KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT),
             &bitmap_state,
             &mut ui_state,
-            &bitmap_grid,
-            1,
-            cursor,
-            selection,
+            GridSelectionContext {
+                grid: &bitmap_grid,
+                grid_cols: 1,
+                cursor,
+                selection,
+            },
             |_, new_cursor, new_selection| {
                 cursor = new_cursor;
                 selection = new_selection;
@@ -986,10 +1055,12 @@ mod tests {
                     KeyEvent::new(code, KeyModifiers::SHIFT),
                     &bitmap_state,
                     &mut ui_state,
-                    &bitmap_grid,
-                    1,
-                    cursor,
-                    selection,
+                    GridSelectionContext {
+                        grid: &bitmap_grid,
+                        grid_cols: 1,
+                        cursor,
+                        selection,
+                    },
                     |_, _, _| {},
                 ),
                 WidgetResult::Ignored
@@ -1011,10 +1082,12 @@ mod tests {
             KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT),
             &charset_state,
             &mut ui_state,
-            &charset_grid,
-            8,
-            cursor,
-            selection,
+            GridSelectionContext {
+                grid: &charset_grid,
+                grid_cols: 8,
+                cursor,
+                selection,
+            },
             |_, new_cursor, new_selection| {
                 cursor = new_cursor;
                 selection = new_selection;
@@ -1029,10 +1102,12 @@ mod tests {
             KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT),
             &charset_state,
             &mut ui_state,
-            &charset_grid,
-            8,
-            cursor,
-            selection,
+            GridSelectionContext {
+                grid: &charset_grid,
+                grid_cols: 8,
+                cursor,
+                selection,
+            },
             |_, new_cursor, new_selection| {
                 cursor = new_cursor;
                 selection = new_selection;
@@ -1056,10 +1131,12 @@ mod tests {
             KeyEvent::new(KeyCode::Char('b'), KeyModifiers::NONE),
             &padding_state,
             &mut ui_state,
-            &padding_grid,
-            8,
-            cursor,
-            selection,
+            GridSelectionContext {
+                grid: &padding_grid,
+                grid_cols: 8,
+                cursor,
+                selection,
+            },
             |_, new_cursor, new_selection| {
                 cursor = new_cursor;
                 selection = new_selection;
@@ -1080,10 +1157,12 @@ mod tests {
             KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
             &padding_state,
             &mut ui_state,
-            &padding_grid,
-            8,
-            cursor,
-            selection,
+            GridSelectionContext {
+                grid: &padding_grid,
+                grid_cols: 8,
+                cursor,
+                selection,
+            },
             |_, new_cursor, new_selection| {
                 cursor = new_cursor;
                 selection = new_selection;
@@ -1099,10 +1178,12 @@ mod tests {
             KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE),
             &padding_state,
             &mut ui_state,
-            &padding_grid,
-            8,
-            cursor,
-            selection,
+            GridSelectionContext {
+                grid: &padding_grid,
+                grid_cols: 8,
+                cursor,
+                selection,
+            },
             |_, _, _| {},
         );
         assert_eq!(idle_escape_result, WidgetResult::Ignored);

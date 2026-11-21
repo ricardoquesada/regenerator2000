@@ -520,7 +520,8 @@ mod tests {
     fn make_targets(count: usize) -> Vec<OperandJumpTarget> {
         (0..count)
             .map(|i| {
-                let addr = Addr(0x1000 + u16::try_from(i).unwrap() * 0x10);
+                let offset = u16::try_from(i).expect("test target index should fit in u16");
+                let addr = Addr(0x1000 + offset * 0x10);
                 OperandJumpTarget::new(
                     addr,
                     format!("target_{i}"),
@@ -538,10 +539,10 @@ mod tests {
         let app_state = AppState::new();
         let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(width, height);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| dialog.render(f, f.area(), &app_state, &mut ui_state))
-            .unwrap();
+            .expect("drawing JumpToOperandDialog should succeed");
         (terminal, ui_state)
     }
 
@@ -688,8 +689,15 @@ mod tests {
 
         assert!(line.contains('\u{2026}'));
         // At least 16 chars must remain after "│ " for the preview text.
-        let after_div = line.split(" \u{2502} ").nth(1).unwrap();
-        let preview_part = after_div.split('\u{2502}').next().unwrap().trim_end();
+        let after_div = line
+            .split(" \u{2502} ")
+            .nth(1)
+            .expect("rendered row should contain column divider");
+        let preview_part = after_div
+            .split('\u{2502}')
+            .next()
+            .expect("rendered row should contain trailing border")
+            .trim_end();
         assert!(
             display_width(preview_part) >= 16,
             "preview width too narrow: {preview_part:?}"

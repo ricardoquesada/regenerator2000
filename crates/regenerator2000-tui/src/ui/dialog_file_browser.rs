@@ -1,31 +1,49 @@
-use crate::state::AppState;
+//! Unified modal file-browser dialog for opening files/containers, saving projects, and exporting.
+
+use crate::event::ExportFormat;
+use crate::exporter;
+use crate::parser::crt;
+use crate::parser::d64::{self, FileType};
+use crate::parser::t64;
 use crate::state::actions::AppAction;
-use crate::ui::widget::{Widget, WidgetResult};
+use crate::state::{AppState, GlobalConfigUpdate};
+use crate::ui::dialog_confirmation::ConfirmationDialog;
+use crate::ui::dialog_container_picker::ContainerPickerDialog;
+use crate::ui::dialog_crt_picker::CrtBankPickerDialog;
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    widgets::{List, ListItem, ListState, Paragraph},
-};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use ratatui_textarea::{CursorMove, TextArea};
-use std::path::PathBuf;
+use regenerator2000_core::navigation;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Focus target inside [`FileBrowserDialog`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileBrowserFocus {
+    /// Keyboard focus is in the editable filename input box.
     Filename,
+    /// Keyboard focus is in the directory entry list.
     DirectoryList,
 }
 
 /// Operation mode for [`FileBrowserDialog`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FileBrowserMode {
+    /// Browse and open a binary, container image, or `.regen2000proj` file.
     OpenProjectOrFile,
+    /// Browse and import VICE `.lbl` labels.
     ImportViceLabels,
+    /// Save the active project to a `.regen2000proj` file.
     SaveProject,
-    Export(crate::event::ExportFormat),
+    /// Export disassembly in the selected [`ExportFormat`].
+    Export(ExportFormat),
+    /// Export VICE `.lbl` labels.
     ExportLabels,
 }
 
@@ -44,8 +62,8 @@ impl FileBrowserMode {
     pub fn target_extension(self) -> Option<&'static str> {
         match self {
             Self::SaveProject => Some("regen2000proj"),
-            Self::Export(crate::event::ExportFormat::Asm) => Some("asm"),
-            Self::Export(crate::event::ExportFormat::Html) => Some("html"),
+            Self::Export(ExportFormat::Asm) => Some("asm"),
+            Self::Export(ExportFormat::Html) => Some("html"),
             Self::ExportLabels => Some("lbl"),
             Self::OpenProjectOrFile | Self::ImportViceLabels => None,
         }
@@ -72,8 +90,8 @@ impl FileBrowserMode {
             .collect(),
             Self::ImportViceLabels | Self::ExportLabels => vec!["lbl".to_string()],
             Self::SaveProject => vec!["regen2000proj".to_string()],
-            Self::Export(crate::event::ExportFormat::Asm) => vec!["asm".to_string()],
-            Self::Export(crate::event::ExportFormat::Html) => vec!["html".to_string()],
+            Self::Export(ExportFormat::Asm) => vec!["asm".to_string()],
+            Self::Export(ExportFormat::Html) => vec!["html".to_string()],
         }
     }
 
@@ -88,12 +106,8 @@ impl FileBrowserMode {
                 " Import VICE Labels (Enter to Import, Backspace to Go Back, Esc to Cancel) "
             }
             Self::SaveProject => " Save Project As (Tab to Switch Focus, Esc to Cancel) ",
-            Self::Export(crate::event::ExportFormat::Asm) => {
-                " Export to .asm as... (Tab to Switch Focus) "
-            }
-            Self::Export(crate::event::ExportFormat::Html) => {
-                " Export to .html as... (Tab to Switch Focus) "
-            }
+            Self::Export(ExportFormat::Asm) => " Export to .asm as... (Tab to Switch Focus) ",
+            Self::Export(ExportFormat::Html) => " Export to .html as... (Tab to Switch Focus) ",
             Self::ExportLabels => " Export Labels As... (Tab to Switch Focus) ",
         }
     }
@@ -103,8 +117,8 @@ impl FileBrowserMode {
     fn confirm_action(self) -> Option<AppAction> {
         match self {
             Self::SaveProject => Some(AppAction::SaveAs),
-            Self::Export(crate::event::ExportFormat::Asm) => Some(AppAction::ExportAsmAs),
-            Self::Export(crate::event::ExportFormat::Html) => Some(AppAction::ExportHtmlAs),
+            Self::Export(ExportFormat::Asm) => Some(AppAction::ExportAsmAs),
+            Self::Export(ExportFormat::Html) => Some(AppAction::ExportHtmlAs),
             Self::ExportLabels => Some(AppAction::ExportViceLabels),
             Self::OpenProjectOrFile | Self::ImportViceLabels => None,
         }
@@ -131,14 +145,23 @@ impl FileBrowserMode {
 /// Unified file-browser dialog for opening binaries/projects, importing VICE labels,
 /// saving projects, and exporting assembly, HTML, or VICE label files.
 pub struct FileBrowserDialog {
+    /// Active browser workflow mode.
     pub mode: FileBrowserMode,
+    /// Single-line filename editor shown in save and export modes.
     pub textarea: TextArea<'static>,
+    /// Currently displayed filesystem directory.
     pub current_dir: PathBuf,
+    /// Filtered directory entries (including optional `..` parent entry).
     pub files: Vec<PathBuf>,
+    /// Currently highlighted entry index inside [`Self::files`].
     pub selected_index: usize,
+    /// Lowercase file extensions shown when browsing files.
     pub filter_extensions: Vec<String>,
+    /// Stack of visited directories for `Backspace` navigation.
     pub history: Vec<PathBuf>,
+    /// Current keyboard focus target inside the dialog.
     pub focus: FileBrowserFocus,
+    /// Active nested confirmation sub-dialog when overwriting an existing file.
     pub sub_dialog: Option<Box<dyn Widget>>,
 }
 
@@ -184,8 +207,7 @@ impl FileBrowserDialog {
     #[must_use]
     pub fn new_import_vice_labels(current_dir: PathBuf, last_path: Option<PathBuf>) -> Self {
         let start_dir = if let Some(path) = &last_path {
-            path.parent()
-                .map_or(current_dir, std::path::Path::to_path_buf)
+            path.parent().map_or(current_dir, Path::to_path_buf)
         } else {
             current_dir
         };
@@ -212,7 +234,7 @@ impl FileBrowserDialog {
     #[must_use]
     pub fn new_export(
         initial_filename: Option<String>,
-        format: crate::event::ExportFormat,
+        format: ExportFormat,
         current_dir: PathBuf,
     ) -> Self {
         Self::new_with_mode(
@@ -230,7 +252,7 @@ impl FileBrowserDialog {
 
     /// Reloads the filtered directory entries for `self.current_dir`.
     pub fn refresh_files(&mut self) {
-        self.files = crate::utils::list_files(&self.current_dir, &self.filter_extensions);
+        self.files = utils::list_files(&self.current_dir, &self.filter_extensions);
 
         if self.current_dir.parent().is_some() {
             self.files.insert(0, self.current_dir.join(".."));
@@ -278,7 +300,7 @@ impl FileBrowserDialog {
         let Some(ext) = self.mode.target_extension() else {
             return self.current_dir.join(filename);
         };
-        let has_ext = std::path::Path::new(filename)
+        let has_ext = Path::new(filename)
             .extension()
             .is_some_and(|e| e.eq_ignore_ascii_case(ext));
         if has_ext {
@@ -316,12 +338,12 @@ impl FileBrowserDialog {
         ui_state: &mut UIState,
     ) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(self.mode.dialog_title(), theme);
+        let block = widget::create_dialog_block(self.mode.dialog_title(), theme);
 
         if !self.mode.is_save_or_export() {
-            let area = crate::utils::centered_rect_adaptive(60, 40, 50, 14, area);
+            let area = utils::centered_rect_adaptive(60, 40, 50, 14, area);
             ui_state.active_dialog_area = area;
-            f.render_widget(ratatui::widgets::Clear, area);
+            f.render_widget(Clear, area);
 
             let items = self.format_directory_items();
             let list = List::new(items)
@@ -340,9 +362,9 @@ impl FileBrowserDialog {
             return;
         }
 
-        let area = crate::utils::centered_rect_adaptive(60, 40, 60, 18, area);
+        let area = utils::centered_rect_adaptive(60, 40, 60, 18, area);
         ui_state.active_dialog_area = area;
-        f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(Clear, area);
 
         f.render_widget(block.clone(), area);
         let inner = block.inner(area);
@@ -357,12 +379,12 @@ impl FileBrowserDialog {
             .split(inner);
 
         let items = self.format_directory_items();
-        let list_block = ratatui::widgets::Block::default()
+        let list_block = Block::default()
             .title(format!(
                 " Directory: {} ",
                 self.current_dir.to_string_lossy()
             ))
-            .borders(ratatui::widgets::Borders::ALL)
+            .borders(Borders::ALL)
             .border_style(if self.focus == FileBrowserFocus::DirectoryList {
                 Style::default().fg(theme.menu_selected_bg)
             } else {
@@ -389,9 +411,9 @@ impl FileBrowserDialog {
         state.select(Some(self.selected_index));
         f.render_stateful_widget(list, dialog_layout[0], &mut state);
 
-        let input_block = ratatui::widgets::Block::default()
+        let input_block = Block::default()
             .title(" Filename ")
-            .borders(ratatui::widgets::Borders::ALL)
+            .borders(Borders::ALL)
             .border_style(if self.focus == FileBrowserFocus::Filename {
                 Style::default().fg(theme.menu_selected_bg)
             } else {
@@ -450,13 +472,10 @@ impl FileBrowserDialog {
                     .to_string();
 
                 ui_state.sync_tui_to_core();
-                let ctx = regenerator2000_core::navigation::create_save_context(
-                    app_state,
-                    &ui_state.core,
-                );
+                let ctx = navigation::create_save_context(app_state, &ui_state.core);
                 let old_project_path = app_state.project_path.replace(path.clone());
 
-                match app_state.save_project(ctx, crate::state::GlobalConfigUpdate::Update) {
+                match app_state.save_project(ctx, GlobalConfigUpdate::Update) {
                     Ok(()) => {
                         app_state.project_path = Some(path);
                         app_state.last_save_as_filename = Some(filename);
@@ -472,23 +491,19 @@ impl FileBrowserDialog {
             }
             FileBrowserMode::Export(format) => {
                 let res = match format {
-                    crate::event::ExportFormat::Asm => {
-                        crate::exporter::export_asm(app_state, &path)
-                    }
-                    crate::event::ExportFormat::Html => {
-                        crate::exporter::export_html(app_state, &path)
-                    }
+                    ExportFormat::Asm => exporter::export_asm(app_state, &path),
+                    ExportFormat::Html => exporter::export_html(app_state, &path),
                 };
                 if let Err(e) = res {
                     ui_state.set_status_message(format!("Error exporting: {e}"));
                     WidgetResult::Handled
                 } else {
                     match format {
-                        crate::event::ExportFormat::Asm => {
+                        ExportFormat::Asm => {
                             app_state.export_asm_path = Some(path.clone());
                             app_state.last_export_asm_filename = Some(filename);
                         }
-                        crate::event::ExportFormat::Html => {
+                        ExportFormat::Html => {
                             app_state.export_html_path = Some(path.clone());
                             app_state.last_export_html_filename = Some(filename);
                         }
@@ -546,8 +561,8 @@ impl FileBrowserDialog {
         }
     }
 
-    /// Opens `selected_path` either by pushing [`CrtBankPickerDialog`](crate::ui::dialog_crt_picker::CrtBankPickerDialog)
-    /// / [`ContainerPickerDialog`](crate::ui::dialog_container_picker::ContainerPickerDialog) for
+    /// Opens `selected_path` either by pushing [`CrtBankPickerDialog`]
+    /// / [`ContainerPickerDialog`] for
     /// multi-entry containers (`.crt`, `.t64`, `.d64`, `.d71`, `.d81`) or by loading the file directly
     /// into [`AppState`].
     pub(crate) fn open_file_or_container(
@@ -561,16 +576,14 @@ impl FileBrowserDialog {
             .is_some_and(|e| e.eq_ignore_ascii_case("crt"))
         {
             let crt_data =
-                std::fs::read(&selected_path).map_err(|e| format!("Error reading file: {e}"))?;
-            let crt_header = crate::parser::crt::parse_crt_chips(&crt_data)
-                .map_err(|e| format!("Error parsing CRT: {e}"))?;
+                fs::read(&selected_path).map_err(|e| format!("Error reading file: {e}"))?;
+            let crt_header =
+                crt::parse_crt_chips(&crt_data).map_err(|e| format!("Error parsing CRT: {e}"))?;
             if crt_header.chips.len() > 1 {
-                ui_state.push_dialog(Box::new(
-                    crate::ui::dialog_crt_picker::CrtBankPickerDialog::new(
-                        crt_header,
-                        selected_path,
-                    ),
-                ));
+                ui_state.push_dialog(Box::new(CrtBankPickerDialog::new(
+                    crt_header,
+                    selected_path,
+                )));
                 return Ok(());
             }
         }
@@ -581,20 +594,18 @@ impl FileBrowserDialog {
             .is_some_and(|e| e.eq_ignore_ascii_case("t64"))
         {
             let tape_data =
-                std::fs::read(&selected_path).map_err(|e| format!("Error reading file: {e}"))?;
-            let files = crate::parser::t64::parse_t64_directory(&tape_data)
+                fs::read(&selected_path).map_err(|e| format!("Error reading file: {e}"))?;
+            let files = t64::parse_t64_directory(&tape_data)
                 .map_err(|e| format!("Error parsing T64: {e}"))?;
             if files.is_empty() {
                 return Err("No files in T64 image".to_string());
             }
 
-            ui_state.push_dialog(Box::new(
-                crate::ui::dialog_container_picker::ContainerPickerDialog::new_t64(
-                    files,
-                    tape_data,
-                    selected_path,
-                ),
-            ));
+            ui_state.push_dialog(Box::new(ContainerPickerDialog::new_t64(
+                files,
+                tape_data,
+                selected_path,
+            )));
             return Ok(());
         }
 
@@ -608,25 +619,23 @@ impl FileBrowserDialog {
             })
         {
             let disk_data =
-                std::fs::read(&selected_path).map_err(|e| format!("Error reading file: {e}"))?;
-            let files = crate::parser::d64::parse_d64_directory(&disk_data)
+                fs::read(&selected_path).map_err(|e| format!("Error reading file: {e}"))?;
+            let files = d64::parse_d64_directory(&disk_data)
                 .map_err(|e| format!("Error parsing D64/D71: {e}"))?;
             let prg_files: Vec<_> = files
                 .into_iter()
-                .filter(|f| f.file_type == crate::parser::d64::FileType::PRG)
+                .filter(|f| f.file_type == FileType::PRG)
                 .collect();
 
             if prg_files.is_empty() {
                 return Err("No PRG files in disk image".to_string());
             }
 
-            ui_state.push_dialog(Box::new(
-                crate::ui::dialog_container_picker::ContainerPickerDialog::new_d64(
-                    prg_files,
-                    disk_data,
-                    selected_path,
-                ),
-            ));
+            ui_state.push_dialog(Box::new(ContainerPickerDialog::new_d64(
+                prg_files,
+                disk_data,
+                selected_path,
+            )));
             return Ok(());
         }
 
@@ -771,13 +780,11 @@ impl Widget for FileBrowserDialog {
                         if path.exists()
                             && let Some(action) = self.mode.confirm_action()
                         {
-                            self.sub_dialog = Some(Box::new(
-                                crate::ui::dialog_confirmation::ConfirmationDialog::new(
-                                    "File Exists",
-                                    format!("Are you sure you want to overwrite '{filename}'?"),
-                                    action,
-                                ),
-                            ));
+                            self.sub_dialog = Some(Box::new(ConfirmationDialog::new(
+                                "File Exists",
+                                format!("Are you sure you want to overwrite '{filename}'?"),
+                                action,
+                            )));
                             WidgetResult::Handled
                         } else {
                             self.execute_save_or_export(app_state, ui_state)
@@ -796,10 +803,14 @@ impl Widget for FileBrowserDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::state::Addr;
+    use crate::theme::Theme;
+    use std::env;
+    use std::process;
 
     #[test]
     fn test_initialization_modes() {
-        let current_dir = std::env::current_dir().unwrap_or_default();
+        let current_dir = env::current_dir().unwrap_or_default();
         let save = FileBrowserDialog::new_save_project(None, current_dir.clone());
         assert_eq!(save.current_dir, current_dir);
         assert_eq!(save.focus, FileBrowserFocus::Filename);
@@ -813,7 +824,7 @@ mod tests {
     #[test]
     fn test_next_previous_and_page_navigation() {
         let mut dialog =
-            FileBrowserDialog::new_save_project(None, std::env::current_dir().unwrap_or_default());
+            FileBrowserDialog::new_save_project(None, env::current_dir().unwrap_or_default());
         dialog.files = vec![PathBuf::from("a"), PathBuf::from("b"), PathBuf::from("c")];
         dialog.selected_index = 0;
 
@@ -857,7 +868,7 @@ mod tests {
             dir.join("c64_mule.dali.regen2000proj")
         );
 
-        let asm = FileBrowserDialog::new_export(None, crate::event::ExportFormat::Asm, dir.clone());
+        let asm = FileBrowserDialog::new_export(None, ExportFormat::Asm, dir.clone());
         assert_eq!(
             asm.resolve_target_path("c64_mule.dali"),
             dir.join("c64_mule.dali.asm")
@@ -867,8 +878,7 @@ mod tests {
             dir.join("c64_mule.dali.asm")
         );
 
-        let html =
-            FileBrowserDialog::new_export(None, crate::event::ExportFormat::Html, dir.clone());
+        let html = FileBrowserDialog::new_export(None, ExportFormat::Html, dir.clone());
         assert_eq!(
             html.resolve_target_path("c64_mule.dali"),
             dir.join("c64_mule.dali.html")
@@ -889,7 +899,7 @@ mod tests {
     fn test_select_existing_file_strips_only_target_extension() {
         let dir = PathBuf::from("/tmp");
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         for (mut dialog, file_name) in [
             (
@@ -897,7 +907,7 @@ mod tests {
                 "c64_mule.dali.regen2000proj",
             ),
             (
-                FileBrowserDialog::new_export(None, crate::event::ExportFormat::Asm, dir.clone()),
+                FileBrowserDialog::new_export(None, ExportFormat::Asm, dir.clone()),
                 "c64_mule.dali.asm",
             ),
             (
@@ -920,16 +930,15 @@ mod tests {
 
     #[test]
     fn test_execute_save_and_export_with_dotted_stem_and_overwrite_confirmation() {
-        let temp_dir =
-            std::env::temp_dir().join(format!("r2000_file_browser_test_{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&temp_dir);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        let temp_dir = env::temp_dir().join(format!("r2000_file_browser_test_{}", process::id()));
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).expect("creating temporary test directory should succeed");
 
         let mut app_state = AppState::new();
         app_state
-            .load_binary(crate::state::Addr(0x1000), vec![0xEA, 0x60])
-            .unwrap();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+            .load_binary(Addr(0x1000), vec![0xEA, 0x60])
+            .expect("loading test binary at $1000 should succeed");
+        let mut ui_state = UIState::new(Theme::default());
 
         // 1. SaveProject with dotted stem "c64_mule.dali" writes "c64_mule.dali.regen2000proj".
         let mut save_dialog = FileBrowserDialog::new_save_project(
@@ -975,7 +984,7 @@ mod tests {
         // 3. Export ASM and Export Labels with dotted stem "c64_mule.dali".
         let mut asm_dialog = FileBrowserDialog::new_export(
             Some("c64_mule.dali".to_string()),
-            crate::event::ExportFormat::Asm,
+            ExportFormat::Asm,
             temp_dir.clone(),
         );
         assert_eq!(
@@ -1002,6 +1011,6 @@ mod tests {
         );
         assert!(temp_dir.join("c64_mule.dali.lbl").exists());
 
-        let _ = std::fs::remove_dir_all(&temp_dir);
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }

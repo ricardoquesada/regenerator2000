@@ -1,16 +1,20 @@
-use crate::state::AppState;
-use crate::ui::widget::{Widget, WidgetResult};
-use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Modifier, Style},
-};
+//! Modal dialog for entering a VICE binary monitor host and port address.
 
+use crate::state::AppState;
+use crate::state::actions::AppAction;
+use crate::ui::widget::{self, Widget, WidgetResult};
+use crate::ui_state::UIState;
+use crate::utils;
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Modifier, Style};
+use ratatui::widgets::Clear;
 use ratatui_textarea::{CursorMove, TextArea};
 
+/// Modal prompt for connecting to a running VICE emulator instance.
 pub struct ViceConnectDialog {
+    /// Single-line text editor containing the `host:port` endpoint string.
     pub textarea: TextArea<'static>,
 }
 
@@ -21,6 +25,7 @@ impl Default for ViceConnectDialog {
 }
 
 impl ViceConnectDialog {
+    /// Creates a [`ViceConnectDialog`] pre-filled with `"localhost:6502"`.
     #[must_use]
     pub fn new() -> Self {
         let mut textarea = TextArea::default();
@@ -33,11 +38,11 @@ impl ViceConnectDialog {
 impl Widget for ViceConnectDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" Connect to VICE ", theme);
+        let block = widget::create_dialog_block(" Connect to VICE ", theme);
 
-        let area = crate::utils::centered_rect_adaptive(30, 40, 0, 3, area);
+        let area = utils::centered_rect_adaptive(30, 40, 0, 3, area);
         ui_state.active_dialog_area = area;
-        f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(Clear, area);
 
         let mut textarea = self.textarea.clone();
         textarea.set_block(block);
@@ -68,9 +73,7 @@ impl Widget for ViceConnectDialog {
                 if input.is_empty() {
                     WidgetResult::Close
                 } else {
-                    WidgetResult::Action(crate::state::actions::AppAction::ViceConnectAddress(
-                        input,
-                    ))
+                    WidgetResult::Action(AppAction::ViceConnectAddress(input))
                 }
             }
             KeyCode::Char(c) => {
@@ -90,7 +93,6 @@ impl Widget for ViceConnectDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::actions::AppAction;
     use crate::theme::Theme;
     use crossterm::event::KeyModifiers;
     use ratatui::Terminal;
@@ -118,12 +120,12 @@ mod tests {
         assert_eq!(dialog.textarea.lines().join(""), "localhost:65021");
 
         let backend = TestBackend::new(80, 10);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing ViceConnectDialog should succeed");
 
         assert_eq!(
             dialog.handle_input(

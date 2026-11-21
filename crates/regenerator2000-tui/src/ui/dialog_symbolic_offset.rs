@@ -10,27 +10,28 @@ use crate::action_handlers::disassembly_handler::{
     SymbolicOffsetSubmission, validate_symbolic_offset_submission,
 };
 use crate::state::actions::AppAction;
-use crate::state::{Addr, AppState};
+use crate::state::{Addr, AddrSpan, AppState};
 use crate::ui::scoped_input::{ScopeLock, ScopedInputEvent, ScopedInputModal};
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use crossterm::event::KeyEvent;
-use ratatui::{Frame, layout::Rect};
+use ratatui::Frame;
+use ratatui::layout::Rect;
 
 const HINT_TEXT: &str =
     "Enter expression (e.g. zp_ptr + 1, sub - 1, SCREEN + $28), base name, or empty to clear";
 
 /// Named configuration parameters for constructing a [`SymbolicOffsetDialog`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SymbolicOffsetDialogParams<'a> {
+pub struct SymbolicOffsetDialogParams<'input> {
     /// Referencing instruction or table-entry address for an operand site, or `None` for global items.
     pub site_address: Option<Addr>,
     /// Primary effective target address under edit.
     pub target_address: Addr,
-    /// Optional inclusive `(start, end)` address range for visual-selection edits.
-    pub address_range: Option<(Addr, Addr)>,
+    /// Optional inclusive address span for visual-selection edits.
+    pub address_range: Option<AddrSpan>,
     /// Initial expression or base symbol text pre-populated in the single-line input.
-    pub initial_input: &'a str,
+    pub initial_input: &'input str,
     /// `true` selects Tier 2 (`address_offset`) globally; `false` selects Tier 1 (`operand_offset`) at the site.
     pub is_global: bool,
     /// `true` locks the global scope checkbox so `Space` cannot toggle it.
@@ -48,8 +49,8 @@ pub struct SymbolicOffsetDialog {
     pub site_address: Option<Addr>,
     /// Primary effective target address under edit.
     pub target_address: Addr,
-    /// Optional inclusive `(start, end)` address range for visual-selection edits.
-    pub address_range: Option<(Addr, Addr)>,
+    /// Optional inclusive address span for visual-selection edits.
+    pub address_range: Option<AddrSpan>,
     /// `true` applies Tier 2 (`address_offset`) globally, while `false` applies Tier 1
     /// (`operand_offset`) at the site.
     pub is_global: bool,
@@ -79,10 +80,13 @@ impl SymbolicOffsetDialog {
     /// Formats the modal title bar showing the range, operand site, or target address.
     #[must_use]
     fn title(&self) -> String {
-        if let Some((start, end)) = self.address_range
-            && start < end
+        if let Some(span) = self.address_range
+            && span.start < span.end
         {
-            format!(" Symbolic Offset for ${start:04X}..=${end:04X} ")
+            format!(
+                " Symbolic Offset for ${:04X}..=${:04X} ",
+                span.start.0, span.end.0
+            )
         } else if let Some(site) = self.site_address {
             format!(
                 " Symbolic Offset for ${:04X} (at ${site:04X}) ",
@@ -102,8 +106,8 @@ impl SymbolicOffsetDialog {
         } else {
             ""
         };
-        if let Some((start, end)) = self.address_range
-            && start < end
+        if let Some(span) = self.address_range
+            && span.start < span.end
         {
             format!("[{mark}] Apply globally to target addresses{lock_suffix}")
         } else {
@@ -141,10 +145,11 @@ impl Widget for SymbolicOffsetDialog {
             ScopedInputEvent::Submit => {
                 let expr = self.modal.current_text().trim().to_string();
                 let effective_global = self.modal.lock_scope || self.is_global;
+                let address_range = self.address_range.map(|span| (span.start, span.end));
                 let submission = SymbolicOffsetSubmission {
                     site_address: self.site_address,
                     target_address: self.target_address,
-                    address_range: self.address_range,
+                    address_range,
                     input: &expr,
                     is_global: effective_global,
                     is_zero_page_mode: self.is_zero_page_mode,
@@ -158,7 +163,7 @@ impl Widget for SymbolicOffsetDialog {
                 WidgetResult::Action(AppAction::ApplySymbolicOffset {
                     site_address: self.site_address,
                     target_address: self.target_address,
-                    address_range: self.address_range,
+                    address_range,
                     input: expr,
                     is_global: effective_global,
                     is_zero_page_mode: self.is_zero_page_mode,
@@ -364,7 +369,10 @@ mod tests {
             SymbolicOffsetDialog::new(SymbolicOffsetDialogParams {
                 site_address: Some(Addr(0x2000)),
                 target_address: Addr(0x00FC),
-                address_range: Some((Addr(0x2000), Addr(0x2005))),
+                address_range: Some(AddrSpan {
+                    start: Addr(0x2000),
+                    end: Addr(0x2005),
+                }),
                 initial_input: "",
                 is_global: false,
                 lock_global: false,

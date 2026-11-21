@@ -5,15 +5,14 @@
 //! characters, handles `Tab` and `Space` scope focus, and shows inline errors.
 
 use crate::theme::Theme;
-use crate::ui::widget::WidgetResult;
+use crate::ui::widget::{self, WidgetResult};
 use crate::ui_state::UIState;
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    widgets::{Block, Borders, Clear, Paragraph, Wrap},
-};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Wrap};
 use ratatui_textarea::{CursorMove, TextArea};
 
 /// Outcome of routing a [`KeyEvent`] through [`ScopedInputModal::handle_key`].
@@ -98,9 +97,9 @@ impl ScopedInputModal {
         checkbox_label: &str,
         hint_text: &str,
     ) -> Rect {
-        let block = crate::ui::widget::create_dialog_block(title, theme);
+        let block = widget::create_dialog_block(title, theme);
         // Height: 2 (dialog border) + 3 (input with border) + 1 (checkbox) + 2 (footer) = 8
-        let dialog_area = crate::utils::centered_rect_adaptive(75, 92, 0, 8, area);
+        let dialog_area = utils::centered_rect_adaptive(75, 92, 0, 8, area);
         f.render_widget(Clear, dialog_area);
         f.render_widget(block.clone(), dialog_area);
 
@@ -251,7 +250,9 @@ pub(crate) mod test_support {
     use super::*;
     use crate::state::AppState;
     use crate::ui::widget::Widget;
-    use ratatui::{Terminal, backend::TestBackend};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use ratatui::buffer::Cell;
 
     /// Renders `widget` into a 100x20 [`TestBackend`] buffer and returns the concatenated symbols.
     pub(crate) fn render_widget_text<W: Widget + ?Sized>(
@@ -259,16 +260,17 @@ pub(crate) mod test_support {
         app_state: &AppState,
         ui_state: &mut UIState,
     ) -> String {
-        let mut terminal = Terminal::new(TestBackend::new(100, 20)).unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(100, 20))
+            .expect("creating 100x20 test terminal should succeed");
         terminal
             .draw(|f| widget.render(f, f.area(), app_state, ui_state))
-            .unwrap();
+            .expect("drawing widget in test harness should succeed");
         terminal
             .backend()
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect()
     }
 

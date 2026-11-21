@@ -4,22 +4,47 @@
 //! [`MenuState::update_availability`] enables or disables menu items for the active pane,
 //! document state, and cursor mode.
 
+use crate::state::AppState;
 use crate::state::actions::AppAction;
 use crate::ui_state::ActivePane;
+use ratatui::layout::Rect;
+use regenerator2000_core::cpu::AddressingMode;
+
+/// Column width measurements for rendering a popup menu category.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MenuColumnWidths {
+    /// Maximum character width among item display names in the category.
+    pub name: usize,
+    /// Maximum character width among shortcut labels in the category.
+    pub shortcut: usize,
+}
+
+/// Whether a previous search query is available for `Find Next` / `Find Previous`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchHistory {
+    /// No prior search query has been entered.
+    Empty,
+    /// A prior search query exists.
+    HasQuery,
+}
 
 /// State of the top-level application menu bar (Layer 2 of the keyboard shortcut architecture).
 #[derive(Default)]
 pub struct MenuState {
+    /// Whether a menu popup is currently open.
     pub active: bool,
+    /// Top-level menu categories ordered left-to-right across the menu bar.
     pub categories: Vec<MenuCategory>,
+    /// Index of the currently highlighted category in [`Self::categories`].
     pub selected_category: usize,
+    /// Index of the currently highlighted item within the active category, if any.
     pub selected_item: Option<usize>,
 }
 
 impl MenuState {
     /// Constructs the canonical menu bar hierarchy with shortcut labels and [`AppAction`] bindings.
     ///
-    /// The Pillar 3 contract test checks every shortcut against `ShortcutsDialog::get_shortcuts`
+    /// The Pillar 3 contract test checks every shortcut against `ShortcutsDialog::shortcuts`
     /// and `docs/keyboard_shortcuts.md`.
     #[must_use]
     pub fn new() -> Self {
@@ -384,6 +409,7 @@ impl MenuState {
         }
     }
 
+    /// Advances focus to the next top-level menu category, wrapping around.
     pub fn next_category(&mut self) {
         self.selected_category = (self.selected_category + 1) % self.categories.len();
         // If we are active, select the first non-separator item
@@ -392,6 +418,7 @@ impl MenuState {
         }
     }
 
+    /// Moves focus to the previous top-level menu category, wrapping around.
     pub fn previous_category(&mut self) {
         if self.selected_category == 0 {
             self.selected_category = self.categories.len() - 1;
@@ -403,6 +430,7 @@ impl MenuState {
         }
     }
 
+    /// Moves item selection to the next enabled, non-separator item in the active category.
     pub fn next_item(&mut self) {
         let count = self.categories[self.selected_category].items.len();
         if count == 0 {
@@ -425,6 +453,7 @@ impl MenuState {
         }
     }
 
+    /// Moves item selection to the previous enabled, non-separator item in the active category.
     pub fn previous_item(&mut self) {
         let count = self.categories[self.selected_category].items.len();
         if count == 0 {
@@ -445,6 +474,7 @@ impl MenuState {
         }
     }
 
+    /// Selects the first enabled, non-separator item in the active category, if any.
     pub fn select_first_enabled_item(&mut self) {
         let items = &self.categories[self.selected_category].items;
         for (i, item) in items.iter().enumerate() {
@@ -458,13 +488,9 @@ impl MenuState {
 
     /// Computes the screen rectangle for the active category popup menu, clamped to `term_area`.
     #[must_use]
-    pub fn popup_rect(
-        &self,
-        bar_area: ratatui::layout::Rect,
-        term_area: ratatui::layout::Rect,
-    ) -> ratatui::layout::Rect {
+    pub fn popup_rect(&self, bar_area: Rect, term_area: Rect) -> Rect {
         if self.categories.is_empty() || self.selected_category >= self.categories.len() {
-            return ratatui::layout::Rect::default();
+            return Rect::default();
         }
         let mut x_offset = 0u16;
         for category in &self.categories[..self.selected_category] {
@@ -475,7 +501,7 @@ impl MenuState {
         let width = category.popup_width();
         let height = category.items.len() as u16 + 2;
 
-        let area = ratatui::layout::Rect::new(
+        let area = Rect::new(
             bar_area.x.saturating_add(x_offset),
             bar_area.y.saturating_add(1),
             width,
@@ -503,11 +529,13 @@ impl MenuState {
             (selected + 1 - inner_height).min(total_items.saturating_sub(inner_height))
         }
     }
+
+    /// Updates `disabled` state on every menu item for the current document, cursor, and pane.
     pub fn update_availability(
         &mut self,
-        app_state: &crate::state::AppState,
+        app_state: &AppState,
         cursor_index: usize,
-        last_search_empty: bool,
+        search_history: SearchHistory,
         active_pane: ActivePane,
     ) {
         let has_document = !app_state.raw_data.is_empty();
@@ -520,14 +548,14 @@ impl MenuState {
                         // Context-specific checks
                         match action {
                             AppAction::FindNext | AppAction::FindPrevious => {
-                                item.disabled = last_search_empty;
+                                item.disabled = search_history == SearchHistory::Empty;
                             }
                             AppAction::PackLoHiAddress | AppAction::PackHiLoAddress => {
                                 let mut is_valid = false;
                                 if has_document
                                     && let Some(line) = app_state.disassembly.get(cursor_index)
                                     && let Some(opcode) = &line.opcode
-                                    && opcode.mode == crate::cpu::AddressingMode::Immediate
+                                    && opcode.mode == AddressingMode::Immediate
                                     && (opcode.mnemonic == "LDA"
                                         || opcode.mnemonic == "LDX"
                                         || opcode.mnemonic == "LDY")
@@ -541,7 +569,7 @@ impl MenuState {
                                 if has_document
                                     && let Some(line) = app_state.disassembly.get(cursor_index)
                                     && let Some(opcode) = &line.opcode
-                                    && opcode.mode == crate::cpu::AddressingMode::Immediate
+                                    && opcode.mode == AddressingMode::Immediate
                                 {
                                     is_immediate = true;
                                 }
@@ -616,9 +644,13 @@ impl MenuState {
     }
 }
 
+/// Top-level menu category displayed on the application menu bar.
 pub struct MenuCategory {
+    /// Display name of the category (e.g. `"File"`, `"Edit"`).
     pub name: String,
+    /// Case-insensitive `Alt+<key>` accelerator character for opening this category.
     pub accelerator: char,
+    /// Items and separators listed in this category's popup menu.
     pub items: Vec<MenuItem>,
 }
 
@@ -629,49 +661,59 @@ impl MenuCategory {
         self.name.len() as u16 + 2
     }
 
-    /// Returns `(max_name_len, max_shortcut_len)` across all items in this category.
+    /// Returns the maximum name and shortcut widths across all items in this category.
     #[must_use]
-    pub fn column_widths(&self) -> (usize, usize) {
+    pub fn column_widths(&self) -> MenuColumnWidths {
         let mut max_name_len = 0usize;
         let mut max_shortcut_len = 0usize;
         for item in &self.items {
             max_name_len = max_name_len.max(item.name.len());
-            max_shortcut_len =
-                max_shortcut_len.max(item.shortcut.as_ref().map_or(0, std::string::String::len));
+            max_shortcut_len = max_shortcut_len.max(item.shortcut.as_ref().map_or(0, String::len));
         }
-        (max_name_len, max_shortcut_len)
+        MenuColumnWidths {
+            name: max_name_len,
+            shortcut: max_shortcut_len,
+        }
     }
 
     /// Returns the outer popup width (including 1-cell left/right borders), with a minimum of 20.
     #[must_use]
     pub fn popup_width(&self) -> u16 {
-        let (max_name_len, max_shortcut_len) = self.column_widths();
-        let content_width = max_name_len + 2 + max_shortcut_len;
+        let widths = self.column_widths();
+        let content_width = widths.name + 2 + widths.shortcut;
         (content_width as u16 + 2).max(20)
     }
 }
 
+/// Single entry or separator line inside a [`MenuCategory`] popup menu.
 #[derive(Clone)]
 pub struct MenuItem {
+    /// Visible item label (empty for separator rows).
     pub name: String,
+    /// Optional right-aligned keyboard shortcut hint shown next to [`Self::name`].
     pub shortcut: Option<String>,
+    /// Whether this entry renders as a horizontal separator line.
     pub is_separator: bool,
+    /// [`AppAction`] triggered when the user activates this item.
     pub action: Option<AppAction>,
+    /// Whether the item is currently grayed out and non-selectable.
     pub disabled: bool,
 }
 
 impl MenuItem {
+    /// Creates an enabled menu item with an optional shortcut hint and action.
     #[must_use]
     pub fn new(name: &str, shortcut: Option<&str>, action: Option<AppAction>) -> Self {
         Self {
             name: name.to_string(),
-            shortcut: shortcut.map(std::string::ToString::to_string),
+            shortcut: shortcut.map(ToString::to_string),
             is_separator: false,
             action,
             disabled: false,
         }
     }
 
+    /// Creates a horizontal separator row.
     #[must_use]
     pub fn separator() -> Self {
         Self {

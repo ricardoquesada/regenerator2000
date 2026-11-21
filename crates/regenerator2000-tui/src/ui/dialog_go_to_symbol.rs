@@ -1,24 +1,40 @@
-use crate::state::{AppState, LabelKind};
+//! Modal dialog (`Ctrl+P`) for searching and jumping to defined symbols.
+
+use crate::state::actions::AppAction;
+use crate::state::{Addr, AppState, LabelKind};
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    widgets::{List, ListItem, ListState, Paragraph},
-};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 
-use crate::ui::widget::{Widget, WidgetResult};
+/// Address and display name pair for a non-auto symbol listed in [`GoToSymbolDialog`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SymbolEntry {
+    /// Target 6502 address associated with the label.
+    pub address: u16,
+    /// User or system label name.
+    pub name: String,
+}
 
+/// Modal quick-jump dialog filtering all non-auto labels in [`AppState`].
 pub struct GoToSymbolDialog {
+    /// Current incremental filter query typed by the user.
     pub input: String,
-    pub all_symbols: Vec<(u16, String)>,
+    /// Full sorted list of searchable symbols.
+    pub all_symbols: Vec<SymbolEntry>,
     all_symbols_lower: Vec<String>,
-    pub filtered_symbols: Vec<(u16, String)>,
+    /// Subset of [`Self::all_symbols`] matching [`Self::input`].
+    pub filtered_symbols: Vec<SymbolEntry>,
+    /// Index of the currently highlighted entry in [`Self::filtered_symbols`].
     pub selected_index: usize,
 }
 
 impl GoToSymbolDialog {
+    /// Creates a new [`GoToSymbolDialog`] populated with all non-auto labels in `app_state`.
     #[must_use]
     pub fn new(app_state: &AppState) -> Self {
         let mut entries: Vec<(u16, String, String)> = Vec::new();
@@ -33,8 +49,8 @@ impl GoToSymbolDialog {
 
         let mut all_symbols = Vec::with_capacity(entries.len());
         let mut all_symbols_lower = Vec::with_capacity(entries.len());
-        for (addr, name, lower) in entries {
-            all_symbols.push((addr, name));
+        for (address, name, lower) in entries {
+            all_symbols.push(SymbolEntry { address, name });
             all_symbols_lower.push(lower);
         }
 
@@ -68,12 +84,12 @@ impl GoToSymbolDialog {
 impl Widget for GoToSymbolDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" Go to Symbol ", theme);
+        let block = widget::create_dialog_block(" Go to Symbol ", theme);
 
-        let area = crate::utils::centered_rect_adaptive(60, 60, 60, 12, area);
+        let area = utils::centered_rect_adaptive(60, 60, 60, 12, area);
         ui_state.active_dialog_area = area;
 
-        f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
 
         let inner = block.inner(area);
@@ -87,8 +103,8 @@ impl Widget for GoToSymbolDialog {
             ])
             .split(inner);
 
-        let input_block = ratatui::widgets::Block::default()
-            .borders(ratatui::widgets::Borders::ALL)
+        let input_block = Block::default()
+            .borders(Borders::ALL)
             .border_style(Style::default().fg(theme.highlight_fg))
             .style(Style::default().bg(theme.highlight_bg));
 
@@ -134,7 +150,7 @@ impl Widget for GoToSymbolDialog {
                 .filtered_symbols
                 .iter()
                 .enumerate()
-                .map(|(i, (addr, name))| {
+                .map(|(i, entry)| {
                     let style = if i == self.selected_index {
                         Style::default()
                             .bg(theme.selection_bg)
@@ -143,7 +159,7 @@ impl Widget for GoToSymbolDialog {
                     } else {
                         Style::default().fg(theme.foreground)
                     };
-                    ListItem::new(format!("${addr:04X}  {name}")).style(style)
+                    ListItem::new(format!("${:04X}  {}", entry.address, entry.name)).style(style)
                 })
                 .collect();
 
@@ -171,10 +187,8 @@ impl Widget for GoToSymbolDialog {
         match key.code {
             KeyCode::Esc => WidgetResult::Close,
             KeyCode::Enter => {
-                if let Some((addr, _)) = self.filtered_symbols.get(self.selected_index) {
-                    WidgetResult::Action(crate::state::actions::AppAction::NavigateToAddress(
-                        crate::state::Addr(*addr),
-                    ))
+                if let Some(entry) = self.filtered_symbols.get(self.selected_index) {
+                    WidgetResult::Action(AppAction::NavigateToAddress(Addr(entry.address)))
                 } else {
                     WidgetResult::Close
                 }
@@ -218,15 +232,17 @@ impl Widget for GoToSymbolDialog {
 mod tests {
     use super::*;
     use crate::state::{AppState, Label, LabelType};
+    use crate::theme::Theme;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
+    use ratatui::buffer::Cell;
     use std::collections::BTreeMap;
 
     fn create_mock_app() -> AppState {
         let mut app = AppState::new();
         let mut labels = BTreeMap::new();
         labels.insert(
-            crate::state::Addr(0x1000),
+            Addr(0x1000),
             vec![Label {
                 name: "MainLoop".to_string(),
                 kind: LabelKind::User,
@@ -234,7 +250,7 @@ mod tests {
             }],
         );
         labels.insert(
-            crate::state::Addr(0x2000),
+            Addr(0x2000),
             vec![Label {
                 name: "DataStart".to_string(),
                 kind: LabelKind::User,
@@ -242,7 +258,7 @@ mod tests {
             }],
         );
         labels.insert(
-            crate::state::Addr(0xfffe),
+            Addr(0xfffe),
             vec![Label {
                 name: "IRQVector".to_string(),
                 kind: LabelKind::System,
@@ -269,17 +285,17 @@ mod tests {
         dialog.input = "main".to_string();
         dialog.update_filter();
         assert_eq!(dialog.filtered_symbols.len(), 1);
-        assert_eq!(dialog.filtered_symbols[0].1, "MainLoop");
+        assert_eq!(dialog.filtered_symbols[0].name, "MainLoop");
 
         dialog.input = "data".to_string();
         dialog.update_filter();
         assert_eq!(dialog.filtered_symbols.len(), 1);
-        assert_eq!(dialog.filtered_symbols[0].1, "DataStart");
+        assert_eq!(dialog.filtered_symbols[0].name, "DataStart");
 
         dialog.input = "start".to_string();
         dialog.update_filter();
         assert_eq!(dialog.filtered_symbols.len(), 1);
-        assert_eq!(dialog.filtered_symbols[0].1, "DataStart");
+        assert_eq!(dialog.filtered_symbols[0].name, "DataStart");
     }
 
     #[test]
@@ -295,7 +311,7 @@ mod tests {
         dialog.handle_input(
             key_down,
             &mut AppState::new(),
-            &mut UIState::new(crate::theme::Theme::default()),
+            &mut UIState::new(Theme::default()),
         );
         assert_eq!(dialog.selected_index, 0);
 
@@ -304,7 +320,7 @@ mod tests {
         dialog.handle_input(
             key_up,
             &mut AppState::new(),
-            &mut UIState::new(crate::theme::Theme::default()),
+            &mut UIState::new(Theme::default()),
         );
         assert_eq!(dialog.selected_index, 2);
     }
@@ -314,7 +330,7 @@ mod tests {
         let mut app = AppState::new();
         for i in 0..30u16 {
             app.labels.insert(
-                crate::state::Addr(0x1000 + i),
+                Addr(0x1000 + i),
                 vec![Label {
                     name: format!("Sym_{i:02}"),
                     kind: LabelKind::User,
@@ -325,22 +341,22 @@ mod tests {
         let mut dialog = GoToSymbolDialog::new(&app);
         dialog.selected_index = 29;
 
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(80, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing GoToSymbolDialog should succeed");
 
         let rendered: String = terminal
             .backend()
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         assert!(rendered.contains("Sym_29"));
     }
@@ -350,7 +366,7 @@ mod tests {
         let app = create_mock_app();
         let mut dialog = GoToSymbolDialog::new(&app);
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         dialog.handle_input(
             KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),

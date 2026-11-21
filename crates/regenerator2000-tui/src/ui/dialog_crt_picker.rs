@@ -1,17 +1,17 @@
-// CRT Bank Picker Dialog
-// Shows list of CHIP banks from a CRT cartridge image and allows user to select one
+//! Modal dialog for selecting a CHIP bank from a `.crt` cartridge image.
 
 use crate::parser::crt::{CrtChip, CrtHeader};
-use crate::state::AppState;
-use crate::ui::widget::{Widget, WidgetResult};
+use crate::state::{Addr, AppState};
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{List, ListItem, ListState},
-};
+use crate::utils;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Clear, List, ListItem, ListState};
+use std::fs;
 use std::path::PathBuf;
 
 struct CrtPickerEntry {
@@ -28,14 +28,14 @@ pub struct CrtBankPickerDialog {
 }
 
 impl CrtBankPickerDialog {
-    /// Creates a new `CrtBankPickerDialog`.
+    /// Creates a new [`CrtBankPickerDialog`].
     #[must_use]
     pub fn new(crt_header: CrtHeader, file_path: PathBuf) -> Self {
         let entries = crt_header
             .chips
             .iter()
             .map(|chip| {
-                let entropy = crate::utils::calculate_entropy(&chip.data);
+                let entropy = utils::calculate_entropy(&chip.data);
                 CrtPickerEntry {
                     chip: chip.clone(),
                     entropy,
@@ -76,11 +76,11 @@ impl Widget for CrtBankPickerDialog {
         let hardware_name = self.crt_header.hardware_name();
         let title =
             format!(" Select Bank from {file_name} [{hardware_name}] (Enter: Load, Esc: Cancel) ");
-        let block = crate::ui::widget::create_dialog_block(&title, theme);
+        let block = widget::create_dialog_block(&title, theme);
 
-        let area = crate::utils::centered_rect_adaptive(80, 60, 80, 14, area);
+        let area = utils::centered_rect_adaptive(80, 60, 80, 14, area);
         ui_state.active_dialog_area = area;
-        f.render_widget(ratatui::widgets::Clear, area); // Clear background
+        f.render_widget(Clear, area); // Clear background
 
         let items: Vec<ListItem> = self
             .chips
@@ -124,12 +124,10 @@ impl Widget for CrtBankPickerDialog {
 
     fn handle_input(
         &mut self,
-        key: crossterm::event::KeyEvent,
+        key: KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        use crossterm::event::{KeyCode, KeyModifiers};
-
         match key.code {
             KeyCode::Esc => {
                 // Cancel and return to file browser
@@ -176,11 +174,9 @@ impl Widget for CrtBankPickerDialog {
                 if let Some(selected_entry) = self.chips.get(self.selected_index) {
                     let chip = &selected_entry.chip;
 
-                    match app_state
-                        .load_binary(crate::state::Addr(chip.load_address), chip.data.clone())
-                    {
+                    match app_state.load_binary(Addr(chip.load_address), chip.data.clone()) {
                         Ok(loaded_data) => {
-                            let abs_path = std::fs::canonicalize(&self.file_path)
+                            let abs_path = fs::canonicalize(&self.file_path)
                                 .unwrap_or_else(|_| self.file_path.clone());
                             app_state.system_config.add_recent_project(abs_path);
                             let _ = app_state.system_config.save();
@@ -206,9 +202,9 @@ impl Widget for CrtBankPickerDialog {
 mod tests {
     use super::*;
     use crate::theme::Theme;
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
+    use ratatui::buffer::Cell;
 
     #[test]
     fn test_crt_bank_picker_render_navigation_and_load() {
@@ -238,19 +234,19 @@ mod tests {
         let mut ui_state = UIState::new(Theme::default());
 
         let backend = TestBackend::new(100, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing CrtBankPickerDialog should succeed");
 
         let rendered: String = terminal
             .backend()
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         assert!(rendered.contains("Bank 00"));
         assert!(rendered.contains("Bank 01"));
@@ -271,7 +267,7 @@ mod tests {
             ),
             WidgetResult::Close
         );
-        assert_eq!(app_state.origin, crate::state::Addr(0xA000));
+        assert_eq!(app_state.origin, Addr(0xA000));
         assert_eq!(app_state.raw_data, vec![0x60; 4]);
     }
 }

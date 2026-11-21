@@ -10,6 +10,7 @@ use crate::ui::menu::handle_menu_action;
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use regenerator2000_core::Core;
+use std::sync::mpsc::Sender;
 
 /// Processes application-wide keyboard shortcuts when the active pane ignores a key event.
 ///
@@ -23,7 +24,7 @@ pub fn handle_global_input(
     key: KeyEvent,
     core: &mut Core,
     ui_state: &mut UIState,
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+    event_tx: &Sender<AppEvent>,
 ) {
     match key.code {
         KeyCode::F(10) if key.modifiers.is_empty() => {

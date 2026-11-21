@@ -1,52 +1,39 @@
-pub mod input;
+//! Main TUI event loop, keyboard/mouse routing, and pre-render pane synchronization.
 
+use super::app_event::AppEvent;
+use super::input::handle_global_input;
+use super::mcp::spawn_mcp_server_thread;
+use super::vice::{connect_vice_client, handle_vice_event};
 use crate::state::actions::AppAction;
 use crate::ui::dialog_import_context::ImportContextDialog;
+use crate::ui::menu::{Menu, SearchHistory, handle_menu_action};
+use crate::ui::minimap_bar::MinimapBar;
 use crate::ui::ui;
+use crate::ui::view_bitmap::BitmapView;
+use crate::ui::view_blocks::BlocksView;
+use crate::ui::view_charset::CharsetView;
+use crate::ui::view_debugger::DebuggerView;
+use crate::ui::view_disassembly::DisassemblyView;
+use crate::ui::view_hexdump::HexDumpView;
+use crate::ui::view_sprites::SpritesView;
+use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::{ActivePane, RightPane, UIState};
-use crate::vice::{ViceClient, ViceConnectionId, ViceEvent};
-use crossterm::event::{self, Event, KeyCode, KeyEvent, MouseEvent};
-use input::handle_global_input;
-use ratatui::{Terminal, backend::Backend};
-use regenerator2000_core::Core;
-use regenerator2000_core::error::ViceError;
-use regenerator2000_core::navigation::{
-    AlignedGridRange, sync_grid_pane_from_disassembly, sync_hex_pane_from_disassembly,
+use crossterm::event::{
+    Event, KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind,
 };
-use regenerator2000_core::state::types::System;
-use regenerator2000_core::state::{AppState, EntryAnalysisMode};
+use ratatui::Terminal;
+use ratatui::backend::Backend;
+use ratatui::layout::Rect;
+use regenerator2000_core::Core;
+use regenerator2000_core::mcp::handler;
+use regenerator2000_core::navigation::{
+    self, AlignedGridRange, sync_grid_pane_from_disassembly, sync_hex_pane_from_disassembly,
+};
+use regenerator2000_core::state::{AppState, BlockItemTarget, EntryAnalysisMode};
+use regenerator2000_core::unpacker::{UnpackError, UnpackResult};
 use std::io;
-use std::sync::mpsc::{self, Sender};
-
-pub enum AppEvent {
-    Crossterm(Event),
-    Mcp(crate::mcp::types::McpRequest),
-    McpError(String),
-    McpStartRequested,
-    McpStopRequested,
-    McpServerStarted {
-        port: u16,
-    },
-    McpServerStopped,
-    /// Lifecycle or protocol event from a VICE client session.
-    Vice {
-        /// Session identifier of the [`ViceClient`] that sent the event.
-        connection_id: ViceConnectionId,
-        /// Lifecycle or protocol event from VICE.
-        event: ViceEvent,
-    },
-    Tick,
-    UpdateAvailable(String),
-    /// Progress update from the background unpacker thread (instruction count).
-    UnpackProgress(u64),
-    /// The background unpacker thread finished.
-    UnpackComplete(
-        Result<
-            regenerator2000_core::unpacker::UnpackResult,
-            regenerator2000_core::unpacker::UnpackError,
-        >,
-    ),
-}
+use std::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::oneshot;
 
 /// Tells the main loop how to proceed after an event handler runs.
 enum EventOutcome {
@@ -66,8 +53,8 @@ pub fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     mut core: Core,
     mut ui_state: UIState,
-    event_tx: std::sync::mpsc::Sender<AppEvent>,
-    event_rx: std::sync::mpsc::Receiver<AppEvent>,
+    event_tx: &Sender<AppEvent>,
+    event_rx: &Receiver<AppEvent>,
 ) -> io::Result<()> {
     // Sync Core's initial view state into TUI's UIState
     ui_state.core = core.view.clone();
@@ -78,19 +65,15 @@ pub fn run_app<B: Backend>(
         .map_err(|e| io::Error::other(e.to_string()))?;
 
     let mut should_render = false;
-    let mut mcp_shutdown_tx: Option<tokio::sync::oneshot::Sender<()>> = None;
+    let mut mcp_shutdown_tx: Option<oneshot::Sender<()>> = None;
 
     loop {
         // Wait for event (blocking)
-        let event = match event_rx.recv() {
-            Ok(e) => e,
-            Err(_) => break, // Channel closed
-        };
+        let Ok(event) = event_rx.recv() else { break };
 
         match event {
             AppEvent::Mcp(req) => {
-                let response =
-                    crate::mcp::handler::handle_request(&req, &mut core.state, &mut ui_state);
+                let response = handler::handle_request(&req, &mut core.state, &mut ui_state);
                 let _ = req.response_sender.send(response);
                 should_render = true;
             }
@@ -99,7 +82,7 @@ pub fn run_app<B: Backend>(
                     ui_state.set_status_message("MCP Server is already running.".to_string());
                 } else {
                     ui_state.set_status_message("Starting MCP Server...".to_string());
-                    mcp_shutdown_tx = spawn_mcp_server_thread(&event_tx);
+                    mcp_shutdown_tx = spawn_mcp_server_thread(event_tx);
                 }
                 should_render = true;
             }
@@ -148,7 +131,7 @@ pub fn run_app<B: Backend>(
                 // Give the active dialog a chance to auto-close on a timer.
                 if let Some(mut dialog) = ui_state.active_dialog.take() {
                     let result = dialog.handle_tick(&mut core.state, &mut ui_state);
-                    if matches!(result, crate::ui::widget::WidgetResult::Close) {
+                    if matches!(result, WidgetResult::Close) {
                         // Dialog requested close — leave active_dialog as None and promote next queued dialog.
                         ui_state.promote_next_dialog();
                     } else {
@@ -174,7 +157,7 @@ pub fn run_app<B: Backend>(
                         key,
                         &mut core,
                         &mut ui_state,
-                        &event_tx,
+                        event_tx,
                         &mut should_render,
                     ) {
                         EventOutcome::Quit => break,
@@ -187,7 +170,7 @@ pub fn run_app<B: Backend>(
                         mouse,
                         &mut core,
                         &mut ui_state,
-                        &event_tx,
+                        event_tx,
                         &mut should_render,
                     ) {
                         EventOutcome::Quit => break,
@@ -196,7 +179,7 @@ pub fn run_app<B: Backend>(
                 }
                 Event::Resize(width, height) => {
                     terminal
-                        .resize(ratatui::layout::Rect::new(0, 0, width, height))
+                        .resize(Rect::new(0, 0, width, height))
                         .map_err(|e| io::Error::other(e.to_string()))?;
                     should_render = true;
                 }
@@ -227,87 +210,6 @@ pub fn run_app<B: Backend>(
     Ok(())
 }
 
-/// Spawns the MCP HTTP server thread on default port `3000` and returns a shutdown sender handle.
-#[must_use]
-pub fn spawn_mcp_server_thread(
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
-) -> Option<tokio::sync::oneshot::Sender<()>> {
-    spawn_mcp_server_thread_on_port(event_tx, 3000)
-}
-
-/// Spawns the MCP HTTP server thread on `port` and returns a shutdown sender handle.
-///
-/// The background thread binds `127.0.0.1:{port}` before it emits [`AppEvent::McpServerStarted`].
-/// If binding fails, the thread emits [`AppEvent::McpError`] and exits without [`AppEvent::McpServerStopped`].
-/// This keeps the bind error visible in the TUI status bar.
-#[must_use]
-pub fn spawn_mcp_server_thread_on_port(
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
-    port: u16,
-) -> Option<tokio::sync::oneshot::Sender<()>> {
-    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-    let (mcp_req_tx, mut mcp_req_rx) = tokio::sync::mpsc::channel(100);
-    let mcp_bridge_tx = event_tx.clone();
-    let started_tx = event_tx.clone();
-    let stopped_tx = event_tx.clone();
-
-    std::thread::spawn(move || {
-        let Ok(rt) = tokio::runtime::Runtime::new() else {
-            let _ = mcp_bridge_tx.send(AppEvent::McpError(
-                "Failed to initialize Tokio runtime for MCP server".to_string(),
-            ));
-            return;
-        };
-        rt.block_on(async move {
-            let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
-            let listener = match tokio::net::TcpListener::bind(addr).await {
-                Ok(listener) => listener,
-                Err(e) => {
-                    log::error!("Failed to bind MCP HTTP server on 127.0.0.1:{port}: {e}");
-                    let _ = mcp_bridge_tx.send(AppEvent::McpError(format!(
-                        "Failed to bind 127.0.0.1:{port}: {e}"
-                    )));
-                    return;
-                }
-            };
-
-            let bound_port = listener.local_addr().map_or(port, |a| a.port());
-            let server_handle = tokio::spawn(async move {
-                regenerator2000_core::mcp::http::serve_listener_with_shutdown(
-                    listener,
-                    mcp_req_tx,
-                    shutdown_rx,
-                )
-                .await
-            });
-
-            let _ = started_tx.send(AppEvent::McpServerStarted { port: bound_port });
-
-            while let Some(req) = mcp_req_rx.recv().await {
-                if mcp_bridge_tx.send(AppEvent::Mcp(req)).is_err() {
-                    break;
-                }
-            }
-
-            match server_handle.await {
-                Ok(Err(e)) => {
-                    log::error!("MCP HTTP server error on 127.0.0.1:{bound_port}: {e}");
-                    let _ = stopped_tx.send(AppEvent::McpError(e.to_string()));
-                }
-                Ok(Ok(())) | Err(_) => {
-                    let _ = stopped_tx.send(AppEvent::McpServerStopped);
-                }
-            }
-        });
-    });
-
-    Some(shutdown_tx)
-}
-
-// ---------------------------------------------------------------------------
-// Unpack completion handling
-// ---------------------------------------------------------------------------
-
 /// Processes the result of a background unpack operation.
 ///
 /// On success, loads the unpacked binary into the application state without running
@@ -316,10 +218,7 @@ pub fn spawn_mcp_server_thread_on_port(
 /// [`EntryAnalysisMode`] from the pre-unpack dialog so disassembly only runs if confirmed.
 /// On failure, clears any pending [`EntryAnalysisMode`] and displays the error in the status bar.
 pub fn handle_unpack_complete(
-    result: Result<
-        regenerator2000_core::unpacker::UnpackResult,
-        regenerator2000_core::unpacker::UnpackError,
-    >,
+    result: Result<UnpackResult, UnpackError>,
     core: &mut Core,
     ui_state: &mut UIState,
 ) {
@@ -333,7 +232,7 @@ pub fn handle_unpack_complete(
             let outcome = core
                 .state
                 .apply_unpack_result_with_mode(&result, EntryAnalysisMode::SkipEntryAnalysis);
-            regenerator2000_core::navigation::perform_jump_to_address_no_history(
+            navigation::perform_jump_to_address_no_history(
                 &core.state,
                 &mut core.view,
                 outcome.entry_point,
@@ -359,295 +258,6 @@ pub fn handle_unpack_complete(
     }
 }
 
-// ---------------------------------------------------------------------------
-// VICE protocol event handling
-// ---------------------------------------------------------------------------
-
-fn handle_vice_event(
-    connection_id: ViceConnectionId,
-    vice_event: ViceEvent,
-    app_state: &mut AppState,
-    ui_state: &mut UIState,
-) {
-    if !app_state.is_active_vice_connection(connection_id) {
-        return;
-    }
-    match vice_event {
-        ViceEvent::Connected => {
-            app_state.vice_state.connected = true;
-            ui_state.right_pane = RightPane::Debugger;
-            ui_state.active_pane = ActivePane::Debugger;
-            // Sync existing breakpoints from VICE (e.g. set in a previous session)
-            if let Some(client) = &app_state.vice_client {
-                client.send_checkpoint_list();
-            }
-            ui_state.set_status_message("Connected to VICE Monitor");
-        }
-        ViceEvent::Disconnected(reason) => {
-            app_state.disconnect_vice();
-            ui_state.clear_debugger_state();
-            ui_state.set_status_message(format!("Disconnected from VICE: {reason}"));
-        }
-        ViceEvent::Message(msg) => {
-            handle_vice_message(&msg, app_state, ui_state);
-        }
-    }
-}
-
-fn handle_vice_message(
-    msg: &crate::vice::ViceMessage,
-    app_state: &mut AppState,
-    ui_state: &mut UIState,
-) {
-    if msg.command == crate::vice::ViceCommand::REGISTERS_GET {
-        handle_vice_registers_get(msg, app_state, ui_state);
-    } else if msg.command == crate::vice::ViceCommand::MEMORY_GET && msg.error_code == 0 {
-        handle_vice_memory_get(msg, app_state);
-    } else if (msg.command == crate::vice::ViceCommand::CHECKPOINT_SET
-        || msg.command == crate::vice::ViceCommand::CHECKPOINT_GET)
-        && msg.error_code == 0
-    {
-        handle_vice_checkpoint(msg, app_state);
-    } else if msg.command == crate::vice::ViceCommand::CHECKPOINT_LIST && msg.error_code == 0 {
-        // CHECKPOINT_LIST response: just a count (4 bytes).
-        // VICE then sends individual CHECKPOINT_GET (0x11) responses for each
-        // checkpoint — those are handled above. Clear the list here so the
-        // incoming 0x11 responses repopulate it cleanly.
-        app_state.vice_state.breakpoints.clear();
-    } else if msg.command == crate::vice::ViceCommand::CHECKPOINT_DELETE && msg.error_code == 0 {
-        let id = msg.request_id;
-        app_state.vice_state.breakpoints.retain(|bp| bp.id != id);
-    } else if msg.command == crate::vice::ViceCommand::RESUMED {
-        app_state.vice_state.running = true;
-        app_state.vice_state.stop_reason = None;
-        app_state.vice_state.last_hit_checkpoint_id = None;
-        ui_state.debugger_flash_remaining = 0;
-    } else if msg.command == crate::vice::ViceCommand::STOPPED {
-        let was_running = app_state.vice_state.running;
-        app_state.vice_state.running = false;
-
-        // Start flash countdown for the debugger status line
-        ui_state.debugger_flash_remaining = 8;
-
-        if let Some(client) = &app_state.vice_client
-            && was_running
-        {
-            // If we had any pending temporary breakpoints, delete them.
-            for id in &app_state.vice_state.temporary_breakpoints {
-                client.send_checkpoint_delete(*id);
-            }
-            app_state.vice_state.temporary_breakpoints.clear();
-
-            // CPU stopped (step complete, step-over complete, or checkpoint hit).
-            // Fetch registers so the debugger panel and live view update.
-            client.send_registers_get();
-        }
-    } else if msg.error_code != 0 {
-        // Ignore error responses silently (e.g. memory not accessible)
-    } else {
-        // Silence known commands that need no further handling
-        let silent = matches!(
-            msg.command,
-            crate::vice::ViceCommand::RESUMED | crate::vice::ViceCommand::EXIT_MONITOR
-        );
-        if !silent {
-            ui_state.set_status_message(format!("VICE Msg: {:02x}", msg.command));
-        }
-    }
-}
-
-fn handle_vice_registers_get(
-    msg: &crate::vice::ViceMessage,
-    app_state: &mut AppState,
-    ui_state: &mut UIState,
-) {
-    let Some(regs) = crate::vice::parse_registers(&msg.payload) else {
-        return;
-    };
-
-    app_state.vice_state.a = regs.a;
-    app_state.vice_state.x = regs.x;
-    app_state.vice_state.y = regs.y;
-    app_state.vice_state.sp = regs.sp;
-    app_state.vice_state.p = regs.p;
-
-    let Some(pc) = regs.pc else {
-        ui_state.set_status_message("VICE Registers: did not find PC".to_string());
-        return;
-    };
-
-    app_state.vice_state.pc = Some(pc);
-    ui_state.set_status_message(format!("VICE PC: ${pc:04X}"));
-
-    // Jump static disassembly cursor + scroll to PC when PC lies inside the loaded binary.
-    let pc_addr = crate::state::Addr(pc);
-    if !app_state.is_external(pc_addr)
-        && let Some(idx) =
-            regenerator2000_core::navigation::resolve_jump_content_line_index(app_state, pc_addr)
-    {
-        let sub_idx = crate::ui::view_disassembly::DisassemblyView::get_sub_index_for_address(
-            &app_state.disassembly[idx],
-            app_state,
-            pc,
-        );
-        ui_state.cursor_index = idx;
-        ui_state.sub_cursor_index = sub_idx;
-        ui_state.scroll_index = idx;
-        ui_state.scroll_sub_index = sub_idx;
-    }
-
-    // Build a descriptive stop_reason (if not already set by handle_vice_checkpoint
-    // via the currently_hit flag in the checkpoint response).
-    if app_state.vice_state.stop_reason.is_none() {
-        let hit_id = app_state.vice_state.last_hit_checkpoint_id;
-        app_state.vice_state.stop_reason = app_state
-            .vice_state
-            .breakpoints
-            .iter()
-            .find(|bp| {
-                hit_id.is_some_and(|id| bp.id == id)
-                    || (bp.kind == crate::vice::state::BreakpointKind::Exec && bp.address == pc)
-            })
-            .map(|bp| format_checkpoint_stop_reason(bp.id, bp.address, bp.kind));
-    }
-    app_state.vice_state.last_hit_checkpoint_id = None;
-
-    // Request live memory around the PC for live disassembly.
-    // Fetch 32 bytes before PC and 96 bytes after (128 total window).
-    // This covers roughly 40+ instructions around the current PC.
-    // Also fetch the stack page ($0100–$01FF) for the stack view.
-    if let Some(client) = &app_state.vice_client {
-        let before: u16 = 32;
-        let after: u16 = 95;
-        let mem_start = pc.saturating_sub(before);
-        let mem_end = pc.saturating_add(after);
-        client.send_memory_get(mem_start, mem_end, 1);
-        client.send_memory_get(0x0100, 0x01FF, 2);
-
-        if app_state.settings.system == System::C64 || app_state.settings.system == System::C128 {
-            client.send_memory_get(0xD000, 0xDFFF, 3);
-            client.send_memory_get(0x0000, 0x0001, 4);
-        } else if app_state.settings.system == System::Vic20 {
-            // VIC-I registers: $9000–$900F
-            client.send_memory_get(0x9000, 0x900F, 3);
-        } else if app_state.settings.system == System::Plus4 {
-            // TED chip registers: $FF00–$FF3F
-            client.send_memory_get(0xFF00, 0xFF3F, 3);
-        }
-
-        client.send_memory_get(0xFFFA, 0xFFFF, 5);
-
-        if let Some(dump_addr) = app_state.vice_state.dump_address {
-            client.send_memory_get(dump_addr, dump_addr.saturating_add(63), 6);
-        }
-
-        app_state.vice_state.live_memory_start = mem_start;
-    }
-}
-
-fn format_checkpoint_stop_reason(
-    id: u32,
-    address: u16,
-    kind: crate::vice::state::BreakpointKind,
-) -> String {
-    if kind == crate::vice::state::BreakpointKind::Exec {
-        format!("Breakpoint #{id} at ${address:04X}")
-    } else {
-        format!("Watchpoint #{id} at ${address:04X} [{}]", kind.label())
-    }
-}
-
-fn handle_vice_memory_get(msg: &crate::vice::ViceMessage, app_state: &mut AppState) {
-    let Some(resp) = crate::vice::parse_memory_get(&msg.payload) else {
-        return;
-    };
-
-    match msg.request_id {
-        1 => {
-            // Live disassembly window around PC
-            app_state.vice_state.live_memory = Some(resp.bytes);
-        }
-        2 => {
-            // Stack page response ($0100–$01FF)
-            app_state.vice_state.stack_memory = Some(resp.bytes);
-        }
-        3 => {
-            // I/O block snapshot ($D000–$DFFF)
-            app_state.vice_state.io_memory = Some(resp.bytes);
-        }
-        4 => {
-            app_state.vice_state.zp00_01 = Some(resp.bytes);
-        }
-        5 => {
-            app_state.vice_state.vectors = Some(resp.bytes);
-        }
-        6 => {
-            app_state.vice_state.dump_memory = Some(resp.bytes);
-        }
-        _ => {}
-    }
-}
-
-fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppState) {
-    // CHECKPOINT_SET (0x12) and CHECKPOINT_GET (0x11) both carry the
-    // same checkpoint_info body:
-    //   CN(4) CH(1) SA(2) EA(2) ST(1) EN(1) OP(1) TM(1) HC(4) IC(4) CE(1) MS(1)
-    //
-    // VICE uses 0x11 for:
-    //   - Individual responses after a CHECKPOINT_LIST request
-    //   - CHECKPOINT_SET acknowledgment in some VICE versions
-    //   - Unsolicited notification when a checkpoint is hit (currently_hit=1)
-    // VICE uses 0x12 for:
-    //   - CHECKPOINT_SET acknowledgment in other VICE versions
-    // Handling both here makes us robust to all versions.
-    let Some(info) = crate::vice::parse_checkpoint_info(&msg.payload) else {
-        return;
-    };
-
-    let kind = crate::vice::state::BreakpointKind::from_cpu_op(info.cpu_op);
-
-    // Byte 4 (`currently_hit`) indicates that this checkpoint stopped the CPU.
-    // Set `stop_reason` immediately so watchpoints where PC != watched address match.
-    if info.currently_hit {
-        app_state.vice_state.last_hit_checkpoint_id = Some(info.id);
-        app_state.vice_state.stop_reason =
-            Some(format_checkpoint_stop_reason(info.id, info.address, kind));
-    }
-
-    if info.temporary {
-        // Track temporary breakpoints (such as Run To Cursor) so we can delete them on stop.
-        if !app_state
-            .vice_state
-            .temporary_breakpoints
-            .contains(&info.id)
-        {
-            app_state.vice_state.temporary_breakpoints.push(info.id);
-        }
-    } else {
-        // Avoid duplicates when both 0x11 and 0x12 arrive for the same checkpoint.
-        if !app_state
-            .vice_state
-            .breakpoints
-            .iter()
-            .any(|bp| bp.id == info.id)
-        {
-            app_state
-                .vice_state
-                .breakpoints
-                .push(crate::vice::state::ViceBreakpoint {
-                    id: info.id,
-                    address: info.address,
-                    enabled: info.enabled,
-                    kind,
-                });
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Keyboard event handling
-// ---------------------------------------------------------------------------
-
 /// Processes one [`KeyEvent`] synchronously through the full TUI input-routing pipeline.
 ///
 /// This function routes input through dialogs, the menu bar, inline Vim search, active views,
@@ -655,7 +265,7 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
 /// It then runs `sync_views_before_render` and [`UIState::sync_tui_to_core`].
 /// Integration tests call this headless entrypoint to verify keyboard shortcuts without a terminal backend.
 pub fn process_key_event(core: &mut Core, ui_state: &mut UIState, key: KeyEvent) {
-    let (event_tx, _event_rx) = std::sync::mpsc::channel();
+    let (event_tx, _event_rx) = mpsc::channel();
     let mut should_render = false;
     let _ = handle_key_event(key, core, ui_state, &event_tx, &mut should_render);
     if should_render {
@@ -669,10 +279,10 @@ fn handle_key_event(
     key: KeyEvent,
     core: &mut Core,
     ui_state: &mut UIState,
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+    event_tx: &Sender<AppEvent>,
     should_render: &mut bool,
 ) -> EventOutcome {
-    if key.kind != event::KeyEventKind::Press {
+    if key.kind != KeyEventKind::Press {
         return EventOutcome::Skip;
     }
 
@@ -689,9 +299,8 @@ fn handle_key_event(
             return EventOutcome::Quit;
         }
     } else if ui_state.menu.active {
-        use crate::ui::widget::Widget;
-        let result = crate::ui::menu::Menu.handle_input(key, &mut core.state, ui_state);
-        if let crate::ui::widget::WidgetResult::Action(action) = result {
+        let result = Menu.handle_input(key, &mut core.state, ui_state);
+        if let WidgetResult::Action(action) = result {
             dispatch_menu_action(action, core, ui_state, event_tx);
         }
     } else if ui_state.vim_search_active {
@@ -728,29 +337,29 @@ fn handle_key_event(
     EventOutcome::Continue
 }
 
-/// Applies the [`crate::ui::widget::WidgetResult`] returned by an active modal dialog,
+/// Applies the [`WidgetResult`] returned by an active modal dialog,
 /// restoring or closing the dialog and promoting any queued dialog when it closes.
 fn apply_dialog_result(
-    dialog: Box<dyn crate::ui::widget::Widget>,
-    result: crate::ui::widget::WidgetResult,
+    dialog: Box<dyn Widget>,
+    result: WidgetResult,
     core: &mut Core,
     ui_state: &mut UIState,
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+    event_tx: &Sender<AppEvent>,
     should_render: &mut bool,
 ) {
     match result {
-        crate::ui::widget::WidgetResult::Ignored => {
+        WidgetResult::Ignored => {
             ui_state.active_dialog = Some(dialog);
         }
-        crate::ui::widget::WidgetResult::Handled => {
+        WidgetResult::Handled => {
             ui_state.active_dialog = Some(dialog);
             *should_render = true;
         }
-        crate::ui::widget::WidgetResult::Close => {
+        WidgetResult::Close => {
             *should_render = true;
             ui_state.promote_next_dialog();
         }
-        crate::ui::widget::WidgetResult::Action(action) => {
+        WidgetResult::Action(action) => {
             if !action.closes_dialog() {
                 ui_state.active_dialog = Some(dialog);
             }
@@ -761,16 +370,8 @@ fn apply_dialog_result(
     }
 }
 
-/// Returns a boxed [`crate::ui::widget::Widget`] for `pane`.
-fn active_pane_widget(pane: ActivePane) -> Box<dyn crate::ui::widget::Widget> {
-    use crate::ui::view_bitmap::BitmapView;
-    use crate::ui::view_blocks::BlocksView;
-    use crate::ui::view_charset::CharsetView;
-    use crate::ui::view_debugger::DebuggerView;
-    use crate::ui::view_disassembly::DisassemblyView;
-    use crate::ui::view_hexdump::HexDumpView;
-    use crate::ui::view_sprites::SpritesView;
-
+/// Returns a boxed [`Widget`] for `pane`.
+fn active_pane_widget(pane: ActivePane) -> Box<dyn Widget> {
     match pane {
         ActivePane::Disassembly => Box::new(DisassemblyView),
         ActivePane::HexDump => Box::new(HexDumpView),
@@ -787,10 +388,8 @@ fn handle_key_event_active_view(
     key: KeyEvent,
     core: &mut Core,
     ui_state: &mut UIState,
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+    event_tx: &Sender<AppEvent>,
 ) {
-    use crate::ui::widget::WidgetResult;
-
     let mut active_view = active_pane_widget(ui_state.active_pane);
 
     match active_view.handle_input(key, &mut core.state, ui_state) {
@@ -816,7 +415,7 @@ fn handle_mouse_event(
     mouse: MouseEvent,
     core: &mut Core,
     ui_state: &mut UIState,
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+    event_tx: &Sender<AppEvent>,
     should_render: &mut bool,
 ) -> EventOutcome {
     if !ui_state.dismiss_logo {
@@ -846,17 +445,17 @@ fn handle_mouse_event(
 /// Handles mouse events when a modal dialog is open.
 fn handle_mouse_dialog(
     mouse: MouseEvent,
-    mut dialog: Box<dyn crate::ui::widget::Widget>,
+    mut dialog: Box<dyn Widget>,
     core: &mut Core,
     ui_state: &mut UIState,
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+    event_tx: &Sender<AppEvent>,
     should_render: &mut bool,
 ) -> EventOutcome {
     // Check for Close Button Click (Top-Right [x]) only once the active dialog has rendered bounds.
     let area = ui_state.active_dialog_area;
     let is_close_click = if area.width > 0
         && area.height > 0
-        && mouse.kind == event::MouseEventKind::Down(crossterm::event::MouseButton::Left)
+        && mouse.kind == MouseEventKind::Down(MouseButton::Left)
     {
         mouse.row == area.y
             && mouse.column >= area.right().saturating_sub(4)
@@ -884,66 +483,57 @@ fn handle_mouse_views(
     mouse: MouseEvent,
     core: &mut Core,
     ui_state: &mut UIState,
-    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+    event_tx: &Sender<AppEvent>,
     should_render: &mut bool,
 ) {
     let col = mouse.column;
     let row = mouse.row;
 
-    let mut widget_result = crate::ui::widget::WidgetResult::Ignored;
-    let is_inside = |rect: ratatui::layout::Rect, col: u16, row: u16| {
+    let mut widget_result = WidgetResult::Ignored;
+    let is_inside = |rect: Rect, col: u16, row: u16| {
         col >= rect.x && col < rect.x + rect.width && row >= rect.y && row < rect.y + rect.height
     };
 
-    use crate::ui::widget::Widget;
+    if is_inside(ui_state.menu_area, col, row) || ui_state.menu.active {
+        widget_result = Menu.handle_mouse(mouse, &mut core.state, ui_state);
 
-    if is_inside(ui_state.menu_area, col, row) {
-        widget_result = crate::ui::menu::Menu.handle_mouse(mouse, &mut core.state, ui_state);
-    } else if ui_state.menu.active {
-        // If menu is active and we clicked outside menu area.
-        // We let Menu handle it (it might detect click in popup).
-        widget_result = crate::ui::menu::Menu.handle_mouse(mouse, &mut core.state, ui_state);
-
-        // If the menu ignored it (e.g. click outside both bar and popup), close the menu.
-        if matches!(widget_result, crate::ui::widget::WidgetResult::Ignored)
-            && mouse.kind == event::MouseEventKind::Down(crossterm::event::MouseButton::Left)
+        // If the menu ignored a left click (e.g. click outside both bar and popup), close the menu.
+        if !is_inside(ui_state.menu_area, col, row)
+            && matches!(widget_result, WidgetResult::Ignored)
+            && mouse.kind == MouseEventKind::Down(MouseButton::Left)
         {
             ui_state.menu.active = false;
             ui_state.menu.selected_item = None;
-            widget_result = crate::ui::widget::WidgetResult::Handled;
+            widget_result = WidgetResult::Handled;
         }
     }
 
     let prev_active_pane = ui_state.active_pane;
 
-    if widget_result == crate::ui::widget::WidgetResult::Ignored {
+    if widget_result == WidgetResult::Ignored {
         if is_inside(ui_state.minimap_area, col, row) {
-            use crate::ui::minimap_bar::MinimapBar;
             widget_result = MinimapBar.handle_mouse(mouse, &mut core.state, ui_state);
         } else if is_inside(ui_state.disassembly_area, col, row) {
             ui_state.active_pane = ActivePane::Disassembly;
-            use crate::ui::view_disassembly::DisassemblyView;
             widget_result = DisassemblyView.handle_mouse(mouse, &mut core.state, ui_state);
         } else if is_inside(ui_state.right_pane_area, col, row) {
             match ui_state.right_pane {
-                crate::ui_state::RightPane::HexDump16 | crate::ui_state::RightPane::HexDump8 => {
+                RightPane::HexDump16 | RightPane::HexDump8 => {
                     ui_state.active_pane = ActivePane::HexDump;
                 }
-                crate::ui_state::RightPane::Sprites2Col
-                | crate::ui_state::RightPane::Sprites1Col => {
+                RightPane::Sprites2Col | RightPane::Sprites1Col => {
                     ui_state.active_pane = ActivePane::Sprites;
                 }
-                crate::ui_state::RightPane::Charset8Col
-                | crate::ui_state::RightPane::Charset4Col => {
+                RightPane::Charset8Col | RightPane::Charset4Col => {
                     ui_state.active_pane = ActivePane::Charset;
                 }
-                crate::ui_state::RightPane::Bitmap => {
+                RightPane::Bitmap => {
                     ui_state.active_pane = ActivePane::Bitmap;
                 }
-                crate::ui_state::RightPane::Blocks => {
+                RightPane::Blocks => {
                     ui_state.active_pane = ActivePane::Blocks;
                 }
-                crate::ui_state::RightPane::Debugger => {
+                RightPane::Debugger => {
                     ui_state.active_pane = ActivePane::Debugger;
                 }
                 _ => {}
@@ -960,53 +550,19 @@ fn handle_mouse_views(
 
     if matches!(
         widget_result,
-        crate::ui::widget::WidgetResult::Handled | crate::ui::widget::WidgetResult::Action(_)
+        WidgetResult::Handled | WidgetResult::Action(_)
     ) {
         *should_render = true;
     }
 
-    if let crate::ui::widget::WidgetResult::Action(action) = widget_result {
+    if let WidgetResult::Action(action) = widget_result {
         dispatch_menu_action(action, core, ui_state, event_tx);
     }
 }
 
 // ---------------------------------------------------------------------------
-// Shared helper: dispatch a AppAction (de-duplicates ViceConnectAddress logic)
+// Shared helper: dispatch an AppAction (de-duplicates ViceConnectAddress logic)
 // ---------------------------------------------------------------------------
-
-/// Connects to the VICE Binary Monitor at `addr` and attaches the client to `app_state`.
-///
-/// Starts a background thread to forward [`ViceEvent`] messages to `event_tx`.
-///
-/// # Errors
-///
-/// Returns [`ViceError`] if the TCP connection or socket configuration fails.
-pub fn connect_vice_client(
-    app_state: &mut AppState,
-    addr: &str,
-    event_tx: &Sender<AppEvent>,
-) -> Result<(), ViceError> {
-    let (vice_tx, vice_rx) = mpsc::channel();
-    let client = ViceClient::connect(addr, vice_tx)?;
-    let connection_id = client.connection_id();
-    app_state.attach_vice_client(client);
-
-    let app_tx = event_tx.clone();
-    std::thread::spawn(move || {
-        while let Ok(event) = vice_rx.recv() {
-            if app_tx
-                .send(AppEvent::Vice {
-                    connection_id,
-                    event,
-                })
-                .is_err()
-            {
-                break;
-            }
-        }
-    });
-    Ok(())
-}
 
 /// Routes an `AppAction` to the VICE connect flow or the generic menu handler.
 fn dispatch_menu_action(
@@ -1023,7 +579,7 @@ fn dispatch_menu_action(
         if matches!(action, AppAction::ApplyOrigin(_)) {
             ui_state.invalidate_bitmap_cache();
         }
-        crate::ui::menu::handle_menu_action(core, ui_state, action, event_tx);
+        handle_menu_action(core, ui_state, action, event_tx);
     }
 }
 
@@ -1036,10 +592,15 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     ui_state.cached_blocks_items = None;
 
     // Update menu availability
+    let search_history = if ui_state.last_search_query.is_empty() {
+        SearchHistory::Empty
+    } else {
+        SearchHistory::HasQuery
+    };
     ui_state.menu.update_availability(
         app_state,
         ui_state.cursor_index,
-        ui_state.last_search_query.is_empty(),
+        search_history,
         ui_state.active_pane,
     );
 
@@ -1066,9 +627,9 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
         if allow_cursor_sync
             && let Some(index) = {
                 let target = if is_splitter {
-                    crate::state::BlockItemTarget::Splitter
+                    BlockItemTarget::Splitter
                 } else {
-                    crate::state::BlockItemTarget::BlockOrScope
+                    BlockItemTarget::BlockOrScope
                 };
                 AppState::find_block_index_in_items(&items, target_addr, target)
             }
@@ -1142,12 +703,19 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
 mod tests {
     use super::*;
     use crate::theme::Theme;
-    use crate::ui::widget::WidgetResult;
+    use crate::ui::dialog_jump_to_operand::JumpToOperandDialog;
+    use crate::ui::dialog_keyboard_shortcut::ShortcutsDialog;
     use crossterm::event::KeyModifiers;
-    use regenerator2000_core::state::{Addr, BlockType};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use regenerator2000_core::state::types::OperandJumpTarget;
+    use regenerator2000_core::state::{Addr, Assembler, BlockType, Label, LabelKind, LabelType};
     use regenerator2000_core::unpacker::{
         BoundSource, ExitReason, UnpackError, UnpackReport, UnpackResult,
     };
+    use regenerator2000_core::vice::{ViceConnectionId, ViceEvent};
+    use std::net::TcpListener;
+    use std::time::Duration;
 
     fn sample_unpack_result() -> UnpackResult {
         UnpackResult {
@@ -1282,163 +850,19 @@ mod tests {
     }
 
     #[test]
-    fn mcp_server_bind_failure_emits_only_mcp_error_without_clobbering() {
-        // Hold an ephemeral port so `spawn_mcp_server_thread_on_port` fails with `Address already in use`.
-        let occupied =
-            std::net::TcpListener::bind("127.0.0.1:0").expect("bind ephemeral port for test");
-        let port = occupied.local_addr().expect("local_addr").port();
-
-        let (event_tx, event_rx) = std::sync::mpsc::channel::<AppEvent>();
-        let _shutdown_tx = spawn_mcp_server_thread_on_port(&event_tx, port);
-        drop(event_tx);
-
-        let mut events = Vec::new();
-        while let Ok(ev) = event_rx.recv_timeout(std::time::Duration::from_secs(5)) {
-            events.push(ev);
-        }
-
-        assert_eq!(
-            events.len(),
-            1,
-            "Expected exactly 1 event (McpError) on port bind conflict, got {}",
-            events.len()
-        );
-        match &events[0] {
-            AppEvent::McpError(msg) => {
-                assert!(
-                    msg.contains(&format!("127.0.0.1:{port}")),
-                    "Expected error message to mention port {port}, got: {msg}"
-                );
-            }
-            _ => panic!("Expected AppEvent::McpError on port bind conflict"),
-        }
-    }
-
-    #[test]
-    fn mcp_server_clean_start_and_stop_lifecycle() {
-        let (event_tx, event_rx) = std::sync::mpsc::channel::<AppEvent>();
-        let shutdown_tx =
-            spawn_mcp_server_thread_on_port(&event_tx, 0).expect("shutdown_tx returned");
-        drop(event_tx);
-
-        let first = event_rx
-            .recv_timeout(std::time::Duration::from_secs(5))
-            .expect("Expected McpServerStarted event");
-        match first {
-            AppEvent::McpServerStarted { port } => {
-                assert!(port > 0, "Expected non-zero bound ephemeral port");
-            }
-            _ => panic!("Expected AppEvent::McpServerStarted as first event"),
-        }
-
-        shutdown_tx.send(()).expect("send shutdown signal");
-
-        let second = event_rx
-            .recv_timeout(std::time::Duration::from_secs(5))
-            .expect("Expected McpServerStopped event");
-        assert!(
-            matches!(second, AppEvent::McpServerStopped),
-            "Expected AppEvent::McpServerStopped after shutdown"
-        );
-    }
-
-    #[test]
-    fn vice_registers_get_locates_pc_with_external_labels_and_ignores_external_rom_pc() {
-        use regenerator2000_core::state::{Addr, BlockType, Label, LabelKind, LabelType};
-
-        let mut app_state = AppState::new();
-        app_state.origin = Addr(0x0800);
-        // $0800: LDA #$01 (2 bytes), $0802: JSR $FFD2 (3 bytes), $0805: RTS (1 byte)
-        app_state.raw_data = vec![0xA9, 0x01, 0x20, 0xD2, 0xFF, 0x60];
-        app_state.block_types = vec![BlockType::Code; app_state.raw_data.len()];
-        app_state.labels.insert(
-            Addr(0xFFD2),
-            vec![Label {
-                name: "CHROUT".to_string(),
-                kind: LabelKind::User,
-                label_type: LabelType::ExternalJump,
-            }],
-        );
-        app_state.settings.all_labels = true;
-        app_state.disassemble();
-
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
-        let build_pc_msg = |pc: u16| {
-            let mut payload = Vec::new();
-            payload.extend_from_slice(&1u16.to_le_bytes());
-            payload.extend_from_slice(&[3, 0x03]);
-            payload.extend_from_slice(&pc.to_le_bytes());
-            crate::vice::ViceMessage {
-                command: crate::vice::ViceCommand::REGISTERS_GET,
-                error_code: 0,
-                request_id: 1,
-                payload,
-            }
-        };
-
-        // 1. In-range PC ($0802) must land on the JSR $FFD2 line despite prepended external labels.
-        let expected_idx = app_state
-            .line_index_containing_address(Addr(0x0802))
-            .expect("JSR instruction at $0802");
-        handle_vice_registers_get(&build_pc_msg(0x0802), &mut app_state, &mut ui_state);
-        assert_eq!(ui_state.cursor_index, expected_idx);
-        assert_eq!(
-            app_state.disassembly[ui_state.cursor_index].address,
-            Addr(0x0802)
-        );
-
-        // 2. External ROM PC ($EA31) must not snap the static disassembly cursor to the last line.
-        handle_vice_registers_get(&build_pc_msg(0xEA31), &mut app_state, &mut ui_state);
-        assert_eq!(ui_state.cursor_index, expected_idx);
-
-        // 3. Origin $0000 collapsed block preceded by enum preamble headers at $0000 must land on
-        // the collapsed summary row and never step onto the preamble or past `!is_collapsed`.
-        let mut collapsed_zero_state = AppState::new();
-        collapsed_zero_state.origin = Addr::ZERO;
-        // $0000: collapsed NOP, $0001: LDA #Colors.BLACK
-        collapsed_zero_state.raw_data = vec![0xEA, 0xA9, 0x00];
-        collapsed_zero_state.block_types = vec![BlockType::Code; 3];
-        collapsed_zero_state.collapsed_blocks.push((0, 0));
-        let mut variants = std::collections::BTreeMap::new();
-        variants.insert(0, "BLACK".to_string());
-        collapsed_zero_state.enums.insert(
-            "Colors".to_string(),
-            regenerator2000_core::state::EnumDefinition {
-                name: "Colors".to_string(),
-                description: None,
-                variants,
-                source_file: None,
-            },
-        );
-        collapsed_zero_state.annotations.update(Addr(0x0001), |e| {
-            e.enum_usage = Some("Colors".to_string());
-        });
-        collapsed_zero_state.settings.all_labels = true;
-        collapsed_zero_state.disassemble();
-
-        let mut collapsed_ui = UIState::new(crate::theme::Theme::default());
-        handle_vice_registers_get(
-            &build_pc_msg(0x0000),
-            &mut collapsed_zero_state,
-            &mut collapsed_ui,
-        );
-        assert!(collapsed_zero_state.disassembly[collapsed_ui.cursor_index].is_collapsed);
-        assert_eq!(
-            collapsed_zero_state.disassembly[collapsed_ui.cursor_index].address,
-            Addr::ZERO
-        );
-    }
-
-    #[test]
     fn mouse_dialog_close_promotes_queued_dialog() {
-        use crate::ui::widget::{Widget, WidgetResult};
-        use ratatui::{Frame, layout::Rect};
-
         struct DummyDialog {
             mouse_result: Option<WidgetResult>,
         }
         impl Widget for DummyDialog {
-            fn render(&self, _f: &mut Frame, _area: Rect, _app: &AppState, _ui: &mut UIState) {}
+            fn render(
+                &self,
+                _f: &mut ratatui::Frame,
+                _area: Rect,
+                _app: &AppState,
+                _ui: &mut UIState,
+            ) {
+            }
             fn handle_input(
                 &mut self,
                 _key: KeyEvent,
@@ -1458,8 +882,8 @@ mod tests {
         }
 
         let mut core = Core::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
-        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut ui_state = UIState::new(Theme::default());
+        let (tx, _rx) = mpsc::channel();
         let mut should_render = false;
 
         // 1. Clicking [x] on the top-right border promotes the queued dialog.
@@ -1470,19 +894,17 @@ mod tests {
             mouse_result: Some(WidgetResult::Close),
         }));
         ui_state.push_dialog(Box::new(DummyDialog {
-            mouse_result: Some(WidgetResult::Action(
-                crate::state::actions::AppAction::FindNext,
-            )),
+            mouse_result: Some(WidgetResult::Action(AppAction::FindNext)),
         }));
         assert_eq!(ui_state.dialog_queue.len(), 2);
         // Simulate DummyDialog #1 having been rendered with active bounds before clicking [x].
         ui_state.active_dialog_area = Rect::new(10, 5, 40, 10);
 
         let close_x_click = MouseEvent {
-            kind: event::MouseEventKind::Down(event::MouseButton::Left),
+            kind: MouseEventKind::Down(MouseButton::Left),
             column: 48,
             row: 5,
-            modifiers: event::KeyModifiers::NONE,
+            modifiers: KeyModifiers::NONE,
         };
         let _ = handle_mouse_event(
             close_x_click,
@@ -1496,10 +918,10 @@ mod tests {
 
         // 2. Dialog returning WidgetResult::Close on mouse input promotes the next queued dialog.
         let body_click = MouseEvent {
-            kind: event::MouseEventKind::Down(event::MouseButton::Left),
+            kind: MouseEventKind::Down(MouseButton::Left),
             column: 20,
             row: 8,
-            modifiers: event::KeyModifiers::NONE,
+            modifiers: KeyModifiers::NONE,
         };
         let _ = handle_mouse_event(
             body_click,
@@ -1524,9 +946,6 @@ mod tests {
 
     #[test]
     fn sync_views_before_render_mirrors_cursor_and_selection_across_panes() {
-        use crate::ui_state::RightPane;
-        use regenerator2000_core::state::{Addr, BlockType, Label, LabelKind, LabelType};
-
         let mut app_state = AppState::new();
         app_state.origin = Addr(0x2000);
         app_state.raw_data = vec![0xEA; 0x2040];
@@ -1545,7 +964,7 @@ mod tests {
         app_state.system_config.sync_bitmap_view = true;
         app_state.disassemble();
 
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.active_pane = ActivePane::Disassembly;
         ui_state.cursor_index = app_state
             .line_index_containing_address(Addr(0x4010))
@@ -1616,16 +1035,10 @@ mod tests {
 
     #[test]
     fn jump_to_operand_dialog_close_click_dismisses_and_promotes_queued_dialog() {
-        use crate::ui::dialog_jump_to_operand::JumpToOperandDialog;
-        use ratatui::Terminal;
-        use ratatui::backend::TestBackend;
-        use ratatui::layout::Rect;
-        use regenerator2000_core::state::types::{Addr, OperandJumpTarget};
-
         let mut core = Core::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.dismiss_logo = true;
-        let (tx, _rx) = std::sync::mpsc::channel();
+        let (tx, _rx) = mpsc::channel();
         let mut should_render = false;
 
         let targets = vec![
@@ -1644,27 +1057,25 @@ mod tests {
 
         // Render once so `active_dialog_area` matches the real centered modal bounds.
         let backend = TestBackend::new(80, 24);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
         terminal
-            .draw(|f| crate::ui::ui(f, &core.state, &mut ui_state))
-            .unwrap();
+            .draw(|f| ui(f, &core.state, &mut ui_state))
+            .expect("draw jump-to-operand dialog");
         let dialog_area = ui_state.active_dialog_area;
         assert_ne!(dialog_area, Rect::default());
 
         // Queue a follow-up dialog behind `JumpToOperandDialog`.
-        ui_state.push_dialog(Box::new(
-            crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
-        ));
+        ui_state.push_dialog(Box::new(ShortcutsDialog::new()));
         assert_eq!(ui_state.dialog_queue.len(), 1);
         ui_state.set_status_message("Jump pending");
 
         // Clicking `[x]` on the top-right border resets status, drops the dialog, clears stale
         // modal bounds, and promotes the queued dialog.
-        let close_click = event::MouseEvent {
-            kind: event::MouseEventKind::Down(event::MouseButton::Left),
+        let close_click = MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
             column: dialog_area.right().saturating_sub(2),
             row: dialog_area.y,
-            modifiers: event::KeyModifiers::NONE,
+            modifiers: KeyModifiers::NONE,
         };
         handle_mouse_event(
             close_click,
@@ -1694,10 +1105,6 @@ mod tests {
 
     #[test]
     fn test_sync_views_before_render_direction_collapsed_wrapped_equates_and_hex() {
-        use ratatui::Terminal;
-        use ratatui::backend::TestBackend;
-        use regenerator2000_core::state::{Assembler, BlockType, Label, LabelKind, LabelType};
-
         // 1. Backward direction preservation across Tab (Sprites, Charset, Bitmap) + 1-item round-trip
         let mut app_state = AppState::new();
         app_state.origin = Addr(0x2000);
@@ -1994,7 +1401,7 @@ mod tests {
         let backend = TestBackend::new(120, 30);
         let mut terminal = Terminal::new(backend).expect("create test terminal for hex sync test");
         terminal
-            .draw(|f| crate::ui::ui(f, &hex_state, &mut ui_state))
+            .draw(|f| ui(f, &hex_state, &mut ui_state))
             .expect("draw UI for hex sync test");
         assert_eq!(ui_state.hex_selection_start, Some(0));
         assert_eq!(ui_state.hex_selection_start_col, 4);
@@ -2030,10 +1437,6 @@ mod tests {
 
     #[test]
     fn test_sprites_and_charset_mouse_shift_click_and_drag_sync() {
-        use crossterm::event::{MouseButton, MouseEventKind};
-        use ratatui::Terminal;
-        use ratatui::backend::TestBackend;
-
         let mut core = Core::new();
         core.state
             .load_binary(Addr(0x0800), vec![0xEA; 256])
@@ -2043,7 +1446,7 @@ mod tests {
 
         let mut ui_state = UIState::new(Theme::default());
         ui_state.dismiss_logo = true;
-        let (tx, _rx) = std::sync::mpsc::channel();
+        let (tx, _rx) = mpsc::channel();
         let mut should_render = false;
 
         let backend = TestBackend::new(120, 40);
@@ -2052,7 +1455,7 @@ mod tests {
         // --- Sprites2Col ---
         ui_state.right_pane = RightPane::Sprites2Col;
         terminal
-            .draw(|f| crate::ui::ui(f, &core.state, &mut ui_state))
+            .draw(|f| ui(f, &core.state, &mut ui_state))
             .expect("draw sprites pane");
         let sprite_area = ui_state.right_pane_area;
 
@@ -2157,7 +1560,7 @@ mod tests {
         ui_state.charset_cursor_index = 0;
         ui_state.charset_selection_start = None;
         terminal
-            .draw(|f| crate::ui::ui(f, &core.state, &mut ui_state))
+            .draw(|f| ui(f, &core.state, &mut ui_state))
             .expect("draw charset pane");
         let charset_area = ui_state.right_pane_area;
 
@@ -2282,7 +1685,7 @@ mod tests {
 
     fn recv_vice_event(receiver: &mpsc::Receiver<AppEvent>) -> (ViceConnectionId, ViceEvent) {
         match receiver
-            .recv_timeout(std::time::Duration::from_secs(2))
+            .recv_timeout(Duration::from_secs(2))
             .expect("receive VICE event before timeout")
         {
             AppEvent::Vice {
@@ -2295,8 +1698,6 @@ mod tests {
 
     #[test]
     fn vice_remote_disconnect_updates_menu_availability_and_allows_reconnect() {
-        use std::net::TcpListener;
-
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind test TCP listener");
         let address = listener
             .local_addr()
@@ -2420,8 +1821,6 @@ mod tests {
 
     #[test]
     fn vice_stale_connection_events_are_ignored_after_disconnect_and_reconnect() {
-        use std::net::TcpListener;
-
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind test TCP listener");
         let address = listener
             .local_addr()
@@ -2452,12 +1851,7 @@ mod tests {
         let _ = recv_vice_event(&rx);
 
         // Disconnect session 1 manually.
-        crate::ui::menu::handle_menu_action(
-            &mut core,
-            &mut ui_state,
-            AppAction::ViceDisconnect,
-            &tx,
-        );
+        handle_menu_action(&mut core, &mut ui_state, AppAction::ViceDisconnect, &tx);
         assert!(!core.state.is_vice_connected());
 
         // Ignore a stale Connected event from session 1.

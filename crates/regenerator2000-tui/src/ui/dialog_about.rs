@@ -1,17 +1,20 @@
+//! Animated C64-themed About dialog with logo rendering and keyboard easter egg.
+
 use crate::events::AppEvent;
 use crate::state::AppState;
 use crate::terminal_graphics::{centered_image_rect, new_or_reused_protocol, theme_color_to_rgba};
-use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, MouseButton, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::Frame;
-use ratatui::layout::{Position, Rect};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Paragraph};
 use ratatui_image::{FilterType, Resize, StatefulImage};
 use std::cell::RefCell;
 use std::sync::mpsc;
+use std::thread;
 use std::time::{Duration, Instant};
 
 // ── Tuning constants ──────────────────────────────────────────────────────────
@@ -23,7 +26,7 @@ const EASTER_EGG_CLICKS: u8 = 5;
 const TYPED_TEXT: &str = "SYS 64738";
 
 /// Delay before the first character starts appearing.
-/// Sized to exactly 3 full cursor blink cycles (6 × BLINK_PERIOD).
+/// Sized to exactly 3 full cursor blink cycles (6 × `BLINK_PERIOD`).
 const TYPING_DELAY: Duration = Duration::from_millis(2400);
 
 /// Delay between each typed character.
@@ -115,7 +118,7 @@ impl AboutDialog {
     fn activate_egg(&mut self) {
         self.egg_start = Some(Instant::now());
         let tx = self.event_tx.clone();
-        std::thread::spawn(move || {
+        thread::spawn(move || {
             // Send ticks until the receiver is gone (dialog closed).
             // Total = pre-delay + typing + 2 s close delay.
             let total = TYPING_DELAY
@@ -124,7 +127,7 @@ impl AboutDialog {
                 + Duration::from_secs(1);
             let steps = (total.as_millis() / TICK_INTERVAL.as_millis()) as u32 + 4;
             for _ in 0..steps {
-                std::thread::sleep(TICK_INTERVAL);
+                thread::sleep(TICK_INTERVAL);
                 if tx.send(AppEvent::Tick).is_err() {
                     break;
                 }
@@ -247,16 +250,13 @@ impl Widget for AboutDialog {
 
         // ── Normal about dialog ────────────────────────────────────────
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" About ", theme);
+        let block = widget::create_dialog_block(" About ", theme);
         let inner = block.inner(popup_area);
         f.render_widget(block, popup_area);
 
-        let chunks = ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .constraints([
-                ratatui::layout::Constraint::Min(0),
-                ratatui::layout::Constraint::Length(6),
-            ])
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(6)])
             .split(inner);
 
         let img_area = chunks[0];
@@ -291,7 +291,7 @@ impl Widget for AboutDialog {
             let centered_text_area = Rect::new(text_area.x, text_y, text_area.width, text_height);
             f.render_widget(
                 Paragraph::new(text)
-                    .alignment(ratatui::layout::Alignment::Center)
+                    .alignment(Alignment::Center)
                     .block(Block::default()),
                 centered_text_area,
             );
@@ -300,7 +300,7 @@ impl Widget for AboutDialog {
 
     fn handle_input(
         &mut self,
-        key: crossterm::event::KeyEvent,
+        key: KeyEvent,
         _app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
@@ -319,7 +319,7 @@ impl Widget for AboutDialog {
 
     fn handle_mouse(
         &mut self,
-        mouse: crossterm::event::MouseEvent,
+        mouse: MouseEvent,
         _app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
@@ -367,13 +367,14 @@ impl Widget for AboutDialog {
 mod tests {
     use super::*;
     use crate::terminal_graphics::{
-        TerminalImageProtocol, create_headless_picker, extract_kitty_transmit_id,
+        TerminalImageProtocol, TmuxMode, create_headless_picker, extract_kitty_transmit_id,
     };
     use crate::theme::Theme;
-    use crossterm::event::{KeyEvent, KeyModifiers, MouseEvent};
+    use crossterm::event::KeyModifiers;
     use image::Rgba;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
+    use ratatui::buffer::Cell;
     use ratatui_image::FontSize;
     use ratatui_image::picker::ProtocolType;
 
@@ -383,14 +384,11 @@ mod tests {
         let x = area.x + (area.width.saturating_sub(popup_width)) / 2;
         let y = area.y + (area.height.saturating_sub(popup_height)) / 2;
         let popup_area = Rect::new(x, y, popup_width, popup_height);
-        let block = crate::ui::widget::create_dialog_block(" About ", theme);
+        let block = widget::create_dialog_block(" About ", theme);
         let inner = block.inner(popup_area);
-        ratatui::layout::Layout::default()
-            .direction(ratatui::layout::Direction::Vertical)
-            .constraints([
-                ratatui::layout::Constraint::Min(0),
-                ratatui::layout::Constraint::Length(6),
-            ])
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(6)])
             .split(inner)
             .to_vec()
     }
@@ -414,20 +412,20 @@ mod tests {
         let dialog = AboutDialog::new(&mut ui_state, tx);
 
         let backend = TestBackend::new(100, 30);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create terminal");
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw AboutDialog without logo");
 
         let rendered: String = terminal
             .backend()
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         assert!(rendered.contains("Regenerator 2000"));
         assert!(ui_state.active_dialog_area.width > 0);
@@ -480,13 +478,13 @@ mod tests {
         );
 
         let backend = TestBackend::new(100, 30);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create terminal");
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw AboutDialog with logo");
 
         let chunks = about_dialog_chunks(Rect::new(0, 0, 100, 30), &theme);
         let img_area = chunks[0];
@@ -500,7 +498,10 @@ mod tests {
         assert!(logo_area.bottom() <= img_area.bottom());
 
         let expected_logo_area = centered_image_rect(
-            ui_state.about_logo_protocol.as_ref().unwrap(),
+            ui_state
+                .about_logo_protocol
+                .as_ref()
+                .expect("about_logo_protocol should be populated after render"),
             &AboutDialog::LOGO_RESIZE,
             img_area,
         );
@@ -561,17 +562,20 @@ mod tests {
         ));
 
         let backend = TestBackend::new(120, 40);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create retina terminal");
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw retina AboutDialog");
 
         let img_area = about_dialog_chunks(Rect::new(0, 0, 120, 40), &theme)[0];
         let expected_retina = centered_image_rect(
-            ui_state.about_logo_protocol.as_ref().unwrap(),
+            ui_state
+                .about_logo_protocol
+                .as_ref()
+                .expect("about_logo_protocol should be populated"),
             &AboutDialog::LOGO_RESIZE,
             img_area,
         );
@@ -603,21 +607,25 @@ mod tests {
             logo,
             FontSize::new(7, 17),
             bg,
-            false,
+            TmuxMode::Direct,
         ));
 
-        let mut terminal = Terminal::new(TestBackend::new(210, 50)).unwrap();
+        let mut terminal =
+            Terminal::new(TestBackend::new(210, 50)).expect("create iterm2 terminal");
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw iterm2 AboutDialog");
 
         let img_area = about_dialog_chunks(Rect::new(0, 0, 210, 50), &theme)[0];
         let logo_area = *dialog.logo_area.borrow();
         let expected = centered_image_rect(
-            ui_state.about_logo_protocol.as_ref().unwrap(),
+            ui_state
+                .about_logo_protocol
+                .as_ref()
+                .expect("about_logo_protocol should remain populated"),
             &AboutDialog::LOGO_RESIZE,
             img_area,
         );
@@ -647,26 +655,27 @@ mod tests {
         let mut dialog = AboutDialog::new(&mut ui_state, tx);
 
         // Initial render populates a non-empty logo_area.
-        let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        let mut terminal = Terminal::new(TestBackend::new(100, 30)).expect("create terminal");
         terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw initial AboutDialog");
         let initial_logo_area = *dialog.logo_area.borrow();
         assert!(initial_logo_area.width > 0 && initial_logo_area.height > 0);
 
         // (a) Shrinking terminal so chunks[0].height == 0 resets logo_area without clamping panic.
         let tiny_chunks = about_dialog_chunks(Rect::new(0, 0, 60, 8), &theme);
         assert_eq!(tiny_chunks[0].height, 0);
-        let mut tiny_terminal = Terminal::new(TestBackend::new(60, 8)).unwrap();
+        let mut tiny_terminal =
+            Terminal::new(TestBackend::new(60, 8)).expect("create tiny terminal");
         tiny_terminal
             .draw(|f| {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw tiny AboutDialog");
         assert_eq!(*dialog.logo_area.borrow(), Rect::default());
 
         // Restore a populated logo_area first so (b) also verifies clearing from non-empty.
@@ -675,7 +684,7 @@ mod tests {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("re-draw populated AboutDialog");
         assert_eq!(*dialog.logo_area.borrow(), initial_logo_area);
 
         // (b) Clearing picker and re-rendering drops about_logo_protocol, resets logo_area, and
@@ -686,7 +695,7 @@ mod tests {
                 let area = f.area();
                 dialog.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw AboutDialog after clearing picker");
         assert!(ui_state.about_logo_protocol.is_none());
         assert_eq!(*dialog.logo_area.borrow(), Rect::default());
 
@@ -713,13 +722,13 @@ mod tests {
 
         let (tx1, _rx1) = mpsc::channel();
         let dialog1 = AboutDialog::new(&mut ui_state, tx1);
-        let mut term1 = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        let mut term1 = Terminal::new(TestBackend::new(100, 30)).expect("create term1");
         term1
             .draw(|f| {
                 let area = f.area();
                 dialog1.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw term1");
 
         let logo_area = *dialog1.logo_area.borrow();
         let sym1 = term1.backend().buffer()[(logo_area.x, logo_area.y)].symbol();
@@ -728,13 +737,13 @@ mod tests {
         let fg1 = term1.backend().buffer()[(logo_area.x, logo_area.y)].fg;
 
         // A second render while the same dialog stays open does not re-transmit.
-        let mut term1_again = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        let mut term1_again = Terminal::new(TestBackend::new(100, 30)).expect("create term1_again");
         term1_again
             .draw(|f| {
                 let area = f.area();
                 dialog1.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw term1_again");
         let sym1_again = term1_again.backend().buffer()[(logo_area.x, logo_area.y)].symbol();
         assert!(sym1_again.contains('\u{10EEEE}'));
         assert!(
@@ -751,13 +760,13 @@ mod tests {
         // while keeping GPU storage bounded to the 2-slot double-buffer pair.
         let (tx2, _rx2) = mpsc::channel();
         let dialog2 = AboutDialog::new(&mut ui_state, tx2);
-        let mut term2 = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        let mut term2 = Terminal::new(TestBackend::new(100, 30)).expect("create term2");
         term2
             .draw(|f| {
                 let area = f.area();
                 dialog2.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw term2");
         let buf2 = term2.backend().buffer();
         let sym2 = buf2[(logo_area.x, logo_area.y)].symbol();
         assert!(sym2.contains('\u{10EEEE}'));
@@ -779,13 +788,13 @@ mod tests {
                 .background_color(),
             Some(Rgba([238, 232, 213, 255]))
         );
-        let mut term3 = Terminal::new(TestBackend::new(100, 30)).unwrap();
+        let mut term3 = Terminal::new(TestBackend::new(100, 30)).expect("create term3");
         term3
             .draw(|f| {
                 let area = f.area();
                 dialog3.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw term3");
         let buf3 = term3.backend().buffer();
         let id3 = extract_kitty_transmit_id(buf3[(logo_area.x, logo_area.y)].symbol())
             .expect("theme switch reopen should emit updated Kitty transmission");

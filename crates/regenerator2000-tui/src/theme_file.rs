@@ -26,6 +26,7 @@ use directories::ProjectDirs;
 use include_dir::{Dir, include_dir};
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -91,87 +92,150 @@ pub struct ThemeFile {
     pub base: Option<String>,
 
     // -- Base colors --
+    /// Hex override for [`Theme::background`].
     pub background: Option<String>,
+    /// Hex override for [`Theme::foreground`].
     pub foreground: Option<String>,
+    /// Hex override for [`Theme::border_active`].
     pub border_active: Option<String>,
+    /// Hex override for [`Theme::border_inactive`].
     pub border_inactive: Option<String>,
+    /// Hex override for [`Theme::selection_bg`].
     pub selection_bg: Option<String>,
+    /// Hex override for [`Theme::selection_fg`].
     pub selection_fg: Option<String>,
+    /// Hex override for [`Theme::block_selection_bg`].
     pub block_selection_bg: Option<String>,
+    /// Hex override for [`Theme::block_selection_fg`].
     pub block_selection_fg: Option<String>,
+    /// Hex override for [`Theme::status_bar_bg`].
     pub status_bar_bg: Option<String>,
+    /// Hex override for [`Theme::status_bar_fg`].
     pub status_bar_fg: Option<String>,
 
     // -- Code / Disassembly --
+    /// Hex override for [`Theme::address`].
     pub address: Option<String>,
+    /// Hex override for [`Theme::bytes`].
     pub bytes: Option<String>,
+    /// Hex override for [`Theme::mnemonic`].
     pub mnemonic: Option<String>,
+    /// Hex override for [`Theme::operand`].
     pub operand: Option<String>,
+    /// Hex override for [`Theme::label`].
     pub label: Option<String>,
+    /// Hex override for [`Theme::label_def`].
     pub label_def: Option<String>,
+    /// Hex override for [`Theme::comment`].
     pub comment: Option<String>,
+    /// Hex override for [`Theme::arrow`].
     pub arrow: Option<String>,
+    /// Hex override for [`Theme::collapsed_block`].
     pub collapsed_block: Option<String>,
+    /// Hex override for [`Theme::collapsed_block_bg`].
     pub collapsed_block_bg: Option<String>,
 
     // -- Hex View --
+    /// Hex override for [`Theme::hex_bytes`].
     pub hex_bytes: Option<String>,
+    /// Hex override for [`Theme::hex_ascii`].
     pub hex_ascii: Option<String>,
+    /// Optional 18-element hex override list for [`Theme::hex_color_palette`].
     pub hex_color_palette: Option<Vec<String>>,
 
     // -- UI Elements --
+    /// Hex override for [`Theme::dialog_bg`].
     pub dialog_bg: Option<String>,
+    /// Hex override for [`Theme::dialog_fg`].
     pub dialog_fg: Option<String>,
+    /// Hex override for [`Theme::dialog_border`].
     pub dialog_border: Option<String>,
+    /// Hex override for [`Theme::menu_bg`].
     pub menu_bg: Option<String>,
+    /// Hex override for [`Theme::menu_fg`].
     pub menu_fg: Option<String>,
+    /// Hex override for [`Theme::menu_selected_bg`].
     pub menu_selected_bg: Option<String>,
+    /// Hex override for [`Theme::menu_selected_fg`].
     pub menu_selected_fg: Option<String>,
+    /// Hex override for [`Theme::menu_disabled_fg`].
     pub menu_disabled_fg: Option<String>,
 
+    /// Hex override for [`Theme::sprite_multicolor_1`].
     pub sprite_multicolor_1: Option<String>,
+    /// Hex override for [`Theme::sprite_multicolor_2`].
     pub sprite_multicolor_2: Option<String>,
+    /// Hex override for [`Theme::charset_multicolor_1`].
     pub charset_multicolor_1: Option<String>,
+    /// Hex override for [`Theme::charset_multicolor_2`].
     pub charset_multicolor_2: Option<String>,
 
     // -- Highlights --
+    /// Hex override for [`Theme::highlight_fg`].
     pub highlight_fg: Option<String>,
+    /// Hex override for [`Theme::highlight_bg`].
     pub highlight_bg: Option<String>,
+    /// Hex override for [`Theme::error_fg`].
     pub error_fg: Option<String>,
 
     // -- Block Types (Foregrounds) --
+    /// Hex override for [`Theme::block_code_fg`].
     pub block_code_fg: Option<String>,
+    /// Hex override for [`Theme::block_scope_fg`].
     pub block_scope_fg: Option<String>,
+    /// Hex override for [`Theme::block_data_byte_fg`].
     pub block_data_byte_fg: Option<String>,
+    /// Hex override for [`Theme::block_data_word_fg`].
     pub block_data_word_fg: Option<String>,
+    /// Hex override for [`Theme::block_address_fg`].
     pub block_address_fg: Option<String>,
+    /// Hex override for [`Theme::block_petscii_text_fg`].
     pub block_petscii_text_fg: Option<String>,
+    /// Hex override for [`Theme::block_screencode_text_fg`].
     pub block_screencode_text_fg: Option<String>,
+    /// Hex override for [`Theme::block_lohi_fg`].
     pub block_lohi_fg: Option<String>,
+    /// Hex override for [`Theme::block_hilo_fg`].
     pub block_hilo_fg: Option<String>,
+    /// Hex override for [`Theme::block_external_file_fg`].
     pub block_external_file_fg: Option<String>,
+    /// Hex override for [`Theme::block_undefined_fg`].
     pub block_undefined_fg: Option<String>,
+    /// Hex override for [`Theme::block_splitter_fg`].
     pub block_splitter_fg: Option<String>,
 
     // -- Block Types (Backgrounds) --
+    /// Hex override for [`Theme::block_code_bg`].
     pub block_code_bg: Option<String>,
+    /// Hex override for [`Theme::block_scope_bg`].
     pub block_scope_bg: Option<String>,
+    /// Hex override for [`Theme::block_data_byte_bg`].
     pub block_data_byte_bg: Option<String>,
+    /// Hex override for [`Theme::block_data_word_bg`].
     pub block_data_word_bg: Option<String>,
+    /// Hex override for [`Theme::block_address_bg`].
     pub block_address_bg: Option<String>,
+    /// Hex override for [`Theme::block_petscii_text_bg`].
     pub block_petscii_text_bg: Option<String>,
+    /// Hex override for [`Theme::block_screencode_text_bg`].
     pub block_screencode_text_bg: Option<String>,
+    /// Hex override for [`Theme::block_lohi_bg`].
     pub block_lohi_bg: Option<String>,
+    /// Hex override for [`Theme::block_hilo_bg`].
     pub block_hilo_bg: Option<String>,
+    /// Hex override for [`Theme::block_external_file_bg`].
     pub block_external_file_bg: Option<String>,
+    /// Hex override for [`Theme::block_undefined_bg`].
     pub block_undefined_bg: Option<String>,
+    /// Hex override for [`Theme::block_splitter_bg`].
     pub block_splitter_bg: Option<String>,
+    /// Hex override for [`Theme::minimap_cursor_fg`].
     pub minimap_cursor_fg: Option<String>,
 }
 
 /// Resolve an optional hex string against a fallback color.
-fn resolve_color(opt: &Option<String>, fallback: Color) -> Color {
-    opt.as_deref().and_then(parse_hex_color).unwrap_or(fallback)
+fn resolve_color(opt: Option<&str>, fallback: Color) -> Color {
+    opt.and_then(parse_hex_color).unwrap_or(fallback)
 }
 
 impl ThemeFile {
@@ -276,126 +340,156 @@ impl ThemeFile {
 
         Theme {
             name: self.name.clone(),
-            background: resolve_color(&self.background, fallback.background),
-            foreground: resolve_color(&self.foreground, fallback.foreground),
-            border_active: resolve_color(&self.border_active, fallback.border_active),
-            border_inactive: resolve_color(&self.border_inactive, fallback.border_inactive),
-            selection_bg: resolve_color(&self.selection_bg, fallback.selection_bg),
-            selection_fg: resolve_color(&self.selection_fg, fallback.selection_fg),
+            background: resolve_color(self.background.as_deref(), fallback.background),
+            foreground: resolve_color(self.foreground.as_deref(), fallback.foreground),
+            border_active: resolve_color(self.border_active.as_deref(), fallback.border_active),
+            border_inactive: resolve_color(
+                self.border_inactive.as_deref(),
+                fallback.border_inactive,
+            ),
+            selection_bg: resolve_color(self.selection_bg.as_deref(), fallback.selection_bg),
+            selection_fg: resolve_color(self.selection_fg.as_deref(), fallback.selection_fg),
             block_selection_bg: resolve_color(
-                &self.block_selection_bg,
+                self.block_selection_bg.as_deref(),
                 fallback.block_selection_bg,
             ),
             block_selection_fg: resolve_color(
-                &self.block_selection_fg,
+                self.block_selection_fg.as_deref(),
                 fallback.block_selection_fg,
             ),
-            status_bar_bg: resolve_color(&self.status_bar_bg, fallback.status_bar_bg),
-            status_bar_fg: resolve_color(&self.status_bar_fg, fallback.status_bar_fg),
-            address: resolve_color(&self.address, fallback.address),
-            bytes: resolve_color(&self.bytes, fallback.bytes),
-            mnemonic: resolve_color(&self.mnemonic, fallback.mnemonic),
-            operand: resolve_color(&self.operand, fallback.operand),
-            label: resolve_color(&self.label, fallback.label),
-            label_def: resolve_color(&self.label_def, fallback.label_def),
-            comment: resolve_color(&self.comment, fallback.comment),
-            arrow: resolve_color(&self.arrow, fallback.arrow),
-            collapsed_block: resolve_color(&self.collapsed_block, fallback.collapsed_block),
+            status_bar_bg: resolve_color(self.status_bar_bg.as_deref(), fallback.status_bar_bg),
+            status_bar_fg: resolve_color(self.status_bar_fg.as_deref(), fallback.status_bar_fg),
+            address: resolve_color(self.address.as_deref(), fallback.address),
+            bytes: resolve_color(self.bytes.as_deref(), fallback.bytes),
+            mnemonic: resolve_color(self.mnemonic.as_deref(), fallback.mnemonic),
+            operand: resolve_color(self.operand.as_deref(), fallback.operand),
+            label: resolve_color(self.label.as_deref(), fallback.label),
+            label_def: resolve_color(self.label_def.as_deref(), fallback.label_def),
+            comment: resolve_color(self.comment.as_deref(), fallback.comment),
+            arrow: resolve_color(self.arrow.as_deref(), fallback.arrow),
+            collapsed_block: resolve_color(
+                self.collapsed_block.as_deref(),
+                fallback.collapsed_block,
+            ),
             collapsed_block_bg: resolve_color(
-                &self.collapsed_block_bg,
+                self.collapsed_block_bg.as_deref(),
                 fallback.collapsed_block_bg,
             ),
-            hex_bytes: resolve_color(&self.hex_bytes, fallback.hex_bytes),
-            hex_ascii: resolve_color(&self.hex_ascii, fallback.hex_ascii),
+            hex_bytes: resolve_color(self.hex_bytes.as_deref(), fallback.hex_bytes),
+            hex_ascii: resolve_color(self.hex_ascii.as_deref(), fallback.hex_ascii),
             hex_color_palette: hex_palette,
-            dialog_bg: resolve_color(&self.dialog_bg, fallback.dialog_bg),
-            dialog_fg: resolve_color(&self.dialog_fg, fallback.dialog_fg),
-            dialog_border: resolve_color(&self.dialog_border, fallback.dialog_border),
-            menu_bg: resolve_color(&self.menu_bg, fallback.menu_bg),
-            menu_fg: resolve_color(&self.menu_fg, fallback.menu_fg),
-            menu_selected_bg: resolve_color(&self.menu_selected_bg, fallback.menu_selected_bg),
-            menu_selected_fg: resolve_color(&self.menu_selected_fg, fallback.menu_selected_fg),
-            menu_disabled_fg: resolve_color(&self.menu_disabled_fg, fallback.menu_disabled_fg),
+            dialog_bg: resolve_color(self.dialog_bg.as_deref(), fallback.dialog_bg),
+            dialog_fg: resolve_color(self.dialog_fg.as_deref(), fallback.dialog_fg),
+            dialog_border: resolve_color(self.dialog_border.as_deref(), fallback.dialog_border),
+            menu_bg: resolve_color(self.menu_bg.as_deref(), fallback.menu_bg),
+            menu_fg: resolve_color(self.menu_fg.as_deref(), fallback.menu_fg),
+            menu_selected_bg: resolve_color(
+                self.menu_selected_bg.as_deref(),
+                fallback.menu_selected_bg,
+            ),
+            menu_selected_fg: resolve_color(
+                self.menu_selected_fg.as_deref(),
+                fallback.menu_selected_fg,
+            ),
+            menu_disabled_fg: resolve_color(
+                self.menu_disabled_fg.as_deref(),
+                fallback.menu_disabled_fg,
+            ),
             sprite_multicolor_1: resolve_color(
-                &self.sprite_multicolor_1,
+                self.sprite_multicolor_1.as_deref(),
                 fallback.sprite_multicolor_1,
             ),
             sprite_multicolor_2: resolve_color(
-                &self.sprite_multicolor_2,
+                self.sprite_multicolor_2.as_deref(),
                 fallback.sprite_multicolor_2,
             ),
             charset_multicolor_1: resolve_color(
-                &self.charset_multicolor_1,
+                self.charset_multicolor_1.as_deref(),
                 fallback.charset_multicolor_1,
             ),
             charset_multicolor_2: resolve_color(
-                &self.charset_multicolor_2,
+                self.charset_multicolor_2.as_deref(),
                 fallback.charset_multicolor_2,
             ),
-            highlight_fg: resolve_color(&self.highlight_fg, fallback.highlight_fg),
-            highlight_bg: resolve_color(&self.highlight_bg, fallback.highlight_bg),
-            error_fg: resolve_color(&self.error_fg, fallback.error_fg),
-            block_code_fg: resolve_color(&self.block_code_fg, fallback.block_code_fg),
-            block_scope_fg: resolve_color(&self.block_scope_fg, fallback.block_scope_fg),
+            highlight_fg: resolve_color(self.highlight_fg.as_deref(), fallback.highlight_fg),
+            highlight_bg: resolve_color(self.highlight_bg.as_deref(), fallback.highlight_bg),
+            error_fg: resolve_color(self.error_fg.as_deref(), fallback.error_fg),
+            block_code_fg: resolve_color(self.block_code_fg.as_deref(), fallback.block_code_fg),
+            block_scope_fg: resolve_color(self.block_scope_fg.as_deref(), fallback.block_scope_fg),
             block_data_byte_fg: resolve_color(
-                &self.block_data_byte_fg,
+                self.block_data_byte_fg.as_deref(),
                 fallback.block_data_byte_fg,
             ),
             block_data_word_fg: resolve_color(
-                &self.block_data_word_fg,
+                self.block_data_word_fg.as_deref(),
                 fallback.block_data_word_fg,
             ),
-            block_address_fg: resolve_color(&self.block_address_fg, fallback.block_address_fg),
+            block_address_fg: resolve_color(
+                self.block_address_fg.as_deref(),
+                fallback.block_address_fg,
+            ),
             block_petscii_text_fg: resolve_color(
-                &self.block_petscii_text_fg,
+                self.block_petscii_text_fg.as_deref(),
                 fallback.block_petscii_text_fg,
             ),
             block_screencode_text_fg: resolve_color(
-                &self.block_screencode_text_fg,
+                self.block_screencode_text_fg.as_deref(),
                 fallback.block_screencode_text_fg,
             ),
-            block_lohi_fg: resolve_color(&self.block_lohi_fg, fallback.block_lohi_fg),
-            block_hilo_fg: resolve_color(&self.block_hilo_fg, fallback.block_hilo_fg),
+            block_lohi_fg: resolve_color(self.block_lohi_fg.as_deref(), fallback.block_lohi_fg),
+            block_hilo_fg: resolve_color(self.block_hilo_fg.as_deref(), fallback.block_hilo_fg),
             block_external_file_fg: resolve_color(
-                &self.block_external_file_fg,
+                self.block_external_file_fg.as_deref(),
                 fallback.block_external_file_fg,
             ),
             block_undefined_fg: resolve_color(
-                &self.block_undefined_fg,
+                self.block_undefined_fg.as_deref(),
                 fallback.block_undefined_fg,
             ),
-            block_splitter_fg: resolve_color(&self.block_splitter_fg, fallback.block_splitter_fg),
-            block_code_bg: resolve_color(&self.block_code_bg, fallback.block_code_bg),
-            block_scope_bg: resolve_color(&self.block_scope_bg, fallback.block_scope_bg),
+            block_splitter_fg: resolve_color(
+                self.block_splitter_fg.as_deref(),
+                fallback.block_splitter_fg,
+            ),
+            block_code_bg: resolve_color(self.block_code_bg.as_deref(), fallback.block_code_bg),
+            block_scope_bg: resolve_color(self.block_scope_bg.as_deref(), fallback.block_scope_bg),
             block_data_byte_bg: resolve_color(
-                &self.block_data_byte_bg,
+                self.block_data_byte_bg.as_deref(),
                 fallback.block_data_byte_bg,
             ),
             block_data_word_bg: resolve_color(
-                &self.block_data_word_bg,
+                self.block_data_word_bg.as_deref(),
                 fallback.block_data_word_bg,
             ),
-            block_address_bg: resolve_color(&self.block_address_bg, fallback.block_address_bg),
+            block_address_bg: resolve_color(
+                self.block_address_bg.as_deref(),
+                fallback.block_address_bg,
+            ),
             block_petscii_text_bg: resolve_color(
-                &self.block_petscii_text_bg,
+                self.block_petscii_text_bg.as_deref(),
                 fallback.block_petscii_text_bg,
             ),
             block_screencode_text_bg: resolve_color(
-                &self.block_screencode_text_bg,
+                self.block_screencode_text_bg.as_deref(),
                 fallback.block_screencode_text_bg,
             ),
-            block_lohi_bg: resolve_color(&self.block_lohi_bg, fallback.block_lohi_bg),
-            block_hilo_bg: resolve_color(&self.block_hilo_bg, fallback.block_hilo_bg),
+            block_lohi_bg: resolve_color(self.block_lohi_bg.as_deref(), fallback.block_lohi_bg),
+            block_hilo_bg: resolve_color(self.block_hilo_bg.as_deref(), fallback.block_hilo_bg),
             block_external_file_bg: resolve_color(
-                &self.block_external_file_bg,
+                self.block_external_file_bg.as_deref(),
                 fallback.block_external_file_bg,
             ),
             block_undefined_bg: resolve_color(
-                &self.block_undefined_bg,
+                self.block_undefined_bg.as_deref(),
                 fallback.block_undefined_bg,
             ),
-            block_splitter_bg: resolve_color(&self.block_splitter_bg, fallback.block_splitter_bg),
-            minimap_cursor_fg: resolve_color(&self.minimap_cursor_fg, fallback.minimap_cursor_fg),
+            block_splitter_bg: resolve_color(
+                self.block_splitter_bg.as_deref(),
+                fallback.block_splitter_bg,
+            ),
+            minimap_cursor_fg: resolve_color(
+                self.minimap_cursor_fg.as_deref(),
+                fallback.minimap_cursor_fg,
+            ),
         }
     }
 }
@@ -428,8 +522,8 @@ fn load_builtin_themes() -> Vec<Theme> {
 }
 
 /// Access the lazily-initialized built-in theme cache.
-fn get_builtin_themes() -> &'static Vec<Theme> {
-    BUILTIN_THEMES.get_or_init(load_builtin_themes)
+fn builtin_themes() -> &'static [Theme] {
+    BUILTIN_THEMES.get_or_init(load_builtin_themes).as_slice()
 }
 
 /// Find a built-in theme by display name.
@@ -437,10 +531,7 @@ fn get_builtin_themes() -> &'static Vec<Theme> {
 /// Returns `None` if no built-in theme with the given name exists.
 #[must_use]
 pub fn find_builtin_theme(name: &str) -> Option<Theme> {
-    get_builtin_themes()
-        .iter()
-        .find(|t| t.name == name)
-        .cloned()
+    builtin_themes().iter().find(|t| t.name == name).cloned()
 }
 
 /// Return the display names of all built-in themes, in the order they are
@@ -459,7 +550,7 @@ pub fn builtin_theme_names() -> Vec<String> {
         "Catppuccin Mocha",
         "Catppuccin Latte",
     ];
-    let builtins = get_builtin_themes();
+    let builtins = builtin_themes();
     let mut names = Vec::new();
     // First add names in preferred order
     for preferred in &order {
@@ -617,7 +708,7 @@ fn user_config_dir() -> Option<PathBuf> {
 /// Scans for files matching `theme-*.toml` and parses them.
 fn load_custom_themes_from_dir(dir: &Path) -> Vec<Theme> {
     let mut themes = Vec::new();
-    let Ok(entries) = std::fs::read_dir(dir) else {
+    let Ok(entries) = fs::read_dir(dir) else {
         return themes;
     };
 
@@ -629,7 +720,7 @@ fn load_custom_themes_from_dir(dir: &Path) -> Vec<Theme> {
         if !filename.starts_with("theme-") || !filename.ends_with(".toml") {
             continue;
         }
-        match std::fs::read_to_string(&path) {
+        match fs::read_to_string(&path) {
             Ok(content) => match toml::from_str::<ThemeFile>(&content) {
                 Ok(tf) => {
                     log::info!("Loaded custom theme: {} from {path:?}", tf.name);
@@ -657,22 +748,24 @@ fn load_custom_themes_from_dir(dir: &Path) -> Vec<Theme> {
 /// Returns `None` if no custom theme with the given name is loaded.
 #[must_use]
 pub fn find_custom_theme(name: &str) -> Option<Theme> {
-    get_custom_themes().iter().find(|t| t.name == name).cloned()
+    custom_themes().iter().find(|t| t.name == name).cloned()
 }
 
 /// Return the names of all loaded custom themes.
 #[must_use]
 pub fn custom_theme_names() -> Vec<String> {
-    get_custom_themes().iter().map(|t| t.name.clone()).collect()
+    custom_themes().iter().map(|t| t.name.clone()).collect()
 }
 
 /// Access the lazily-initialized custom theme cache.
-fn get_custom_themes() -> &'static Vec<Theme> {
-    CUSTOM_THEMES.get_or_init(|| {
-        user_config_dir()
-            .map(|dir| load_custom_themes_from_dir(&dir))
-            .unwrap_or_default()
-    })
+fn custom_themes() -> &'static [Theme] {
+    CUSTOM_THEMES
+        .get_or_init(|| {
+            user_config_dir()
+                .map(|dir| load_custom_themes_from_dir(&dir))
+                .unwrap_or_default()
+        })
+        .as_slice()
 }
 
 /// Dump all built-in themes as TOML files into `dest_dir`.
@@ -684,7 +777,7 @@ fn get_custom_themes() -> &'static Vec<Theme> {
 ///
 /// Returns an error if the directory cannot be created or if any file write fails.
 pub fn dump_theme_files(dest_dir: &Path) -> Result<()> {
-    std::fs::create_dir_all(dest_dir)
+    fs::create_dir_all(dest_dir)
         .with_context(|| format!("Failed to create directory {dest_dir:?}"))?;
 
     for file in THEMES_DIR.files() {
@@ -696,7 +789,7 @@ pub fn dump_theme_files(dest_dir: &Path) -> Result<()> {
             continue;
         }
         let dest_path = dest_dir.join(filename);
-        std::fs::write(&dest_path, file.contents())
+        fs::write(&dest_path, file.contents())
             .with_context(|| format!("Failed to write {dest_path:?}"))?;
         println!("Wrote {dest_path:?}");
     }
@@ -711,6 +804,8 @@ pub fn dump_theme_files(dest_dir: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn test_parse_hex_color_valid() {
@@ -742,7 +837,7 @@ mod tests {
 
     #[test]
     fn test_builtin_themes_load() {
-        let themes = get_builtin_themes();
+        let themes = builtin_themes();
         assert_eq!(themes.len(), 9, "Should have 9 built-in themes");
     }
 
@@ -756,16 +851,14 @@ mod tests {
 
     #[test]
     fn test_find_builtin_theme() {
-        let dracula = find_builtin_theme("Dracula");
-        assert!(dracula.is_some(), "Should find Dracula theme");
-        let dracula = dracula.unwrap();
+        let dracula = find_builtin_theme("Dracula").expect("Dracula built-in theme must exist");
         assert_eq!(dracula.name, "Dracula");
         assert_eq!(dracula.background, Color::Rgb(40, 42, 54));
     }
 
     #[test]
     fn test_theme_file_from_theme_roundtrip() {
-        let original = find_builtin_theme("Dracula").unwrap();
+        let original = find_builtin_theme("Dracula").expect("Dracula built-in theme must exist");
         let tf = ThemeFile::from_theme(&original);
         let restored = tf.to_theme();
 
@@ -778,12 +871,14 @@ mod tests {
 
     #[test]
     fn test_all_builtin_themes_roundtrip() {
-        let themes = get_builtin_themes();
+        let themes = builtin_themes();
 
         for theme in themes {
             let tf = ThemeFile::from_theme(theme);
-            let toml_str = toml::to_string_pretty(&tf).unwrap();
-            let parsed: ThemeFile = toml::from_str(&toml_str).unwrap();
+            let toml_str = toml::to_string_pretty(&tf)
+                .expect("serializing built-in ThemeFile to TOML should succeed");
+            let parsed: ThemeFile = toml::from_str(&toml_str)
+                .expect("deserializing serialized built-in ThemeFile TOML should succeed");
             let restored = parsed.to_theme();
 
             assert_eq!(
@@ -817,14 +912,15 @@ base = "Dracula"
 background = "#001100"
 foreground = "#33FF33"
 "##;
-        let tf: ThemeFile = toml::from_str(toml_str).unwrap();
+        let tf: ThemeFile =
+            toml::from_str(toml_str).expect("valid partial theme TOML should parse");
         let theme = tf.to_theme();
 
         assert_eq!(theme.name, "Custom Green");
         assert_eq!(theme.background, Color::Rgb(0, 17, 0));
         assert_eq!(theme.foreground, Color::Rgb(51, 255, 51));
         // Inherited from Dracula
-        let dracula = find_builtin_theme("Dracula").unwrap();
+        let dracula = find_builtin_theme("Dracula").expect("Dracula built-in theme must exist");
         assert_eq!(theme.mnemonic, dracula.mnemonic);
         assert_eq!(theme.border_active, dracula.border_active);
     }
@@ -835,13 +931,15 @@ foreground = "#33FF33"
 name = "Minimal"
 background = "#112233"
 "##;
-        let tf: ThemeFile = toml::from_str(toml_str).unwrap();
+        let tf: ThemeFile =
+            toml::from_str(toml_str).expect("valid minimal theme TOML should parse");
         let theme = tf.to_theme();
 
         assert_eq!(theme.name, "Minimal");
         assert_eq!(theme.background, Color::Rgb(17, 34, 51));
         // Everything else inherited from Solarized Dark (default)
-        let dark = find_builtin_theme("Solarized Dark").unwrap();
+        let dark =
+            find_builtin_theme("Solarized Dark").expect("Solarized Dark built-in theme must exist");
         assert_eq!(theme.foreground, dark.foreground);
         assert_eq!(theme.hex_color_palette, dark.hex_color_palette);
         assert_eq!(theme.minimap_cursor_fg, dark.minimap_cursor_fg);
@@ -850,19 +948,19 @@ background = "#112233"
 
     #[test]
     fn test_dump_and_reload_themes() {
-        let dir = std::env::temp_dir().join(format!(
+        let dir = env::temp_dir().join(format!(
             "r2000_theme_test_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
                 .map(|d| d.subsec_nanos())
                 .unwrap_or(0)
         ));
 
-        dump_theme_files(&dir).unwrap();
+        dump_theme_files(&dir).expect("dumping built-in theme files should succeed");
 
         // Verify files were created
-        let entries: Vec<_> = std::fs::read_dir(&dir)
-            .unwrap()
+        let entries: Vec<_> = fs::read_dir(&dir)
+            .expect("reading dumped theme directory should succeed")
             .filter_map(Result::ok)
             .collect();
         assert_eq!(entries.len(), 9, "Should dump 9 built-in themes");
@@ -872,6 +970,6 @@ background = "#112233"
         assert_eq!(loaded.len(), 9, "Should load 9 themes back");
 
         // Cleanup
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = fs::remove_dir_all(&dir);
     }
 }

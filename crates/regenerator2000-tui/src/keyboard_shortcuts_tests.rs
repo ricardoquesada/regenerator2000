@@ -12,21 +12,27 @@
 //!   Exercises view-local, [`Navigable`], selection, scope-nudging, and dialog shortcuts through
 //!   [`process_key_event`]. Tests both shifted and unshifted key modifier variants.
 //! - **Pillar 3 (`test_shortcut_layers_synchronization`)**: Verifies 4-layer metadata parity across
-//!   live input dispatch, [`MenuState::new`], [`ShortcutsDialog::get_shortcuts`], and
+//!   live input dispatch, [`MenuState::new`], [`ShortcutsDialog::shortcuts`], and
 //!   `docs/keyboard_shortcuts.md`.
 
+use crate::commands::UndoStack;
 use crate::events::process_key_event;
+use crate::state::actions::AppAction;
 use crate::state::types::{BlockType, HexdumpViewMode, ImmediateFormat};
-use crate::state::{Addr, BlockItem};
+use crate::state::{Addr, BlockItem, Label, LabelKind, LabelType, OffsetRadix, SymbolicOffset};
 use crate::theme::Theme;
-use crate::ui::dialog_keyboard_shortcut::ShortcutsDialog;
-use crate::ui::menu::{AppAction, MenuState};
+use crate::ui;
+use crate::ui::dialog_keyboard_shortcut::{ShortcutEntry, ShortcutsDialog};
+use crate::ui::menu::{self, MenuState, SearchHistory};
 use crate::ui::navigable::Navigable;
+use crate::ui::view_blocks::BlocksView;
 use crate::ui_state::{ActivePane, RightPane, ScreenRamMode, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use regenerator2000_core::Core;
+use std::env;
+use std::sync::mpsc;
 
 const KEYBOARD_SHORTCUTS_DOC: &str = include_str!("../../../docs/keyboard_shortcuts.md");
 const VIEWS_DOC: &str = include_str!("../../../docs/views.md");
@@ -63,7 +69,7 @@ impl ShortcutTestHarness {
     fn new() -> Self {
         let mut core = Core::new();
         let mut ui_state = UIState::new(Theme::from_name("Solarized Dark"));
-        ui_state.file_dialog_current_dir = std::env::temp_dir();
+        ui_state.file_dialog_current_dir = env::temp_dir();
 
         // Populate 8,192 bytes of deterministic C64 code and graphics data at $0800..$2800.
         let mut data = vec![0u8; 8192];
@@ -128,7 +134,7 @@ impl ShortcutTestHarness {
         core.state.disassemble();
 
         // Start with a clean undo stack so !core.state.is_dirty().
-        core.state.undo_stack = crate::commands::UndoStack::new();
+        core.state.undo_stack = UndoStack::new();
         core.state.last_saved_pointer = core.state.undo_stack.pointer();
 
         let origin_idx = core.state.line_index_for_address(Addr(0x0800)).unwrap_or(0);
@@ -815,10 +821,15 @@ fn test_global_shortcuts_across_all_panes() {
         }
 
         // 18b. Menu availability for Symbolic Offset items across all 7 panes
+        let search_history = if h.ui_state.last_search_query.is_empty() {
+            SearchHistory::Empty
+        } else {
+            SearchHistory::HasQuery
+        };
         h.ui_state.menu.update_availability(
             &h.core.state,
             h.ui_state.cursor_index,
-            h.ui_state.last_search_query.is_empty(),
+            search_history,
             pane,
         );
         let edit_cat = h
@@ -1097,7 +1108,7 @@ fn test_navigable_shortcuts_all_views() {
 
     // 6. BlocksView
     h.set_pane(ActivePane::Blocks);
-    let blocks_len = crate::ui::view_blocks::BlocksView.len(&h.core.state);
+    let blocks_len = BlocksView.len(&h.core.state);
     assert!(blocks_len >= 5);
     h.press(KeyCode::Home, KeyModifiers::NONE);
     assert_eq!(h.ui_state.blocks_list_state.selected(), Some(0));
@@ -1706,18 +1717,18 @@ fn test_symbolic_offset_workflow_end_to_end() {
     h.core.state.block_types[6..10].fill(BlockType::LoHiAddress);
     h.core.state.labels.insert(
         Addr(0x00FB),
-        vec![crate::state::Label {
+        vec![Label {
             name: "zp_ptr".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::UserDefined,
+            kind: LabelKind::User,
+            label_type: LabelType::UserDefined,
         }],
     );
     h.core.state.labels.insert(
         Addr(0x0820),
-        vec![crate::state::Label {
+        vec![Label {
             name: "table_0820".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::UserDefined,
+            kind: LabelKind::User,
+            label_type: LabelType::UserDefined,
         }],
     );
     h.core.state.settings.all_labels = true;
@@ -1846,10 +1857,10 @@ fn test_symbolic_offset_workflow_end_to_end() {
             .annotations
             .get(Addr(0x0802))
             .and_then(|e| e.operand_offset),
-        Some(crate::state::SymbolicOffset {
+        Some(SymbolicOffset {
             base: Addr(0x0820),
             offset: -1,
-            radix: crate::state::OffsetRadix::Hex,
+            radix: OffsetRadix::Hex,
         })
     );
 
@@ -1877,10 +1888,10 @@ fn test_symbolic_offset_workflow_end_to_end() {
             .annotations
             .get(Addr(0x00FC))
             .and_then(|e| e.address_offset),
-        Some(crate::state::SymbolicOffset {
+        Some(SymbolicOffset {
             base: Addr(0x00FB),
             offset: 1,
-            radix: crate::state::OffsetRadix::Decimal,
+            radix: OffsetRadix::Decimal,
         })
     );
 
@@ -2526,7 +2537,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
     use crate::ui::widget::Widget;
     use ratatui::layout::Rect;
 
-    let (tx, _rx) = std::sync::mpsc::channel();
+    let (tx, _rx) = mpsc::channel();
     let render_status = |core: &Core, ui_state: &mut UIState| -> String {
         let backend = TestBackend::new(180, 1);
         let mut terminal = Terminal::new(backend).expect("create 180x1 status bar terminal");
@@ -2751,7 +2762,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
         let backend = TestBackend::new(140, 30);
         let mut terminal = Terminal::new(backend).expect("create 140x30 terminal");
         terminal
-            .draw(|f| crate::ui::ui(f, &harness.core.state, &mut harness.ui_state))
+            .draw(|f| ui::ui(f, &harness.core.state, &mut harness.ui_state))
             .expect("draw full TUI frame across HexDump Tab");
         assert_eq!(harness.ui_state.hex_selection_start, Some(0));
         assert_eq!(harness.ui_state.hex_selection_start_col, 4);
@@ -2776,7 +2787,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
         harness.set_pane(ActivePane::Sprites);
         harness.ui_state.right_pane = RightPane::Sprites2Col;
         harness.ui_state.sprites_cursor_index = 1; // $0840..=$087F (64..128)
-        crate::ui::menu::handle_menu_action(
+        menu::handle_menu_action(
             &mut harness.core,
             &mut harness.ui_state,
             AppAction::Byte,
@@ -2790,7 +2801,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
 
         harness.ui_state.sprites_cursor_index = 1;
         harness.press(KeyCode::Right, KeyModifiers::SHIFT); // 1..=2 (64..192)
-        crate::ui::menu::handle_menu_action(
+        menu::handle_menu_action(
             &mut harness.core,
             &mut harness.ui_state,
             AppAction::Code,
@@ -2805,7 +2816,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
 
         harness.ui_state.sprites_cursor_index = 1;
         harness.press(KeyCode::Char('V'), KeyModifiers::SHIFT);
-        crate::ui::menu::handle_menu_action(
+        menu::handle_menu_action(
             &mut harness.core,
             &mut harness.ui_state,
             AppAction::Scope,
@@ -2825,7 +2836,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
         // 5b. Charset Tier 1 passive -> Byte, Tier 2 explicit -> SetLoHiAddress
         harness.set_pane(ActivePane::Charset);
         harness.ui_state.charset_cursor_index = 24; // offset 192..200 (8 bytes)
-        crate::ui::menu::handle_menu_action(
+        menu::handle_menu_action(
             &mut harness.core,
             &mut harness.ui_state,
             AppAction::Byte,
@@ -2837,7 +2848,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
                 .all(|&b| b == BlockType::DataByte)
         );
         harness.press(KeyCode::Right, KeyModifiers::SHIFT); // 24..=25 (192..208)
-        crate::ui::menu::handle_menu_action(
+        menu::handle_menu_action(
             &mut harness.core,
             &mut harness.ui_state,
             AppAction::SetLoHiAddress,
@@ -2860,7 +2871,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
         harness.core.state.disassemble();
         harness.set_pane(ActivePane::Bitmap);
         harness.ui_state.bitmap_cursor_index = 0;
-        crate::ui::menu::handle_menu_action(
+        menu::handle_menu_action(
             &mut harness.core,
             &mut harness.ui_state,
             AppAction::Code,
@@ -2872,7 +2883,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
                 .all(|&b| b == BlockType::Code)
         );
         harness.press(KeyCode::Down, KeyModifiers::SHIFT); // bitmaps 0..=1 -> 0..0x3F40
-        crate::ui::menu::handle_menu_action(
+        menu::handle_menu_action(
             &mut harness.core,
             &mut harness.ui_state,
             AppAction::Byte,
@@ -2892,7 +2903,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
         harness.ui_state.hex_col_cursor = 0;
         harness.ui_state.hex_selection_start = Some(0);
         harness.ui_state.hex_selection_start_col = 3; // 4 bytes (0..=3)
-        crate::ui::menu::handle_menu_action(
+        menu::handle_menu_action(
             &mut harness.core,
             &mut harness.ui_state,
             AppAction::SetLoHiAddress,
@@ -2911,7 +2922,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
         harness.ui_state.hex_col_cursor = 6;
         harness.ui_state.hex_selection_start = Some(0);
         harness.ui_state.hex_selection_start_col = 4;
-        crate::ui::menu::handle_menu_action(
+        menu::handle_menu_action(
             &mut harness.core,
             &mut harness.ui_state,
             AppAction::SetLoHiAddress,
@@ -3001,7 +3012,7 @@ fn test_companion_panes_tab_roundtrip_and_edit_menu_parity() {
         let backend = TestBackend::new(140, 30);
         let mut terminal = Terminal::new(backend).expect("create 140x30 terminal");
         terminal
-            .draw(|f| crate::ui::ui(f, &harness.core.state, &mut harness.ui_state))
+            .draw(|f| ui::ui(f, &harness.core.state, &mut harness.ui_state))
             .expect("draw frame after Tab from Disassembly into HexDump");
         assert_eq!(harness.ui_state.selection_start, Some(line_0800));
         assert_eq!(harness.ui_state.hex_selection_start, Some(0));
@@ -3340,7 +3351,7 @@ fn expand_dialog_shortcut_keys(key_label: &str) -> Vec<String> {
         .collect()
 }
 
-/// Checks that MkDocs `++...++` stripping preserves literal `"+"` and maps `"++plus++"` and
+/// Checks that `MkDocs` `++...++` stripping preserves literal `"+"` and maps `"++plus++"` and
 /// `"++minus++"` cleanly.
 #[test]
 fn test_normalize_and_expand_plus_minus_shortcut_tokens() {
@@ -3354,56 +3365,78 @@ fn test_normalize_and_expand_plus_minus_shortcut_tokens() {
 }
 
 /// Pillar 3 Contract Test: Checks bidirectional parity across [`MenuState::new`] (Layer 2),
-/// [`ShortcutsDialog::get_shortcuts`] (Layer 3), and `docs/keyboard_shortcuts.md` (Layer 4).
+/// [`ShortcutsDialog::shortcuts`] (Layer 3), and `docs/keyboard_shortcuts.md` (Layer 4).
 /// Prevents drift between user-facing shortcut tables and live key handlers.
 #[test]
 fn test_shortcut_layers_synchronization() {
     let menu = MenuState::new();
-    let dialog_shortcuts = ShortcutsDialog::get_shortcuts();
+    let dialog_shortcuts = ShortcutsDialog::shortcuts();
     let doc_tokens = parse_markdown_shortcut_tokens(KEYBOARD_SHORTCUTS_DOC);
 
-    // 1. Specific anti-drift regression assertions in ShortcutsDialog::get_shortcuts()
+    // 1. Specific anti-drift regression assertions in ShortcutsDialog::shortcuts()
     assert!(
-        dialog_shortcuts.contains(&("e", "Apply Enum")),
-        "ShortcutsDialog::get_shortcuts() must contain ('e', 'Apply Enum')"
+        dialog_shortcuts.contains(&ShortcutEntry {
+            key: "e",
+            description: "Apply Enum",
+        }),
+        "ShortcutsDialog::shortcuts() must contain ('e', 'Apply Enum')"
     );
     assert!(
-        dialog_shortcuts.contains(&("Shift+e", "External File")),
-        "ShortcutsDialog::get_shortcuts() must contain ('Shift+e', 'External File')"
+        dialog_shortcuts.contains(&ShortcutEntry {
+            key: "Shift+e",
+            description: "External File",
+        }),
+        "ShortcutsDialog::shortcuts() must contain ('Shift+e', 'External File')"
     );
     assert!(
-        dialog_shortcuts.contains(&("Alt+Up / Alt+Down", "Nudge Scope Boundary")),
-        "ShortcutsDialog::get_shortcuts() must contain ('Alt+Up / Alt+Down', 'Nudge Scope Boundary')"
+        dialog_shortcuts.contains(&ShortcutEntry {
+            key: "Alt+Up / Alt+Down",
+            description: "Nudge Scope Boundary",
+        }),
+        "ShortcutsDialog::shortcuts() must contain ('Alt+Up / Alt+Down', 'Nudge Scope Boundary')"
     );
     assert!(
-        dialog_shortcuts.contains(&("o", "Set Symbolic Offset")),
-        "ShortcutsDialog::get_shortcuts() must contain ('o', 'Set Symbolic Offset')"
+        dialog_shortcuts.contains(&ShortcutEntry {
+            key: "o",
+            description: "Set Symbolic Offset",
+        }),
+        "ShortcutsDialog::shortcuts() must contain ('o', 'Set Symbolic Offset')"
     );
     assert!(
-        dialog_shortcuts.contains(&("+ / -", "Increment/Decrement Symbolic Offset")),
-        "ShortcutsDialog::get_shortcuts() must contain ('+ / -', 'Increment/Decrement Symbolic Offset')"
+        dialog_shortcuts.contains(&ShortcutEntry {
+            key: "+ / -",
+            description: "Increment/Decrement Symbolic Offset",
+        }),
+        "ShortcutsDialog::shortcuts() must contain ('+ / -', 'Increment/Decrement Symbolic Offset')"
     );
     assert!(
-        !dialog_shortcuts.contains(&("e", "External File")),
-        "ShortcutsDialog::get_shortcuts() must NOT list 'e' as 'External File'"
+        !dialog_shortcuts.contains(&ShortcutEntry {
+            key: "e",
+            description: "External File",
+        }),
+        "ShortcutsDialog::shortcuts() must NOT list 'e' as 'External File'"
     );
 
     // 2. Check that docs/keyboard_shortcuts.md documents every ShortcutsDialog entry.
     let mut all_dialog_tokens = Vec::new();
-    for &(key_label, desc) in dialog_shortcuts {
-        if desc.is_empty() {
+    for entry in dialog_shortcuts {
+        if entry.description.is_empty() {
             // Section header or spacer row
             continue;
         }
-        let expanded = expand_dialog_shortcut_keys(key_label);
+        let expanded = expand_dialog_shortcut_keys(entry.key);
         assert!(
             !expanded.is_empty(),
-            "Shortcut entry ({key_label:?}, {desc:?}) produced no tokens"
+            "Shortcut entry ({:?}, {:?}) produced no tokens",
+            entry.key,
+            entry.description
         );
         for token in expanded {
             assert!(
                 doc_tokens.contains(&token),
-                "ShortcutsDialog entry ({key_label:?}, {desc:?}) token '{token}' is missing from docs/keyboard_shortcuts.md"
+                "ShortcutsDialog entry ({:?}, {:?}) token '{token}' is missing from docs/keyboard_shortcuts.md",
+                entry.key,
+                entry.description
             );
             all_dialog_tokens.push(token);
         }
@@ -3415,7 +3448,7 @@ fn test_shortcut_layers_synchronization() {
     for doc_token in &doc_tokens {
         assert!(
             all_dialog_tokens.contains(doc_token) || menu_nav_tokens.contains(&doc_token.as_str()),
-            "docs/keyboard_shortcuts.md token '{doc_token}' is missing from ShortcutsDialog::get_shortcuts()"
+            "docs/keyboard_shortcuts.md token '{doc_token}' is missing from ShortcutsDialog::shortcuts()"
         );
     }
 
@@ -3502,7 +3535,7 @@ fn test_shortcut_layers_synchronization() {
                 let norm = normalize_shortcut_token(shortcut);
                 assert!(
                     all_dialog_tokens.contains(&norm),
-                    "Menu item '{} -> {}' shortcut '{}' (normalized '{}') is missing from ShortcutsDialog::get_shortcuts()",
+                    "Menu item '{} -> {}' shortcut '{}' (normalized '{}') is missing from ShortcutsDialog::shortcuts()",
                     category.name,
                     item.name,
                     shortcut,
@@ -3559,7 +3592,7 @@ fn test_shortcut_layers_synchronization() {
         assert!(
             all_dialog_tokens.contains(view_token)
                 || views_allowed_extra.contains(&view_token.as_str()),
-            "docs/views.md token '{view_token}' is missing from ShortcutsDialog::get_shortcuts()"
+            "docs/views.md token '{view_token}' is missing from ShortcutsDialog::shortcuts()"
         );
     }
     assert!(

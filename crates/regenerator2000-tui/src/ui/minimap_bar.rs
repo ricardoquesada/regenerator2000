@@ -1,9 +1,17 @@
-use crate::state::AppState;
+//! Horizontal 1-row memory-map overview widget displaying block types and cursor position.
+
+use crate::state::{Addr, AppState, BlockType};
+use crate::ui::navigable;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
-use crossterm::event::KeyEvent;
-use ratatui::{Frame, layout::Rect, style::Style, text::Span, widgets::Paragraph};
+use crossterm::event::{KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::Style;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::Paragraph;
 
+/// Compact horizontal bar showing a color-coded overview of memory [`BlockType`] regions.
 pub struct MinimapBar;
 
 impl Widget for MinimapBar {
@@ -38,24 +46,24 @@ impl Widget for MinimapBar {
             // Pick the first non-undefined block type in the chunk, or the start byte's type.
             let block_type = app_state.block_types[start..end]
                 .iter()
-                .find(|&&b| b != crate::state::BlockType::Undefined)
+                .find(|&&b| b != BlockType::Undefined)
                 .copied()
                 .unwrap_or(app_state.block_types[start]);
 
             // Map block type to color foreground (filled block character █).
             let fg_color = match block_type {
-                crate::state::BlockType::Code => ui_state.theme.block_code_fg,
-                crate::state::BlockType::DataByte => ui_state.theme.block_data_byte_fg,
-                crate::state::BlockType::DataWord => ui_state.theme.block_data_word_fg,
-                crate::state::BlockType::Address => ui_state.theme.block_address_fg,
-                crate::state::BlockType::PetsciiText => ui_state.theme.block_petscii_text_fg,
-                crate::state::BlockType::ScreencodeText => ui_state.theme.block_screencode_text_fg,
-                crate::state::BlockType::LoHiAddress => ui_state.theme.block_lohi_fg,
-                crate::state::BlockType::HiLoAddress => ui_state.theme.block_hilo_fg,
-                crate::state::BlockType::LoHiWord => ui_state.theme.block_lohi_fg,
-                crate::state::BlockType::HiLoWord => ui_state.theme.block_hilo_fg,
-                crate::state::BlockType::ExternalFile => ui_state.theme.block_external_file_fg,
-                crate::state::BlockType::Undefined => ui_state.theme.block_undefined_fg,
+                BlockType::Code => ui_state.theme.block_code_fg,
+                BlockType::DataByte => ui_state.theme.block_data_byte_fg,
+                BlockType::DataWord => ui_state.theme.block_data_word_fg,
+                BlockType::Address => ui_state.theme.block_address_fg,
+                BlockType::PetsciiText => ui_state.theme.block_petscii_text_fg,
+                BlockType::ScreencodeText => ui_state.theme.block_screencode_text_fg,
+                BlockType::LoHiAddress => ui_state.theme.block_lohi_fg,
+                BlockType::HiLoAddress => ui_state.theme.block_hilo_fg,
+                BlockType::LoHiWord => ui_state.theme.block_lohi_fg,
+                BlockType::HiLoWord => ui_state.theme.block_hilo_fg,
+                BlockType::ExternalFile => ui_state.theme.block_external_file_fg,
+                BlockType::Undefined => ui_state.theme.block_undefined_fg,
             };
 
             let is_cursor = x == cursor_x && cursor_offset < total_bytes;
@@ -87,7 +95,7 @@ impl Widget for MinimapBar {
             spans.push(span);
         }
 
-        let paragraph = Paragraph::new(ratatui::text::Line::from(spans));
+        let paragraph = Paragraph::new(Line::from(spans));
         f.render_widget(paragraph, area);
     }
 
@@ -102,12 +110,11 @@ impl Widget for MinimapBar {
 
     fn handle_mouse(
         &mut self,
-        mouse: crossterm::event::MouseEvent,
+        mouse: MouseEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        if mouse.kind != crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left)
-        {
+        if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
             return WidgetResult::Ignored;
         }
 
@@ -130,20 +137,15 @@ impl Widget for MinimapBar {
         let byte_offset = (rel_x * total_bytes) / render_width;
         let addr = (app_state.origin.0 as usize + byte_offset).min(0xFFFF);
 
-        crate::ui::navigable::jump_to_disassembly_at_address(
-            app_state,
-            ui_state,
-            crate::state::Addr(addr as u16),
-        )
+        navigable::jump_to_disassembly_at_address(app_state, ui_state, Addr(addr as u16))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{Addr, BlockType};
     use crate::theme::Theme;
-    use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
+    use crossterm::event::KeyModifiers;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
 
@@ -163,17 +165,19 @@ mod tests {
         let area = Rect::new(0, 0, 120, 1);
         ui_state.minimap_area = area;
         let backend = TestBackend::new(120, 1);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
 
         let bar = MinimapBar;
         terminal
             .draw(|f| {
                 bar.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing MinimapBar should succeed");
 
         let buffer = terminal.backend().buffer();
-        let last_cell = buffer.cell((119, 0)).unwrap();
+        let last_cell = buffer
+            .cell((119, 0))
+            .expect("cell (119, 0) should exist in 120-column buffer");
         assert!(
             matches!(last_cell.symbol(), "▏" | "│" | "▕"),
             "Expected cursor tick at last column 119 for byte 238, got '{}'",
@@ -231,7 +235,7 @@ mod tests {
         let mut ui_state = UIState::new(Theme::default());
         let area = Rect::new(0, 0, 10, 1);
         let backend = TestBackend::new(10, 1);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         let bar = MinimapBar;
 
         for (cursor_idx, expected_tick) in [(0, "▏"), (1, "│"), (2, "▕")] {
@@ -240,8 +244,12 @@ mod tests {
                 .draw(|f| {
                     bar.render(f, area, &app_state, &mut ui_state);
                 })
-                .unwrap();
-            let cell = terminal.backend().buffer().cell((0, 0)).unwrap();
+                .expect("drawing MinimapBar tick segment should succeed");
+            let cell = terminal
+                .backend()
+                .buffer()
+                .cell((0, 0))
+                .expect("cell (0, 0) should exist in 10-column buffer");
             assert_eq!(cell.symbol(), expected_tick);
         }
 
@@ -252,6 +260,6 @@ mod tests {
                 bar.render(f, area, &empty_state, &mut ui_state);
                 bar.render(f, Rect::new(0, 0, 0, 1), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing MinimapBar with empty or zero-width state should succeed");
     }
 }

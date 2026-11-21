@@ -1,17 +1,20 @@
-use crate::state::AppState;
-use crate::ui_state::{ActivePane, UIState};
-use crossterm::event::KeyEvent;
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
-};
-use regenerator2000_core::state::types::System;
+//! Right-pane live VICE debugger view (registers, live disassembly, memory dump, and I/O).
 
+use crate::state::{Addr, AnnotationManager, AppState, BlockType, DocumentSettings, Label, XRef};
 use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui_state::{ActivePane, AppAction, DebuggerDisasmCache, UIState};
+use crate::vice::CiaState;
+use crate::vice::state::BreakpointKind;
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph};
+use regenerator2000_core::state::types::System;
+use std::collections::{BTreeMap, BTreeSet};
 
+/// Interactive widget displaying live VICE CPU state, breakpoints, watchpoints, and memory.
 pub struct DebuggerView;
 
 impl Widget for DebuggerView {
@@ -111,22 +114,19 @@ impl Widget for DebuggerView {
             let mem_start = vs.live_memory_start;
             let pc = vs.pc.unwrap_or(mem_start);
 
-            use crate::state::{BlockType, DocumentSettings};
-            use std::collections::{BTreeMap, BTreeSet};
-
-            let cache_hit = ui_state.debugger_disasm_cache.as_ref().is_some_and(
-                |(cached_start, cached_bytes, _)| {
-                    *cached_start == mem_start && cached_bytes.as_slice() == live_bytes.as_slice()
-                },
-            );
+            let cache_hit = ui_state
+                .debugger_disasm_cache
+                .as_ref()
+                .is_some_and(|cache| {
+                    cache.mem_start == mem_start
+                        && cache.live_bytes.as_slice() == live_bytes.as_slice()
+                });
             if !cache_hit {
                 let block_types: Vec<BlockType> = vec![BlockType::Code; live_bytes.len()];
-                let empty_labels: BTreeMap<crate::state::Addr, Vec<crate::state::Label>> =
-                    BTreeMap::new();
-                let empty_annotations = crate::state::AnnotationManager::default();
-                let empty_xrefs: BTreeMap<crate::state::Addr, Vec<crate::state::XRef>> =
-                    BTreeMap::new();
-                let empty_splitters: BTreeSet<crate::state::Addr> = BTreeSet::new();
+                let empty_labels: BTreeMap<Addr, Vec<Label>> = BTreeMap::new();
+                let empty_annotations = AnnotationManager::default();
+                let empty_xrefs: BTreeMap<Addr, Vec<XRef>> = BTreeMap::new();
+                let empty_splitters: BTreeSet<Addr> = BTreeSet::new();
                 let settings = DocumentSettings::default();
                 let collapsed: Vec<(usize, usize)> = Vec::new();
 
@@ -134,19 +134,23 @@ impl Widget for DebuggerView {
                     live_bytes,
                     &block_types,
                     &empty_labels,
-                    crate::state::Addr(mem_start),
+                    Addr(mem_start),
                     &settings,
                     &empty_annotations,
                     &empty_xrefs,
                     &collapsed,
                     &empty_splitters,
                 );
-                ui_state.debugger_disasm_cache = Some((mem_start, live_bytes.clone(), lines));
+                ui_state.debugger_disasm_cache = Some(DebuggerDisasmCache {
+                    mem_start,
+                    live_bytes: live_bytes.clone(),
+                    lines,
+                });
             }
             let live_lines = ui_state
                 .debugger_disasm_cache
                 .as_ref()
-                .map_or(&[][..], |(_, _, lines)| lines.as_slice());
+                .map_or(&[][..], |cache| cache.lines.as_slice());
 
             let pc_live_idx = live_lines.iter().position(|l| l.address == pc).unwrap_or(0);
             let panel_rows = (LIVE_PANEL_HEIGHT as usize).saturating_sub(1);
@@ -363,12 +367,12 @@ impl Widget for DebuggerView {
         let exec_bps: Vec<_> = vs
             .breakpoints
             .iter()
-            .filter(|bp| bp.kind == crate::vice::state::BreakpointKind::Exec)
+            .filter(|bp| bp.kind == BreakpointKind::Exec)
             .collect();
         let watchpoints: Vec<_> = vs
             .breakpoints
             .iter()
-            .filter(|bp| bp.kind != crate::vice::state::BreakpointKind::Exec)
+            .filter(|bp| bp.kind != BreakpointKind::Exec)
             .collect();
 
         if exec_bps.is_empty() {
@@ -683,12 +687,12 @@ impl Widget for DebuggerView {
                 }
                 right_lines.push(Line::from(""));
                 if let Some(io_mem) = &vs.io_memory {
-                    let cia1 = crate::vice::CiaState::decode(io_mem, 0xDC00 - 0xD000);
-                    let cia2 = crate::vice::CiaState::decode(io_mem, 0xDD00 - 0xD000);
+                    let cia1 = CiaState::decode(io_mem, 0xDC00 - 0xD000);
+                    let cia2 = CiaState::decode(io_mem, 0xDD00 - 0xD000);
 
                     let prev_io = prev.and_then(|p| p.io_memory.as_deref());
-                    let p_cia1 = prev_io.map(|m| crate::vice::CiaState::decode(m, 0xDC00 - 0xD000));
-                    let p_cia2 = prev_io.map(|m| crate::vice::CiaState::decode(m, 0xDD00 - 0xD000));
+                    let p_cia1 = prev_io.map(|m| CiaState::decode(m, 0xDC00 - 0xD000));
+                    let p_cia2 = prev_io.map(|m| CiaState::decode(m, 0xDD00 - 0xD000));
 
                     right_lines.push(Line::from(Span::styled("VIC-II Registers", heading_style)));
 
@@ -758,8 +762,8 @@ impl Widget for DebuggerView {
         _ui_state: &mut UIState,
     ) -> WidgetResult {
         // Require `key.modifiers.is_empty()` so `Ctrl+M` / `Alt+M` fall through to global handling.
-        if key.code == crossterm::event::KeyCode::Char('m') && key.modifiers.is_empty() {
-            WidgetResult::Action(crate::state::actions::AppAction::ViceMemoryDumpDialog)
+        if key.code == KeyCode::Char('m') && key.modifiers.is_empty() {
+            WidgetResult::Action(AppAction::ViceMemoryDumpDialog)
         } else {
             WidgetResult::Ignored
         }
@@ -769,15 +773,17 @@ impl Widget for DebuggerView {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::AppState;
-    use crate::ui_state::UIState;
-    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use crate::theme::Theme;
+    use crossterm::event::KeyModifiers;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use ratatui::buffer::Cell;
 
     #[test]
     fn test_debugger_view_handle_input_ignored() {
         let mut view = DebuggerView;
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         let key1 = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
         assert_eq!(
@@ -788,7 +794,7 @@ mod tests {
         let key_m = KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE);
         assert_eq!(
             view.handle_input(key_m, &mut app_state, &mut ui_state),
-            WidgetResult::Action(crate::state::actions::AppAction::ViceMemoryDumpDialog)
+            WidgetResult::Action(AppAction::ViceMemoryDumpDialog)
         );
 
         let key_ctrl_m = KeyEvent::new(KeyCode::Char('m'), KeyModifiers::CONTROL);
@@ -806,43 +812,40 @@ mod tests {
 
     #[test]
     fn test_debugger_view_render_high_dump_address_does_not_overflow() {
-        use ratatui::Terminal;
-        use ratatui::backend::TestBackend;
-
         let view = DebuggerView;
         let mut app_state = AppState::new();
         app_state.vice_state.connected = true;
         app_state.vice_state.live_memory = Some(vec![0xEA; 64]);
-        app_state.vice_state.dump_address = Some(crate::state::Addr(0xFFC8).into());
+        app_state.vice_state.dump_address = Some(Addr(0xFFC8).into());
         app_state.vice_state.dump_memory = Some(vec![0x42; 64]);
 
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.active_pane = ActivePane::Debugger;
 
         let area = Rect::new(0, 0, 100, 30);
         let backend = TestBackend::new(100, 30);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
 
         terminal
             .draw(|f| {
                 view.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing initial debugger dump should succeed");
 
         // Also verify $FFD0 wraps around $FFFF -> $0000 -> $0008 without overflow.
-        app_state.vice_state.dump_address = Some(crate::state::Addr(0xFFD0).into());
+        app_state.vice_state.dump_address = Some(Addr(0xFFD0).into());
         terminal
             .draw(|f| {
                 view.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing wrapped debugger dump should succeed");
 
         let rendered: String = terminal
             .backend()
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         for expected_row in ["$FFD0", "$FFF8", "$0000", "$0008"] {
             assert!(
@@ -854,9 +857,6 @@ mod tests {
 
     #[test]
     fn test_debugger_view_render_preserves_flash_and_caches_live_disasm() {
-        use ratatui::Terminal;
-        use ratatui::backend::TestBackend;
-
         let view = DebuggerView;
         let mut app_state = AppState::new();
         app_state.vice_state.connected = true;
@@ -864,18 +864,18 @@ mod tests {
         app_state.vice_state.live_memory_start = 0x0800;
         app_state.vice_state.live_memory = Some(vec![0xEA, 0x60]);
 
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         ui_state.debugger_flash_remaining = 5;
 
         let area = Rect::new(0, 0, 80, 30);
         let backend = TestBackend::new(80, 30);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
 
         terminal
             .draw(|f| {
                 view.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing paused debugger view should succeed");
 
         assert_eq!(ui_state.debugger_flash_remaining, 5);
         assert!(ui_state.debugger_disasm_cache.is_some());

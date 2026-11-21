@@ -1,17 +1,18 @@
+//! Rendering functions for the top application menu bar and popup dropdowns.
+
 use super::menu_model::MenuState;
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
-};
+use crate::theme::Theme;
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 
 pub fn render_menu(
     f: &mut Frame,
     area: Rect,
     menu_state: &MenuState,
-    theme: &crate::theme::Theme,
+    theme: &Theme,
     new_version: Option<&str>,
 ) {
     let mut spans = Vec::new();
@@ -75,14 +76,12 @@ pub fn render_menu(
     }
 }
 
-pub fn render_menu_popup(
-    f: &mut Frame,
-    top_area: Rect,
-    menu_state: &MenuState,
-    theme: &crate::theme::Theme,
-) {
+/// Renders the active dropdown popup menu for the currently selected [`MenuState`] category.
+pub fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &MenuState, theme: &Theme) {
     let category = &menu_state.categories[menu_state.selected_category];
-    let (max_name_len, max_shortcut_len) = category.column_widths();
+    let widths = category.column_widths();
+    let max_name_len = widths.name;
+    let max_shortcut_len = widths.shortcut;
     let bar_area = Rect::new(top_area.x, top_area.y, top_area.width, 1);
     let area = menu_state.popup_rect(bar_area, f.area());
 

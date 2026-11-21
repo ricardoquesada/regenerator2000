@@ -8,7 +8,7 @@
 //! [`LabelPlacement::OwnLine`](regenerator2000_core::disassembler::LabelPlacement::OwnLine) labels.
 
 use regenerator2000_core::disassembler::{Disassembler, DisassemblyLine};
-use regenerator2000_core::state::AppState;
+use regenerator2000_core::state::{Addr, AppState};
 
 pub use regenerator2000_core::disassembler::VisualLineCounts;
 
@@ -24,7 +24,7 @@ pub use regenerator2000_core::disassembler::VisualLineCounts;
 ///
 /// A [`VisualLineCounts`] struct detailing the vertical sub-row layout of `line`.
 #[must_use]
-pub fn get_visual_line_counts(line: &DisassemblyLine, app_state: &AppState) -> VisualLineCounts {
+pub fn visual_line_counts(line: &DisassemblyLine, app_state: &AppState) -> VisualLineCounts {
     line.visual_line_counts(
         app_state,
         Disassembler::formatter(app_state.settings.assembler),
@@ -44,14 +44,11 @@ pub fn get_visual_line_counts(line: &DisassemblyLine, app_state: &AppState) -> V
 ///
 /// Total visual row count (`labels + comments + instruction`), or `0` when `!line.is_navigable()`.
 #[must_use]
-pub fn get_visual_line_count_for_instruction(
-    line: &DisassemblyLine,
-    app_state: &AppState,
-) -> usize {
+pub fn visual_line_count_for_instruction(line: &DisassemblyLine, app_state: &AppState) -> usize {
     if !line.is_navigable() {
         return 0;
     }
-    get_visual_line_counts(line, app_state).total()
+    visual_line_counts(line, app_state).total()
 }
 
 /// Returns the rendered visual height of `line` in terminal rows (`0` for non-navigable lines).
@@ -65,8 +62,8 @@ pub fn get_visual_line_count_for_instruction(
 ///
 /// Rendered visual row count for `line`.
 #[must_use]
-pub fn get_line_visual_height(line: &DisassemblyLine, app_state: &AppState) -> usize {
-    get_visual_line_count_for_instruction(line, app_state)
+pub fn line_visual_height(line: &DisassemblyLine, app_state: &AppState) -> usize {
+    visual_line_count_for_instruction(line, app_state)
 }
 
 /// Maps a 1-indexed visual line number across the entire disassembly listing to its
@@ -81,13 +78,13 @@ pub fn get_line_visual_height(line: &DisassemblyLine, app_state: &AppState) -> u
 ///
 /// `Some(index)` into `app_state.disassembly`, or `None` if `target_line` is `0` or past the end of the listing.
 #[must_use]
-pub fn get_index_for_visual_line(app_state: &AppState, target_line: usize) -> Option<usize> {
+pub fn index_for_visual_line(app_state: &AppState, target_line: usize) -> Option<usize> {
     let mut current_visual_line = 1;
     for (index, line) in app_state.disassembly.iter().enumerate() {
         if !line.is_navigable() {
             continue;
         }
-        let lines_for_this_instruction = get_line_visual_height(line, app_state);
+        let lines_for_this_instruction = line_visual_height(line, app_state);
 
         if target_line >= current_visual_line
             && target_line < current_visual_line + lines_for_this_instruction
@@ -115,19 +112,25 @@ pub fn get_index_for_visual_line(app_state: &AppState, target_line: usize) -> Op
 ///
 /// Visual sub-cursor index (`0..counts.total()`).
 #[must_use]
-pub fn get_sub_index_for_address(
+pub fn sub_index_for_address(
     line: &DisassemblyLine,
     app_state: &AppState,
     target_addr: u16,
 ) -> usize {
-    line.sub_index_for_address(app_state, regenerator2000_core::state::Addr(target_addr))
+    line.sub_index_for_address(app_state, Addr(target_addr))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use regenerator2000_core::disassembler::DisassemblyLine;
-    use regenerator2000_core::state::{Addr, Assembler};
+    use crate::theme::Theme;
+    use crate::ui::view_disassembly::render::render_disassembly;
+    use crate::ui_state::UIState;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+    use ratatui::layout::Rect;
+    use regenerator2000_core::disassembler::SPLITTER_MNEMONIC;
+    use regenerator2000_core::state::{Assembler, Label, LabelKind, LabelType};
 
     fn make_test_line(
         addr: u16,
@@ -155,7 +158,7 @@ mod tests {
     fn test_visual_line_count_single_instruction() {
         let app_state = AppState::new();
         let line = make_test_line(0x1000, 1, None, None);
-        let counts = get_visual_line_counts(&line, &app_state);
+        let counts = visual_line_counts(&line, &app_state);
         assert_eq!(counts.total(), 1);
         assert_eq!(counts.instruction, 1);
         assert_eq!(counts.comments, 0);
@@ -171,7 +174,7 @@ mod tests {
             Some("very_long_label_that_exceeds_column_width_threshold"),
             Some("First comment line\nSecond comment line"),
         );
-        let counts = get_visual_line_counts(&line, &app_state);
+        let counts = visual_line_counts(&line, &app_state);
         assert_eq!(counts.comments, 2);
         assert_eq!(counts.instruction, 2); // instruction + label own line
         assert_eq!(counts.total(), 4);
@@ -188,7 +191,7 @@ mod tests {
         let total_height: usize = app_state
             .disassembly
             .iter()
-            .map(|l| get_visual_line_count_for_instruction(l, &app_state))
+            .map(|l| visual_line_count_for_instruction(l, &app_state))
             .sum();
 
         assert_eq!(total_height, 2);
@@ -201,7 +204,7 @@ mod tests {
 
         for assembler in [Assembler::Tass64, Assembler::Acme] {
             app_state.settings.assembler = assembler;
-            let counts = get_visual_line_counts(&line, &app_state);
+            let counts = visual_line_counts(&line, &app_state);
             assert_eq!(counts.instruction, 1);
             assert!(!counts.has_own_line_label());
             assert_eq!(counts.opcode_sub_index(), 0);
@@ -209,7 +212,7 @@ mod tests {
 
         for assembler in [Assembler::Ca65, Assembler::Kick] {
             app_state.settings.assembler = assembler;
-            let counts = get_visual_line_counts(&line, &app_state);
+            let counts = visual_line_counts(&line, &app_state);
             assert_eq!(counts.instruction, 2);
             assert!(counts.has_own_line_label());
             assert_eq!(counts.opcode_sub_index(), 1);
@@ -223,28 +226,19 @@ mod tests {
 
         let mut scope_line = make_test_line(0x1000, 0, Some("scope_a"), None);
         scope_line.mnemonic = "{".to_string();
-        let scope_counts = get_visual_line_counts(&scope_line, &app_state);
+        let scope_counts = visual_line_counts(&scope_line, &app_state);
         assert_eq!(scope_counts.instruction, 2);
         assert_eq!(scope_counts.opcode_sub_index(), 1);
 
         let mut enum_brace = make_test_line(0x0000, 0, None, None);
         enum_brace.mnemonic = "}".to_string();
-        let enum_counts = get_visual_line_counts(&enum_brace, &app_state);
+        let enum_counts = visual_line_counts(&enum_brace, &app_state);
         assert_eq!(enum_counts.instruction, 1);
         assert_eq!(enum_counts.opcode_sub_index(), 0);
     }
 
     #[test]
     fn test_cross_layer_visual_row_count_matches_render_output() {
-        use crate::theme::Theme;
-        use crate::ui::view_disassembly::render::render_disassembly;
-        use crate::ui_state::UIState;
-        use ratatui::Terminal;
-        use ratatui::backend::TestBackend;
-        use ratatui::layout::Rect;
-        use regenerator2000_core::disassembler::SPLITTER_MNEMONIC;
-        use regenerator2000_core::state::{Label, LabelKind, LabelType};
-
         for assembler in [
             Assembler::Tass64,
             Assembler::Acme,
@@ -279,20 +273,20 @@ mod tests {
                 named_scope,
                 mid_and_own,
             ] {
-                let expected_rows = get_visual_line_counts(&fixture, &app_state).total();
+                let expected_rows = visual_line_counts(&fixture, &app_state).total();
                 let mut sentinel = make_test_line(0xFFFF, 1, None, None);
                 sentinel.show_bytes = true;
                 app_state.disassembly = vec![fixture, sentinel];
 
                 let mut ui_state = UIState::new(Theme::default());
                 let backend = TestBackend::new(120, 25);
-                let mut terminal = Terminal::new(backend).unwrap();
+                let mut terminal = Terminal::new(backend).expect("create test terminal");
 
                 terminal
                     .draw(|f| {
                         render_disassembly(f, Rect::new(0, 0, 120, 25), &app_state, &mut ui_state);
                     })
-                    .unwrap();
+                    .expect("draw disassembly viewport");
 
                 let buffer = terminal.backend().buffer();
                 let sentinel_y = (1..24)
@@ -322,15 +316,12 @@ mod tests {
         assert!(!separator.is_navigable());
         let line2 = make_test_line(0x1001, 1, None, None);
 
-        assert_eq!(get_line_visual_height(&separator, &app_state), 0);
-        assert_eq!(
-            get_visual_line_count_for_instruction(&separator, &app_state),
-            0
-        );
+        assert_eq!(line_visual_height(&separator, &app_state), 0);
+        assert_eq!(visual_line_count_for_instruction(&separator, &app_state), 0);
 
         app_state.disassembly = vec![line0, separator, line2];
-        assert_eq!(get_index_for_visual_line(&app_state, 1), Some(0));
-        assert_eq!(get_index_for_visual_line(&app_state, 2), Some(2));
-        assert_eq!(get_index_for_visual_line(&app_state, 3), None);
+        assert_eq!(index_for_visual_line(&app_state, 1), Some(0));
+        assert_eq!(index_for_visual_line(&app_state, 2), Some(2));
+        assert_eq!(index_for_visual_line(&app_state, 3), None);
     }
 }

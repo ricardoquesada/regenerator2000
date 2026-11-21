@@ -17,8 +17,9 @@ use ratatui_image::protocol::kitty::StatefulKitty;
 use ratatui_image::protocol::{StatefulProtocol, StatefulProtocolType};
 use ratatui_image::{FilterType, FontSize, Resize, ResizeEncodeRender};
 use std::cmp::min;
-use std::fmt::Write as _;
-use std::io::{Cursor, IsTerminal};
+use std::env;
+use std::fmt::{self, Write as _};
+use std::io::{self, Cursor, IsTerminal};
 use std::num::NonZeroU16;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
@@ -102,7 +103,7 @@ fn prefers_iterm2_over_sixel(
 /// `ratatui-image` stops `Kitty` and `Sixel` probing when blacklisted, then falls back on
 /// `TERM_PROGRAM` (`vscode`, `WarpTerminal`, `Tabby`, `Hyper`), `ITERM_SESSION_ID`,
 /// `WEZTERM_EXECUTABLE`, or `LC_TERMINAL`. Blocking only unapproved terminals preserves `Iterm2`
-/// for approved terminals such as WezTerm or iTerm2 running inside `tmux`.
+/// for approved terminals such as `WezTerm` or `iTerm2` running inside `tmux`.
 #[must_use]
 fn sanitize_probed_protocol(
     probed: ProtocolType,
@@ -181,19 +182,19 @@ fn has_valid_font_size(font: FontSize) -> bool {
 /// `"dumb"`, if probing fails, or if the terminal reports zero-pixel cells.
 #[must_use]
 pub fn probe_terminal_picker() -> Picker {
-    let term = std::env::var("TERM").ok();
+    let term = env::var("TERM").ok();
     if !should_probe_stdio(
-        std::io::stdin().is_terminal(),
-        std::io::stdout().is_terminal(),
+        io::stdin().is_terminal(),
+        io::stdout().is_terminal(),
         term.as_deref(),
     ) {
         return create_headless_picker();
     }
 
-    let term_program = std::env::var("TERM_PROGRAM").ok();
-    let lc_terminal = std::env::var("LC_TERMINAL").ok();
-    let has_wezterm_executable = std::env::var("WEZTERM_EXECUTABLE").is_ok_and(|s| !s.is_empty());
-    let has_iterm_session_id = std::env::var("ITERM_SESSION_ID").is_ok_and(|s| !s.is_empty());
+    let term_program = env::var("TERM_PROGRAM").ok();
+    let lc_terminal = env::var("LC_TERMINAL").ok();
+    let has_wezterm_executable = env::var("WEZTERM_EXECUTABLE").is_ok_and(|s| !s.is_empty());
+    let has_iterm_session_id = env::var("ITERM_SESSION_ID").is_ok_and(|s| !s.is_empty());
     let options = build_query_options(
         term.as_deref(),
         term_program.as_deref(),
@@ -306,7 +307,7 @@ fn indexed_color_to_rgb(idx: u8) -> [u8; 3] {
 /// Default padding fill when no opaque background color is specified.
 const TRANSPARENT_RGBA: Rgba<u8> = Rgba([0, 0, 0, 0]);
 
-/// Maximum pixel width or height for `2x` HiDPI oversampled `OSC 1337` canvases.
+/// Maximum pixel width or height for `2x` `HiDPI` oversampled `OSC 1337` canvases.
 ///
 /// Always oversampling `2x` up to this ceiling keeps zoomed-in Retina iTerm2 fonts sharp
 /// without blowing up PNG size on ultra-wide terminals.
@@ -486,23 +487,41 @@ impl TerminalImageProtocol {
         }
     }
 
-    /// Creates an `Iterm2` test protocol with custom [`FontSize`] and `is_tmux` settings.
+    /// Creates an `Iterm2` test protocol with custom [`FontSize`] and tmux wrapping settings.
     #[cfg(test)]
     #[must_use]
     pub(crate) fn new_iterm2_with_font_size(
         image: DynamicImage,
         font_size: FontSize,
         background_color: Option<Rgba<u8>>,
-        is_tmux: bool,
+        tmux_mode: TmuxMode,
     ) -> Self {
         Self {
             inner: InnerProtocol::Iterm2(Iterm2CellProtocol::new(
                 image,
                 font_size,
                 background_color,
-                is_tmux,
+                tmux_mode.is_tmux(),
             )),
         }
+    }
+}
+
+/// Whether `iTerm2` escape sequences are wrapped in `tmux` DCS passthrough envelopes in tests.
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TmuxMode {
+    /// Emit standard `OSC 1337` sequences directly to the terminal.
+    Direct,
+    /// Wrap escape payloads inside `tmux` passthrough sequences.
+    Tmux,
+}
+
+#[cfg(test)]
+impl TmuxMode {
+    #[must_use]
+    const fn is_tmux(self) -> bool {
+        matches!(self, Self::Tmux)
     }
 }
 
@@ -581,7 +600,7 @@ fn encode_base64_append(data: &[u8], out: &mut String) {
 }
 
 /// Erases any prior text/glyphs inside the `width × height` cell box before placing `OSC 1337`.
-fn append_clear_area(out: &mut String, escape: &str, width: u16, height: u16) -> std::fmt::Result {
+fn append_clear_area(out: &mut String, escape: &str, width: u16, height: u16) -> fmt::Result {
     if height == 1 {
         write!(out, "{escape}[{width}X")?;
     } else {
@@ -1007,10 +1026,10 @@ mod tests {
         assert!(!has_valid_font_size(FontSize::new(0, 0)));
         assert!(has_valid_font_size(FontSize::new(18, 40)));
 
-        let term = std::env::var("TERM").ok();
+        let term = env::var("TERM").ok();
         if !should_probe_stdio(
-            std::io::stdin().is_terminal(),
-            std::io::stdout().is_terminal(),
+            io::stdin().is_terminal(),
+            io::stdout().is_terminal(),
             term.as_deref(),
         ) {
             let start = Instant::now();
@@ -1225,7 +1244,7 @@ mod tests {
         //    rendered into `buf3` flip `Buffer::diff` across all 50 cells again.
         let proto_unrendered1 = new_or_reused_protocol(&picker, Some(proto2), img3.clone(), bg);
         let mut proto_unrendered2 =
-            new_or_reused_protocol(&picker, Some(proto_unrendered1), img4.clone(), bg);
+            new_or_reused_protocol(&picker, Some(proto_unrendered1), img4, bg);
         let mut buf3 = Buffer::empty(area);
         StatefulImage::new()
             .resize(resize.clone())
@@ -1383,7 +1402,7 @@ mod tests {
             img.clone(),
             FontSize::new(7, 17),
             Some(mocha_bg),
-            false,
+            TmuxMode::Direct,
         );
 
         let available = Rect::new(5, 2, 60, 20);
@@ -1409,15 +1428,15 @@ mod tests {
         );
         assert_eq!(
             buf[(render_area.x, render_area.y)].diff_option,
-            ratatui::buffer::CellDiffOption::ForcedWidth(NonZeroU16::MIN)
+            CellDiffOption::ForcedWidth(NonZeroU16::MIN)
         );
         assert_eq!(
             buf[(render_area.x + 1, render_area.y)].diff_option,
-            ratatui::buffer::CellDiffOption::Skip
+            CellDiffOption::Skip
         );
         assert_eq!(
             buf[(render_area.x, render_area.y + 1)].diff_option,
-            ratatui::buffer::CellDiffOption::Skip
+            CellDiffOption::Skip
         );
 
         let decoded_png = decode_iterm2_png(sym, render_area.width, render_area.height);
@@ -1430,8 +1449,12 @@ mod tests {
         );
 
         // Transparent `background_color = None` keeps `preserveAspectRatio=1` and wraps in tmux.
-        let mut proto_tmux =
-            TerminalImageProtocol::new_iterm2_with_font_size(img, FontSize::new(7, 17), None, true);
+        let mut proto_tmux = TerminalImageProtocol::new_iterm2_with_font_size(
+            img,
+            FontSize::new(7, 17),
+            None,
+            TmuxMode::Tmux,
+        );
         let mut tmux_buf = Buffer::empty(Rect::new(0, 0, 80, 30));
         StatefulImage::new()
             .resize(resize)
@@ -1452,7 +1475,7 @@ mod tests {
             solid,
             FontSize::new(14, 30),
             Some(Rgba([0, 0, 0, 255])),
-            false,
+            TmuxMode::Direct,
         );
         let zoomed_available = Rect::new(0, 0, 20, 5);
         let zoomed_area = centered_image_rect(&zoomed_proto, &zoomed_resize, zoomed_available);
@@ -1493,7 +1516,7 @@ mod tests {
             quad_img,
             FontSize::new(7, 17),
             Some(bg),
-            false,
+            TmuxMode::Direct,
         );
         let mut crop_buf = Buffer::empty(crop_area);
         StatefulImage::new()

@@ -26,8 +26,10 @@ use regenerator2000_core::disassembler::{
 use regenerator2000_core::navigation::{AlignedGridRange, line_byte_addr_span};
 use regenerator2000_core::state::{AddrSpan, AppState, BlockType};
 
-use super::layout::get_visual_line_count_for_instruction;
+use super::layout::visual_line_count_for_instruction;
 use crate::ui_state::{ActivePane, UIState};
+use regenerator2000_core::disassembler;
+use std::cmp;
 
 /// Projected control-flow arrow overlapping the currently visible disassembly viewport.
 #[derive(Clone, Copy)]
@@ -132,7 +134,7 @@ fn walk_back_visual_lines(
             curr_inst = prev_idx;
             let prev_line = &app_state.disassembly[curr_inst];
             if prev_line.is_navigable() {
-                let prev_lines = get_visual_line_count_for_instruction(prev_line, app_state);
+                let prev_lines = visual_line_count_for_instruction(prev_line, app_state);
                 curr_sub = prev_lines.saturating_sub(1);
             } else {
                 return (0, 0);
@@ -238,7 +240,7 @@ fn compute_visible_arrows(
         if inst < total_items {
             let line = &app_state.disassembly[inst];
             if line.is_navigable() {
-                let count = get_visual_line_count_for_instruction(line, app_state);
+                let count = visual_line_count_for_instruction(line, app_state);
                 visible_rows_used += count.saturating_sub(scroll_sub_idx);
             }
             inst += 1;
@@ -249,7 +251,7 @@ fn compute_visible_arrows(
                 inst += 1;
                 continue;
             }
-            visible_rows_used += get_visual_line_count_for_instruction(line, app_state);
+            visible_rows_used += visual_line_count_for_instruction(line, app_state);
             inst += 1;
         }
         inst
@@ -259,8 +261,8 @@ fn compute_visible_arrows(
     for arrow in &app_state.cached_arrows {
         let src_idx = arrow.start;
         let dst_idx = arrow.end;
-        let low = std::cmp::min(src_idx, dst_idx);
-        let high = std::cmp::max(src_idx, dst_idx);
+        let low = cmp::min(src_idx, dst_idx);
+        let high = cmp::max(src_idx, dst_idx);
 
         if low < end_view && high >= scroll_inst_idx {
             let target_addr_val = arrow.target_addr.map_or(0, |a| a.0);
@@ -684,10 +686,7 @@ fn render_mid_instruction_sub_rows(ctx: &RowRenderContext<'_>, parts: &mut Vec<L
             format!(
                 "{} {}",
                 ctx.formatter.comment_prefix(),
-                crate::disassembler::format_cross_references(
-                    refs,
-                    ctx.app_state.settings.max_xref_count,
-                )
+                disassembler::format_cross_references(refs, ctx.app_state.settings.max_xref_count,)
             )
         } else {
             String::new()
@@ -1151,31 +1150,34 @@ pub fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_st
 mod tests {
     use super::*;
     use crate::theme::Theme;
-    use crate::ui::view_disassembly::layout::get_visual_line_counts;
+    use crate::ui::view_disassembly::layout::visual_line_counts;
     use crate::ui_state::UIState;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
+    use ratatui::buffer::Buffer;
     use regenerator2000_core::disassembler::SPLITTER_MNEMONIC;
     use regenerator2000_core::state::{
-        Addr, AppState, Assembler, BlockType, Label, LabelKind, LabelType,
+        Addr, AppState, Assembler, BlockType, Label, LabelKind, LabelType, XRef, XRefKind,
     };
 
     #[test]
     fn test_render_disassembly_fills_viewport() {
         let mut app_state = AppState::new();
         let code = vec![0xEA; 100]; // 100 NOP instructions
-        app_state.load_binary(Addr(0x0801), code).unwrap();
+        app_state
+            .load_binary(Addr(0x0801), code)
+            .expect("load 100-byte NOP fixture");
 
         let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(80, 24);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
 
         terminal
             .draw(|f| {
                 let area = Rect::new(0, 0, 80, 24);
                 render_disassembly(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw disassembly viewport");
 
         let buffer = terminal.backend().buffer();
         // Inner area height is 24 - 2 (borders) = 22 lines.
@@ -1190,9 +1192,7 @@ mod tests {
                 .collect();
             assert!(
                 line_str.contains('$'),
-                "Row {} should contain disassembly address '$', but was: '{}'",
-                y,
-                line_str
+                "Row {y} should contain disassembly address '$', but was: '{line_str}'"
             );
         }
     }
@@ -1201,7 +1201,9 @@ mod tests {
     fn test_render_disassembly_label_alignment() {
         let mut app_state = AppState::new();
         let code = vec![0xAD, 0x00, 0x10, 0x8D, 0x00, 0x20];
-        app_state.load_binary(Addr(0x1000), code).unwrap();
+        app_state
+            .load_binary(Addr(0x1000), code)
+            .expect("load LDA/STA fixture");
         app_state.block_types = vec![BlockType::Code; 6];
         app_state.disassemble();
 
@@ -1214,14 +1216,14 @@ mod tests {
 
         let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(100, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
 
         terminal
             .draw(|f| {
                 let area = Rect::new(0, 0, 100, 20);
                 render_disassembly(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw disassembly label alignment frame");
 
         let buffer = terminal.backend().buffer();
 
@@ -1283,7 +1285,9 @@ mod tests {
     fn test_disassembly_render_scope_gutter_with_indexed_scopes() {
         for assembler in [Assembler::Tass64, Assembler::Acme] {
             let mut app_state = AppState::new();
-            app_state.load_binary(Addr(0x1000), vec![0xEA; 8]).unwrap();
+            app_state
+                .load_binary(Addr(0x1000), vec![0xEA; 8])
+                .expect("load 8-byte NOP fixture");
             app_state.block_types = vec![BlockType::Code; 8];
             app_state.settings.assembler = assembler;
             // Scope covering $1001..=$1003 with a line comment at $1001 (multi-part start)
@@ -1295,14 +1299,14 @@ mod tests {
 
             let mut ui_state = UIState::new(Theme::default());
             let backend = TestBackend::new(100, 20);
-            let mut terminal = Terminal::new(backend).unwrap();
+            let mut terminal = Terminal::new(backend).expect("create test terminal");
 
             terminal
                 .draw(|f| {
                     let area = Rect::new(0, 0, 100, 20);
                     render_disassembly(f, area, &app_state, &mut ui_state);
                 })
-                .unwrap();
+                .expect("draw scope gutter frame");
 
             let buffer = terminal.backend().buffer();
             let rendered_rows: Vec<String> = (1..19)
@@ -1341,7 +1345,7 @@ mod tests {
         // $1000: NOP (EA), $1001..=$1003: LDA $2000 (AD 00 20), $1004: RTS (60)
         app_state
             .load_binary(Addr(0x1000), vec![0xEA, 0xAD, 0x00, 0x20, 0x60])
-            .unwrap();
+            .expect("load ACME scope fixture");
         app_state.block_types = vec![BlockType::Code; 5];
         app_state.settings.assembler = Assembler::Acme;
         app_state.annotations.update(Addr(0x1001), |e| {
@@ -1368,16 +1372,16 @@ mod tests {
 
         let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(100, 15);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
 
         terminal
             .draw(|f| {
                 render_disassembly(f, Rect::new(0, 0, 100, 15), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw ACME scope gutter frame");
 
         let buffer = terminal.backend().buffer();
-        let scope_gutter_at = |buf: &ratatui::buffer::Buffer, y: u16| -> String {
+        let scope_gutter_at = |buf: &Buffer, y: u16| -> String {
             format!(
                 "{}{}",
                 buf.cell((1, y)).map_or("", |c| c.symbol()),
@@ -1409,7 +1413,7 @@ mod tests {
             .draw(|f| {
                 render_disassembly(f, Rect::new(0, 0, 100, 15), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw ca65 scope gutter frame");
 
         let ca65_buf = terminal.backend().buffer();
         // Row 1: $1000 NOP -> "  "
@@ -1436,7 +1440,7 @@ mod tests {
         // 3-byte instruction JMP $1001 (4C 01 10) at $1000
         app_state
             .load_binary(Addr(0x1000), vec![0x4C, 0x01, 0x10])
-            .unwrap();
+            .expect("load 3-byte JMP fixture");
         app_state.block_types = vec![BlockType::Code; 3];
         app_state.labels.insert(
             Addr(0x1001),
@@ -1453,14 +1457,14 @@ mod tests {
 
         let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(100, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
 
         terminal
             .draw(|f| {
                 let area = Rect::new(0, 0, 100, 20);
                 render_disassembly(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw KickAssembler mid-instruction label frame");
 
         let buffer = terminal.backend().buffer();
         let kick_rows: Vec<String> = (1..19)
@@ -1492,7 +1496,7 @@ mod tests {
                 let area = Rect::new(0, 0, 100, 20);
                 render_disassembly(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw 64tass mid-instruction label frame");
 
         let buffer = terminal.backend().buffer();
         let tass_rows: Vec<String> = (1..19)
@@ -1739,7 +1743,7 @@ mod tests {
             ];
 
             for (idx, fixture) in fixtures.into_iter().enumerate() {
-                let expected_rows = get_visual_line_counts(&fixture, &app_state).total();
+                let expected_rows = visual_line_counts(&fixture, &app_state).total();
                 let sentinel = DisassemblyLine {
                     address: Addr(0xFFFF),
                     bytes: vec![0xEA],
@@ -1758,14 +1762,14 @@ mod tests {
 
                 let mut ui_state = UIState::new(Theme::default());
                 let backend = TestBackend::new(120, 25);
-                let mut terminal = Terminal::new(backend).unwrap();
+                let mut terminal = Terminal::new(backend).expect("create test terminal");
 
                 terminal
                     .draw(|f| {
                         let area = Rect::new(0, 0, 120, 25);
                         render_disassembly(f, area, &app_state, &mut ui_state);
                     })
-                    .unwrap();
+                    .expect("draw disassembly fixture frame");
 
                 let buffer = terminal.backend().buffer();
                 let sentinel_y = (1..24)
@@ -1805,13 +1809,9 @@ mod tests {
                 label_type: LabelType::UserDefined,
             }],
         );
-        app_state.cross_refs.insert(
-            Addr(0x1001),
-            vec![regenerator2000_core::state::XRef::new(
-                Addr(0x1005),
-                regenerator2000_core::state::XRefKind::Jump,
-            )],
-        );
+        app_state
+            .cross_refs
+            .insert(Addr(0x1001), vec![XRef::new(Addr(0x1005), XRefKind::Jump)]);
 
         let ext_line = DisassemblyLine {
             address: Addr::ZERO,
@@ -1845,14 +1845,14 @@ mod tests {
 
         let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(120, 20);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
 
         terminal
             .draw(|f| {
                 let area = Rect::new(0, 0, 120, 20);
                 render_disassembly(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw mid-instruction xref frame");
 
         let buffer = terminal.backend().buffer();
         let row_str = |y: u16| -> String {
@@ -1888,7 +1888,9 @@ mod tests {
     #[test]
     fn test_disassemble_scope_start_splitter_and_kickasm_enum_gutter() {
         let mut app_state = AppState::new();
-        app_state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        app_state
+            .load_binary(Addr(0x1000), vec![0xEA; 4])
+            .expect("load 4-byte NOP fixture");
         app_state.block_types = vec![BlockType::Code; 4];
         app_state.settings.assembler = Assembler::Acme;
         app_state.labels.insert(
@@ -1907,13 +1909,13 @@ mod tests {
 
         let mut ui_state = UIState::new(Theme::default());
         let backend = TestBackend::new(100, 15);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("create test terminal");
 
         terminal
             .draw(|f| {
                 render_disassembly(f, Rect::new(0, 0, 100, 15), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw ACME scope start splitter frame");
 
         let buffer = terminal.backend().buffer();
         let scope_gutter_at = |y: u16| -> String {
@@ -1959,7 +1961,7 @@ mod tests {
             .draw(|f| {
                 render_disassembly(f, Rect::new(0, 0, 100, 15), &kick_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("draw KickAssembler enum brace frame");
 
         let kick_buffer = terminal.backend().buffer();
         let kick_gutter = format!(
@@ -1972,8 +1974,6 @@ mod tests {
 
     #[test]
     fn test_render_disassembly_tier1_companion_span_non_dimmed_and_exclusions() {
-        use ratatui::buffer::Buffer;
-
         let mut app_state = AppState::new();
         app_state
             .load_binary(Addr(0x0800), vec![0xEA; 128])
@@ -2204,8 +2204,6 @@ mod tests {
 
     #[test]
     fn test_render_disassembly_tier1_collapsed_wrapped_and_bitmap_tail() {
-        use ratatui::buffer::Buffer;
-
         let row_text = |buffer: &Buffer, width: u16, y: u16| -> String {
             (1..width.saturating_sub(1))
                 .map(|x| {

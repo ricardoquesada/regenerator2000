@@ -2,7 +2,7 @@
 name: update-keyboard-shortcuts
 description: >-
   Audits and synchronizes keyboard shortcuts across live TUI input handlers,
-  MenuState::new, ShortcutsDialog::get_shortcuts, docs/keyboard_shortcuts.md,
+  MenuState::new, ShortcutsDialog::shortcuts, docs/keyboard_shortcuts.md,
   docs/views.md, and keyboard_shortcuts_tests.rs. Use when adding, changing, or
   auditing TUI keyboard shortcuts. Don't use for non-shortcut TUI styling or
   MCP tool schemas.
@@ -17,12 +17,12 @@ whenever you add, modify, or audit a keyboard shortcut.
 
 | Layer | File | Role |
 | :--- | :--- | :--- |
-| **Layer 1 (Live Input)** | `crates/regenerator2000-tui/src/events.rs` | Top-level routing (`process_key_event` -> dialog -> menu -> Vim search -> active pane -> global fallback) |
+| **Layer 1 (Live Input)** | `crates/regenerator2000-tui/src/events/runner.rs` | Top-level routing (`process_key_event` -> dialog -> menu -> Vim search -> active pane -> global fallback) |
 | **Layer 1 (Global)** | `crates/regenerator2000-tui/src/events/input.rs` | Global fallback shortcuts (`handle_global_input`, `global_action_for_key`) across all 7 panes |
 | **Layer 1 (Shared Nav)** | `crates/regenerator2000-tui/src/ui/navigable.rs` | Shared movement, paging, `[number]G`, visual selection, and search (`handle_nav_input`) |
-| **Layer 1 (Views)** | `crates/regenerator2000-tui/src/ui/view_disassembly/mod.rs`, `view_hexdump.rs`, `view_sprites.rs`, `view_charset.rs`, `view_bitmap.rs`, `view_blocks.rs`, `view_debugger.rs` | Per-pane `Widget::handle_input()` bindings |
+| **Layer 1 (Views)** | `crates/regenerator2000-tui/src/ui/view_disassembly/view.rs`, `view_hexdump.rs`, `view_sprites.rs`, `view_charset.rs`, `view_bitmap.rs`, `view_blocks.rs`, `view_debugger.rs` | Per-pane `Widget::handle_input()` bindings |
 | **Layer 2 (Menu)** | `crates/regenerator2000-tui/src/ui/menu/menu_model.rs` (dispatch in `menu_action.rs`) | Top menu items and shortcut hints (`MenuState::new()`) |
-| **Layer 3 (Help Dialog)** | `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs` | `const SHORTCUTS` returned by `ShortcutsDialog::get_shortcuts()` |
+| **Layer 3 (Help Dialog)** | `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs` | `const SHORTCUTS` (`&[ShortcutEntry]`) returned by `ShortcutsDialog::shortcuts()` |
 | **Layer 4 (Docs)** | `docs/keyboard_shortcuts.md` and `docs/views.md` | User-facing MkDocs shortcut tables (`++key++` notation) |
 | **Contract Tests** | `crates/regenerator2000-tui/src/keyboard_shortcuts_tests.rs` | Automated 3-pillar verification across all 7 panes and all 4 layers |
 
@@ -41,7 +41,7 @@ cargo test -p regenerator2000-tui keyboard_shortcuts_tests
   `test_menu_and_dialog_navigation`)**: Exercises view-local, `Navigable`,
   selection, scope-nudging, and dialog keys through `process_key_event`.
 - **Pillar 3 (`test_shortcut_layers_synchronization`)**: Checks bidirectional
-  token parity across `MenuState::new()`, `ShortcutsDialog::get_shortcuts()`,
+  token parity across `MenuState::new()`, `ShortcutsDialog::shortcuts()`,
   `docs/keyboard_shortcuts.md`, and `docs/views.md`.
 
 ## 2. Update All Four Layers
@@ -81,11 +81,11 @@ and `regenerator2000-core`.
 
 ### Layer 3: `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs`
 
-Add or update the `(key, description)` tuple in `const SHORTCUTS`:
+Add or update the `entry(key, description)` (`ShortcutEntry`) item in `const SHORTCUTS`:
 
-- `("Section Header", "")` renders a bold underlined section header.
-- `("", "")` renders a blank spacer row.
-- `("Alt+1 (Ctrl+1)", "Toggle Blocks View")` lists primary and alternate chords
+- `entry("Section Header", "")` renders a bold underlined section header.
+- `entry("", "")` renders a blank spacer row.
+- `entry("Alt+1 (Ctrl+1)", "Toggle Blocks View")` lists primary and alternate chords
   so Pillar 3 expands and checks both tokens.
 
 ### Layer 4: `docs/keyboard_shortcuts.md` and `docs/views.md`

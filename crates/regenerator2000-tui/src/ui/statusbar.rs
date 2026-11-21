@@ -1,18 +1,20 @@
-use crate::state::AppState;
+//! Single-row status bar widget showing transient messages or search input and cursor context.
+
+use crate::state::{Addr, AppState};
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::KeyEvent;
-use ratatui::{
-    Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::Span,
-    widgets::Paragraph,
-};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::Span;
+use ratatui::widgets::Paragraph;
 use regenerator2000_core::navigation::AlignedGridRange;
 
+/// Persistent status bar message buffer rendered on the left side of [`StatusBar`].
 #[derive(Debug, Clone)]
 pub struct StatusBarState {
+    /// Current status message shown when incremental search is inactive.
     pub message: String,
 }
 
@@ -25,16 +27,19 @@ impl Default for StatusBarState {
 }
 
 impl StatusBarState {
+    /// Creates a [`StatusBarState`] initialized to `"Ready"`.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Replaces the displayed status bar message.
     pub fn set_message<S: Into<String>>(&mut self, message: S) {
         self.message = message.into();
     }
 }
 
+/// Bottom status bar widget splitting status feedback on the left from active pane telemetry on the right.
 pub struct StatusBar;
 
 impl Widget for StatusBar {
@@ -75,7 +80,7 @@ impl Widget for StatusBar {
         let cursor_addr = app_state
             .disassembly
             .get(ui_state.cursor_index)
-            .map_or(crate::state::Addr(0), |l| l.address);
+            .map_or(Addr(0), |l| l.address);
 
         let block_info = if let Some(offset) =
             (cursor_addr.0 as isize).checked_sub(app_state.origin.0 as isize)
@@ -166,7 +171,7 @@ impl Widget for StatusBar {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{Addr, BlockType};
+    use crate::state::BlockType;
     use crate::theme::Theme;
     use crossterm::event::{KeyCode, KeyModifiers};
     use ratatui::Terminal;
@@ -176,7 +181,9 @@ mod tests {
     #[test]
     fn test_status_bar_render_status_and_vim_search_with_selection() {
         let mut app_state = AppState::new();
-        app_state.load_binary(Addr(0x1000), vec![0xEA; 4]).unwrap();
+        app_state
+            .load_binary(Addr(0x1000), vec![0xEA; 4])
+            .expect("loading test binary at $1000 should succeed");
         app_state.block_types = vec![BlockType::Code; 4];
         app_state.file_path = Some(PathBuf::from("/tmp/demo.prg"));
         app_state.disassemble();
@@ -187,14 +194,14 @@ mod tests {
         ui_state.selection_start = Some(0);
 
         let backend = TestBackend::new(180, 1);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         let mut bar = StatusBar;
 
         terminal
             .draw(|f| {
                 bar.render(f, Rect::new(0, 0, 180, 1), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing StatusBar should succeed");
 
         let row_str: String = (0..180)
             .map(|x| {
@@ -213,7 +220,7 @@ mod tests {
         assert!(row_str.contains("Selected: 3"));
 
         // Right-pane HexDump selection count is reflected when HexDump is active.
-        ui_state.active_pane = crate::ui_state::ActivePane::HexDump;
+        ui_state.active_pane = ActivePane::HexDump;
         ui_state.selection_start = None;
         ui_state.hex_selection_start = Some(0);
         ui_state.hex_selection_start_col = 1;
@@ -223,7 +230,7 @@ mod tests {
             .draw(|f| {
                 bar.render(f, Rect::new(0, 0, 180, 1), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing StatusBar in HexDump pane should succeed");
         let hex_row: String = (0..180)
             .map(|x| {
                 terminal
@@ -242,7 +249,7 @@ mod tests {
             .draw(|f| {
                 bar.render(f, Rect::new(0, 0, 180, 1), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing StatusBar with active vim search should succeed");
         let search_row: String = (0..180)
             .map(|x| {
                 terminal

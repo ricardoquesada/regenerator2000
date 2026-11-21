@@ -1,21 +1,20 @@
-use crate::state::AppState;
-use crate::ui_state::{ActivePane, AppAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Color, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
-};
+//! Right-pane sprite sheet viewer and selection widget.
 
+use crate::state::AppState;
 use crate::ui::navigable::{
-    AlignedGridRange, Navigable, apply_grid_mouse_click, compute_scroll_offset,
-    handle_grid_selection_input, handle_nav_input, is_grid_item_selected, jump_grid_cursor,
-    move_grid_cursor_down, move_grid_cursor_up, right_pane_mouse_inner_area,
-    sync_grid_item_to_disassembly,
+    AlignedGridRange, GridSelectionContext, Navigable, SelectionExtend, VisualMode,
+    apply_grid_mouse_click, compute_scroll_offset, handle_grid_selection_input, handle_nav_input,
+    is_grid_item_selected, jump_grid_cursor, move_grid_cursor_down, move_grid_cursor_up,
+    right_pane_mouse_inner_area, sync_grid_item_to_disassembly,
 };
 use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui_state::{ActivePane, AppAction, RightPane, UIState};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph};
 
 /// Immediately mirror the sprite cursor / selection into the disassembly view's
 /// `cursor_index` / `selection_start`.  Called eagerly so both views are
@@ -31,6 +30,7 @@ fn sync_sprites_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
     );
 }
 
+/// Interactive widget rendering 64-byte C64 hardware sprites in 1-column or 2-column grids.
 pub struct SpritesView;
 
 impl Navigable for SpritesView {
@@ -45,11 +45,12 @@ impl Navigable for SpritesView {
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
         let total = self.len(app_state);
         let delta = amount * Self::cols(ui_state);
+        let visual_mode = VisualMode::from_active(ui_state.core.is_visual_mode);
         move_grid_cursor_down(
             &mut ui_state.core.sprites_cursor_index,
             &mut ui_state.core.sprites_selection_start,
-            ui_state.core.is_visual_mode,
-            /* extend_selection= */ false,
+            visual_mode,
+            SelectionExtend::Replace,
             delta,
             total,
         );
@@ -57,21 +58,23 @@ impl Navigable for SpritesView {
 
     fn move_up(&self, _app_state: &AppState, ui_state: &mut UIState, amount: usize) {
         let delta = amount * Self::cols(ui_state);
+        let visual_mode = VisualMode::from_active(ui_state.core.is_visual_mode);
         move_grid_cursor_up(
             &mut ui_state.core.sprites_cursor_index,
             &mut ui_state.core.sprites_selection_start,
-            ui_state.core.is_visual_mode,
-            /* extend_selection= */ false,
+            visual_mode,
+            SelectionExtend::Replace,
             delta,
         );
     }
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
         let total = self.len(app_state);
+        let visual_mode = VisualMode::from_active(ui_state.core.is_visual_mode);
         jump_grid_cursor(
             &mut ui_state.core.sprites_cursor_index,
             &mut ui_state.core.sprites_selection_start,
-            ui_state.core.is_visual_mode,
+            visual_mode,
             index,
             total,
         );
@@ -82,20 +85,30 @@ impl Navigable for SpritesView {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct SpriteRenderSlot<'grid> {
+    y_offset: usize,
+    sprite_index: usize,
+    grid: &'grid AlignedGridRange,
+    x_offset: u16,
+}
+
 /// Renders a single sprite at the given column x-offset within `inner_area`.
 ///
 /// Returns the number of vertical rows consumed (header + pixel rows).
-#[allow(clippy::too_many_arguments)]
 fn render_single_sprite(
     f: &mut Frame,
     app_state: &AppState,
     ui_state: &UIState,
     inner_area: Rect,
-    y_offset: usize,
-    sprite_index: usize,
-    grid: &AlignedGridRange,
-    x_offset: u16,
+    slot: SpriteRenderSlot<'_>,
 ) -> usize {
+    let SpriteRenderSlot {
+        y_offset,
+        sprite_index,
+        grid,
+        x_offset,
+    } = slot;
     let visible_rows = inner_area.height as usize;
     let sprite_addr_start = grid.item_addr(sprite_index);
 
@@ -255,7 +268,7 @@ impl SpritesView {
 
     #[must_use]
     fn cols(ui_state: &UIState) -> usize {
-        if ui_state.right_pane == crate::ui_state::RightPane::Sprites2Col {
+        if ui_state.right_pane == RightPane::Sprites2Col {
             2
         } else {
             1
@@ -326,7 +339,7 @@ impl Widget for SpritesView {
                 );
                 apply_grid_mouse_click(
                     &mouse,
-                    ui_state.core.is_visual_mode,
+                    VisualMode::from_active(ui_state.core.is_visual_mode),
                     &mut ui_state.core.sprites_cursor_index,
                     &mut ui_state.core.sprites_selection_start,
                     hit,
@@ -391,18 +404,30 @@ impl Widget for SpritesView {
         let mut y_offset = 0;
         let mut i = start_index;
         while i < end_index && y_offset < visible_rows {
-            let left_height =
-                render_single_sprite(f, app_state, ui_state, inner_area, y_offset, i, &grid, 0);
+            let left_height = render_single_sprite(
+                f,
+                app_state,
+                ui_state,
+                inner_area,
+                SpriteRenderSlot {
+                    y_offset,
+                    sprite_index: i,
+                    grid: &grid,
+                    x_offset: 0,
+                },
+            );
             let right_height = if cols == 2 && i + 1 < total_sprites {
                 render_single_sprite(
                     f,
                     app_state,
                     ui_state,
                     inner_area,
-                    y_offset,
-                    i + 1,
-                    &grid,
-                    Self::COL_WIDTH,
+                    SpriteRenderSlot {
+                        y_offset,
+                        sprite_index: i + 1,
+                        grid: &grid,
+                        x_offset: Self::COL_WIDTH,
+                    },
                 )
             } else {
                 0
@@ -436,10 +461,12 @@ impl Widget for SpritesView {
             key,
             app_state,
             ui_state,
-            &grid,
-            cols,
-            cursor,
-            selection,
+            GridSelectionContext {
+                grid: &grid,
+                grid_cols: cols,
+                cursor,
+                selection,
+            },
             |ui, new_cursor, new_sel| {
                 ui.sprites_cursor_index = new_cursor;
                 ui.sprites_selection_start = new_sel;
@@ -456,7 +483,6 @@ impl Widget for SpritesView {
 mod tests {
     use super::*;
     use crate::theme::Theme;
-    use crate::ui_state::RightPane;
     use crossterm::event::KeyModifiers;
     use regenerator2000_core::state::Addr;
 
@@ -465,7 +491,7 @@ mod tests {
         let mut app_state = AppState::new();
         app_state
             .load_binary(Addr(0x2000), vec![0xEA; 64 * 12])
-            .unwrap();
+            .expect("loading test sprite binary should succeed");
         let mut ui_state = UIState::new(Theme::default());
         ui_state.right_pane = RightPane::Sprites2Col;
         ui_state.right_pane_area = Rect::new(0, 0, 60, 30);

@@ -1,13 +1,15 @@
-use crate::ui::widget::{Widget, WidgetResult, create_dialog_block};
+//! Modal dialog (`e`) for applying or clearing an enum on an instruction operand or data item.
+
+use crate::ui::dialog_edit_enum::{EditEnumDialog, EnumScope};
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::{AppAction, UIState};
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Clear, List, ListItem, ListState},
-};
+use ratatui::Frame;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState};
 use ratatui_textarea::TextArea;
 use regenerator2000_core::state::{Addr, AppState, EnumDefinition};
 use std::collections::BTreeMap;
@@ -23,6 +25,7 @@ enum EnumListItem {
     },
 }
 
+/// Modal dialog for selecting or creating an enum to apply at an address.
 pub struct ApplyEnumDialog {
     search_textarea: TextArea<'static>,
     address: Addr,
@@ -33,6 +36,7 @@ pub struct ApplyEnumDialog {
 }
 
 impl ApplyEnumDialog {
+    /// Creates a new [`ApplyEnumDialog`] focused on the matching enums for `value`.
     #[must_use]
     pub fn new(address: Addr, value: u16, app_state: &AppState) -> Self {
         let mut list_state = ListState::default();
@@ -40,8 +44,8 @@ impl ApplyEnumDialog {
 
         let mut search_textarea = TextArea::default();
         search_textarea.set_block(
-            ratatui::widgets::Block::default()
-                .borders(ratatui::widgets::Borders::ALL)
+            Block::default()
+                .borders(Borders::ALL)
                 .border_style(Style::default()),
         );
         search_textarea.set_cursor_line_style(Style::default());
@@ -179,10 +183,10 @@ impl ApplyEnumDialog {
             " Apply Enum at ${:04X} (val: ${:02X}/{}) ",
             self.address.0, self.value, self.value
         );
-        let block = create_dialog_block(&title, theme);
+        let block = widget::create_dialog_block(&title, theme);
 
         // Dialog bounds (Centered, adapt size: Width = 50, Height = 15)
-        let area = crate::utils::centered_rect_adaptive(50, 60, 0, 16, area);
+        let area = utils::centered_rect_adaptive(50, 60, 0, 16, area);
         ui_state.active_dialog_area = area;
 
         f.render_widget(Clear, area);
@@ -190,7 +194,6 @@ impl ApplyEnumDialog {
 
         let inner = block.inner(area);
 
-        use ratatui::layout::{Constraint, Direction, Layout};
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -205,8 +208,8 @@ impl ApplyEnumDialog {
         // 1. Render Search Input
         let mut textarea = self.search_textarea.clone();
         textarea.set_block(
-            ratatui::widgets::Block::default()
-                .borders(ratatui::widgets::Borders::ALL)
+            Block::default()
+                .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.highlight_fg))
                 .title(" Search / Filter "),
         );
@@ -277,8 +280,8 @@ impl ApplyEnumDialog {
         }
 
         let list = List::new(list_items).block(
-            ratatui::widgets::Block::default()
-                .borders(ratatui::widgets::Borders::ALL)
+            Block::default()
+                .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.dialog_border))
                 .title(" Available Enums "),
         );
@@ -327,9 +330,7 @@ impl Widget for ApplyEnumDialog {
 
         match key.code {
             KeyCode::Char('n') if key.modifiers == KeyModifiers::CONTROL => {
-                self.sub_dialog = Some(Box::new(crate::ui::dialog_edit_enum::EditEnumDialog::new(
-                    None, false,
-                )));
+                self.sub_dialog = Some(Box::new(EditEnumDialog::new(None, EnumScope::Project)));
                 WidgetResult::Handled
             }
             KeyCode::Esc => {
@@ -416,9 +417,11 @@ impl Widget for ApplyEnumDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::events;
     use crate::theme::Theme;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
+    use regenerator2000_core::Core;
 
     #[test]
     fn test_apply_enum_precedence_separator_skipping_and_apply_action() {
@@ -547,12 +550,12 @@ mod tests {
         assert!(dialog.sub_dialog.is_some());
 
         let backend = TestBackend::new(80, 24);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing ApplyEnumDialog should succeed");
 
         // Esc closes the sub-dialog first, then a second Esc closes ApplyEnumDialog.
         assert_eq!(
@@ -576,10 +579,10 @@ mod tests {
 
     #[test]
     fn test_apply_enum_ctrl_n_save_refreshes_filtered_items() {
-        let mut core = regenerator2000_core::Core::new();
+        let mut core = Core::new();
         core.state
             .load_binary(Addr(0x1000), vec![0xA9, 0x05])
-            .unwrap();
+            .expect("loading test binary should succeed");
         let mut ui_state = UIState::new(Theme::default());
         ui_state.active_dialog = Some(Box::new(ApplyEnumDialog::new(
             Addr(0x1000),
@@ -588,19 +591,19 @@ mod tests {
         )));
 
         // Open EditEnumDialog via Ctrl+N, type name "NewEnum", and save via Ctrl+S.
-        crate::events::process_key_event(
+        events::process_key_event(
             &mut core,
             &mut ui_state,
             KeyEvent::new(KeyCode::Char('n'), KeyModifiers::CONTROL),
         );
         for c in "NewEnum".chars() {
-            crate::events::process_key_event(
+            events::process_key_event(
                 &mut core,
                 &mut ui_state,
                 KeyEvent::new(KeyCode::Char(c), KeyModifiers::NONE),
             );
         }
-        crate::events::process_key_event(
+        events::process_key_event(
             &mut core,
             &mut ui_state,
             KeyEvent::new(KeyCode::Char('s'), KeyModifiers::CONTROL),
@@ -616,12 +619,12 @@ mod tests {
         );
 
         // Down from <None> (0) selects "NewEnum" (1) and Enter applies it.
-        crate::events::process_key_event(
+        events::process_key_event(
             &mut core,
             &mut ui_state,
             KeyEvent::new(KeyCode::Down, KeyModifiers::NONE),
         );
-        crate::events::process_key_event(
+        events::process_key_event(
             &mut core,
             &mut ui_state,
             KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),

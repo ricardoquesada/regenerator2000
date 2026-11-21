@@ -1,21 +1,20 @@
-use crate::state::AppState;
-use crate::ui_state::{ActivePane, AppAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::Style,
-    text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
-};
+//! Right-pane character set (8-byte glyph) grid viewer and selection widget.
 
+use crate::state::AppState;
 use crate::ui::navigable::{
-    AlignedGridRange, Navigable, apply_grid_mouse_click, compute_scroll_offset,
-    handle_grid_selection_input, handle_nav_input, is_grid_item_selected, jump_grid_cursor,
-    move_grid_cursor_down, move_grid_cursor_up, right_pane_mouse_inner_area,
-    sync_grid_item_to_disassembly,
+    AlignedGridRange, GridSelectionContext, Navigable, SelectionExtend, VisualMode,
+    apply_grid_mouse_click, compute_scroll_offset, handle_grid_selection_input, handle_nav_input,
+    is_grid_item_selected, jump_grid_cursor, move_grid_cursor_down, move_grid_cursor_up,
+    right_pane_mouse_inner_area, sync_grid_item_to_disassembly,
 };
 use crate::ui::widget::{Widget, WidgetResult};
+use crate::ui_state::{ActivePane, AppAction, RightPane, UIState};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::Style;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph};
 
 /// Immediately mirror the charset cursor / selection into the disassembly
 /// view's `cursor_index` / `selection_start`.  Called eagerly so both views
@@ -31,6 +30,7 @@ fn sync_charset_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
     );
 }
 
+/// Interactive widget rendering 8-byte C64 character glyphs in 4-column or 8-column grids.
 pub struct CharsetView;
 
 impl Navigable for CharsetView {
@@ -45,11 +45,12 @@ impl Navigable for CharsetView {
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
         let total = self.len(app_state);
         let delta = amount * charset_grid_cols(ui_state);
+        let visual_mode = VisualMode::from_active(ui_state.core.is_visual_mode);
         move_grid_cursor_down(
             &mut ui_state.core.charset_cursor_index,
             &mut ui_state.core.charset_selection_start,
-            ui_state.core.is_visual_mode,
-            /* extend_selection= */ false,
+            visual_mode,
+            SelectionExtend::Replace,
             delta,
             total,
         );
@@ -57,21 +58,23 @@ impl Navigable for CharsetView {
 
     fn move_up(&self, _app_state: &AppState, ui_state: &mut UIState, amount: usize) {
         let delta = amount * charset_grid_cols(ui_state);
+        let visual_mode = VisualMode::from_active(ui_state.core.is_visual_mode);
         move_grid_cursor_up(
             &mut ui_state.core.charset_cursor_index,
             &mut ui_state.core.charset_selection_start,
-            ui_state.core.is_visual_mode,
-            /* extend_selection= */ false,
+            visual_mode,
+            SelectionExtend::Replace,
             delta,
         );
     }
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
         let total = self.len(app_state);
+        let visual_mode = VisualMode::from_active(ui_state.core.is_visual_mode);
         jump_grid_cursor(
             &mut ui_state.core.charset_cursor_index,
             &mut ui_state.core.charset_selection_start,
-            ui_state.core.is_visual_mode,
+            visual_mode,
             index,
             total,
         );
@@ -85,7 +88,7 @@ impl Navigable for CharsetView {
 /// Returns the number of character columns for the current charset view mode.
 #[must_use]
 fn charset_grid_cols(ui_state: &UIState) -> usize {
-    if ui_state.right_pane == crate::ui_state::RightPane::Charset4Col {
+    if ui_state.right_pane == RightPane::Charset4Col {
         4
     } else {
         8
@@ -218,7 +221,7 @@ impl Widget for CharsetView {
                 );
                 apply_grid_mouse_click(
                     &mouse,
-                    ui_state.core.is_visual_mode,
+                    VisualMode::from_active(ui_state.core.is_visual_mode),
                     &mut ui_state.core.charset_cursor_index,
                     &mut ui_state.core.charset_selection_start,
                     hit,
@@ -492,10 +495,12 @@ impl Widget for CharsetView {
             key,
             app_state,
             ui_state,
-            &grid,
-            cols,
-            cursor,
-            selection,
+            GridSelectionContext {
+                grid: &grid,
+                grid_cols: cols,
+                cursor,
+                selection,
+            },
             |ui, new_cursor, new_sel| {
                 ui.charset_cursor_index = new_cursor;
                 ui.charset_selection_start = new_sel;
@@ -531,14 +536,14 @@ mod tests {
 
         let area = Rect::new(0, 0, 80, 12);
         let backend = TestBackend::new(80, 12);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
 
         let view = CharsetView;
         terminal
             .draw(|f| {
                 view.render(f, area, &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing CharsetView should succeed");
 
         let buffer = terminal.backend().buffer();
         let header_row: String = (1..79)

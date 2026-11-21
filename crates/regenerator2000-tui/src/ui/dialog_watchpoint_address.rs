@@ -1,22 +1,28 @@
-use crate::state::AppState;
-use crate::ui::widget::{Widget, WidgetResult};
-use crate::ui_state::UIState;
-use crate::vice::state::BreakpointKind;
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::Paragraph,
-};
+//! Modal dialog for toggling a VICE memory watchpoint (`W`, `R`, or `R/W`) at an address.
 
+use crate::state::actions::AppAction;
+use crate::state::{Addr, AppState};
+use crate::ui::widget::{self, Widget, WidgetResult};
+use crate::ui_state::UIState;
+use crate::utils;
+use crate::vice::state::{BreakpointKind, ViceBreakpoint};
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::Frame;
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Clear, Paragraph};
+
+/// Modal dialog for entering a target address and selecting watchpoint access kind.
 pub struct WatchpointAddressDialog {
+    /// Hex address input buffer.
     pub input: String,
-    pub kind: BreakpointKind, // W is default
+    /// Watchpoint mode (`Store`, `Load`, or `LoadStore`).
+    pub kind: BreakpointKind,
 }
 
 impl WatchpointAddressDialog {
+    /// Creates a [`WatchpointAddressDialog`], optionally pre-filled with `prefill`.
     #[must_use]
     pub fn new(prefill: Option<u16>) -> Self {
         Self {
@@ -34,10 +40,10 @@ impl WatchpointAddressDialog {
         };
     }
 
-    fn existing_watchpoint<'a>(
+    fn existing_watchpoint<'app>(
         input: &str,
-        app_state: &'a AppState,
-    ) -> Option<&'a crate::vice::state::ViceBreakpoint> {
+        app_state: &'app AppState,
+    ) -> Option<&'app ViceBreakpoint> {
         u16::from_str_radix(input, 16).ok().and_then(|addr| {
             app_state
                 .vice_state
@@ -51,11 +57,11 @@ impl WatchpointAddressDialog {
 impl Widget for WatchpointAddressDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" Watchpoint ", theme);
+        let block = widget::create_dialog_block(" Watchpoint ", theme);
 
-        let area = crate::utils::centered_rect_adaptive(30, 40, 0, 4, area);
+        let area = utils::centered_rect_adaptive(30, 40, 0, 4, area);
         ui_state.active_dialog_area = area;
-        f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(Clear, area);
 
         let dollar = Style::default().fg(theme.comment);
         let addr_style = Style::default()
@@ -151,8 +157,8 @@ impl Widget for WatchpointAddressDialog {
                     // If a watchpoint already exists, remove it (use its kind to trigger toggle)
                     let kind = Self::existing_watchpoint(&self.input, app_state)
                         .map_or(self.kind, |bp| bp.kind);
-                    WidgetResult::Action(crate::state::actions::AppAction::ViceSetWatchpoint {
-                        address: crate::state::Addr(addr),
+                    WidgetResult::Action(AppAction::ViceSetWatchpoint {
+                        address: Addr(addr),
                         kind,
                     })
                 } else if self.input.is_empty() {
@@ -178,13 +184,11 @@ impl Widget for WatchpointAddressDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::Addr;
-    use crate::state::actions::AppAction;
     use crate::theme::Theme;
     use crate::vice::state::ViceBreakpoint;
     use crossterm::event::KeyModifiers;
     use ratatui::Terminal;
-    use ratatui::backend::TestBackend;
+    use ratatui::backend::{Backend, TestBackend};
 
     #[test]
     fn test_watchpoint_dialog_cycle_kind_and_existing_watchpoint_toggle() {
@@ -245,12 +249,12 @@ mod tests {
         assert_eq!(dialog.kind, BreakpointKind::Store);
 
         let backend = TestBackend::new(80, 10);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing WatchpointAddressDialog should succeed");
 
         assert_eq!(
             dialog.handle_input(
@@ -266,14 +270,15 @@ mod tests {
 
         // Rendering on a narrow 8x4 terminal clamps cursor inside bounds.
         let narrow_backend = TestBackend::new(8, 4);
-        let mut narrow_terminal = Terminal::new(narrow_backend).unwrap();
+        let mut narrow_terminal =
+            Terminal::new(narrow_backend).expect("creating narrow test terminal should succeed");
         narrow_terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
-        let pos =
-            ratatui::backend::Backend::get_cursor_position(narrow_terminal.backend_mut()).unwrap();
+            .expect("drawing WatchpointAddressDialog on narrow terminal should succeed");
+        let pos = Backend::get_cursor_position(narrow_terminal.backend_mut())
+            .expect("reading narrow terminal cursor position should succeed");
         assert!(
             pos.x < 8 && pos.y < 4,
             "Expected clamped cursor inside 8x4 terminal, got {pos:?}"

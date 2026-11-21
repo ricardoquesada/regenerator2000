@@ -1,29 +1,44 @@
+//! Modal dialog for configuring target system, origin, entry point, and auto-analysis on import.
+
+use crate::assets;
+use crate::state::actions::AppAction;
 use crate::state::{Addr, AppState, EntryAnalysisMode, System};
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::UIState;
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Clear, List, ListItem, ListState, Paragraph},
-};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{Clear, List, ListItem, ListState, Paragraph};
+use regenerator2000_core::navigation;
 
-use crate::ui::widget::{Widget, WidgetResult};
-
+/// Modal dialog for setting target platform, load origin, entry point, and analysis mode
+/// when importing or resetting a binary context.
 pub struct ImportContextDialog {
+    /// Available Commodore 8-bit system names shown in the selector list.
     pub systems: Vec<String>,
+    /// Index of the selected system in [`Self::systems`].
     pub selected_system_idx: usize,
+    /// Hex load origin address input string.
     pub origin_input: String,
+    /// Hex entry point address input string.
     pub start_input: String,
+    /// Initial analysis mode for the imported binary.
     pub entry_mode: EntryAnalysisMode,
-    pub active_field: usize, // 0: System, 1: Origin, 2: Start, 3: Checkbox, 4: Confirm, 5: Cancel
+    /// Active form field index (system, origin, start, mode, unpack/confirm, cancel).
+    pub active_field: usize,
+    /// Measured Shannon entropy of the loaded binary, if computed.
     pub entropy: Option<f32>,
+    /// Detected packer name when a packer signature matches.
     pub packer_name: Option<String>,
+    /// Whether the system selector dropdown popup is currently open.
     pub is_selecting_system: bool,
 }
 
 impl ImportContextDialog {
+    /// Creates an [`ImportContextDialog`] pre-populated with system, address, and packer hints.
     #[must_use]
     pub fn new(
         current_system: &str,
@@ -33,7 +48,7 @@ impl ImportContextDialog {
         entropy: Option<f32>,
         packer_name: Option<impl Into<String>>,
     ) -> Self {
-        let systems = crate::assets::available_systems();
+        let systems = assets::available_systems();
         let target_system = suggested_system.map_or(current_system, System::as_str);
         let selected_system_idx = systems.iter().position(|p| p == target_system).unwrap_or(0);
 
@@ -77,7 +92,7 @@ impl ImportContextDialog {
 impl Widget for ImportContextDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" Import Context Setup ", theme);
+        let block = widget::create_dialog_block(" Import Context Setup ", theme);
 
         let packer = self
             .packer_name
@@ -99,7 +114,7 @@ impl Widget for ImportContextDialog {
 
         // Dialog fits content: 10 lines + 2 borders (+1 for entropy/packer warning)
         let min_height = if show_unpack { 13 } else { 12 };
-        let area = crate::utils::centered_rect_adaptive(60, 56, 0, min_height, area);
+        let area = utils::centered_rect_adaptive(60, 56, 0, min_height, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -132,7 +147,7 @@ impl Widget for ImportContextDialog {
         let system_text = Line::from(vec![
             Span::raw("System: "),
             Span::styled(
-                format!("< {} >", system_name),
+                format!("< {system_name} >"),
                 if system_selected {
                     Style::default()
                         .fg(theme.highlight_fg)
@@ -255,23 +270,21 @@ impl Widget for ImportContextDialog {
 
         // --- High Entropy / Packer Warning ---
         if let Some(msg) = warn_msg {
-            use ratatui::text::Text;
-            use ratatui::widgets::Paragraph;
             let warn_style = Style::default()
-                .fg(ratatui::style::Color::Yellow)
+                .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD);
             let warn_text = Text::from(vec![Line::from(Span::styled(msg, warn_style))]);
             f.render_widget(
-                Paragraph::new(warn_text).alignment(ratatui::layout::Alignment::Center),
+                Paragraph::new(warn_text).alignment(Alignment::Center),
                 layout[9],
             );
         }
 
         // System Popup
         if self.is_selecting_system {
-            let popup_area = crate::utils::centered_rect_adaptive(40, 50, 50, 10, area);
+            let popup_area = utils::centered_rect_adaptive(40, 50, 50, 10, area);
             f.render_widget(Clear, popup_area);
-            let block = crate::ui::widget::create_dialog_block(" Select System ", theme);
+            let block = widget::create_dialog_block(" Select System ", theme);
 
             let list_items: Vec<ListItem> = self
                 .systems
@@ -432,7 +445,7 @@ impl Widget for ImportContextDialog {
                     }
                     ui_state.pending_unpack_entry_mode = Some(self.entry_mode);
                     ui_state.set_status_message("Unpacking...");
-                    WidgetResult::Action(crate::state::actions::AppAction::UnpackBinary)
+                    WidgetResult::Action(AppAction::UnpackBinary)
                 } else if self.active_field == cancel_field {
                     WidgetResult::Close
                 } else {
@@ -453,7 +466,7 @@ impl Widget for ImportContextDialog {
                                 entry_addr,
                                 self.entry_mode,
                             );
-                            regenerator2000_core::navigation::perform_jump_to_address_no_history(
+                            navigation::perform_jump_to_address_no_history(
                                 app_state,
                                 &mut ui_state.core,
                                 entry_addr,
@@ -491,7 +504,10 @@ impl Widget for ImportContextDialog {
 mod tests {
     use super::*;
     use crate::state::actions::AppAction;
+    use crate::theme::Theme;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     use regenerator2000_core::commands::Command;
     use regenerator2000_core::state::{BlockType, LabelKind};
     use regenerator2000_core::unpacker::{BoundSource, ExitReason, UnpackReport, UnpackResult};
@@ -539,7 +555,7 @@ mod tests {
             Some("Exomizer 3.x"),
         );
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         // Focused on Unpack (index 5). Pressing Enter should record AnalyzeAndLabel and trigger UnpackBinary.
         let key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
@@ -584,7 +600,7 @@ mod tests {
             Some("Exomizer 3.x"),
         );
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         assert_eq!(dialog.active_field, 5); // Unpack
 
@@ -615,11 +631,8 @@ mod tests {
 
     #[test]
     fn test_import_context_dialog_render_with_warning() {
-        use ratatui::Terminal;
-        use ratatui::backend::TestBackend;
-
         let backend = TestBackend::new(80, 24);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
 
         let dialog = ImportContextDialog::new(
             "C64",
@@ -630,7 +643,7 @@ mod tests {
             Some("Exomizer 2.x"),
         );
         let app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         let res = terminal.draw(|f| {
             let area = f.area();
@@ -661,7 +674,7 @@ mod tests {
     #[test]
     fn import_dialog_confirm_after_apply_has_no_duplicate_start_label() {
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let res = UnpackResult {
             data: vec![0xA9, 0x01, 0x60],
             start_addr: 0x080D,
@@ -729,7 +742,7 @@ mod tests {
     #[test]
     fn import_dialog_changed_entry_moves_label_and_code_marks() {
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         // 32-byte buffer starting at $0800:
         // $0810 (offset 0x10): NOP ($EA), RTS ($60)
         // $0820 (offset 0x20): LDA #$01 ($A9 $01), RTS ($60)
@@ -809,7 +822,7 @@ mod tests {
         let _ = app_state.load_binary(Addr(0x0801), vec![0xA9, 0x00, 0x60]);
         app_state.disassembly.clear();
 
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let mut dialog = ImportContextDialog::new(
             "C64",
             Addr(0x0801),
@@ -832,7 +845,7 @@ mod tests {
     #[test]
     fn test_import_context_space_in_hex_fields_does_not_submit() {
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let mut dialog = ImportContextDialog::new(
             "C64",
             Addr(0x0801),
@@ -854,7 +867,7 @@ mod tests {
     fn test_import_context_rejects_origin_overflow() {
         let mut app_state = AppState::new();
         let _ = app_state.load_binary(Addr(0x0801), vec![0xEA; 16]);
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
         let mut dialog = ImportContextDialog::new(
             "C64",
             Addr(0x0801),

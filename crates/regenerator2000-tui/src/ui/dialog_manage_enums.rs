@@ -1,28 +1,32 @@
-use crate::ui::widget::{Widget, WidgetResult, create_dialog_block};
+//! Modal dialog for browsing, creating, editing, copying, and deleting enum definitions.
+
+use super::dialog_edit_enum::{EditEnumDialog, EnumScope};
+use crate::ui::dialog_confirmation::ConfirmationDialog;
+use crate::ui::widget::{self, Widget, WidgetResult};
 use crate::ui_state::{AppAction, UIState};
+use crate::utils;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{
-    Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph},
-};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 use regenerator2000_core::state::AppState;
+use std::collections::BTreeMap;
 
-use super::dialog_edit_enum::EditEnumDialog;
-
+/// Modal dialog for browsing, creating, editing, copying, and deleting enum definitions.
 pub struct ManageEnumsDialog {
     active_tab: usize, // 0 = Project, 1 = Global, 2 = System
     project_enums: Vec<String>,
     global_enums: Vec<String>,
     system_enums: Vec<String>,
-    usage_counts: std::collections::BTreeMap<String, usize>,
+    usage_counts: BTreeMap<String, usize>,
     list_state: ListState,
     sub_dialog: Option<Box<dyn Widget>>,
 }
 
 impl ManageEnumsDialog {
+    /// Creates a new [`ManageEnumsDialog`] populated from `app_state`.
     #[must_use]
     pub fn new(app_state: &AppState) -> Self {
         let mut dialog = Self {
@@ -30,7 +34,7 @@ impl ManageEnumsDialog {
             project_enums: Vec::new(),
             global_enums: Vec::new(),
             system_enums: Vec::new(),
-            usage_counts: std::collections::BTreeMap::new(),
+            usage_counts: BTreeMap::new(),
             list_state: ListState::default(),
             sub_dialog: None,
         };
@@ -76,7 +80,7 @@ impl ManageEnumsDialog {
         }
     }
 
-    fn get_selected_enum_name(&self) -> Option<&str> {
+    fn selected_enum_name(&self) -> Option<&str> {
         let selected = self.list_state.selected()?;
         match self.active_tab {
             0 => self.project_enums.get(selected).map(String::as_str),
@@ -181,28 +185,36 @@ impl Widget for ManageEnumsDialog {
             }
             // Add/Create Enum
             KeyCode::Char('a') if self.active_tab < 2 => {
-                let is_global = self.active_tab == 1;
-                self.sub_dialog = Some(Box::new(EditEnumDialog::new(None, is_global)));
+                let scope = if self.active_tab == 1 {
+                    EnumScope::Global
+                } else {
+                    EnumScope::Project
+                };
+                self.sub_dialog = Some(Box::new(EditEnumDialog::new(None, scope)));
                 WidgetResult::Handled
             }
             // Edit Enum
             KeyCode::Char('e') | KeyCode::Enter if self.active_tab < 2 => {
-                if let Some(name) = self.get_selected_enum_name() {
+                if let Some(name) = self.selected_enum_name() {
                     let enum_def = if self.active_tab == 0 {
                         app_state.enums.get(name).cloned()
                     } else {
                         app_state.user_global_enums.get(name).cloned()
                     };
                     if let Some(def) = enum_def {
-                        let is_global = self.active_tab == 1;
-                        self.sub_dialog = Some(Box::new(EditEnumDialog::new(Some(def), is_global)));
+                        let scope = if self.active_tab == 1 {
+                            EnumScope::Global
+                        } else {
+                            EnumScope::Project
+                        };
+                        self.sub_dialog = Some(Box::new(EditEnumDialog::new(Some(def), scope)));
                     }
                 }
                 WidgetResult::Handled
             }
             // Copy System/Global to Project
             KeyCode::Char('c') if self.active_tab > 0 => {
-                if let Some(name) = self.get_selected_enum_name() {
+                if let Some(name) = self.selected_enum_name() {
                     let source_def = if self.active_tab == 1 {
                         app_state.user_global_enums.get(name).cloned()
                     } else {
@@ -230,7 +242,7 @@ impl Widget for ManageEnumsDialog {
             }
             // Delete Enum
             KeyCode::Char('d') | KeyCode::Delete if self.active_tab < 2 => {
-                if let Some(name) = self.get_selected_enum_name() {
+                if let Some(name) = self.selected_enum_name() {
                     let name_str = name.to_string();
                     let is_global = self.active_tab == 1;
 
@@ -263,19 +275,15 @@ impl Widget for ManageEnumsDialog {
                     } else {
                         "Delete Project Enum"
                     };
-                    let message = format!(
-                        "{}Are you sure you want to delete enum '{}'?",
-                        warning_msg, name_str
-                    );
+                    let message =
+                        format!("{warning_msg}Are you sure you want to delete enum '{name_str}'?");
 
                     // Push standard confirmation dialog
-                    self.sub_dialog = Some(Box::new(
-                        crate::ui::dialog_confirmation::ConfirmationDialog::new(
-                            title,
-                            message,
-                            confirm_action,
-                        ),
-                    ));
+                    self.sub_dialog = Some(Box::new(ConfirmationDialog::new(
+                        title,
+                        message,
+                        confirm_action,
+                    )));
                 }
                 WidgetResult::Handled
             }
@@ -293,10 +301,10 @@ impl ManageEnumsDialog {
         ui_state: &mut UIState,
     ) {
         let theme = &ui_state.theme;
-        let block = create_dialog_block(" Manage Enums ", theme);
+        let block = widget::create_dialog_block(" Manage Enums ", theme);
 
         // Center the dialog box nicely
-        let area = crate::utils::centered_rect_adaptive(65, 60, 0, 20, area);
+        let area = utils::centered_rect_adaptive(65, 60, 0, 20, area);
         ui_state.active_dialog_area = area;
 
         f.render_widget(Clear, area);
@@ -396,7 +404,7 @@ impl ManageEnumsDialog {
         f.render_stateful_widget(list, list_area, &mut list_state_mut);
 
         // Render Detail Card
-        let selected_name = self.get_selected_enum_name();
+        let selected_name = self.selected_enum_name();
         if let Some(name) = selected_name {
             let enum_def = match self.active_tab {
                 0 => app_state.enums.get(name),
@@ -482,7 +490,7 @@ impl ManageEnumsDialog {
             }
         } else {
             let empty_msg = Paragraph::new(" No enums found in this tier. ")
-                .alignment(ratatui::layout::Alignment::Center)
+                .alignment(Alignment::Center)
                 .style(Style::default().fg(theme.border_inactive));
             f.render_widget(empty_msg, detail_area);
         }
@@ -494,7 +502,7 @@ impl ManageEnumsDialog {
             _ => "",
         };
         let helpers = Paragraph::new(keys_str)
-            .alignment(ratatui::layout::Alignment::Center)
+            .alignment(Alignment::Center)
             .style(Style::default().fg(theme.highlight_fg));
         f.render_widget(helpers, helpers_area);
     }
@@ -513,7 +521,7 @@ mod tests {
             EnumDefinition {
                 name: "Colors".to_string(),
                 description: None,
-                variants: std::collections::BTreeMap::new(),
+                variants: BTreeMap::new(),
                 source_file: None,
             },
         );

@@ -1,101 +1,154 @@
+//! Transient TUI-only view state, layout hit-test rectangles, and graphics caches.
+
+use crate::state::{AppState, BlockItem, EntryAnalysisMode, LoadedProjectData};
+use crate::terminal_graphics::{self, TerminalImageProtocol};
 use crate::theme::Theme;
-pub use crate::ui::menu::MenuState;
+use crate::ui::dialog_import_context::ImportContextDialog;
+use crate::ui::navigable::AlignedGridRange;
+use crate::ui::statusbar::StatusBarState;
 use crate::ui::widget::Widget;
+use crate::utils;
 use image::DynamicImage;
+use ratatui::layout::Rect;
 use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
-use regenerator2000_core::state::EntryAnalysisMode;
-pub use regenerator2000_core::state::actions::AppAction;
+use regenerator2000_core::disassembler::DisassemblyLine;
 use std::collections::HashMap;
+use std::env;
+use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 
+pub use crate::ui::menu::MenuState;
+pub use regenerator2000_core::state::actions::AppAction;
 // Re-export core enums so existing `crate::ui_state::ActivePane` etc. still work.
 pub use regenerator2000_core::view_state::{
     ActivePane, CoreViewState, NavigationTarget, RightPane, ScreenRamMode,
 };
 
-/// Cache key `(origin, bitmap_address, multicolor_mode, screen_ram_address)` for decoded C64 bitmaps.
-pub type BitmapCacheKey = (usize, usize, bool, usize);
+/// Cache key identifying a decoded C64 bitmap and its Screen RAM configuration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct BitmapCacheKey {
+    /// Program load origin address.
+    pub origin: usize,
+    /// Base memory address of the 8 KB bitmap buffer.
+    pub bitmap_address: usize,
+    /// `true` for multicolor mode (`160x200`), `false` for high-res mode (`320x200`).
+    pub multicolor_mode: bool,
+    /// Base memory address of the 1 KB Screen RAM attribute block.
+    pub screen_ram_address: usize,
+}
 
+/// Cached graphics protocol slot for `BitmapView`, paired with the key that produced it.
+pub struct CachedBitmapProtocol {
+    /// Key of the encoded bitmap image, or `None` when invalidated.
+    pub key: Option<BitmapCacheKey>,
+    /// Terminal image protocol instance reused across frames to avoid leaking GPU IDs.
+    pub protocol: TerminalImageProtocol,
+}
+
+/// Cached live disassembly lines for `DebuggerView` keyed by base address and memory bytes.
+#[derive(Debug, Clone)]
+pub struct DebuggerDisasmCache {
+    /// Start address of [`Self::live_bytes`].
+    pub mem_start: u16,
+    /// Snapshot of live VICE memory bytes from which [`Self::lines`] were disassembled.
+    pub live_bytes: Vec<u8>,
+    /// Disassembled instruction lines displayed in the live debugger panel.
+    pub lines: Vec<DisassemblyLine>,
+}
+
+/// Mutable transient TUI state wrapping [`CoreViewState`] via [`Deref`]/[`DerefMut`].
 pub struct UIState {
     /// Frontend-agnostic state (cursors, selections, panes, modes).
     /// Accessible directly via `Deref`/`DerefMut`.
     pub core: CoreViewState,
 
     // --- TUI-only state below ---
+    /// Currently visible modal dialog widget, if any.
     pub active_dialog: Option<Box<dyn Widget>>,
+    /// FIFO queue of pending modal dialogs shown sequentially after [`Self::active_dialog`] closes.
     pub dialog_queue: Vec<Box<dyn Widget>>,
+    /// Working directory currently displayed in the file browser dialog.
     pub file_dialog_current_dir: PathBuf,
 
+    /// Top menu bar navigation and availability state.
     pub menu: MenuState,
 
+    /// Ratatui selection state for the Blocks view list.
     pub blocks_list_state: ListState,
+    /// Ratatui selection state for the Bookmarks dialog list.
     pub bookmarks_list_state: ListState,
+    /// Ratatui selection state for the Open Recent Projects dialog list.
     pub recent_list_state: ListState,
 
+    /// Set to `true` when the application event loop should exit.
     pub should_quit: bool,
-    pub status_bar: crate::ui::statusbar::StatusBarState,
+    /// Bottom status bar text and transient highlight timer state.
+    pub status_bar: StatusBarState,
 
+    /// Decoded application logo image shown on the About dialog and empty welcome screen.
     pub logo: Option<DynamicImage>,
     /// Active graphics protocol picker.
     ///
     /// [`UIState::new`] initializes this field to a headless `Halfblocks` picker so tests avoid
     /// stdio I/O. Interactive startup replaces it with the probed terminal [`Picker`].
     pub picker: Option<Picker>,
-    /// Cached [`TerminalImageProtocol`](crate::terminal_graphics::TerminalImageProtocol) slot for
-    /// `AboutDialog`.
+    /// Cached [`TerminalImageProtocol`] slot for `AboutDialog`.
     ///
     /// Reusing this slot across `Help -> About` openings double-buffers the Kitty image ID pair
     /// (`id` / `id ^ 1`) while re-transmitting when `AboutDialog` opens (avoiding stale textures
     /// after `tmux` reattach or terminal eviction).
-    pub about_logo_protocol: Option<crate::terminal_graphics::TerminalImageProtocol>,
+    pub about_logo_protocol: Option<TerminalImageProtocol>,
+    /// `true` after the user dismisses the startup welcome logo.
     pub dismiss_logo: bool,
+    /// Numeric prefix buffer accumulated for `[N]G` jump shortcuts.
     pub input_buffer: String,
 
+    /// Active TUI color palette.
     pub theme: Theme,
 
     // Vim-like search
+    /// `true` while incremental `/` vim search input is open in the status bar.
     pub vim_search_active: bool,
+    /// Incremental search pattern typed during vim search.
     pub vim_search_input: String,
 
     /// Cached native `320x200` decoded bitmaps keyed by [`BitmapCacheKey`].
     pub bitmap_cache: HashMap<BitmapCacheKey, DynamicImage>,
-    /// Cached [`TerminalImageProtocol`](crate::terminal_graphics::TerminalImageProtocol) slot for
-    /// `BitmapView`, tagged with `Some(BitmapCacheKey)` when populated.
+    /// Cached [`TerminalImageProtocol`] slot for `BitmapView`.
     ///
     /// Reusing this slot double-buffers the Kitty image ID pair (`id` / `id ^ 1`) across bitmap,
     /// Screen RAM, theme, origin, and project-reload transitions without leaking GPU IDs.
-    pub bitmap_protocol: Option<(
-        Option<BitmapCacheKey>,
-        crate::terminal_graphics::TerminalImageProtocol,
-    )>,
+    pub bitmap_protocol: Option<CachedBitmapProtocol>,
 
-    // Version update notification
+    /// Latest upstream release version string when a newer version is detected.
     pub new_version_available: Option<String>,
 
-    // Flash countdown for the debugger status line when a breakpoint or watchpoint hits.
-    // Each timer tick decrements this value. Non-zero values render with an alert style.
+    /// Remaining timer ticks for flashing the debugger pause indicator.
     pub debugger_flash_remaining: u8,
-    /// Cached live disassembly lines for `DebuggerView` keyed by `(mem_start, live_bytes)`.
-    pub debugger_disasm_cache: Option<(
-        u16,
-        Vec<u8>,
-        Vec<regenerator2000_core::disassembler::DisassemblyLine>,
-    )>,
+    /// Cached live disassembly lines for `DebuggerView`.
+    pub debugger_disasm_cache: Option<DebuggerDisasmCache>,
     /// Per-frame cached `BlockItem` list computed during `sync_views_before_render` and consumed by `BlocksView::render`.
-    pub cached_blocks_items: Option<Vec<regenerator2000_core::state::BlockItem>>,
+    pub cached_blocks_items: Option<Vec<BlockItem>>,
 
     // Layout Areas for Mouse Interaction
-    pub menu_area: ratatui::layout::Rect,
-    pub main_area: ratatui::layout::Rect,
-    pub status_bar_area: ratatui::layout::Rect,
-    pub disassembly_area: ratatui::layout::Rect,
-    pub right_pane_area: ratatui::layout::Rect,
-    pub active_dialog_area: ratatui::layout::Rect,
-    pub minimap_area: ratatui::layout::Rect,
+    /// Rendered bounds of the top menu bar.
+    pub menu_area: Rect,
+    /// Rendered bounds of the main split workspace (excluding menu, minimap, and status bar).
+    pub main_area: Rect,
+    /// Rendered bounds of the bottom status bar.
+    pub status_bar_area: Rect,
+    /// Rendered bounds of the left disassembly pane.
+    pub disassembly_area: Rect,
+    /// Rendered bounds of the right auxiliary pane.
+    pub right_pane_area: Rect,
+    /// Rendered bounds of the active modal dialog for `[x]` close hit-testing.
+    pub active_dialog_area: Rect,
+    /// Rendered bounds of the top memory minimap bar.
+    pub minimap_area: Rect,
     /// The rendered area of the textarea inside the line-comment dialog.
     /// Used to translate mouse clicks to textarea row/col coordinates.
-    pub comment_textarea_area: ratatui::layout::Rect,
+    pub comment_textarea_area: Rect,
 
     /// Entry-point analysis mode carried from a pre-unpack `ImportContextDialog` into the
     /// post-unpack `ImportContextDialog` so the user's `[ ] Disassemble from Entry Point Address`
@@ -107,14 +160,14 @@ pub struct UIState {
 // Deref to CoreViewState so `ui_state.cursor_index` keeps working unchanged
 // ---------------------------------------------------------------------------
 
-impl std::ops::Deref for UIState {
+impl Deref for UIState {
     type Target = CoreViewState;
     fn deref(&self) -> &CoreViewState {
         &self.core
     }
 }
 
-impl std::ops::DerefMut for UIState {
+impl DerefMut for UIState {
     fn deref_mut(&mut self) -> &mut CoreViewState {
         &mut self.core
     }
@@ -133,17 +186,17 @@ impl UIState {
 
             active_dialog: None,
             dialog_queue: Vec::new(),
-            file_dialog_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            file_dialog_current_dir: env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
 
             menu: MenuState::new(),
             blocks_list_state: ListState::default(),
             bookmarks_list_state: ListState::default(),
             recent_list_state: ListState::default(),
             should_quit: false,
-            status_bar: crate::ui::statusbar::StatusBarState::new(),
-            logo: crate::utils::load_logo(),
+            status_bar: StatusBarState::new(),
+            logo: utils::load_logo(),
             // Avoid stdio probing here so headless `TestBackend` tests stay deterministic and fast.
-            picker: Some(crate::terminal_graphics::create_headless_picker()),
+            picker: Some(terminal_graphics::create_headless_picker()),
             about_logo_protocol: None,
             dismiss_logo: false,
             input_buffer: String::new(),
@@ -158,22 +211,23 @@ impl UIState {
             debugger_disasm_cache: None,
             cached_blocks_items: None,
 
-            menu_area: ratatui::layout::Rect::default(),
-            main_area: ratatui::layout::Rect::default(),
-            status_bar_area: ratatui::layout::Rect::default(),
-            disassembly_area: ratatui::layout::Rect::default(),
-            right_pane_area: ratatui::layout::Rect::default(),
-            active_dialog_area: ratatui::layout::Rect::default(),
-            minimap_area: ratatui::layout::Rect::default(),
-            comment_textarea_area: ratatui::layout::Rect::default(),
+            menu_area: Rect::default(),
+            main_area: Rect::default(),
+            status_bar_area: Rect::default(),
+            disassembly_area: Rect::default(),
+            right_pane_area: Rect::default(),
+            active_dialog_area: Rect::default(),
+            minimap_area: Rect::default(),
+            comment_textarea_area: Rect::default(),
             pending_unpack_entry_mode: None,
         }
     }
 
+    /// Shows `dialog` immediately if no modal is active, or queues it in [`Self::dialog_queue`].
     pub fn push_dialog(&mut self, dialog: Box<dyn Widget>) {
         if self.active_dialog.is_none() {
             // Clear any bounds recorded by a prior modal before the newly activated dialog renders.
-            self.active_dialog_area = ratatui::layout::Rect::default();
+            self.active_dialog_area = Rect::default();
             self.active_dialog = Some(dialog);
         } else {
             self.dialog_queue.push(dialog);
@@ -185,13 +239,14 @@ impl UIState {
         if self.active_dialog.is_none() {
             // Drop stale modal bounds regardless of whether another queued dialog is promoted so
             // pre-render mouse `[x]` hit-testing cannot trigger before the next frame renders.
-            self.active_dialog_area = ratatui::layout::Rect::default();
+            self.active_dialog_area = Rect::default();
             if !self.dialog_queue.is_empty() {
                 self.active_dialog = Some(self.dialog_queue.remove(0));
             }
         }
     }
 
+    /// Updates both core status message and the TUI status bar display string.
     pub fn set_status_message(&mut self, message: impl Into<String>) {
         let msg = message.into();
         self.core.status_message = Some(msg.clone());
@@ -226,7 +281,7 @@ impl UIState {
     /// Infers the full terminal bounds from the recorded layout rectangles.
     /// Falls back to `u16::MAX` height when only `menu_area` is set, such as in unit tests.
     #[must_use]
-    pub fn terminal_area(&self) -> ratatui::layout::Rect {
+    pub fn terminal_area(&self) -> Rect {
         let areas = [
             self.menu_area,
             self.minimap_area,
@@ -248,27 +303,21 @@ impl UIState {
         } else {
             u16::MAX
         };
-        ratatui::layout::Rect::new(0, 0, width, height)
+        Rect::new(0, 0, width, height)
     }
 
     /// Clears cached decoded bitmaps and marks any existing [`UIState::bitmap_protocol`] as
     /// stale (`None` key) so the next render re-encodes in place without leaking Kitty IDs.
     pub fn invalidate_bitmap_cache(&mut self) {
         self.bitmap_cache.clear();
-        if let Some((cached_key, _)) = &mut self.bitmap_protocol {
-            *cached_key = None;
+        if let Some(cached) = &mut self.bitmap_protocol {
+            cached.key = None;
         }
     }
 
     /// Resets transient UI state, clears all selections, and restores saved pane cursors from
     /// `loaded_data`.
-    pub fn restore_session(
-        &mut self,
-        loaded_data: &crate::state::LoadedProjectData,
-        app_state: &crate::state::AppState,
-    ) {
-        use crate::ui::navigable::AlignedGridRange;
-
+    pub fn restore_session(&mut self, loaded_data: &LoadedProjectData, app_state: &AppState) {
         self.invalidate_bitmap_cache();
         self.cached_blocks_items = None;
         self.pending_unpack_entry_mode = None;
@@ -324,7 +373,7 @@ impl UIState {
             // In that case fall back to the actual current working directory so
             // that `fs::read_dir` works and `..` is shown correctly.
             let resolved = if parent.as_os_str().is_empty() {
-                std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+                env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
             } else {
                 parent
                     .canonicalize()
@@ -403,16 +452,14 @@ impl UIState {
                 .detected_packer
                 .as_deref()
                 .or_else(|| app_state.file_info().packer_name);
-            self.push_dialog(Box::new(
-                crate::ui::dialog_import_context::ImportContextDialog::new(
-                    app_state.settings.system.as_str(),
-                    app_state.origin,
-                    loaded_data.suggested_entry_point,
-                    loaded_data.suggested_system.as_ref(),
-                    loaded_data.entropy_warning,
-                    detected_packer,
-                ),
-            ));
+            self.push_dialog(Box::new(ImportContextDialog::new(
+                app_state.settings.system.as_str(),
+                app_state.origin,
+                loaded_data.suggested_entry_point,
+                loaded_data.suggested_system.as_ref(),
+                loaded_data.entropy_warning,
+                detected_packer,
+            )));
         }
     }
 }

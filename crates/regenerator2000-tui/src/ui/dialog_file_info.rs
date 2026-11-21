@@ -1,17 +1,21 @@
-use crate::state::AppState;
-use crate::ui::widget::{Widget, WidgetResult};
-use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, KeyEvent};
-use ratatui::{
-    Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Clear, Paragraph},
-};
+//! Modal dialog displaying loaded binary metadata, entropy, and packer details.
 
+use crate::state::AppState;
+use crate::ui::widget::{self, Widget, WidgetResult};
+use crate::ui_state::UIState;
+use crate::utils;
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::Frame;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Clear, Paragraph};
+use regenerator2000_core::state::FileInfo;
+use std::sync::OnceLock;
+
+/// Modal dialog summarizing the loaded binary's address span, entropy, and packer status.
 pub struct FileInfoDialog {
-    cached_file_info: std::sync::OnceLock<regenerator2000_core::state::FileInfo>,
+    cached_file_info: OnceLock<FileInfo>,
 }
 
 impl Default for FileInfoDialog {
@@ -24,7 +28,7 @@ impl FileInfoDialog {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            cached_file_info: std::sync::OnceLock::new(),
+            cached_file_info: OnceLock::new(),
         }
     }
 }
@@ -34,9 +38,9 @@ impl Widget for FileInfoDialog {
         let theme = &ui_state.theme;
         let title = " File Info ";
 
-        let block = crate::ui::widget::create_dialog_block(title, theme);
+        let block = widget::create_dialog_block(title, theme);
 
-        let area = crate::utils::centered_rect_adaptive(56, 12, 20, 10, area);
+        let area = utils::centered_rect_adaptive(56, 12, 20, 10, area);
         ui_state.active_dialog_area = area;
 
         f.render_widget(Clear, area);
@@ -165,23 +169,24 @@ mod tests {
     use crossterm::event::KeyModifiers;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
+    use ratatui::buffer::Cell;
 
     #[test]
     fn test_file_info_dialog_render_caches_info_and_closes_on_keys() {
         let mut app_state = AppState::new();
         app_state
             .load_binary(Addr(0x0801), vec![0xEA; 128])
-            .unwrap();
+            .expect("loading test binary at $0801 should succeed");
         let mut ui_state = UIState::new(Theme::default());
         let mut dialog = FileInfoDialog::new();
 
         let backend = TestBackend::new(100, 24);
-        let mut terminal = Terminal::new(backend).unwrap();
+        let mut terminal = Terminal::new(backend).expect("creating test terminal should succeed");
         terminal
             .draw(|f| {
                 dialog.render(f, f.area(), &app_state, &mut ui_state);
             })
-            .unwrap();
+            .expect("drawing FileInfoDialog should succeed");
 
         assert!(dialog.cached_file_info.get().is_some());
         let rendered: String = terminal
@@ -189,7 +194,7 @@ mod tests {
             .buffer()
             .content()
             .iter()
-            .map(ratatui::buffer::Cell::symbol)
+            .map(Cell::symbol)
             .collect();
         assert!(rendered.contains("$0801 - $0880  (128 bytes)"));
         assert!(rendered.contains("Entropy:"));

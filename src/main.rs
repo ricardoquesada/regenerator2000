@@ -895,7 +895,7 @@ fn main() -> Result<()> {
     }
 
     // Run the main event loop
-    let res = events::run_app(&mut terminal, core, ui_state, event_tx, event_rx);
+    let res = events::run_app(&mut terminal, core, ui_state, &event_tx, &event_rx);
 
     // Restore terminal
     restore_terminal(&mut terminal)?;

@@ -6,12 +6,13 @@
 //! invalid names never close the dialog or delete typed input.
 
 use crate::state::actions::AppAction;
-use crate::state::{Addr, AppState};
+use crate::state::{Addr, AppState, LabelLocality};
 use crate::ui::scoped_input::{ScopeLock, ScopedInputEvent, ScopedInputModal};
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use crossterm::event::KeyEvent;
-use ratatui::{Frame, layout::Rect};
+use ratatui::Frame;
+use ratatui::layout::Rect;
 
 const HINT_TEXT: &str =
     "Enter label name (e.g. init_screen), offset (e.g. zp_ptr + 1), or empty to clear";
@@ -22,29 +23,27 @@ pub struct LabelDialog {
     pub(crate) modal: ScopedInputModal,
     /// Target 6502 memory address under edit.
     pub address: Addr,
-    /// `true` creates a [`LabelType::LocalUserDefined`](crate::state::LabelType::LocalUserDefined)
-    /// local label for plain identifiers.
-    pub is_local: bool,
+    /// Whether plain identifiers create a local label or a global label.
+    pub locality: LabelLocality,
 }
 
 impl LabelDialog {
     /// Creates a [`LabelDialog`] for `address` and pre-populates `current_label` when present.
     #[must_use]
-    pub fn new(current_label: Option<&str>, address: Addr, is_local: bool) -> Self {
+    pub fn new(current_label: Option<&str>, address: Addr, locality: LabelLocality) -> Self {
         Self {
             modal: ScopedInputModal::new(current_label, ScopeLock::Unlocked),
             address,
-            is_local,
+            locality,
         }
     }
 }
 
 impl Widget for LabelDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
-        let checkbox_label = if self.is_local {
-            "[X] Local Label"
-        } else {
-            "[ ] Local Label"
+        let checkbox_label = match self.locality {
+            LabelLocality::Local => "[X] Local Label",
+            LabelLocality::Global => "[ ] Local Label",
         };
         ui_state.active_dialog_area = self.modal.render(
             f,
@@ -78,15 +77,10 @@ impl Widget for LabelDialog {
                     .map(|l| l.address);
                 // Check input before emitting `AppAction::ApplyLabel`.
                 // Returning `WidgetResult::Handled` on error keeps user text and `dialog_queue` intact.
-                let locality = if self.is_local {
-                    crate::state::LabelLocality::Local
-                } else {
-                    crate::state::LabelLocality::Global
-                };
                 if let Err(err) = app_state.validate_user_label_or_address_offset(
                     self.address,
                     &label_name,
-                    locality,
+                    self.locality,
                     site_addr,
                 ) {
                     return self.modal.fail_validation(err, ui_state);
@@ -95,11 +89,14 @@ impl Widget for LabelDialog {
                 WidgetResult::Action(AppAction::ApplyLabel {
                     address: self.address,
                     name: label_name,
-                    is_local: self.is_local,
+                    is_local: self.locality == LabelLocality::Local,
                 })
             }
             ScopedInputEvent::ToggleScope => {
-                self.is_local = !self.is_local;
+                self.locality = match self.locality {
+                    LabelLocality::Local => LabelLocality::Global,
+                    LabelLocality::Global => LabelLocality::Local,
+                };
                 WidgetResult::Handled
             }
             ScopedInputEvent::Handled | ScopedInputEvent::Ignored => WidgetResult::Handled,
@@ -130,7 +127,7 @@ mod tests {
     #[test]
     fn test_label_dialog_input_filtering_scope_toggle_and_submit() {
         let mut h = DialogHarness::new(
-            LabelDialog::new(Some("init"), Addr(0x1000), false),
+            LabelDialog::new(Some("init"), Addr(0x1000), LabelLocality::Global),
             AppState::new(),
         );
 
@@ -138,11 +135,11 @@ mod tests {
         h.type_str("_1!#%");
         assert_eq!(h.dialog.modal.current_text(), "init_1");
 
-        // `Tab` moves focus to the local-label checkbox, and `Space` toggles `is_local`.
+        // `Tab` moves focus to the local-label checkbox, and `Space` toggles `locality`.
         h.key(KeyCode::Tab);
         assert!(h.dialog.modal.editing_scope);
         h.key(KeyCode::Char(' '));
-        assert!(h.dialog.is_local);
+        assert_eq!(h.dialog.locality, LabelLocality::Local);
 
         let rendered = h.render();
         assert!(rendered.contains("init_1"));
@@ -186,7 +183,10 @@ mod tests {
         );
         app_state.disassemble();
 
-        let mut h = DialogHarness::new(LabelDialog::new(None, Addr(0x00FC), false), app_state);
+        let mut h = DialogHarness::new(
+            LabelDialog::new(None, Addr(0x00FC), LabelLocality::Global),
+            app_state,
+        );
         h.type_str("zp_ptr + 99");
         assert_eq!(h.key(KeyCode::Enter), WidgetResult::Handled);
         assert_eq!(h.dialog.modal.current_text(), "zp_ptr + 99");
@@ -218,7 +218,7 @@ mod tests {
             })
         );
 
-        h.dialog = LabelDialog::new(None, Addr(0x00FC), false);
+        h.dialog = LabelDialog::new(None, Addr(0x00FC), LabelLocality::Global);
         h.type_str("zp_ptr + $1");
         assert_eq!(
             h.key(KeyCode::Enter),
@@ -236,7 +236,7 @@ mod tests {
             .iter()
             .position(|l| l.address == Addr(0x2005) && l.external_label_address.is_none())
             .expect("instruction at $2005 must exist");
-        h.dialog = LabelDialog::new(Some("loc_base + 16"), Addr(0x2010), false);
+        h.dialog = LabelDialog::new(Some("loc_base + 16"), Addr(0x2010), LabelLocality::Global);
         assert_eq!(h.key(KeyCode::Enter), WidgetResult::Handled);
 
         h.ui_state.cursor_index = h
@@ -245,7 +245,7 @@ mod tests {
             .iter()
             .position(|l| l.address == Addr(0x2001) && l.external_label_address.is_none())
             .expect("instruction at $2001 must exist");
-        h.dialog = LabelDialog::new(Some("loc_base + 16"), Addr(0x2010), false);
+        h.dialog = LabelDialog::new(Some("loc_base + 16"), Addr(0x2010), LabelLocality::Global);
         assert_eq!(
             h.key(KeyCode::Enter),
             WidgetResult::Action(AppAction::ApplyLabel {
@@ -273,7 +273,11 @@ mod tests {
         core.state.disassemble();
 
         let mut ui_state = UIState::new(Theme::default());
-        ui_state.active_dialog = Some(Box::new(LabelDialog::new(None, Addr(0x00FC), false)));
+        ui_state.active_dialog = Some(Box::new(LabelDialog::new(
+            None,
+            Addr(0x00FC),
+            LabelLocality::Global,
+        )));
         ui_state.dialog_queue.push(Box::new(ShortcutsDialog::new()));
 
         let press = |core: &mut Core, ui: &mut UIState, code: KeyCode, mods: KeyModifiers| {
@@ -354,12 +358,14 @@ mod tests {
 
     #[test]
     fn test_label_dialog_ignores_ctrl_j_m_o_newlines() {
-        let sanitized = LabelDialog::new(Some("my\r\n_label"), Addr(0x00FC), false);
+        let sanitized = LabelDialog::new(Some("my\r\n_label"), Addr(0x00FC), LabelLocality::Global);
         assert_eq!(sanitized.modal.textarea.lines().len(), 1);
         assert_eq!(sanitized.modal.current_text(), "my_label");
 
-        let mut h =
-            DialogHarness::new(LabelDialog::new(None, Addr(0x00FC), false), AppState::new());
+        let mut h = DialogHarness::new(
+            LabelDialog::new(None, Addr(0x00FC), LabelLocality::Global),
+            AppState::new(),
+        );
         h.type_str("zp_ptr + 1");
         for ctrl_ch in ['j', 'm', 'o', 'J', 'M', 'O'] {
             h.key_mod(KeyCode::Char(ctrl_ch), KeyModifiers::CONTROL);
