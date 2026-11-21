@@ -7,23 +7,23 @@ Regenerator 2000 is an interactive 6502 disassembler TUI written in Rust, target
 The project is split into two main crates to separate logic from presentation:
 
 - **`regenerator2000-core`**: Contains all UI-agnostic logic.
-  - `action_handlers/`: Modular domain action handlers (`file_handler.rs`, `disassembly_handler.rs`, `debug_handler.rs`, `navigation_handler.rs`).
+  - `action_handlers/`: Modular domain action handlers (`context.rs` [`ActionContext`, `DisassemblyViewAnchor`, `DomainActionHandler`], `file_handler.rs`, `disassembly_handler.rs`, `debug_handler.rs`, `navigation_handler.rs`).
   - `analyzer.rs`: Auto-analysis (walking code, generating labels, building typed cross-references).
   - `assets.rs`: System asset loading (labels, comments, exclude lists).
   - `commands.rs`: The `Command` enum and `UndoStack`. Every undoable action is a command.
   - `config.rs`: System-wide configuration management.
   - `core.rs`: Central orchestration logic (`Core` combining `AppState` and `CoreViewState`, and `apply_action` dispatch).
   - `cpu.rs`: 6502 opcode table, addressing mode logic, and `Opcode::xref_kind()`.
-  - `disassembler/`: 6502 decoding, shared line geometry/lowering, and assembler formatters (64tass, ACME, KickAssembler, ca65).
+  - `disassembler/`: 6502 decoding, shared `DisassemblyLine` geometry/lowering (`line.rs`, `context.rs`), `Disassembler` engine (`engine.rs`, `pipeline.rs`, `symbols.rs`, `data_blocks.rs`, `handlers.rs`), and assembler formatters (`formatter_*.rs`: 64tass, ACME, KickAssembler, ca65).
   - `error.rs`: Typed `thiserror` error hierarchy (`CoreError`).
   - `event.rs`: Application event types (`CoreEvent`, `DialogType`).
   - `exporter/`: 3-stage Exporter IR pipeline (`ir.rs`), pure ASM/HTML backends (`asm.rs`, `html.rs`), and roundtrip verification (`verify.rs`).
   - `mcp/`: MCP server implementation (stdio and HTTP transports). Contains `handler.rs` dispatcher and `tools/` submodules (`analysis_tools`, `navigation_tools`, `modification_tools`, `session_tools`, `common`).
   - `navigation.rs`: Address navigation logic.
-  - `packers/`: Declarative 6502 binary packer specifications (`PackerSpec`, `Signature`, `Hints`, `MemoryPatch`, `PackerHooks` in `spec.rs`, and the ordered `REGISTRY` in `registry.rs`).
+  - `packers/`: Declarative 6502 binary packer specifications (`PackerSpec`, `Signature`, `Hints`, `MemoryPatch`, `PackerHooks` in `spec.rs`, `PackerInfo` in `info.rs`, and the ordered `REGISTRY` in `registry.rs`).
   - `parser/`: File format parsers (.prg, .d64/.d71/.d81, .t64, .crt, .vsf snapshots, .dis65, VICE labels).
   - `state/`: Persistent application state (`AppState`), sparse `AnnotationManager`, domain types, and project serialization.
-  - `unpacker/`: 2-phase 6502 emulation unpacker sandbox (`bus.rs`, `cia.rs`, `machine.rs`, `engine.rs`, `detector.rs`, `UnpackReport`, `BoundSource`).
+  - `unpacker/`: 2-phase 6502 emulation unpacker sandbox (`bus.rs`, `cia.rs`, `machine.rs`, `engine.rs`, `detector.rs`, `runner.rs` with `UnpackConfig`, `UnpackResult`, `unpack`, and `find_sys_address`, plus `UnpackReport` and `BoundSource`).
   - `utils.rs`: Shared utility functions.
   - `vice/`: VICE binary monitor protocol client for live debugging.
   - `view_state.rs`: View state management (`CoreViewState`).
@@ -102,16 +102,25 @@ Specialized agents (`.agent/agents/`) and skills (`.agent/skills/`) are availabl
 
 ## Rust Best Practices
 
-All AI-generated code MUST follow the rules below. The project enforces them through `cargo clippy -- -D warnings`; violations will block CI.
+All AI-generated code MUST follow the rules below. The workspace enforces baseline lints through `cargo clippy -- -D warnings`; violations will block CI.
+
+### Module Layout and Imports
+
+- **Thin `mod.rs` files**: Keep non-leaf `mod.rs` files limited to module declarations, module doc comments (`//!`), and `pub use` re-exports. Place structs, traits, implementations, and unit tests in named leaf submodules (e.g., `action_handlers/context.rs`, `disassembler/engine.rs`, `disassembler/line.rs`, `packers/info.rs`, `unpacker/runner.rs`, and `bin/unpacker_compare_all/{corpus/constants.rs,unp64/runner.rs}`).
+- **Flat `use` statements**: Import items from one module per `use` statement — avoid nested `use` trees (write separate `use std::collections::BTreeMap;` and `use std::fs;` imports rather than `use std::{collections::BTreeMap, fs};`). Grouping sibling items from the same module in `{...}` is fine (e.g., `use crate::state::{Addr, AppState};`).
+- **Import types; avoid inline multi-segment paths**: Import types, traits, and enums at module scope (or inside `#[cfg(test)] mod tests`) and refer to them unqualified (`Range<usize>`, `HashSet<Addr>`, `Path`). Qualify free functions with their parent module when it improves clarity or avoids name collisions (`fs::read`, `analyzer::analyze`, `navigation::resolve_jump_content_line_index`, `basic::find_sys_address`). Exceptions: disambiguating shadowed prelude names (`std::result::Result` where `crate::Result` is in scope) and `$crate::...` paths inside `macro_rules!`.
+- **No glob imports in production code**: Avoid `use foo::*;`. Glob imports are permitted only for facade re-exports (`pub use error::*;` in `lib.rs`, `pub use ...::*;` in `state/mod.rs`) and `use super::*;` inside `#[cfg(test)] mod tests`.
 
 ### Panic Safety
 
 Production code must never panic silently.
 
 - **Never use `.unwrap()` or `.expect()`** outside of `#[cfg(test)]` blocks. Both are banned by `clippy::unwrap_used` / `clippy::expect_used`.
+- **Never use `std::panic::catch_unwind`** for control flow or error recovery.
+- **No check-then-unwrap or check-then-expect**: Prefer pattern matching (`if let Some(val) = ...`, `let Some(val) = ... else { ... };`) over checking `.is_some()` / `.is_ok()` followed by unwrapping or `.expect()`.
 - **Return `Result` or `Option`** and propagate errors with `?`.
 - Use `anyhow::Result` for application-level errors where context strings suffice, and typed `thiserror` enums for library-facing error surfaces.
-- `unreachable!()` inside exhaustive `match` arms (e.g. an enum variant that logically cannot appear) is acceptable. All other panic macros require a comment explaining why the invariant holds.
+- `unreachable!()` inside exhaustive `match` arms (e.g., an enum variant that logically cannot appear) is acceptable. All other panic macros require a comment explaining why the invariant holds.
 - Both `lib.rs` files gate these lints via:
   ```rust
   #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
@@ -126,35 +135,42 @@ Production code must never panic silently.
 - Do **not** silently swallow errors with `let _ = some_fallible_call();`. Log or propagate them.
 - MCP tool handler functions must return explicit `McpError` variants for invalid/missing parameters — see `mcp/tools/` submodules for the established pattern.
 
-### API Hygiene (`#[must_use]`)
+### API Hygiene and Naming
 
 - Add `#[must_use]` to every **pure** function (one with no side effects whose return value carries meaning). This includes constructors (`fn new`), getters, and any function returning `bool`, a numeric type, or a wrapped newtype.
+- Add `#[must_use]` to error, outcome, and small value types (such as `CorpusError`) when ignoring a returned instance is likely a bug.
 - Functions that mutate state (`&mut self`) and return `()` do **not** need `#[must_use]`.
 - `#[must_use]` on an `impl` block annotates every method — use sparingly; prefer per-method annotations.
+- **No `get_` prefix on public getters**: Name simple getters after the concept (`opcodes()`, `pointer()`, `formatter()`, `line_index_for_address()`, `hardware_name()`, `basic_start()`). Use descriptive verbs (`parse_*`, `find_*`, `resolve_*`) for fallible parsing or non-trivial lookups (e.g., `parse_address_arg`).
+- **Descriptive lifetimes on public types**: Prefer named domain lifetimes (`'app`, `'ctx`, `'mem`, `'emu`, `'cfg`) over generic `'a` on public structs holding borrowed references (`ActionContext<'app>`, `DisassemblyContext<'app>`, `HandleArgs<'ctx>`, `LoadedImage<'mem>`, `StepContext<'emu>`, `UnpackEngine<'cfg>`).
 - Run `cargo clippy -- -W clippy::must_use_candidate` to find unannotated candidates in existing code.
 
 ### Documentation
 
-- All `pub` items in `regenerator2000-core` must have a doc comment (`///`).
+- All `pub` items in `regenerator2000-core` — including modules (`//!`), structs, struct fields, enums, enum variants, functions, and constants — must have doc comments (`///`).
 - Functions returning `Result` must include a `# Errors` section explaining when they fail.
 - Functions that can panic (outside tests) must include a `# Panics` section.
-- Use intra-doc links (`` [`TypeName`] ``) to cross-reference types. Run `cargo doc --no-deps` to verify they resolve.
-- Run `cargo clippy -- -W clippy::missing_errors_doc -W clippy::missing_panics_doc` to audit doc coverage.
+- Wrap code identifiers, CamelCase names (e.g., `` `AppState` ``, `` `KickAssembler` ``), hex addresses (`$0801`), flags, and file paths in backticks (`clippy::doc_markdown`).
+- Use shorthand intra-doc links (`` [`TypeName`] ``) to cross-reference types rather than redundant explicit targets such as `` [`EnumDefinition`](EnumDefinition) `` (`rustdoc::redundant_explicit_links`).
+- Run `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` and `cargo clippy -p regenerator2000-core --all-targets --all-features -- -D warnings -D missing_docs -D clippy::doc_markdown` to verify doc links, doc-tests, and coverage.
 
 ### Type Design
 
-- Prefer **newtypes** over raw primitives when a value has a distinct semantic meaning (e.g. `Addr(u16)` instead of raw `u16`). See `state/types.rs` for the established pattern.
+- Prefer **newtypes** over raw primitives when a value has a distinct semantic meaning (e.g., `Addr(u16)` instead of raw `u16`). See `state/types.rs` for the established pattern.
+- **Prefer named structs over multi-element tuples in public APIs**: Define small documented structs with named fields instead of returning or accepting unlabeled tuples (`AddrSpan`, `OffsetSpan`, `IrqVector`, `EffectiveTarget`, `DecodedPacket`, `ParsedCrt`, `ExpandedBlocks`, `AnalysisOutcome`, `DetectedPacker`, `ResolvedEnumValue`, `ViceLabel`).
 - Derive `#[derive(Debug, Clone, Copy, PartialEq, Eq)]` for all small value types. Add `Hash` when the type is used as a map key, `Ord`/`PartialOrd` when ordering is needed.
-- Implement `Display` for types shown to users; implement `From`/`Into` conversions where they remove boilerplate.
-- Use `Default` for structs with sensible zero-values; use `#[default]` on enum variants rather than a manual `Default` impl.
-- Avoid `bool` parameters in public APIs; a two-variant enum is self-documenting and prevents argument-order bugs.
+- Implement standard library traits (`Display`, `From`/`TryFrom`, `Error`) where appropriate instead of custom conversion or formatting methods.
+- Implement `Default` for options/config structs (`UnpackConfig`, `DocumentSettings`); use `#[derive(Default)]` and `#[default]` on enum variants when zero-values apply, or an explicit `Default` impl for non-zero defaults.
+- **Avoid `bool` parameters in public APIs**: Use descriptive two-variant enums instead (`AssetReload`, `Reanalysis`, `ExternalXRefs`, `BlockItemTarget`, `LabelLocality`, `PetsciiCharset`, `TrimMode`) so call sites are self-documenting and cannot transpose arguments.
 
 ### Ownership and Borrowing
 
 - Prefer `&str` over `&String`, `&[T]` over `&Vec<T>`, and `&Path` over `&PathBuf` in function signatures.
 - Use `impl Into<String>` (or `impl AsRef<str>`) for constructor arguments that store a `String`, as `System::new` does.
-- Avoid unnecessary `.clone()` — pass references where ownership is not needed.
+- Avoid unnecessary `.clone()` (`clippy::redundant_clone`) and redundant clone assignments (`buf = src.clone()`, `clippy::assigning_clones`) — pass references or borrow slices where ownership is not needed.
+- Pass borrowed views or references instead of unused owned values (`clippy::needless_pass_by_value`).
 - When passing closures that only forward to a free function (`|x| f(x)`), write `f` directly (`clippy::redundant_closure`).
+- Provide explicit type annotations when type inference would obscure a non-obvious type (such as `.collect()` destination types).
 
 ### Collections
 
@@ -163,16 +179,19 @@ Production code must never panic silently.
 
 ### Formatting and Style
 
-- Run `cargo fmt` before committing (enforced by pre-commit hook and CI).
-- Prefer `write!(buf, "{x}")` over `buf.push_str(&format!("{x}"))` (`clippy::format_push_string`).
-- Use `format!` capture syntax: `format!("{x}")` not `format!("{}", x)` (Rust 2021+).
+- Run `cargo fmt --all` before committing (enforced by pre-commit hook and CI).
+- Prefer `.is_some_and(...)` / `.is_ok_and(...)` over `.map_or(false, ...)` (`clippy::manual_is_variant_and`).
+- Prefer `write!(buf, "{x}")` over `buf.push_str(&format!("{x}"))` (`clippy::format_push_string`) and avoid `.map(...).collect::<String>()` formatting loops (`clippy::format_collect`).
+- Use inline format capture syntax (`format!("{x}")`, `clippy::uninlined_format_args`) rather than positional `format!("{}", x)`.
 - `match` arms that do nothing should use the `_ => {}` form, not `_ => unreachable!()` unless you are genuinely asserting the arm is unreachable.
 
 ### Tests
 
 - Every non-trivial function in `regenerator2000-core` should have at least one unit test in the same file (`#[cfg(test)]`).
-- Integration tests live in `tests/` and cover cross-module behavior (disassembler output, project serialization, MCP protocol).
-- Tests may freely use `.unwrap()` / `.expect()` — the per-crate `lib.rs` allows this under `#[cfg(test)]`.
+- Integration tests live in `tests/` and cover cross-module behavior (disassembler output, project serialization, MCP protocol, unpacker corpus).
+- **Prefer `.expect("reason")` / `.expect_err("reason")` over `.unwrap()` / `.unwrap_err()`** in all unit tests, integration tests, and doc-tests (`#![cfg_attr(test, allow(...))]` exempts tests from clippy errors, so write clear failure context rather than bare unwraps).
+- **Avoid check-then-expect in tests**: Do not write `assert!(x.is_some()); let v = x.expect(...);` — call `.expect("...")` directly or pattern match.
+- **Add context strings to non-obvious assertions** (`assert!`, `assert_eq!`), especially inside loops or table-driven test cases.
 - Use `AppState::new()` (not a manually built struct) as the test baseline; it sets a safe throwaway config path that never touches the real user config.
 
 ### Clippy Configuration
@@ -189,11 +208,18 @@ Currently enforced (error in CI via `-D warnings`):
 | `missing_errors_doc` | Documentation |
 | `missing_panics_doc` | Documentation |
 
-Aspirational (run manually, apply to new code):
-| Lint | Apply when |
+Aspirational / Readability Checks (apply to new code, enforced via `-D` on `regenerator2000-core` readability passes):
+| Lint | Category / Apply when |
 |---|---|
-| `needless_pass_by_value` | Writing new functions |
-| `redundant_closure` | Writing closures |
+| `missing_docs` | Public API docs in `regenerator2000-core` |
+| `clippy::doc_markdown` | Backtick code/identifiers in doc comments |
+| `clippy::redundant_clone` | Unnecessary `.clone()` calls |
+| `clippy::assigning_clones` | Reassigning via `.clone()` instead of `clone_from` / slice copy |
+| `clippy::needless_pass_by_value` | Writing new functions taking unused owned params |
+| `clippy::manual_is_variant_and` | Boolean checks on `Option` / `Result` |
+| `clippy::uninlined_format_args` | Format string readability |
+| `clippy::format_collect` | Building strings in loops (`write!` instead) |
+| `clippy::redundant_closure` | Passing single-arg closures (`f` instead of `\|x\| f(x)`) |
 
 
 ---
@@ -203,11 +229,17 @@ Aspirational (run manually, apply to new code):
 ### Commands
 
 ```bash
-cargo build                      # Debug build
-cargo run -- [file.prg]          # Run with optional file
-cargo test                       # Run all tests
-cargo fmt -- --check             # Check formatting
-cargo clippy -- -D warnings      # Lint (warnings are errors)
+cargo build                                                              # Debug build
+cargo run -- [file.prg]                                                  # Run with optional file
+cargo test --workspace --all-features                                    # Run all workspace unit, integration, and doc tests
+cargo fmt --all -- --check                                               # Check formatting
+cargo clippy --workspace --all-targets --all-features -- -D warnings     # Workspace lints (warnings are errors)
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features # Verify rustdoc builds and intra-doc links
+cargo clippy -p regenerator2000-core --all-targets --all-features -- \
+  -D warnings -D missing_docs -D clippy::doc_markdown \
+  -D clippy::redundant_clone -D clippy::assigning_clones \
+  -D clippy::needless_pass_by_value -D clippy::manual_is_variant_and \
+  -D clippy::uninlined_format_args -D clippy::format_collect              # Strict core readability lint pass
 ```
 
 ### Adding Features
@@ -229,4 +261,4 @@ Use present tense, imperative mood (e.g., `Add support for D71 disk images`). Li
 
 - **Unit Tests**: Located in `src` files (e.g., `cpu.rs`).
 - **Integration Tests**: Located in `tests/` directory. Use these for testing disassembler output, project serialization, and MCP functionality.
-- **Verification**: Always run `cargo test` and `cargo clippy` before finalizing changes.
+- **Verification**: Always run `cargo test --workspace --all-features`, `cargo clippy --workspace --all-targets --all-features -- -D warnings`, and `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features` before finalizing changes.
