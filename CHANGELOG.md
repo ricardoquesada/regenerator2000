@@ -6,6 +6,46 @@ The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0-beta0] - 2026-11-21
+
+### Fixes
+
+- **Debugger**: Reset debugger state and enable `Connect to VICE...` when VICE
+  closes a session. Disable active-session items in the `Debugger` menu when
+  offline. Clear registers, breakpoints, and live memory on manual disconnect.
+  Ignore late events from closed VICE sessions.
+- **Exporter**: Emit `ca65` screen codes `$1B`-`$1F`, `$40`, and `$5B`-`$5E` as
+  raw `.byte` values so `ca65` preserves exact bytes. Split `scrcode` lines at 9
+  arguments to match the `cbm.mac` limit.
+
+### Refactor / Internal
+
+- **Public APIs (`regenerator2000-core` & `regenerator2000-tui`)**: Apply Google
+  Rust style across both crates with no runtime behavior changes. Replace `bool`
+  parameters and unlabeled tuples with named enums and structs. Remove `get_`
+  prefixes from public getters. Use named domain lifetimes on public types.
+- **Module Layout & Imports**: Keep non-leaf `mod.rs` files thin. Move
+  implementation code into named submodules across `action_handlers`,
+  `disassembler`, `packers`, `unpacker`, `unpacker_compare_all`, `events`, `ui`,
+  `ui/menu`, and `ui/view_disassembly`. Replace inline multi-segment paths,
+  nested `use` trees, and non-facade glob imports with flat `use` statements at
+  module scope.
+- **Documentation & Hygiene**: Add missing module and public-API rustdoc
+  comments across both crates. Fix broken and redundant intra-doc links. Remove
+  redundant `.clone()` calls.
+- **Tests & Style Rules**: Replace `.unwrap()` and `.unwrap_err()` calls in
+  tests and doc-tests with descriptive `.expect()` and `.expect_err()` messages.
+  Remove redundant checks before `.expect()` calls. Document the Rust style
+  rules, module layout, and strict `rustdoc` and `clippy` checks in `AGENTS.md`.
+
+### Documentation
+
+- **Docs**: Restructure all 20 documentation pages with summary tables, tabs,
+  6502 syntax highlighting, tooltips, and tutorial screenshots. Fix wrong
+  shortcuts, broken links, and callouts in the documentation. Update the Bitmap
+  view screenshots to show Kitty graphics at native resolution. Simplify MCP
+  tool descriptions.
+
 ## [0.9.27] - 2026-11-19
 
 ### Features
