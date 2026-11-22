@@ -516,7 +516,7 @@ impl DomainActionHandler for NavigationActionHandler {
             }
             AppAction::OpenExamples => {
                 ctx.events.push(CoreEvent::OpenUrl(
-                    "https://ricardoquesada.github.io/regenerator2000/examples/".to_string(),
+                    "https://retro.moe/regenerator2000/examples/".to_string(),
                 ));
                 ctx.events.push(CoreEvent::StatusMessage(
                     "Opening Examples URL...".to_string(),
@@ -525,7 +525,7 @@ impl DomainActionHandler for NavigationActionHandler {
             }
             AppAction::OpenDocumentation => {
                 ctx.events.push(CoreEvent::OpenUrl(
-                    "https://ricardoquesada.github.io/regenerator2000/".to_string(),
+                    "https://retro.moe/regenerator2000/".to_string(),
                 ));
                 ctx.events.push(CoreEvent::StatusMessage(
                     "Opening Documentation URL...".to_string(),
@@ -2430,7 +2430,7 @@ mod tests {
         );
         assert!(ctx.events.iter().any(|e| matches!(
             e,
-            CoreEvent::OpenUrl(url) if url == "https://ricardoquesada.github.io/regenerator2000/"
+            CoreEvent::OpenUrl(url) if url == "https://retro.moe/regenerator2000/"
         )));
 
         ctx.events.clear();
@@ -2442,7 +2442,7 @@ mod tests {
         assert!(ctx.events.iter().any(|e| matches!(
             e,
             CoreEvent::OpenUrl(url)
-                if url == "https://ricardoquesada.github.io/regenerator2000/examples/"
+                if url == "https://retro.moe/regenerator2000/examples/"
         )));
     }
 }

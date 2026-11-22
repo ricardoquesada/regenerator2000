@@ -19,7 +19,7 @@ It supports two primary workflows:
 
 Use either workflow independently, or combine them. Run an initial pass with the AI, and then refine the results interactively.
 
-See the [Examples](https://ricardoquesada.github.io/regenerator2000/examples/) page to inspect pre-disassembled games for different Commodore platforms.
+See the [Examples](https://retro.moe/regenerator2000/examples/) page to inspect pre-disassembled games for different Commodore platforms.
 
 [regenerator]: https://csdb.dk/release/?id=247992
 
@@ -151,19 +151,19 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 - `--mcp-server-stdio`: Run the MCP server over stdio.
 - `--vice <HOST:PORT>`: Connect to the VICE binary monitor at startup (for example, `--vice localhost:6502`).
 - `--dump-system-config-files <PATH>`: Write all built-in system configuration files (`system-*.toml`) to the specified directory and exit.
-- `--dump-theme-files <PATH>`: Write all built-in theme files (`theme-*.toml`) to the specified directory and exit. Place modified files in the [config directory](https://ricardoquesada.github.io/regenerator2000/install/) to create custom themes.
-- `--dump-enum-files <PATH>`: Write all built-in enum files (`enum-*.toml`) to the specified directory and exit. Place modified files in the [config directory](https://ricardoquesada.github.io/regenerator2000/install/) to create custom enums.
+- `--dump-theme-files <PATH>`: Write all built-in theme files (`theme-*.toml`) to the specified directory and exit. Place modified files in the [config directory](https://retro.moe/regenerator2000/install/) to create custom themes.
+- `--dump-enum-files <PATH>`: Write all built-in enum files (`enum-*.toml`) to the specified directory and exit. Place modified files in the [config directory](https://retro.moe/regenerator2000/install/) to create custom enums.
 
 Supported file formats: `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, 6502bench (`.dis65`), `.bin`, `.raw`, and `.regen2000proj`.
 
 ## Keyboard Shortcuts
 
-See the [Keyboard Shortcuts](https://ricardoquesada.github.io/regenerator2000/keyboard_shortcuts/) page for the complete list of shortcuts.
+See the [Keyboard Shortcuts](https://retro.moe/regenerator2000/keyboard_shortcuts/) page for the complete list of shortcuts.
 
 ## Support and Documentation
 
-- [Documentation](https://ricardoquesada.github.io/regenerator2000/)
-- [Examples](https://ricardoquesada.github.io/regenerator2000/examples/): View disassembled Commodore games and software across supported platforms.
+- [Documentation](https://retro.moe/regenerator2000/)
+- [Examples](https://retro.moe/regenerator2000/examples/): View disassembled Commodore games and software across supported platforms.
 - [Support in Discord][discord]: Join the `#regenerator2000` channel under **"Misc Projects"**.
 
 [discord]: https://discord.gg/r5aMn6Cw5q
