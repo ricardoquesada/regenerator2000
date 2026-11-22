@@ -516,7 +516,7 @@ impl DomainActionHandler for NavigationActionHandler {
             }
             AppAction::OpenExamples => {
                 ctx.events.push(CoreEvent::OpenUrl(
-                    "https://regenerator2000.readthedocs.io/en/latest/examples/".to_string(),
+                    "https://ricardoquesada.github.io/regenerator2000/examples/".to_string(),
                 ));
                 ctx.events.push(CoreEvent::StatusMessage(
                     "Opening Examples URL...".to_string(),
@@ -525,7 +525,7 @@ impl DomainActionHandler for NavigationActionHandler {
             }
             AppAction::OpenDocumentation => {
                 ctx.events.push(CoreEvent::OpenUrl(
-                    "https://regenerator2000.readthedocs.io/en/latest/".to_string(),
+                    "https://ricardoquesada.github.io/regenerator2000/".to_string(),
                 ));
                 ctx.events.push(CoreEvent::StatusMessage(
                     "Opening Documentation URL...".to_string(),
@@ -2408,6 +2408,41 @@ mod tests {
             e,
             CoreEvent::StatusMessage(msg)
                 if msg == "Selection cleared" || msg == "Visual Mode Exited"
+        )));
+    }
+
+    #[test]
+    fn test_open_documentation_and_examples_urls() {
+        let mut state = AppState::new();
+        let mut view = CoreViewState::new();
+        let mut events = Vec::new();
+        let mut ctx = ActionContext {
+            state: &mut state,
+            view: &mut view,
+            events: &mut events,
+        };
+        let handler = NavigationActionHandler::new();
+
+        assert!(
+            handler
+                .handle_action(&AppAction::OpenDocumentation, &mut ctx)
+                .expect("OpenDocumentation action should succeed")
+        );
+        assert!(ctx.events.iter().any(|e| matches!(
+            e,
+            CoreEvent::OpenUrl(url) if url == "https://ricardoquesada.github.io/regenerator2000/"
+        )));
+
+        ctx.events.clear();
+        assert!(
+            handler
+                .handle_action(&AppAction::OpenExamples, &mut ctx)
+                .expect("OpenExamples action should succeed")
+        );
+        assert!(ctx.events.iter().any(|e| matches!(
+            e,
+            CoreEvent::OpenUrl(url)
+                if url == "https://ricardoquesada.github.io/regenerator2000/examples/"
         )));
     }
 }

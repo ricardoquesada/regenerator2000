@@ -1,4 +1,4 @@
-mkdocs>=1.6.0
+mkdocs>=1.6.0,<2
 mkdocs-material[imaging]>=9.7.0
 pymdown-extensions>=10.12
 mkdocs-include-markdown-plugin>=1.0.0
