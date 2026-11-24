@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -130,18 +130,100 @@ jobs:
           # We simply compress the universal binary we created in step 4
           tar -czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
 
-      - name: Upload Release Assets
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: ${{ matrix.asset_name }}
+          path: |
             ${{ matrix.asset_name }}.tar.gz
             ${{ matrix.asset_name }}.zip
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Extract release notes
+        id: notes
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          SEMVER="${TAG#v}"
+
+          if [[ "${TAG}" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          python3 - "${TAG}" >> "$GITHUB_OUTPUT" <<'EOF'
+          import pathlib
+          import re
+          import subprocess
+          import sys
+
+          tag = sys.argv[1]
+          semver = tag.lstrip("v")
+
+          # 1. Prefer the annotated Git tag message when it contains actual notes.
+          tag_msg = subprocess.check_output(
+              ["git", "for-each-ref", "--format=%(contents)", f"refs/tags/{tag}"],
+              text=True,
+          ).strip()
+          if tag_msg and tag_msg not in (tag, semver):
+              pathlib.Path("release-notes.md").write_text(tag_msg + "\n", encoding="utf-8")
+              print("has_notes=true")
+              sys.exit(0)
+
+          # 2. Fall back to the matching section in CHANGELOG.md.
+          changelog = pathlib.Path("CHANGELOG.md")
+          if changelog.is_file():
+              text = changelog.read_text(encoding="utf-8")
+              pattern = re.compile(
+                  r"^## \[" + re.escape(semver) + r"\][^\n]*\n(.*?)(?=^## \[|\Z)",
+                  re.M | re.S,
+              )
+              m = pattern.search(text)
+              if m and m.group(1).strip():
+                  pathlib.Path("release-notes.md").write_text(m.group(1).strip() + "\n", encoding="utf-8")
+                  print("has_notes=true")
+                  sys.exit(0)
+
+          print("has_notes=false")
+          EOF
+
+      - name: Publish GitHub Release (from extracted notes)
+        if: steps.notes.outputs.has_notes == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ steps.notes.outputs.is_prerelease == 'true' }}
+          body_path: release-notes.md
+          files: release-assets/*
+
+      - name: Publish GitHub Release (auto-generated notes fallback)
+        if: steps.notes.outputs.has_notes != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ steps.notes.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+          files: release-assets/*
 
   publish:
     name: Publish to crates.io
     runs-on: ubuntu-latest
-    needs: build-and-release
+    needs: release
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Checkout code
